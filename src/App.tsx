@@ -1,35 +1,43 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Public pages
+import { HomePage } from './pages/public/HomePage';
+import { ContactPage } from './pages/public/ContactPage';
+import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
+import { LoginPage } from './pages/public/LoginPage';
+import { RegisterPage } from './pages/public/RegisterPage';
 
+// Dashboard layout and pages
+import { DashboardLayout } from './components/layout/DashboardLayout';
+import { DashboardOverview } from './components/dashboard/DashboardOverview';
+import { UserProfile } from './components/user/UserProfile';
+import { PropertiesManager } from './components/properties/PropertiesManager';
+import { MessageCenter } from './components/communication/MessageCenter';
+import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
+
+export function App() {
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<HomePage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-export default App
+        {/* Dashboard Routes */}
+        <Route path="/dashboard" element={<DashboardLayout /> } > 
+          <Route index element={<DashboardOverview />} />
+          <Route path="profile" element={<UserProfile />} />
+          <Route path="properties" element={<PropertiesManager />} />
+          <Route path="messages" element={<MessageCenter />} />
+          <Route path="reports" element={<ReportsAndMetrics />} />
+        </Route>
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
+}

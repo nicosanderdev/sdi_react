@@ -1,0 +1,102 @@
+// src/services/profileService.ts
+import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up for JWT auth
+
+export interface AddressData {
+  street: string;
+  street2?: string; // Optional
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+}
+
+export interface ProfileData {
+  id?: string; // Assuming an ID might come from the backend
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  title: string;
+  avatarUrl?: string;
+  address: AddressData;
+}
+
+export interface ChangePasswordPayload {
+  oldPassword: string;
+  newPassword: string;
+}
+
+// API Endpoints
+const ENDPOINTS = {
+  CURRENT_PROFILE: '/profiles/me',
+  CHANGE_PASSWORD: '/profiles/me/change-password', // Placeholder
+  UPLOAD_AVATAR: '/profiles/me/avatar',         // Placeholder
+};
+
+/**
+ * Fetches the profile of the currently authenticated user.
+ */
+const getCurrentUserProfile = async (): Promise<ProfileData> => {
+  try {
+    return await apiClient.get<ProfileData>(ENDPOINTS.CURRENT_PROFILE);
+  } catch (error: any) {
+    console.error('Error fetching current user profile:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Updates the profile of the currently authenticated user.
+ * @param {Partial<ProfileData>} profileUpdateData - An object containing the profile fields to update.
+ */
+const updateUserProfile = async (profileUpdateData: Partial<ProfileData>): Promise<ProfileData> => {
+  try {
+    return await apiClient.put<ProfileData>(ENDPOINTS.CURRENT_PROFILE, profileUpdateData);
+  } catch (error: any) {
+    console.error('Error updating user profile:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Changes the password for the currently authenticated user.
+ * @param {ChangePasswordPayload} payload - Object containing old and new passwords.
+ */
+const changeUserPassword = async (payload: ChangePasswordPayload): Promise<void> => { // Assuming no specific data is returned on success
+  try {
+    await apiClient.post(ENDPOINTS.CHANGE_PASSWORD, payload);
+  } catch (error: any) {
+    console.error('Error changing password:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Uploads a new profile picture for the currently authenticated user.
+ * @param {FormData} formData - The FormData object containing the image file.
+ *                              Typically, the file is appended with a key like 'avatar'.
+ */
+const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => { // Or Promise<ProfileData> if backend returns full profile
+  try {
+    const response = await apiClient.post<{ data: { avatarUrl: string } }>(ENDPOINTS.UPLOAD_AVATAR, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    // Assuming backend returns an object like { data: { avatarUrl: 'new_url.jpg' } }
+    // Or if it returns the full updated profile, adjust accordingly.
+    return response.data;
+  } catch (error: any) {
+    console.error('Error uploading profile picture:', error.message);
+    throw error;
+  }
+};
+
+const profileService = {
+  getCurrentUserProfile,
+  updateUserProfile,
+  changeUserPassword,
+  uploadProfilePicture,
+};
+
+export default profileService;
