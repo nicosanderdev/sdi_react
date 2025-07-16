@@ -21,6 +21,11 @@ export interface ProfileData {
   address: AddressData;
 }
 
+export interface UpdateProfilePayload {
+  id? : string;
+  updateProfileDto? : Partial<ProfileData>
+}
+
 export interface ChangePasswordPayload {
   oldPassword: string;
   newPassword: string;
@@ -28,9 +33,9 @@ export interface ChangePasswordPayload {
 
 // API Endpoints
 const ENDPOINTS = {
-  CURRENT_PROFILE: '/profiles/me',
-  CHANGE_PASSWORD: '/profiles/me/change-password', // Placeholder
-  UPLOAD_AVATAR: '/profiles/me/avatar',         // Placeholder
+  CURRENT_PROFILE: '/profile/me',
+  CHANGE_PASSWORD: '/profile/me/change-password',
+  UPLOAD_AVATAR: '/profile/avatar',
 };
 
 /**
@@ -47,11 +52,11 @@ const getCurrentUserProfile = async (): Promise<ProfileData> => {
 
 /**
  * Updates the profile of the currently authenticated user.
- * @param {Partial<ProfileData>} profileUpdateData - An object containing the profile fields to update.
+ * @param {UpdateProfilePayload} profileUpdateData - An object containing the profile fields to update.
  */
-const updateUserProfile = async (profileUpdateData: Partial<ProfileData>): Promise<ProfileData> => {
+const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promise<UpdateProfilePayload> => {
   try {
-    return await apiClient.put<ProfileData>(ENDPOINTS.CURRENT_PROFILE, profileUpdateData);
+    return await apiClient.put<UpdateProfilePayload>(ENDPOINTS.CURRENT_PROFILE, profileUpdateData);
   } catch (error: any) {
     console.error('Error updating user profile:', error.message);
     throw error;
@@ -78,14 +83,12 @@ const changeUserPassword = async (payload: ChangePasswordPayload): Promise<void>
  */
 const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => { // Or Promise<ProfileData> if backend returns full profile
   try {
-    const response = await apiClient.post<{ data: { avatarUrl: string } }>(ENDPOINTS.UPLOAD_AVATAR, formData, {
+    const response = await apiClient.post<{ avatarUrl: string }>(ENDPOINTS.UPLOAD_AVATAR, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
-    // Assuming backend returns an object like { data: { avatarUrl: 'new_url.jpg' } }
-    // Or if it returns the full updated profile, adjust accordingly.
-    return response.data;
+    return response;
   } catch (error: any) {
     console.error('Error uploading profile picture:', error.message);
     throw error;

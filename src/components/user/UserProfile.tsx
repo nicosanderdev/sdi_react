@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, BriefcaseIcon, Edit3Icon, SaveIcon, XIcon, EyeIcon, EyeOffIcon } from 'lucide-react';
-import profileService, { ProfileData, AddressData, ChangePasswordPayload } from '../../services/ProfileService'; // Adjust path as needed
+import profileService, { ProfileData, AddressData, ChangePasswordPayload, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
 
 const initialProfileState: ProfileData = {
   firstName: '',
@@ -53,7 +53,7 @@ export function UserProfile() {
       try {
         const data = await profileService.getCurrentUserProfile();
         setProfileData(data);
-        setFormData(data); // Initialize form with fetched data
+        setFormData(data);
       } catch (err: any) {
         setError(err.message || 'Failed to fetch profile data.');
         console.error(err);
@@ -68,7 +68,7 @@ export function UserProfile() {
     const { name, value } = e.target;
     const [field, subField] = name.split('.');
 
-    if (subField) { // Handle nested address fields
+    if (subField) {
       setFormData(prev => ({
         ...prev,
         [field]: {
@@ -86,7 +86,6 @@ export function UserProfile() {
 
   const handleEditToggle = () => {
     if (editing && profileData) {
-      // If cancelling, reset formData to profileData
       setFormData(profileData);
     }
     setEditing(!editing);
@@ -98,18 +97,23 @@ export function UserProfile() {
     setIsUpdating(true);
     setError(null);
     try {
-      // Only send fields that might have changed, or send formData directly
-      // Depending on backend, you might want to diff formData and profileData
-      const updatedProfile = await profileService.updateUserProfile(formData);
-      setProfileData(updatedProfile);
-      setFormData(updatedProfile); // Ensure formData is also updated with response
+      // Create a payload without the email, as it cannot be changed.
+      const { email, ...updatePayload } = formData;
+      const payload : UpdateProfilePayload = {
+        id: undefined,
+        updateProfileDto: updatePayload,
+      };
+      const updatedProfile = await profileService.updateUserProfile(payload);
+      if (updatedProfile.updateProfileDto) {
+        setProfileData(updatedProfile.updateProfileDto as ProfileData);
+        setFormData(updatedProfile.updateProfileDto as ProfileData); // Ensure formData is also updated with response
+      }
       setEditing(false);
-      // Optionally show a success message/toast
+      setIsUpdating(false);
+      window.location.reload();
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to update profile.');
       console.error(err);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -153,29 +157,24 @@ export function UserProfile() {
   const handleAvatarFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAvatarPreview(URL.createObjectURL(file)); // Show preview immediately
+      setAvatarPreview(URL.createObjectURL(file));
 
       const fd = new FormData();
-      fd.append('avatar', file); // 'avatar' is a common key, adjust if backend expects different
-
+      fd.append('avatar', file);
       setIsAvatarUploading(true);
       setError(null);
       try {
-        const response = await profileService.uploadProfilePicture(fd);
-        // Assuming response is { avatarUrl: string } or full ProfileData
-        // If full ProfileData: setProfileData(response); setFormData(response);
-        // If just { avatarUrl }:
+        const response = await profileService.uploadProfilePicture(fd);  
         setProfileData(prev => prev ? { ...prev, avatarUrl: response.avatarUrl } : null);
         setFormData(prev => ({ ...prev, avatarUrl: response.avatarUrl }));
-        // Optionally show success message
       } catch (err: any) {
         setError(err.response?.data?.message || err.message || 'Failed to upload avatar.');
-        setAvatarPreview(profileData?.avatarUrl || null); // Revert preview on error
+        setAvatarPreview(profileData?.avatarUrl || null);
         console.error(err);
       } finally {
         setIsAvatarUploading(false);
         if (fileInputRef.current) {
-            fileInputRef.current.value = ""; // Reset file input
+            fileInputRef.current.value = "";
         }
       }
     }
@@ -208,13 +207,15 @@ export function UserProfile() {
     </div>
   );
 
+  // CHANGED: Added 'disabled' parameter to this function
   const renderInputField = (
     label: string,
     name: string,
     value: string | undefined,
     type: string = 'text',
     icon?: React.ReactNode,
-    required: boolean = true
+    required: boolean = true,
+    disabled: boolean = false
   ) => (
     <div>
       <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
@@ -228,7 +229,9 @@ export function UserProfile() {
           value={value || ''}
           onChange={handleInputChange}
           required={required}
-          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
+          disabled={disabled} // CHANGED: Added disabled attribute
+          // CHANGED: Added TailwindCSS classes for disabled state
+          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
         />
         {icon && <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">{icon}</div>}
       </div>
@@ -328,20 +331,20 @@ export function UserProfile() {
                     {renderInputField("Nombre", "firstName", formData.firstName, "text", <UserIcon size={18} />)}
                     {renderInputField("Apellido", "lastName", formData.lastName, "text", <UserIcon size={18} />)}
                 </div>
-                {renderInputField("Título / Cargo", "title", formData.title, "text", <BriefcaseIcon size={18} />)}
-                {renderInputField("Correo Electrónico", "email", formData.email, "email", <MailIcon size={18} />)}
-                {renderInputField("Teléfono", "phone", formData.phone, "tel", <PhoneIcon size={18} />)}
+                {renderInputField("Título / Cargo (Opcional)", "title", formData.title, "text", <BriefcaseIcon size={18} />, false)}
+                {renderInputField("Correo Electrónico", "email", formData.email, "email", <MailIcon size={18} />, true, true)}
+                {renderInputField("Teléfono (Opcional)", "phone", formData.phone, "tel", <PhoneIcon size={18} />, false)}
                 
-                <h4 className="text-md font-semibold text-[#1B4965] pt-2">Dirección</h4>
-                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", <MapPinIcon size={18} />)}
-                {renderInputField("Apartamento, suite, etc. (Opcional)", "address.street2", formData.address.street2, "text", <MapPinIcon size={18} />, false)}
+                <h4 className="text-md font-semibold text-[#1B4965] pt-2">Dirección (Opcional)</h4>
+                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", <MapPinIcon size={18} />, false)}
+                {renderInputField("Apartamento, suite, etc.", "address.street2", formData.address.street2, "text", <MapPinIcon size={18} />, false)}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", <MapPinIcon size={18} />)}
-                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", <MapPinIcon size={18} />)}
+                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", <MapPinIcon size={18} />, false)}
+                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", <MapPinIcon size={18} />, false)}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", <MapPinIcon size={18} />)}
-                    {renderInputField("País", "address.country", formData.address.country, "text", <MapPinIcon size={18} />)}
+                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", <MapPinIcon size={18} />, false)}
+                    {renderInputField("País", "address.country", formData.address.country, "text", <MapPinIcon size={18} />, false)}
                 </div>
 
                 {error && isUpdating && (

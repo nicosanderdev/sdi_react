@@ -12,14 +12,26 @@ export interface CustomAxiosInstance extends AxiosInstance {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 const TENANT_API_KEY = import.meta.env.VITE_TENANT_API_KEY || 'YOUR_DEFAULT_TENANT_KEY';
 
+const defaultHeaders = {
+  'X-API-Key': TENANT_API_KEY,
+  'Content-Type': 'application/json',
+};
+
 const apiClient: CustomAxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-API-Key': TENANT_API_KEY,
-  },
   withCredentials: true
 });
+
+apiClient.interceptors.request.use(
+  (config) => {
+    if (!config.headers) {
+      Object.entries(defaultHeaders).forEach(([key, value]) => {
+        config.headers.set(key, value);
+      });
+    }
+    return config;
+  },
+);
 
 apiClient.interceptors.response.use(
   (response) => {

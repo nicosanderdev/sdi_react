@@ -10,21 +10,18 @@ const TABS = [
   { id: 'all', label: 'Todas' },
   { id: 'sale', label: 'En Venta' },
   { id: 'rent', label: 'En Alquiler' },
-  { id: 'reserved', label: 'Reservadas' },
-  // { id: 'sold', label: 'Vendidas' }, // Example: if you have this status
+  { id: 'reserved', label: 'Reservadas' }
 ];
 
-const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'address', 'address2', 'city', 'state'];
+const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
 
 export function PropertiesManager() {
   const [allProperties, setAllProperties] = useState<PropertyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
   const [activeTab, setActiveTab] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProperty, setShowAddProperty] = useState(false);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);

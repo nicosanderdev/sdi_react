@@ -1,6 +1,5 @@
-// src/components/PropertyTable.tsx
-import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, ImageIcon, AlertTriangleIcon } from 'lucide-react'; // Assuming Edit2Icon as EditIcon
-import { PropertyData } from '../../services/PropertyService'; // Adjust path as needed
+import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, ImageIcon, AlertTriangleIcon } from 'lucide-react';
+import { PropertyData } from '../../services/PropertyService';
 
 interface PropertyTableProps {
   properties: PropertyData[];
@@ -71,8 +70,8 @@ export function PropertyTable({
                     <div className="text-sm font-medium text-[#1B4965] line-clamp-2" title={property.title}>
                       {property.title || 'N/A'}
                     </div>
-                    <div className="text-sm text-gray-500 line-clamp-1" title={property.address || ''}>
-                      {property.address || `${property.city || ''}, ${property.state || ''}`}
+                    <div className="text-sm text-gray-500 line-clamp-1" title={property.streetName || ''}>
+                      {property.streetName || `${property.city || ''}, ${property.state || ''}`}
                     </div>
                   </div>
                 </div>
@@ -82,12 +81,12 @@ export function PropertyTable({
                 <div className="text-sm text-gray-500">
                   {property.bedrooms ? `${property.bedrooms} hab, ` : ''} 
                   {property.bathrooms ? `${property.bathrooms} baños, ` : ''}
-                  {property.area || ''}
+                  {property.areaValue || ''}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-[#1B4965]">
-                  {property.price || 'N/A'}
+                  {property.salePrice || 'N/A'}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -107,10 +106,10 @@ export function PropertyTable({
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                {property.visits ?? '-'}
+                {property.rentPrice ?? '-'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {property.created || '-'}
+                created
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">

@@ -20,21 +20,43 @@ interface LoginResponse {
   message: string | null;
 }
 
-// A generic success response for actions that don't return data
 interface SuccessResponse {
   message: string;
 }
 
+interface RecoveryCodeResponse {
+  recoveryCode: string;
+}
+
+interface TwoFactorSetupResponse {
+  sharedKey: string;
+  authenticatorUri: string;
+}
+
+export interface RegisterUserPayload {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+export interface RegistrationResponse {
+  message: string;
+  userId?: string;
+}
+
 // --- ENDPOINTS ---
 const ENDPOINTS = {
-  LOGIN: '/auth/loginCustom',
-  LOGOUT: '/auth/logout',
+  LOGIN: '/auth/login-custom',
+  LOGOUT: '/auth/logout-custom',
   VERIFY: '/auth/verify',
-  GET_CURRENT_USER: '/auth/getcurrentuser',
-  FORGOT_PASSWORD: '/auth/forgot-password',
-  RESET_PASSWORD: '/auth/reset-password',
-  CONFIRM_EMAIL: '/auth/confirm-email',
-  RESEND_CONFIRMATION: '/auth/resend-confirmation',
+  FORGOT_PASSWORD: '/auth/forgot-password-custom',
+  RESET_PASSWORD: '/auth/reset-password-custom',
+  CONFIRM_EMAIL: '/auth/confirm-email-custom',
+  RESEND_CONFIRMATION_EMAIL: '/auth/resend-confirmation-email-custom',
+  TWO_FA_ENABLE_FIRST_STEP: '/auth/2fa/enable-2fa-first-step',
+  TWO_FA_ENABLE: '/auth/2fa/enable-confirm',
+  REGISTER: '/auth/register'
 };
 
 // --- CORE AUTH FUNCTIONS ---
@@ -58,13 +80,10 @@ const login = async (
   };
 
   const response = await apiClient.post<LoginResponse>(ENDPOINTS.LOGIN, payload);
-
-  // If login is fully successful, store user data
   if (response.succeeded && response.user) {
     localStorage.setItem('currentUser', JSON.stringify(response.user));
   }
 
-  // Return the full response so the UI can check for `requires2FA`
   return response;
 };
 
@@ -77,7 +96,6 @@ const logout = async () => {
   } catch (error) {
     console.error("Logout failed, but clearing client-side session anyway.", error);
   } finally {
-    // Always clear local storage on logout
     localStorage.removeItem('currentUser');
   }
 };
@@ -131,8 +149,6 @@ const resetPassword = async (token: string, newPassword: string): Promise<Succes
  */
 const confirmEmail = async (token: string): Promise<SuccessResponse> => {
   try {
-    // Note: Some APIs use a GET request with the token as a query parameter.
-    // Adjust if your backend requires GET /confirm-email?token=...
     return await apiClient.post<SuccessResponse>(ENDPOINTS.CONFIRM_EMAIL, { token });
   } catch (error: any) {
     console.error('Email confirmation error:', error?.response?.data || error?.message);
@@ -144,15 +160,14 @@ const confirmEmail = async (token: string): Promise<SuccessResponse> => {
  * Requests a new confirmation email to be sent.
  * @param email - The email address to send the confirmation link to.
  */
-const resendConfirmationEmail = async (email: string): Promise<SuccessResponse> => {
+const resendConfirmationEmail = async (): Promise<SuccessResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESEND_CONFIRMATION, { email });
+    return await apiClient.get<SuccessResponse>(ENDPOINTS.RESEND_CONFIRMATION_EMAIL);
   } catch (error: any) {
     console.error('Resend confirmation email error:', error?.response?.data || error?.message);
     throw error;
   }
 };
-
 
 // --- UTILITY FUNCTIONS ---
 
@@ -174,6 +189,96 @@ const getAccessToken = (): string | null => {
   return localStorage.getItem('accessToken');
 }
 
+// --- TWO-FACTOR AUTHENTICATION ---
+
+/**
+ * Requests a 2FA code to be sent to the user (e.g., via email).
+ * This is called after successful password verification when 2FA is required.
+ * @param password The user's email to identify who needs a code.
+ */
+const requestLogin2faCode = async (password: string): Promise<void> => {
+  try {
+    // Per feature description, we call the generate endpoint to trigger the code sending.
+    // The backend should differentiate this from a setup request (e.g., via POST vs GET).
+    await apiClient.post(ENDPOINTS.TWO_FA_ENABLE_FIRST_STEP, { password });
+  } catch (error: any) {
+    console.error('Error requesting 2FA login code:', error?.response?.data || error?.message);
+    throw new Error('Could not send verification code. Please try logging in again.');
+  }
+};
+
+/**
+ * Enables 2FA for the user after they've scanned the QR code and entered a verification code.
+ * @param code The 6-digit code from the user's authenticator app.
+ */
+const enable2fa = async (twoFactorCode: string): Promise<RecoveryCodeResponse> => {
+  try {
+    return await apiClient.post<RecoveryCodeResponse>(ENDPOINTS.TWO_FA_ENABLE, { twoFactorCode });
+  } catch (error: any) {
+    console.error('Error enabling 2FA:', error?.response?.data || error?.message);
+    throw error;
+  }
+};
+
+/**
+ * Registers a new user.
+ * @param userData The user's registration data.
+ * @returns A promise that resolves with the registration response.
+ */
+export const registerUser = async (userData: RegisterUserPayload): Promise<RegistrationResponse> => {
+  // The API expects the payload to be nested inside a `registerUserDto` object.
+  const requestBody = {
+    registerUserDto: userData,
+  };
+
+  try {
+    // The apiClient's response interceptor automatically returns `response.data`,
+    // so we can expect our RegistrationResponse type directly.
+    const response = await apiClient.post<RegistrationResponse>(ENDPOINTS.REGISTER, requestBody);
+    return response;
+  } catch (error: any) {
+    // The apiClient's error interceptor creates a custom error object.
+    // We log it and re-throw it to be handled by the component.
+    console.error('Error during user registration:', error.message);
+    throw error;
+  }
+};
+
+
+const getUserSettings = async () => {
+    console.log("Fetching user settings...");
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+
+    // --- !! IMPORTANT !! ---
+    const mockUserData = {
+        // SCENARIO 1: New user, email not confirmed
+        //emailConfirmed: false,
+        //twoFactorEnabled: false,
+
+        // SCENARIO 2: Email confirmed, 2FA not enabled
+        emailConfirmed: true,
+        twoFactorEnabled: false,
+
+        // SCENARIO 3: Email confirmed, 2FA enabled
+        // emailConfirmed: true,
+        // twoFactorEnabled: true,
+
+        // Also fetch the user's saved notification preferences
+        notificationSettings: {
+            new_listings: true,
+            price_drops: true,
+            status_changes: true,
+            open_houses: false,
+            market_updates: false,
+        },
+        notificationChannels: {
+            email: true,
+            push: false,
+        },
+    };
+
+    return mockUserData;
+};
 // --- EXPORTED SERVICE OBJECT ---
 
 const authService = {
@@ -184,8 +289,12 @@ const authService = {
   verifyAuth,
   confirmEmail,
   resendConfirmationEmail,
+  registerUser,
+  requestLogin2faCode,
+  enable2fa,
   getCurrentUser,
   getAccessToken,
+  getUserSettings
 };
 
 export default authService;

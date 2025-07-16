@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   HomeIcon,
   UserIcon,
@@ -8,6 +8,7 @@ import {
   SettingsIcon,
   LogOutIcon
 } from 'lucide-react';
+import authService from '../../services/AuthService';
 
 export function Sidebar() {
   const navItems = [
@@ -17,6 +18,12 @@ export function Sidebar() {
     { id: 'messages', label: 'Mensajes', icon: <MessageSquareIcon size={20} />, path: '/dashboard/messages' },
     { id: 'reports', label: 'Reportes', icon: <BarChartIcon size={20} />, path: '/dashboard/reports' }
   ];
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
 
   return (
     <div className="w-64 bg-[#1B4965] text-[#FDFFFC] flex flex-col">
@@ -62,10 +69,7 @@ export function Sidebar() {
 
         <button
           className="flex items-center w-full px-6 py-3 text-left hover:bg-[#62B6CB] transition-colors"
-          onClick={() => {
-            // your logout logic here
-            window.location.href = '/login';
-          }}
+          onClick={handleLogout}
         >
           <span className="mr-3">
             <LogOutIcon size={20} />

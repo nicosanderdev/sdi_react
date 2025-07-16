@@ -14,6 +14,10 @@ import { UserProfile } from './components/user/UserProfile';
 import { PropertiesManager } from './components/properties/PropertiesManager';
 import { MessageCenter } from './components/communication/MessageCenter';
 import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
+import { UserSettings } from './components/user/UserSettings';
+import { LogoutPage } from './components/user/LogouPage';
+import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
+
 
 export function App() {
   return (
@@ -25,6 +29,7 @@ export function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
 
         {/* Dashboard Routes */}
         <Route path="/dashboard" element={<DashboardLayout /> } > 
@@ -33,6 +38,8 @@ export function App() {
           <Route path="properties" element={<PropertiesManager />} />
           <Route path="messages" element={<MessageCenter />} />
           <Route path="reports" element={<ReportsAndMetrics />} />
+          <Route path="settings" element={<UserSettings />} />
+          <Route path="logout" element={<LogoutPage />} />
         </Route>
 
         {/* Catch-all */}

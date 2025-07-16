@@ -1,33 +1,29 @@
 // pages/Login/LoginPage.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Import useRef
 import { Link, useNavigate } from 'react-router-dom';
-// ... other imports ...
 import authService from '../../services/AuthService';
 import { PublicLayout } from '../../components/public/layout/PublicLayout';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
-
-// ... FullPageLoader component is fine ...
+import { TwoFactorInput } from './TwoFactorInput'; // <-- IMPORT THE NEW COMPONENT
 
 export function LoginPage() {
   const [isVerifying, setIsVerifying] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-
-  // NEW: State to manage which step of the login we are on
   const [loginStep, setLoginStep] = useState<'credentials' | '2fa'>('credentials');
-
   const [formData, setFormData] = useState({
-    email: '', // This will be sent as usernameOrEmail
+    email: '',
     password: '',
-    twoFactorCode: '' // New field for the 2FA code
+    twoFactorCode: ''
   });
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  
+  // Create a ref for the 2FA form to trigger submission programmatically
+  const twoFaFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
-    // This verification logic is now perfect
     const checkAuthStatus = async () => {
       setIsVerifying(true);
       const user = await authService.verifyAuth();
@@ -45,52 +41,58 @@ export function LoginPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  // UPDATED: This now handles the initial login request
+  const handle2faCodeChange = (code: string) => {
+    setFormData(prev => ({ ...prev, twoFactorCode: code }));
+  };
+  
+  const handle2faComplete = (code: string) => {
+    setFormData(prev => ({...prev, twoFactorCode: code }));
+    setTimeout(() => {
+        twoFaFormRef.current?.requestSubmit();
+    }, 100);
+  };
+
   const handleSubmitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Call login with email and password
       const response = await authService.login(formData.email, formData.password);
 
       if (response.succeeded) {
         navigate('/dashboard');
       } else if (response.requires2FA) {
-        // ---- THIS IS THE 2FA LOGIC ----
-        // Stay on the page, but switch to the 2FA input view
-        setLoginStep('2fa');
+          setLoginStep('2fa');
       } else {
-        // This case should ideally not be hit if backend returns 401 on failure,
-        // but as a fallback:
         setError(response.message || 'An unknown error occurred.');
       }
     } catch (err: any) {
-      // Error from Axios interceptor (e.g., 401 Unauthorized)
       setError(err.message || 'Invalid credentials or server error.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // NEW: Handler for submitting the 2FA code
   const handleSubmit2FA = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.twoFactorCode.length < 6) {
+        setError("Please enter the complete 6-digit code.");
+        return;
+    }
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // Call login again, but this time with the 2FA code.
-      // The email/username is needed by SignInManager to find the user in the 2FA flow.
       const response = await authService.login(formData.email, undefined, formData.twoFactorCode);
-
       if (response.succeeded) {
         navigate('/dashboard');
       } else {
+        setFormData(prev => ({ ...prev, twoFactorCode: '' }));
         setError(response.message || 'Invalid 2FA code.');
       }
     } catch (err: any) {
+      setFormData(prev => ({ ...prev, twoFactorCode: '' }));
       setError(err.message || 'Invalid 2FA code or session expired.');
     } finally {
       setIsSubmitting(false);
@@ -98,7 +100,16 @@ export function LoginPage() {
   };
 
   if (isVerifying) {
-    return <PublicLayout>Loading...</PublicLayout>;
+     return (
+      <PublicLayout>
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-gradient-to-b from-[#BEE9E8] to-[#FDFFFC]">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
+            <p className="mt-4 text-lg text-[#1B4965] font-semibold">Cargando...</p>
+          </div>
+        </div>
+      </PublicLayout>
+    );
   }
 
   return (
@@ -114,7 +125,7 @@ export function LoginPage() {
                 <p className="text-gray-600">
                   {loginStep === 'credentials'
                     ? 'Accede a tu panel de gestión'
-                    : 'Ingresa el código de tu app de autenticación.'}
+                    : 'Ingresa el código de 6 dígitos de tu app de autenticación.'}
                 </p>
               </div>
 
@@ -124,11 +135,8 @@ export function LoginPage() {
                 </div>
               )}
 
-              {/* ---- CONDITIONAL FORM RENDERING ---- */}
-
               {loginStep === 'credentials' ? (
                 <form onSubmit={handleSubmitCredentials} className="space-y-6 mt-4">
-
                   <div>
                     <label className="block text-sm font-medium text-[#101828] mb-2">
                       Correo electrónico
@@ -155,7 +163,7 @@ export function LoginPage() {
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        name="password" // Added name attribute for handler
+                        name="password"
                         required
                         value={formData.password}
                         onChange={handleInputChange}
@@ -174,8 +182,7 @@ export function LoginPage() {
                       </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-between">
+                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
@@ -187,35 +194,27 @@ export function LoginPage() {
                         Recordarme
                       </label>
                     </div>
-                    {/* Use Link for internal navigation */}
                     <Link to="/forgot-password" className="text-sm text-[#62B6CB] hover:text-[#1B4965]">
                       ¿Olvidaste tu contraseña?
                     </Link>
                   </div>
-
-                  <button type="submit" disabled={isSubmitting} className="...">
+                  <button type="submit" disabled={isSubmitting} className="w-full bg-[#1B4965] text-white py-2 rounded-lg hover:bg-[#153a52] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
                   </button>
                 </form>
               ) : (
-                <form onSubmit={handleSubmit2FA} className="space-y-6 mt-4">
+                // ---- THE UPDATED 2FA FORM ----
+                <form ref={twoFaFormRef} onSubmit={handleSubmit2FA} className="space-y-8 mt-6">
                   <div>
-                    <label className="block text-sm font-medium text-[#101828] mb-2">
-                      Código de Autenticación
-                    </label>
-                    <input
-                      type="text"
-                      name="twoFactorCode"
-                      required
-                      value={formData.twoFactorCode}
-                      onChange={handleInputChange}
-                      className="py-2 px-3 w-full border border-gray-300 rounded-lg text-center tracking-[.5em]"
-                      placeholder="123456"
-                      maxLength={6}
-                      disabled={isSubmitting}
+                    <TwoFactorInput
+                        length={6}
+                        value={formData.twoFactorCode}
+                        onChange={handle2faCodeChange}
+                        onComplete={handle2faComplete}
+                        disabled={isSubmitting}
                     />
                   </div>
-                  <button type="submit" disabled={isSubmitting} className="...">
+                  <button type="submit" disabled={isSubmitting || formData.twoFactorCode.length < 6} className="w-full bg-[#1B4965] text-white py-2 rounded-lg hover:bg-[#153a52] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? 'Verificando...' : 'Verificar Código'}
                   </button>
                 </form>
