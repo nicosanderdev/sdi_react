@@ -116,10 +116,19 @@ export function UserSettings() {
                 const userSettings = await AuthService.getUserSettings();
 
                 // Update state with fetched data
-                setIsEmailConfirmed(userSettings.emailConfirmed);
-                setIs2faEnabled(userSettings.twoFactorEnabled);
-                setNotificationSettings(userSettings.notificationSettings);
-                setNotificationChannels(userSettings.notificationChannels);
+                setIsEmailConfirmed(userSettings!.emailConfirmed);
+                setIs2faEnabled(userSettings!.twoFactorEnabled);
+                setNotificationSettings({
+                    new_listings: userSettings!.newListings,
+                    price_drops: userSettings!.priceDrops,
+                    status_changes: userSettings!.statusChanges,
+                    open_houses: userSettings!.openHouses,
+                    market_updates: userSettings!.marketUpdates,
+                });
+                setNotificationChannels({
+                    email: userSettings!.email,
+                    push: userSettings!.push,
+                });
             } catch (error) {
                 console.error("Failed to fetch user settings:", error);
                 // Handle error appropriately, e.g., show an error message
@@ -195,12 +204,8 @@ export function UserSettings() {
         setIsResendingEmail(true);
         try {
             await AuthService.resendConfirmationEmail();
-            // Optionally, show a success toast: "Confirmation email sent!"
-            alert("Se ha reenviado el correo de confirmación a tu dirección de email.");
         } catch (error) {
             console.error("Failed to resend confirmation email:", error);
-            // Optionally, show an error toast
-            alert("No se pudo reenviar el correo. Por favor, inténtalo de nuevo más tarde.");
         } finally {
             setIsResendingEmail(false);
         }

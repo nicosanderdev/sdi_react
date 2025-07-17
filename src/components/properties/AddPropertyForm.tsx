@@ -9,6 +9,8 @@ import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
 import PropertyService, { PropertyData } from '../../services/PropertyService';
+import { SuccessDisplay } from '../ui/SuccessDisplay';
+import { ErrorDisplay } from '../ui/ErrorDisplay';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -133,6 +135,8 @@ interface AddPropertyFormProps {
 }
 
 export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('form');
   const [currentStep, setCurrentStep] = useState(1);
   const queryClient = useQueryClient();
   const methods = useForm<PropertyFormData>({
@@ -189,6 +193,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
 
   const mutation = useMutation<PropertyData, Error, PropertyFormData>({
     mutationFn: async (data: PropertyFormData): Promise<PropertyData> => {
+      setApiError(null);
       console.log("Form data received for submission:", data);
 
       const formData = new FormData();
@@ -275,12 +280,14 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
     },
     onSuccess: (data) => {
       console.log("Property created successfully:", data);
+      setApiError(null);
       queryClient.invalidateQueries({ queryKey: ['properties'] });
-      onClose();
+      setView('success');
     },
     onError: (error: Error) => {
+      setView('error');
+      setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
       console.error("Submission failed", error.message);
-      alert(`Error al guardar la propiedad: ${error.message}`);
     }
   });
 
@@ -298,46 +305,78 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const onSubmit = (formData: PropertyFormData) => {
     addProperty(formData);
   };
-
+  const handleRetry = () => {
+    setApiError(null);
+    setView('form');
+  };
+    
   return (
+
     <FormProvider {...methods}>
       <div className="bg-[#FDFFFC] min-h-full">
-        <div className="border-b border-gray-200">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center">
-              {currentStep > 1 && <button onClick={handleBack} className="mr-4 p-2 hover:bg-gray-100 rounded-full">
-                <ArrowLeft size={20} className="text-[#101828]" />
-              </button>}
-              <h1 className="text-xl font-semibold text-[#101828]">
-                Nueva Propiedad - Paso {currentStep} de 4
-              </h1>
+        {view === 'form' && (
+          <>
+            <div className="border-b border-gray-200">
+              <div className="px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center">
+                  {currentStep > 1 && (
+                    <button onClick={handleBack} className="mr-4 p-2 hover:bg-gray-100 rounded-full">
+                      <ArrowLeft size={20} className="text-[#101828]" />
+                    </button>
+                  )}
+                  <h1 className="text-xl font-semibold text-[#101828]">
+                    Nueva Propiedad - Paso {currentStep} de 4
+                  </h1>
+                </div>
+                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+                  <X size={20} className="text-[#101828]" />
+                </button>
+              </div>
+              <div className="px-6 flex space-x-1">
+                {[1, 2, 3, 4].map(step => (
+                  <div
+                    key={step}
+                    className={`flex-1 h-1 rounded-full ${step <= currentStep ? 'bg-[#62B6CB]' : 'bg-gray-200'}`}
+                  />
+                ))}
+              </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-              <X size={20} className="text-[#101828]" />
-            </button>
-          </div>
-          <div className="px-6 flex space-x-1">
-            {[1, 2, 3, 4].map(step => <div key={step} className={`flex-1 h-1 rounded-full ${step <= currentStep ? 'bg-[#62B6CB]' : 'bg-gray-200'}`} />)}
-          </div>
-        </div>
-        <div className="p-6">
-          {currentStep === 1 && <PropertyFormStep1 onNext={() => handleNext(step1Fields)} />}
-          {currentStep === 2 && <PropertyFormStep2 onNext={() => handleNext(step2Fields)} onBack={handleBack} />}
-          {currentStep === 3 && <PropertyFormStep3 onNext={() => handleNext(step3Fields)} onBack={handleBack} />}
-          {currentStep === 4 &&
-            <PropertyFormStep4
-              onSubmit={handleSubmit(
-                onSubmit,
-                (errors) => {
-                  console.error("Form validation failed:", errors);
-                  alert("Hay errores en el formulario. Por favor, revisa todos los campos.");
-                }
+            <div className="p-6">
+              {currentStep === 1 && <PropertyFormStep1 onNext={() => handleNext(step1Fields)} />}
+              {currentStep === 2 && <PropertyFormStep2 onNext={() => handleNext(step2Fields)} onBack={handleBack} />}
+              {currentStep === 3 && <PropertyFormStep3 onNext={() => handleNext(step3Fields)} onBack={handleBack} />}
+              {currentStep === 4 && (
+                <PropertyFormStep4
+                  onSubmit={handleSubmit(
+                    onSubmit,
+                    (errors) => {
+                      console.error("Form validation failed:", errors);
+                    }
+                  )}
+                  onBack={handleBack}
+                  isSubmitting={isLoading || isSubmitting}
+                />
               )}
-              onBack={handleBack}
-              isSubmitting={isLoading || isSubmitting}
-            />
-          }
-        </div>
+            </div>
+          </>
+        )}
+
+        {view === 'success' && (
+          <SuccessDisplay
+            title="¡Registro de propiedad exitoso!"
+            message="La propiedad ha sido registrada correctamente."
+            redirectUrl="/dashboard/properties"
+          />
+        )}
+
+        {view === 'error' && apiError && (
+          <ErrorDisplay
+            title="Error en el registro de propiedad"
+            message={apiError}
+            buttonText="Intentar de nuevo"
+            onRetry={handleRetry}
+          />
+        )}
       </div>
     </FormProvider>
   );

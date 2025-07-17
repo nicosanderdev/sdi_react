@@ -13,6 +13,18 @@ interface User {
   roles: string[];
 }
 
+interface UserSettings {
+  emailConfirmed : boolean;
+  twoFactorEnabled : boolean;
+  newListings : boolean;
+  priceDrops : boolean;
+  statusChanges : boolean;
+  openHouses : boolean;
+  marketUpdates : boolean;
+  email : boolean;
+  push : boolean;
+}
+
 interface LoginResponse {
   succeeded: boolean;
   requires2FA: boolean;
@@ -26,11 +38,6 @@ interface SuccessResponse {
 
 interface RecoveryCodeResponse {
   recoveryCode: string;
-}
-
-interface TwoFactorSetupResponse {
-  sharedKey: string;
-  authenticatorUri: string;
 }
 
 export interface RegisterUserPayload {
@@ -56,7 +63,8 @@ const ENDPOINTS = {
   RESEND_CONFIRMATION_EMAIL: '/auth/resend-confirmation-email-custom',
   TWO_FA_ENABLE_FIRST_STEP: '/auth/2fa/enable-2fa-first-step',
   TWO_FA_ENABLE: '/auth/2fa/enable-confirm',
-  REGISTER: '/auth/register'
+  REGISTER: '/auth/register',
+  SETTINGS: '/user/settings'
 };
 
 // --- CORE AUTH FUNCTIONS ---
@@ -244,40 +252,13 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<Regis
   }
 };
 
-
 const getUserSettings = async () => {
-    console.log("Fetching user settings...");
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-
-    // --- !! IMPORTANT !! ---
-    const mockUserData = {
-        // SCENARIO 1: New user, email not confirmed
-        //emailConfirmed: false,
-        //twoFactorEnabled: false,
-
-        // SCENARIO 2: Email confirmed, 2FA not enabled
-        emailConfirmed: true,
-        twoFactorEnabled: false,
-
-        // SCENARIO 3: Email confirmed, 2FA enabled
-        // emailConfirmed: true,
-        // twoFactorEnabled: true,
-
-        // Also fetch the user's saved notification preferences
-        notificationSettings: {
-            new_listings: true,
-            price_drops: true,
-            status_changes: true,
-            open_houses: false,
-            market_updates: false,
-        },
-        notificationChannels: {
-            email: true,
-            push: false,
-        },
-    };
-
-    return mockUserData;
+  try {
+    return await apiClient.get<UserSettings>(ENDPOINTS.SETTINGS);
+  } catch (error : any) {
+    console.error("Getting users settings failed:", error || error?.message);
+    return null;
+  }
 };
 // --- EXPORTED SERVICE OBJECT ---
 

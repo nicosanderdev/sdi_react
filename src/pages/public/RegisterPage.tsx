@@ -80,7 +80,6 @@ export function RegisterPage() {
       console.log('Registration successful:', response);
       setView('success');
     } catch (error: any) {
-      // The error object comes from our Axios interceptor
       setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
       console.error('Registration API error:', error);
       setView('error');

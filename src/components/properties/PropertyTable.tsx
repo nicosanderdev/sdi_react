@@ -3,7 +3,6 @@ import { PropertyData } from '../../services/PropertyService';
 
 interface PropertyTableProps {
   properties: PropertyData[];
-  onViewProperty: (id: string) => void;
   onEditProperty: (id: string) => void;
   onPrintProperty: (id: string) => void;
   onDeleteProperty: (property: PropertyData) => void;
@@ -11,12 +10,10 @@ interface PropertyTableProps {
 
 export function PropertyTable({
   properties,
-  onViewProperty,
   onEditProperty,
   onPrintProperty,
   onDeleteProperty,
 }: PropertyTableProps) {
-
   if (!properties || properties.length === 0) {
     return (
       <div className="text-center py-10">
@@ -33,6 +30,9 @@ export function PropertyTable({
           <tr>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Propiedad
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Estado/Pais
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Detalles
@@ -59,21 +59,27 @@ export function PropertyTable({
             <tr key={property.id} className="hover:bg-gray-50 transition-colors duration-150">
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
-                  <div className="flex-shrink-0 h-10 w-10 rounded bg-[#BEE9E8] flex items-center justify-center text-[#1B4965] overflow-hidden border border-gray-200">
+                  {/*<div className="flex-shrink-0 h-10 w-10 rounded bg-[#BEE9E8] flex items-center justify-center text-[#1B4965] overflow-hidden border border-gray-200">
                     {property.mainImageUrl ? (
                       <img src={property.mainImageUrl} alt={property.title || 'Property image'} className="h-full w-full object-cover" />
                     ) : (
                       <ImageIcon size={20} />
                     )}
-                  </div>
+                  </div> */}
                   <div className="ml-4">
                     <div className="text-sm font-medium text-[#1B4965] line-clamp-2" title={property.title}>
                       {property.title || 'N/A'}
                     </div>
                     <div className="text-sm text-gray-500 line-clamp-1" title={property.streetName || ''}>
-                      {property.streetName || `${property.city || ''}, ${property.state || ''}`}
+                      {property.streetName + " " + property.houseNumber || `${property.city || ''}, ${property.state || ''}`}
                     </div>
                   </div>
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="text-sm text-gray-500">
+                  {property.state  ? `${property.state}, ` : ''}
+                  <span className="text-gray-800 font-medium">{property.country ? `${property.country} ` : ''}</span>
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -86,7 +92,7 @@ export function PropertyTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-[#1B4965]">
-                  {property.salePrice || 'N/A'}
+                  ${property.salePrice || property.salePrice || '0'}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -101,25 +107,24 @@ export function PropertyTable({
                    property.status === 'rent' ? 'En Alquiler' :
                    property.status === 'reserved' ? 'Reservada' :
                    property.status === 'sold' ? 'Vendida' :
-                   (property.status || 'N/A').toString().charAt(0).toUpperCase() + (property.status || 'N/A').toString().slice(1)
-                  }
+                   (property.status || 'N/A').toString().charAt(0).toUpperCase() + (property.status || 'N/A').toString().slice(1)}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
                 {property.rentPrice ?? '-'}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                created
+                { new Date(property.created).toLocaleDateString('es-UY', {}) }
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">
-                  <button 
+                  {/* -- <button 
                     onClick={() => onViewProperty(property.id)}
                     className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Ver Propiedad"
-                  >
+                  > 
                     <EyeIcon size={18} />
-                  </button>
+                  </button>*/} 
                   <button 
                     onClick={() => onEditProperty(property.id)}
                     className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"

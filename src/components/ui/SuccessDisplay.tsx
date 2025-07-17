@@ -9,7 +9,7 @@ interface SuccessDisplayProps {
   delay?: number;
 }
 
-export const SuccessDisplay = ({ title, message, redirectUrl, delay = 3000 }: SuccessDisplayProps) => {
+export const SuccessDisplay = ({ title, message, redirectUrl, delay = 2000 }: SuccessDisplayProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {

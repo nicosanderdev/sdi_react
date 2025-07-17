@@ -32,8 +32,8 @@ export function PropertiesManager() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await propertyService.getProperties();
-      setAllProperties(data);
+      const data = await propertyService.getUserProperties();
+      setAllProperties(data.items || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch properties.');
       console.error(err);
@@ -67,9 +67,9 @@ export function PropertiesManager() {
     return properties;
   }, [allProperties, activeTab, searchTerm]);
 
-  const handleViewProperty = (id: string) => {
+  /* const handleViewProperty = (id: string) => {
     navigate(`/properties/${id}`);
-  };
+  }; */ 
 
   const handleEditProperty = (id: string) => {
     navigate(`/properties/${id}/edit`);
@@ -171,7 +171,7 @@ export function PropertiesManager() {
         ) : (
           <PropertyTable 
             properties={filteredProperties}
-            onViewProperty={handleViewProperty}
+            // onViewProperty={handleViewProperty}
             onEditProperty={handleEditProperty}
             onPrintProperty={handlePrintProperty}
             onDeleteProperty={handleDeleteRequest}

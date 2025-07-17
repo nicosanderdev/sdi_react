@@ -21,6 +21,12 @@ export interface Location {
   lng: number;
 }
 
+export interface PropertyDataList {
+  items: PropertyData[];
+  total?: number;
+  page?: number;
+}
+
 // --- Main PropertyData Interface ---
 export interface PropertyData {
   id: string;
@@ -72,6 +78,7 @@ export interface PropertyData {
   status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
   isActive: boolean;
   isPropertyVisible: boolean;
+  created: Date;
 }
 
 // API Endpoints
@@ -85,17 +92,10 @@ const ENDPOINTS = {
 /**
  * Fetches a list of properties.
  */
-const getProperties = async (params?: any): Promise<PropertyData[]> => {
+const getProperties = async (params?: any): Promise<PropertyDataList> => {
   try {
-    const response = await apiClient.get<{ data: PropertyData[], total?: number, page?: number }>(ENDPOINTS.PROPERTIES, { params });
-    const rawProperties = response.data || (Array.isArray(response.data) ? response.data : []);
-
-    return rawProperties.map(prop => ({
-      ...prop,
-      id: String(prop.id),
-      mainImageUrl: prop.mainImageUrl,
-      isPropertyVisible: prop.isPropertyVisible === undefined ? true : prop.isPropertyVisible,
-    }));
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.PROPERTIES, { params });
+    return response;
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);
     throw error;
@@ -103,17 +103,14 @@ const getProperties = async (params?: any): Promise<PropertyData[]> => {
 };
 
 // Fetch a list of properties owned by the user
-const getUsersProperties = async (params?: any): Promise<PropertyData[]> => {
+const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
   try {
-    const response = await apiClient.get<{ data: PropertyData[], total?: number, page?: number }>(ENDPOINTS.USERS_PROPERTIES, { params });
-    const rawProperties = response.data || (Array.isArray(response.data) ? response.data : []);
-
-    return rawProperties.map(prop => ({
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { params });
+    response.items.map(prop => ({
       ...prop,
       id: String(prop.id),
-      mainImageUrl: prop.mainImageUrl,
-      isPropertyVisible: prop.isPropertyVisible === undefined ? true : prop.isPropertyVisible,
     }));
+    return response
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);
     throw error;
@@ -139,13 +136,13 @@ const getPropertyById = async (id: string): Promise<PropertyData> => {
 // Create a new property using FormData
 const createProperty = async (formData: FormData): Promise<PropertyData> => {
   try {
-    const response = await apiClient.post<{ data: PropertyData }>(ENDPOINTS.CREATE_PROPERTY, formData, {
+    const response = await apiClient.post<PropertyData>(ENDPOINTS.CREATE_PROPERTY, formData, {
       headers: { 'Content-Type': 'multipart/form-data' } 
     });
-    const rawProperty = response.data;
+    const rawProperty = response;
     return { 
       ...rawProperty,
-      id: String(rawProperty.id),
+      id: String(rawProperty!),
     };
   } catch (error: any) {
     console.error('Error creating property:', error.response?.data || error.message);
@@ -180,6 +177,7 @@ const deleteProperty = async (id: string): Promise<void> => {
 
 const propertyService = {
   getProperties,
+  getUserProperties,
   getPropertyById,
   createProperty,
   updateProperty,
