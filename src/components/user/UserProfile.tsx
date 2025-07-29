@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
-import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, BriefcaseIcon, Edit3Icon, SaveIcon, XIcon, EyeIcon, EyeOffIcon } from 'lucide-react';
-import profileService, { ProfileData, AddressData, ChangePasswordPayload, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
+import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, BriefcaseIcon, Edit3Icon, SaveIcon, XIcon } from 'lucide-react';
+import profileService, { ProfileData, AddressData, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
+import { ChangePasswordModal } from './ChangePasswordModal';
 
 const initialProfileState: ProfileData = {
   firstName: '',
@@ -19,12 +20,6 @@ const initialProfileState: ProfileData = {
   },
 };
 
-const initialPasswordChangeState = {
-  oldPassword: '',
-  newPassword: '',
-  confirmNewPassword: '',
-};
-
 export function UserProfile() {
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileData>(initialProfileState);
@@ -32,16 +27,7 @@ export function UserProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [passwordChangeData, setPasswordChangeData] = useState(initialPasswordChangeState);
-  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
-  const [isPasswordSubmitting, setIsPasswordSubmitting] = useState(false);
-  const [showOldPassword, setShowOldPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +75,7 @@ export function UserProfile() {
       setFormData(profileData);
     }
     setEditing(!editing);
-    setError(null); // Clear any previous errors when toggling edit mode
+    setError(null);
   };
 
   const handleSubmitProfile = async (e: FormEvent) => {
@@ -97,7 +83,6 @@ export function UserProfile() {
     setIsUpdating(true);
     setError(null);
     try {
-      // Create a payload without the email, as it cannot be changed.
       const { email, ...updatePayload } = formData;
       const payload : UpdateProfilePayload = {
         id: undefined,
@@ -114,43 +99,6 @@ export function UserProfile() {
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to update profile.');
       console.error(err);
-    }
-  };
-
-  const handlePasswordModalInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setPasswordChangeData(prev => ({ ...prev, [name]: value }));
-    setPasswordChangeError(null);
-  };
-
-  const handleSubmitChangePassword = async (e: FormEvent) => {
-    e.preventDefault();
-    if (passwordChangeData.newPassword !== passwordChangeData.confirmNewPassword) {
-      setPasswordChangeError('New passwords do not match.');
-      return;
-    }
-    if (passwordChangeData.newPassword.length < 8) { // Example validation
-        setPasswordChangeError('New password must be at least 8 characters long.');
-        return;
-    }
-
-    setIsPasswordSubmitting(true);
-    setPasswordChangeError(null);
-    try {
-      const payload: ChangePasswordPayload = {
-        oldPassword: passwordChangeData.oldPassword,
-        newPassword: passwordChangeData.newPassword,
-      };
-      await profileService.changeUserPassword(payload);
-      setIsChangePasswordModalOpen(false);
-      setPasswordChangeData(initialPasswordChangeState); // Reset form
-      // Optionally show a success message/toast
-      alert('Password changed successfully!');
-    } catch (err: any) {
-      setPasswordChangeError(err.response?.data?.message || err.message || 'Failed to change password.');
-      console.error(err);
-    } finally {
-      setIsPasswordSubmitting(false);
     }
   };
 
@@ -184,7 +132,6 @@ export function UserProfile() {
     return <div className="max-w-4xl mx-auto p-6 text-center">Loading profile...</div>;
   }
 
-  // If profileData is null after loading and not editing, it means fetch failed critically
   if (!profileData && !editing) {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center text-red-500">
@@ -207,7 +154,6 @@ export function UserProfile() {
     </div>
   );
 
-  // CHANGED: Added 'disabled' parameter to this function
   const renderInputField = (
     label: string,
     name: string,
@@ -229,8 +175,7 @@ export function UserProfile() {
           value={value || ''}
           onChange={handleInputChange}
           required={required}
-          disabled={disabled} // CHANGED: Added disabled attribute
-          // CHANGED: Added TailwindCSS classes for disabled state
+          disabled={disabled}
           className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
         />
         {icon && <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">{icon}</div>}
@@ -386,97 +331,13 @@ export function UserProfile() {
         </div>
       </div>
 
-      {/* Change Password Modal */}
-      {isChangePasswordModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-[#1B4965]">Cambiar Contraseña</h3>
-                <button onClick={() => { setIsChangePasswordModalOpen(false); setPasswordChangeError(null); setPasswordChangeData(initialPasswordChangeState);}} className="text-gray-500 hover:text-gray-700">
-                    <XIcon size={24} />
-                </button>
-            </div>
-            <form onSubmit={handleSubmitChangePassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
-                <div className="relative">
-                    <input
-                    type={showOldPassword ? "text" : "password"}
-                    name="oldPassword"
-                    value={passwordChangeData.oldPassword}
-                    onChange={handlePasswordModalInputChange}
-                    required
-                    className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
-                    />
-                    <button type="button" onClick={() => setShowOldPassword(!showOldPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500">
-                        {showOldPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-                    </button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
-                 <div className="relative">
-                    <input
-                    type={showNewPassword ? "text" : "password"}
-                    name="newPassword"
-                    value={passwordChangeData.newPassword}
-                    onChange={handlePasswordModalInputChange}
-                    required
-                    className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
-                    />
-                     <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500">
-                        {showNewPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-                    </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Mínimo 8 caracteres.</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nueva Contraseña</label>
-                <div className="relative">
-                    <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmNewPassword"
-                    value={passwordChangeData.confirmNewPassword}
-                    onChange={handlePasswordModalInputChange}
-                    required
-                    className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500">
-                        {showConfirmPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-                    </button>
-                </div>
-              </div>
-              {passwordChangeError && (
-                <p className="text-sm text-red-500">{passwordChangeError}</p>
-              )}
-              <div className="flex justify-end space-x-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setIsChangePasswordModalOpen(false); setPasswordChangeError(null); setPasswordChangeData(initialPasswordChangeState);}}
-                  disabled={isPasswordSubmitting}
-                  className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isPasswordSubmitting}
-                  className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#47A9C2] transition-colors text-sm disabled:opacity-50"
-                >
-                  {isPasswordSubmitting ? (
-                    <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Cambiando...
-                    </>
-                  ) : (
-                    "Cambiar Contraseña"
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ChangePasswordModal
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
+        onSuccess={() => {
+          alert('Password changed successfully!');
+        }}
+      />
     </div>
   );
 }

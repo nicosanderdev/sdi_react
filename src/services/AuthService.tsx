@@ -14,15 +14,15 @@ interface User {
 }
 
 interface UserSettings {
-  emailConfirmed : boolean;
-  twoFactorEnabled : boolean;
-  newListings : boolean;
-  priceDrops : boolean;
-  statusChanges : boolean;
-  openHouses : boolean;
-  marketUpdates : boolean;
-  email : boolean;
-  push : boolean;
+  emailConfirmed: boolean;
+  twoFactorEnabled: boolean;
+  newListings: boolean;
+  priceDrops: boolean;
+  statusChanges: boolean;
+  openHouses: boolean;
+  marketUpdates: boolean;
+  email: boolean;
+  push: boolean;
 }
 
 interface LoginResponse {
@@ -52,6 +52,53 @@ export interface RegistrationResponse {
   userId?: string;
 }
 
+export interface ConfirmPasswordChangePayload {
+  newPassword: string;
+  token: string;
+  email: string;
+  resetEmail: boolean;
+}
+
+export interface RequestPasswordChangeResponse {
+  is2FaRequired: boolean;
+  token?: string;
+}
+
+export interface ValidateTokenResponse {
+  success: boolean;
+  changeToken: string; // A temporary, single-use token to authorize the final password change
+}
+
+export interface ValidateRecoveryPayload {
+  recoveryCode: string;
+  userId?: string;
+}
+
+export interface TwoFaPayload {
+  twoFactorCode?: string;
+  userId?: string;
+}
+
+export interface RecoveryCodePayload {
+  recoveryCode: string;
+}
+
+export interface ResetTokenValidationResponse {
+  success: boolean;
+  resetToken: string; // A temporary token to authorize the password reset
+}
+
+export interface ResetPasswordPayload {
+  email?: string;
+  token: string;
+  newPassword: string;
+  resetEmail?: boolean;
+}
+
+export interface ForgotPasswordResponse {
+  twoFactorEnabled: boolean;
+}
+
 // --- ENDPOINTS ---
 const ENDPOINTS = {
   LOGIN: '/auth/login-custom',
@@ -64,7 +111,9 @@ const ENDPOINTS = {
   TWO_FA_ENABLE_FIRST_STEP: '/auth/2fa/enable-2fa-first-step',
   TWO_FA_ENABLE: '/auth/2fa/enable-confirm',
   REGISTER: '/auth/register',
-  SETTINGS: '/user/settings'
+  SETTINGS: '/user/settings',
+  RESET_PASSWORD_2FA_VALIDATE: '/auth/reset-password-2fa-validate',
+  RESET_PASSWORD_RECOVERY_VALIDATE: '/auth/validate-recovery-code',
 };
 
 // --- CORE AUTH FUNCTIONS ---
@@ -115,7 +164,7 @@ const logout = async () => {
 const verifyAuth = async (): Promise<User | null> => {
   try {
     return await apiClient.get<User>(ENDPOINTS.VERIFY);
-  } catch (error : any) {
+  } catch (error: any) {
     console.error("Auth verification failed:", error || error?.message);
     console.log("Auth verification failed, user is not logged in.");
     return null;
@@ -128,9 +177,9 @@ const verifyAuth = async (): Promise<User | null> => {
  * Sends a password reset link to the user's email.
  * @param email - The email address of the user who forgot their password.
  */
-const forgotPassword = async (email: string): Promise<SuccessResponse> => {
+const forgotPassword = async (email: string): Promise<ForgotPasswordResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.FORGOT_PASSWORD, { email });
+    return await apiClient.post<ForgotPasswordResponse>(ENDPOINTS.FORGOT_PASSWORD, { email });
   } catch (error: any) {
     console.error('Forgot password error:', error?.response?.data || error?.message);
     throw error;
@@ -142,9 +191,9 @@ const forgotPassword = async (email: string): Promise<SuccessResponse> => {
  * @param token - The password reset token from the email link.
  * @param newPassword - The new password for the user.
  */
-const resetPassword = async (token: string, newPassword: string): Promise<SuccessResponse> => {
+const resetPassword = async (resetPasswordDto: ResetPasswordPayload): Promise<SuccessResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESET_PASSWORD, { token, newPassword });
+    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESET_PASSWORD, { token: resetPasswordDto.token, newPassword: resetPasswordDto.newPassword, email: resetPasswordDto.email, resetEmail: resetPasswordDto.resetEmail });
   } catch (error: any) {
     console.error('Reset password error:', error?.response?.data || error?.message);
     throw error;
@@ -234,19 +283,14 @@ const enable2fa = async (twoFactorCode: string): Promise<RecoveryCodeResponse> =
  * @returns A promise that resolves with the registration response.
  */
 export const registerUser = async (userData: RegisterUserPayload): Promise<RegistrationResponse> => {
-  // The API expects the payload to be nested inside a `registerUserDto` object.
   const requestBody = {
     registerUserDto: userData,
   };
 
   try {
-    // The apiClient's response interceptor automatically returns `response.data`,
-    // so we can expect our RegistrationResponse type directly.
     const response = await apiClient.post<RegistrationResponse>(ENDPOINTS.REGISTER, requestBody);
     return response;
   } catch (error: any) {
-    // The apiClient's error interceptor creates a custom error object.
-    // We log it and re-throw it to be handled by the component.
     console.error('Error during user registration:', error.message);
     throw error;
   }
@@ -255,11 +299,30 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<Regis
 const getUserSettings = async () => {
   try {
     return await apiClient.get<UserSettings>(ENDPOINTS.SETTINGS);
-  } catch (error : any) {
+  } catch (error: any) {
     console.error("Getting users settings failed:", error || error?.message);
     return null;
   }
 };
+
+const validate2FaCodePasswordChange = async (payload: TwoFaPayload): Promise<RequestPasswordChangeResponse> => {
+  try {
+    return await apiClient.post<RequestPasswordChangeResponse>(ENDPOINTS.RESET_PASSWORD_2FA_VALIDATE, { twoFactorCode: payload.twoFactorCode });
+  } catch (error: any) {
+    console.error('Invalid 2fa code:', error?.response?.data || error?.message);
+    throw error;
+  }
+};
+
+const validateRecoveryPasswordChange = async (payload: ValidateRecoveryPayload): Promise<SuccessResponse> => {
+  try {
+    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESET_PASSWORD_RECOVERY_VALIDATE, { payload });
+  } catch (error: any) {
+    console.error('Invalid recovery code:', error?.response?.data || error?.message);
+    throw error;
+  }
+};
+
 // --- EXPORTED SERVICE OBJECT ---
 
 const authService = {
@@ -275,7 +338,9 @@ const authService = {
   enable2fa,
   getCurrentUser,
   getAccessToken,
-  getUserSettings
+  getUserSettings,
+  validate2FaCodePasswordChange,
+  validateRecoveryPasswordChange
 };
 
 export default authService;

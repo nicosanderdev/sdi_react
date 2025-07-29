@@ -1,9 +1,14 @@
 // src/services/profileService.ts
 import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up for JWT auth
 
+export interface RequestPasswordChangeResponse {
+  is2FaRequired: boolean;
+  token?: string;
+}
+
 export interface AddressData {
   street: string;
-  street2?: string; // Optional
+  street2?: string;
   city: string;
   state: string;
   postalCode: string;
@@ -11,7 +16,7 @@ export interface AddressData {
 }
 
 export interface ProfileData {
-  id?: string; // Assuming an ID might come from the backend
+  id?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -36,6 +41,7 @@ const ENDPOINTS = {
   CURRENT_PROFILE: '/profile/me',
   CHANGE_PASSWORD: '/profile/me/change-password',
   UPLOAD_AVATAR: '/profile/avatar',
+  RESET_PASSWORD_INIT: '/auth/reset-password-init',
 };
 
 /**
@@ -64,19 +70,6 @@ const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promi
 };
 
 /**
- * Changes the password for the currently authenticated user.
- * @param {ChangePasswordPayload} payload - Object containing old and new passwords.
- */
-const changeUserPassword = async (payload: ChangePasswordPayload): Promise<void> => { // Assuming no specific data is returned on success
-  try {
-    await apiClient.post(ENDPOINTS.CHANGE_PASSWORD, payload);
-  } catch (error: any) {
-    console.error('Error changing password:', error.message);
-    throw error;
-  }
-};
-
-/**
  * Uploads a new profile picture for the currently authenticated user.
  * @param {FormData} formData - The FormData object containing the image file.
  *                              Typically, the file is appended with a key like 'avatar'.
@@ -95,11 +88,20 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
   }
 };
 
+const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> => {
+  try {
+    return await apiClient.post<RequestPasswordChangeResponse>(ENDPOINTS.RESET_PASSWORD_INIT, {});
+  } catch (error: any) {
+    console.error('Reset password error:', error?.response?.data || error?.message);
+    throw error;
+  }
+} 
+
 const profileService = {
   getCurrentUserProfile,
   updateUserProfile,
-  changeUserPassword,
   uploadProfilePicture,
+  requestPasswordChange
 };
 
 export default profileService;

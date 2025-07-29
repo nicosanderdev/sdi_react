@@ -57,11 +57,9 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
     }
 
     if (validatedFiles.length > 0) {
-      // FIX: Use the current images array from watch to avoid stale state issues
       const currentImages = watch('images', []);
       setValue('images', [...currentImages, ...validatedFiles], { shouldValidate: true });
       
-      // Also check against the current mainImage value
       const currentMainImage = watch('mainImageUrl');
       if (!currentMainImage && (images.length + validatedFiles.length) > 0) {
          setValue('mainImageUrl', validatedFiles[0].name, { shouldValidate: true });
@@ -102,10 +100,6 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
     setValue('mainImageUrl', image.name, { shouldValidate: true });
   };
 
-  // NOTE: This local `handleNext` is removed.
-  // The `onClick` on the "Siguiente" button will now directly call the `onNext` prop.
-
-  // BUG FIX: URL.createObjectURL creates memory leaks if not revoked.
   // Use a state to manage previews and clean them up properly.
   const [previews, setPreviews] = useState<{[key: string]: string}>({});
   useEffect(() => {
@@ -115,14 +109,13 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
     });
     setPreviews(newPreviews);
 
-    // Cleanup function
     return () => {
       Object.values(newPreviews).forEach(url => URL.revokeObjectURL(url));
     }
   }, [images]);
 
   return (
-    <div className="max-w-4xl mx-auto"> {/* Increased width for better layout */}
+    <div className="max-w-4xl mx-auto">
       <div className="space-y-6">
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" onDrop={handleDrop} onDragOver={handleDragOver}>
           <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*" className="hidden" />
@@ -151,7 +144,6 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
               {images.map((image: File, index: number) => (
                 <div key={image.name + index} className="relative group">
               <div className={`aspect-square rounded-lg overflow-hidden border-2 ${mainImage === image.name ? 'border-[#62B6CB]' : 'border-transparent'}`}>
-                    {/* Use the state for previews to prevent memory leaks */}
                     <img src={previews[image.name]} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
               </div>
               <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
@@ -178,7 +170,6 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
           <button type="button" onClick={onBack} className="bg-gray-200 text-[#101828] px-6 py-2 rounded-md hover:bg-gray-300 transition-colors">
             Atrás
           </button>
-          {/* SIMPLIFIED: Just call the onNext prop directly. The parent handles validation. */}
           <button type="button" onClick={onNext} className="bg-[#1B4965] text-[#FDFFFC] px-6 py-2 rounded-md hover:opacity-90 transition-colors">
             Siguiente
           </button>

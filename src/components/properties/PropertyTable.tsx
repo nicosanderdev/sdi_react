@@ -3,14 +3,12 @@ import { PropertyData } from '../../services/PropertyService';
 
 interface PropertyTableProps {
   properties: PropertyData[];
-  onEditProperty: (id: string) => void;
   onPrintProperty: (id: string) => void;
   onDeleteProperty: (property: PropertyData) => void;
 }
 
 export function PropertyTable({
   properties,
-  onEditProperty,
   onPrintProperty,
   onDeleteProperty,
 }: PropertyTableProps) {
@@ -22,6 +20,14 @@ export function PropertyTable({
       </div>
     );
   }
+
+  const onViewProperty = (id: string) => {
+    window.location.href = `/dashboard/property/${id}`;
+  };
+
+  const onEditProperty = (id: string) => {
+    window.location.href = `/dashboard/property/${id}/edit`;
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -38,7 +44,7 @@ export function PropertyTable({
               Detalles
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Precio
+              Valor
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Estado
@@ -118,13 +124,13 @@ export function PropertyTable({
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">
-                  {/* -- <button 
+                  <button 
                     onClick={() => onViewProperty(property.id)}
                     className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Ver Propiedad"
                   > 
                     <EyeIcon size={18} />
-                  </button>*/} 
+                  </button>
                   <button 
                     onClick={() => onEditProperty(property.id)}
                     className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"

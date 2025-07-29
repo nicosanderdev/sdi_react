@@ -15,8 +15,10 @@ import { PropertiesManager } from './components/properties/PropertiesManager';
 import { MessageCenter } from './components/communication/MessageCenter';
 import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
 import { UserSettings } from './components/user/UserSettings';
-import { LogoutPage } from './components/user/LogouPage';
+import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
+import { PropertyViewPage } from './components/properties/PropertyViewPage';
+import { PropertyEditPage } from './components/properties/PropertyEditPage';
 
 
 export function App() {
@@ -40,6 +42,8 @@ export function App() {
           <Route path="reports" element={<ReportsAndMetrics />} />
           <Route path="settings" element={<UserSettings />} />
           <Route path="logout" element={<LogoutPage />} />
+          <Route path="property/:propertyId" element={<PropertyViewPage />} />
+          <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
         </Route>
 
         {/* Catch-all */}

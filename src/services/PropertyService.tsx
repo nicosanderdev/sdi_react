@@ -4,9 +4,13 @@ import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set 
 // --- Helper Interfaces ---
 export interface PropertyImage {
   id?: string;
+  contentType?: string;
   url: string;
   altText?: string;
   isMain?: boolean;
+  estatePropertyId?: string;
+  isPublic?: boolean;
+  fileName?: string;
 }
 
 export interface EstatePropertyDescription {
@@ -25,6 +29,13 @@ export interface PropertyDataList {
   items: PropertyData[];
   total?: number;
   page?: number;
+}
+
+export interface PropertyDocument {
+  id?: string;
+  url: string;
+  title: string;
+  fileName: string;
 }
 
 // --- Main PropertyData Interface ---
@@ -54,15 +65,19 @@ export interface PropertyData {
   // other info
   //relationships
   images: File[];
+  propertyImages: PropertyImage[];
   mainImage?: File;
   mainImageUrl?: string;
+  mainImageId?: string;
   publicDeed: File;
   propertyPlans: File;
   taxReceipts: File;
+  propertyDocuments?: PropertyDocument[];
   otherDocuments?: File[];
   // estate property values
   description?: string;
   availableFrom: Date;
+  availableFromText: string;
   arePetsAllowed: boolean;
   capacity: number;
   ownerId?: string;
@@ -87,6 +102,7 @@ const ENDPOINTS = {
   CREATE_PROPERTY: '/properties/create',
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
+  USERS_PROPERTY_DETAIL: (id: string) => `/properties/mine/${id}`,
 };
 
 /**
@@ -110,14 +126,14 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
       ...prop,
       id: String(prop.id),
     }));
-    return response
+    return response;
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);
     throw error;
   }
 };
 
-// Fetch a single property by its ID
+// Fetch a single property with public info by its ID
 const getPropertyById = async (id: string): Promise<PropertyData> => {
   try {
     const response = await apiClient.get<{ data: PropertyData }>(ENDPOINTS.PROPERTY_DETAIL(id));
@@ -127,6 +143,17 @@ const getPropertyById = async (id: string): Promise<PropertyData> => {
       id: String(rawProperty.id),
       isPropertyVisible: rawProperty.isPropertyVisible === undefined ? true : rawProperty.isPropertyVisible,
     };
+  } catch (error: any) {
+    console.error(`Error fetching property ${id}:`, error.message);
+    throw error;
+  }
+};
+
+// Fetch a single property by its ID
+const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
+  try {
+    const response = await apiClient.get<PropertyData>(ENDPOINTS.USERS_PROPERTY_DETAIL(id));
+    return response;
   } catch (error: any) {
     console.error(`Error fetching property ${id}:`, error.message);
     throw error;
@@ -151,13 +178,14 @@ const createProperty = async (formData: FormData): Promise<PropertyData> => {
 };
 
 // Update an existing property
-const updateProperty = async (id: string, propertyData: Partial<PropertyData>): Promise<PropertyData> => {
+const updateProperty = async (id: string, formData: FormData): Promise<PropertyData> => {
   try {
-    const response = await apiClient.put<{ data: PropertyData }>(ENDPOINTS.PROPERTY_DETAIL(id), propertyData);
-    const rawProperty = response.data || response.data;
-     return { // Ensure transformation for consistency
-      ...rawProperty,
-      id: String(rawProperty.id)
+    const response = await apiClient.put<PropertyData>(ENDPOINTS.PROPERTY_DETAIL(id), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return {
+      ...response,
+      id: String(response.id)
     };
   } catch (error: any) {
     console.error(`Error updating property ${id}:`, error.message);
@@ -182,6 +210,7 @@ const propertyService = {
   createProperty,
   updateProperty,
   deleteProperty,
+  getOwnersPropertyById
 };
 
 export default propertyService;
