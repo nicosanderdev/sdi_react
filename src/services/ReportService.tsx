@@ -87,6 +87,7 @@ export interface DashboardSummaryStat {
   changeDirection?: 'increase' | 'decrease' | 'neutral'; // Optional
 }
 export interface DashboardSummaryData {
+  propertiesNeedingAttention: any;
   visits: DashboardSummaryStat;
   messages: DashboardSummaryStat;
   totalProperties?: DashboardSummaryStat;

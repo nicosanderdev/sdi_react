@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Public pages
@@ -20,10 +21,23 @@ import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './components/properties/PropertyViewPage';
 import { PropertyEditPage } from './components/properties/PropertyEditPage';
 
+import { useDispatch } from 'react-redux';
+import { fetchUserProfile } from './store/slices/userSlice';
+import { AppDispatch } from './store/store';
+
+import './config/leafletSetup';
+import RouteChangeTracker from './components/reports/RouteChangeTracker';
+
 
 export function App() {
+  const dispatch = useDispatch<AppDispatch>();
+  useEffect(() => {
+    dispatch(fetchUserProfile());
+  }, [dispatch]);
+
   return (
     <Router>
+      <RouteChangeTracker />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />

@@ -9,13 +9,33 @@ import {
   LogOutIcon
 } from 'lucide-react';
 import authService from '../../services/AuthService';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, fetchMessageCounts, RootState } from '../../store';
 
+interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  path: string;
+  badgeCount?: number;
+}
 export function Sidebar() {
-  const navItems = [
+
+  const dispatch = useDispatch<AppDispatch>();
+  const { counts, status } = useSelector((state: RootState) => state.notifications);  
+  useEffect(() => {
+    // We only fetch if the data hasn't been fetched yet
+    if (status === 'idle') {
+      dispatch(fetchMessageCounts());
+    }
+  }, [status, dispatch]);
+  
+  const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <HomeIcon size={20} />, path: '/dashboard' },
     { id: 'profile', label: 'Mi Perfil', icon: <UserIcon size={20} />, path: '/dashboard/profile' },
     { id: 'properties', label: 'Propiedades', icon: <BuildingIcon size={20} />, path: '/dashboard/properties' },
-    { id: 'messages', label: 'Mensajes', icon: <MessageSquareIcon size={20} />, path: '/dashboard/messages' },
+    { id: 'messages', label: 'Mensajes', icon: <MessageSquareIcon size={20} />, path: '/dashboard/messages', badgeCount: counts?.unread ?? 0 },
     { id: 'reports', label: 'Reportes', icon: <BarChartIcon size={20} />, path: '/dashboard/reports' }
   ];
   const navigate = useNavigate();
@@ -38,14 +58,25 @@ export function Sidebar() {
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
-                    `flex items-center w-full px-6 py-3 text-left hover:bg-[#47A9C2] transition-colors ${
-                      isActive ? 'bg-[#62B6CB]' : ''
+                    `flex items-center w-full px-6 py-3 text-left hover:bg-[#47A9C2] transition-colors ${isActive ? 'bg-[#62B6CB]' : ''
                     }`
                   }
                   end // ← important for exact match on base route
                 >
                   <span className="mr-3">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span className="flex-grow">{item.label}</span>
+                  {item.badgeCount && item.badgeCount > -1 && (
+                    <span style={{
+                      background: 'red',
+                      color: 'white',
+                      borderRadius: '50%',
+                      padding: '2px 6px',
+                      fontSize: '12px',
+                      marginLeft: 'auto'
+                    }}>
+                      {item.badgeCount}
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}

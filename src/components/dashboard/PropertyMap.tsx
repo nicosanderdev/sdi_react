@@ -4,39 +4,26 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import propertyService from './../../services/PropertyService'; // Adjust path
 
-// Default Leaflet icon fix (if you haven't set this up globally)
-import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
-import iconUrl from 'leaflet/dist/images/marker-icon.png';
-import shadowUrl from 'leaflet/dist/images/marker-shadow.png';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl,
-  iconUrl,
-  shadowUrl,
-});
-
 
 export function PropertyMap() {
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
+  const mapRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
 
-  const { data: propertiesData, isLoading, isError, error } = useQuery({
+  const { data: properties, isLoading, isError, error } = useQuery({
     queryKey: ['mapProperties'],
     // Fetch properties with location data. Adjust fields as needed.
-    queryFn: () => propertyService.getProperties({ fields: 'id,title,listingType,location' }),
+    queryFn: () => propertyService.getUserProperties(),
     // Assuming getProperties returns { data: [properties] }
     // and each property has { id, title, listingType, location: { latitude, longitude } }
   });
-  const properties = propertiesData?.data || [];
 
   useEffect(() => {
     if (!mapRef.current || !properties) return;
 
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
-      const madrid = [40.416775, -3.70379]; // Default center
-      mapInstanceRef.current = L.map(mapRef.current).setView(madrid, 12);
+      const montevideo: L.LatLngExpression = [-30.9025, -55.5505];
+      mapInstanceRef.current = L.map(mapRef.current).setView(montevideo, 12);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       }).addTo(mapInstanceRef.current);
@@ -51,13 +38,13 @@ export function PropertyMap() {
     });
 
     // Add property markers
-    if (properties.length > 0) {
-      const propertyMarkers = [];
-      properties.forEach(property => {
-        if (property.location && property.location.latitude && property.location.longitude) {
-          const position = [property.location.latitude, property.location.longitude];
+    if (properties.items.length > 0) {
+      const propertyMarkers: L.Marker[] = [];
+      properties.items.forEach(property => {
+        if (property.location && property.location.lat && property.location.lng) {
+          const position: L.LatLngExpression = [property.location.lat, property.location.lng];
           // Custom icon based on listingType (For Sale / For Rent)
-          const iconHtml = `<div class="${property.listingType === 'FOR_SALE' ? 'bg-blue-500' : 'bg-green-500'} w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs">P</div>`;
+          const iconHtml = `<div class="${property.status === 'sale' ? 'bg-blue-500' : 'bg-green-500'} w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs">A</div>`;
 
           const customIcon = L.divIcon({
             html: iconHtml,
@@ -69,7 +56,7 @@ export function PropertyMap() {
 
           const marker = L.marker(position, { icon: customIcon })
             .addTo(map)
-            .bindPopup(`<b>${property.title}</b><br>${property.listingType === 'FOR_SALE' ? 'En venta' : 'En alquiler'}`);
+            .bindPopup(`<b>${property.title}</b><br>${property.status === 'sale' ? 'En venta' : 'En alquiler'}`);
           propertyMarkers.push(marker);
         }
       });

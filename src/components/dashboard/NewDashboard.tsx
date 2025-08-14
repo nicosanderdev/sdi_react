@@ -8,25 +8,24 @@ import { CalendarIcon, TrendingUpIcon, TrendingDownIcon, AlertCircleIcon, EyeIco
 
 // Import services
 import reportService from './../../services/ReportService';
-import propertyService, { PropertyImage } from './../../services/PropertyService';
+import propertyService from './../../services/PropertyService';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
 
 export function DashboardOverview() {
-
+  
   const [period, setPeriod] = useState('last30days');
 
-  const { data: summaryData, isLoading: isLoadingSummary, isError: isErrorSummary, error: errorSummary } = useQuery({
-    queryKey: ['dashboardSummary', period],
-    queryFn: () => reportService.getDashboardSummary({ period })
+  const { data: summaryData, isLoading: isLoadingSummary, isError: isErrorSummary, error: errorSummary } = useQuery({ 
+    queryKey: ['dashboardSummary', period], // Added period to refetch on change
+    queryFn: () => reportService.getDashboardSummary({ period }) // Pass period to service
   });
 
   // --- Data Fetching for Featured Properties ---
   const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
     queryKey: ['featuredProperties'],
-    queryFn: () => propertyService.getUserProperties({ limit: 3, isFeatured: true }),
-    select: (data) => data.items
+    queryFn: () => propertyService.getProperties({ limit: 3, isFeatured: true }) // Assuming service takes an object
   });
   const featuredProperties = propertiesData || [];
 
@@ -57,7 +56,7 @@ export function DashboardOverview() {
       </p>
     );
   };
-
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
@@ -76,15 +75,15 @@ export function DashboardOverview() {
       </div>
 
       <div className="flex justify-end">
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="p-2 border rounded-md shadow-sm text-base font-light"
-        >
-          <option value="last7days">Últimos 7 días</option>
-          <option value="last30days">Últimos 30 días</option>
-          <option value="last90days">Últimos 90 días</option>
-        </select>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="p-2 border rounded-md shadow-sm text-base font-light"
+          >
+            <option value="last7days">Últimos 7 días</option>
+            <option value="last30days">Últimos 30 días</option>
+            <option value="last90days">Últimos 90 días</option>
+          </select>
       </div>
 
       {/* --- Cards Section --- */}
@@ -126,12 +125,12 @@ export function DashboardOverview() {
             </div>
           </div>
           <div className="text-3xl font-bold">
-            {renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
+            {renderCardValue(summaryData?.totalProperties, isLoadingSummary, isErrorSummary)}
           </div>
-          {summaryData && typeof summaryData.totalProperties?.percentageChange === 'number' && summaryData.propertiesNeedingAttention > 0 && (
+          {summaryData?.propertiesNeedingAttention > 0 && (
             <div className="flex items-center mt-2 text-sm text-orange-600">
               <AlertCircleIcon size={16} />
-              <span className="ml-1">{summaryData.totalProperties?.percentageChange} requieren atención</span>
+              <span className="ml-1">{summaryData.propertiesNeedingAttention} requieren atención</span>
             </div>
           )}
         </div>
@@ -139,10 +138,10 @@ export function DashboardOverview() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <PropertyStats /> {/* This component will fetch its own data */}
+          <PropertyStats />
         </div>
         <div>
-          <RecentMessages /> {/* This component will fetch its own data */}
+          <RecentMessages />
         </div>
       </div>
 
@@ -158,54 +157,47 @@ export function DashboardOverview() {
         </div>
         {isLoadingProperties && <p>Cargando propiedades...</p>}
         {isErrorProperties && <p className="text-red-500">Error al cargar propiedades: {errorProperties?.message}</p>}
-        {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length === 0 && <p>No hay propiedades destacadas.</p>}
-        {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length > 0 && (
+        {!isLoadingProperties && !isErrorProperties && featuredProperties.length === 0 && <p>No hay propiedades destacadas.</p>}
+        {!isLoadingProperties && !isErrorProperties && featuredProperties.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(featuredProperties as Array<{
-              id: string | number;
-              title?: string;
-              streetName?: string;
-              houseNumber?: string;
-              neighborhood?: string;
-              city?: string;
-              salePrice?: number;
-              rentPrice?: number;
-              currency?: string;
-              status?: string;
-              propertyType?: string;
-              squareMeters?: number;
-              bedrooms?: number;
-              bathrooms?: number;
-              mainImageId?: string;
-              propertyImages?: PropertyImage[];
-              statistics?: { visits?: number; messages?: number };
-            }>)
+            {/****************************************************/}
+            {/*                   START OF FIX                     */}
+            {/****************************************************/}
+            {featuredProperties
               .filter(property => !!property && !!property.id) // Filter out any null/undefined entries
-              .map((property) => {
-                const cardProperty = {
-                  id: typeof property.id === 'number' ? property.id : Number(property.id), // Ensure id is a number
-                  title: property?.title ?? 'Propiedad sin título',
-                  address: `${property?.streetName || ''} ${property?.houseNumber || ''}, ${property?.neighborhood || ''}, ${property?.city || ''}`.trim() || 'Dirección no disponible',
-                  price: (property?.currency ? property.currency + ' ' : '') + ((property?.status !== undefined && property?.status === 'Sale')
-                    ? (property?.salePrice !== undefined && property?.salePrice !== null ? formatNumber(property.salePrice) : '-')
-                    : (property?.rentPrice !== undefined && property?.rentPrice !== null ? formatNumber(property.rentPrice) : '-')),
+              .map((property: any) => {
+              
+              // --- Defensive Transformation Logic ---
+              // This logic safely handles missing data by providing default fallbacks.
+              const cardProperty = {
+                id: property.id, // We already filtered for this, so it's safe.
+                title: property?.title ?? 'Propiedad sin título',
+                address: property?.address ?? 'Dirección no disponible',
+                
+                // Safely format the price
+                price: property?.price?.formatted 
+                       ?? (typeof property?.price === 'number' ? `€${property.price.toLocaleString('es-ES')}` : 'Consultar precio'),
+                
+                // Safely determine the status
+                status: property?.listingType === 'FOR_SALE' ? 'En venta' 
+                        : (property?.listingType === 'FOR_RENT' ? 'En alquiler' : 'No especificado'),
 
-                  // Safely determine the status
-                  status: property?.status === 'Sale' ? 'En venta'
-                    : (property?.status === 'Rent' ? 'En alquiler' : 'No especificado'),
+                type: property?.propertyType ?? 'No especificado',
+                area: property?.squareMeters ? `${property.squareMeters}m²` : '-',
+                bedrooms: property?.bedrooms ?? 0,
+                bathrooms: property?.bathrooms ?? 0,
+                image: property?.mainImageUrl ?? 'https://via.placeholder.com/400x300.png?text=Sin+Imagen', // Placeholder image
+                
+                // Safely access nested statistics
+                visits: property?.statistics?.visits ?? 0,
+                messages: property?.statistics?.messages ?? 0,
+              };
 
-                  type: property?.propertyType ?? 'No especificado',
-                  area: property?.squareMeters ? `${property.squareMeters}m²` : '-',
-                  bedrooms: property?.bedrooms ?? 0,
-                  bathrooms: property?.bathrooms ?? 0,
-                  image: property?.propertyImages?.find((i: PropertyImage) =>
-                  String(i.id) === String(property.mainImageId))?.url || "https://placehold.co/600x400",
-                  // Safely access nested statistics
-                  visits: property?.statistics?.visits ?? 0,
-                  messages: property?.statistics?.messages ?? 0,
-                };
-                return <PropertyCard key={property.id} property={cardProperty} />;
-              })}
+              return <PropertyCard key={property.id} property={cardProperty} />;
+            })}
+            {/****************************************************/}
+            {/*                     END OF FIX                     */}
+            {/****************************************************/}
           </div>
         )}
       </div>

@@ -29,7 +29,6 @@ export interface Message {
 // For the detail view, ensuring fullBody is present
 export interface MessageDetail extends Message {
   fullBody: string;
-  // Potentially other details: attachments, previousMessagesInThread?: Message[]
 }
 
 export interface GetMessagesParams {
@@ -38,16 +37,16 @@ export interface GetMessagesParams {
   filter?: 'inbox' | 'starred' | 'replied' | 'archived' | 'sent' | 'trash' | string; // Allow custom filters
   query?: string; // For search
   propertyId?: string;
-  sortBy?: string; // e.g., "createdAt_desc"
+  sortBy?: string;
 }
 
 export interface SendMessageData {
-  recipientId: string; // ID of the user to send the message to
+  recipientId: string;
   propertyId?: string;
   subject: string;
   body: string;
-  inReplyToMessageId?: string; // To link replies
-  threadId?: string; // To continue an existing thread
+  inReplyToMessageId?: string;
+  threadId?: string;
 }
 
 export interface TabCounts {
@@ -57,7 +56,7 @@ export interface TabCounts {
   archived?: number;
   sent?: number;
   trash?: number;
-  [key: string]: number | undefined; // For flexibility
+  [key: string]: number | undefined;
 }
 
 // --- API Endpoints ---
@@ -66,12 +65,12 @@ const ENDPOINTS = {
   MESSAGE_DETAIL: (id: string) => `/messages/${id}`,
   MARK_AS_READ: (id: string) => `/messages/${id}/read`,
   MARK_AS_UNREAD: (id: string) => `/messages/${id}/unread`,
-  MARK_AS_REPLIED: (id: string) => `/messages/${id}/replied`, // Or handled by backend on reply
+  MARK_AS_REPLIED: (id: string) => `/messages/${id}/replied`,
   STAR: (id: string) => `/messages/${id}/star`,
   UNSTAR: (id: string) => `/messages/${id}/unstar`,
   ARCHIVE: (id: string) => `/messages/${id}/archive`,
   UNARCHIVE: (id: string) => `/messages/${id}/unarchive`,
-  DELETE: (id: string) => `/messages/${id}`, // Using DELETE method on the detail endpoint
+  DELETE: (id: string) => `/messages/${id}`,
   MESSAGE_COUNTS: '/messages/counts',
 };
 
@@ -105,9 +104,8 @@ const getMessages = async (
  */
 const getMessageById = async (id: string): Promise<MessageDetail> => {
   try {
-    const response = await apiClient.get<{ data: MessageDetail }>(ENDPOINTS.MESSAGE_DETAIL(id));
-    const messageDetail = response.data || response.data;
-    return {...messageDetail, id: String(messageDetail.id)}; // Ensure ID is string
+    var response = await apiClient.get<MessageDetail>(ENDPOINTS.MESSAGE_DETAIL(id));
+    return response;
   } catch (error: any) {
     console.error(`Error fetching message ${id}:`, error.response?.data?.message || error.message);
     throw error;
@@ -119,9 +117,8 @@ const getMessageById = async (id: string): Promise<MessageDetail> => {
  */
 const sendMessage = async (messageData: SendMessageData): Promise<Message> => { // Returns the sent message
   try {
-    const response = await apiClient.post<{ data: Message }>(ENDPOINTS.MESSAGES, messageData);
-    const sentMessage = response.data;
-    return {...sentMessage, id: String(sentMessage.id)};
+    const response = await apiClient.post<Message>(ENDPOINTS.MESSAGES, messageData);
+    return {...response, id: String(response.id)};
   } catch (error: any) {
     console.error('Error sending message:', error.response?.data?.message || error.message);
     throw error;
@@ -133,7 +130,7 @@ const sendMessage = async (messageData: SendMessageData): Promise<Message> => { 
  */
 const markMessageAsRead = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.MARK_AS_READ(messageId));
+    await apiClient.get(ENDPOINTS.MARK_AS_READ(messageId));
   } catch (error: any) {
     console.error(`Error marking message ${messageId} as read:`, error.response?.data?.message || error.message);
     throw error;
@@ -169,7 +166,7 @@ const markMessageAsReplied = async (messageId: string): Promise<void> => {
  */
 const starMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.STAR(messageId)); // Or POST
+    await apiClient.patch(ENDPOINTS.STAR(messageId));
   } catch (error: any) {
     console.error(`Error starring message ${messageId}:`, error.response?.data?.message || error.message);
     throw error;
@@ -181,7 +178,7 @@ const starMessage = async (messageId: string): Promise<void> => {
  */
 const unstarMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.UNSTAR(messageId)); // Or DELETE
+    await apiClient.delete(ENDPOINTS.UNSTAR(messageId));
   } catch (error: any) {
     console.error(`Error unstarring message ${messageId}:`, error.response?.data?.message || error.message);
     throw error;
@@ -193,7 +190,7 @@ const unstarMessage = async (messageId: string): Promise<void> => {
  */
 const archiveMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.ARCHIVE(messageId)); // Or POST
+    await apiClient.post(ENDPOINTS.ARCHIVE(messageId));
   } catch (error: any) {
     console.error(`Error archiving message ${messageId}:`, error.response?.data?.message || error.message);
     throw error;
