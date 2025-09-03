@@ -77,12 +77,17 @@ export function RegisterPage() {
 
     try {
       const response = await AuthService.registerUser(payload);
-      console.log('Registration successful:', response);
-      setView('success');
+      if (response.success) {
+        console.log('Registration successful:');
+        setView('success');
+      } else {
+        setView('error');
+        setApiError(response.errorMessage || 'Ocurrió un error durante el registro. Por favor, inténtalo de nuevo.');
+      }
     } catch (error: any) {
-      setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-      console.error('Registration API error:', error);
-      setView('error');
+        setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
+        console.error('Registration API error:', error);
+        setView('error');
     } finally {
       setIsLoading(false); // Stop loading regardless of outcome
     }
@@ -93,6 +98,10 @@ export function RegisterPage() {
     setFormData({ ...formData, [name]: value });
   };
   
+  const handleExternalAuth = () => {
+    window.location.href = `${import.meta.env.VITE_API_BASE_URL}/auth/google-login`;
+  }
+
   const handleRetry = () => {
     setApiError(null);
     setView('form');
@@ -104,17 +113,17 @@ export function RegisterPage() {
         <div className="max-w-lg w-full mx-auto px-4">
           <div className="bg-[#FDFFFC] p-8 rounded-lg shadow-sm border border-gray-100 relative">
             {view === 'initial' && (
-              // --- Initial View (unchanged) ---
+              // --- Initial View ---
               <div className="text-center">
                  <h1 className="text-2xl font-bold text-[#1B4965] mb-2">Crear una cuenta</h1>
                 <p className="text-gray-600 mb-8">Únete a nuestra plataforma.</p>
                 <div className="space-y-4">
-                  <button onClick={() => alert('Función no implementada todavía.')} className="w-full flex items-center justify-center gap-3 bg-white text-[#101828] py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors font-medium">
-                    <GoogleIcon />
-                    Registrarse con Google
-                  </button>
                   <button onClick={() => setView('form')} className="w-full bg-[#62B6CB] text-[#FDFFFC] py-2.5 rounded-md hover:opacity-90 transition-colors font-medium">
                     Registrarse con correo electrónico
+                  </button>
+                  <button onClick={() => handleExternalAuth()} className="w-full flex items-center justify-center gap-3 bg-white text-[#101828] py-2.5 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors font-medium">
+                    <GoogleIcon />
+                    Registrarse con Google
                   </button>
                 </div>
                  <div className="mt-6 text-center">
@@ -201,7 +210,6 @@ export function RegisterPage() {
                     </label>
                   </div>
                   
-                  {/* 5. Update button to show loading state */}
                   <button 
                     type="submit" 
                     disabled={isLoading}

@@ -14,8 +14,8 @@ const getInitials = (firstName = '', lastName = '') => {
 };
 
 export function Header({
-  onNotificationsClick,
-  notificationCount
+  /* onNotificationsClick,
+  notificationCount*/
 }: HeaderProps) {
   const userProfile = useSelector(selectUserProfile);
   const userStatus = useSelector(selectUserStatus);
@@ -33,12 +33,12 @@ export function Header({
   return <header className="bg-[#FDFFFC] h-16 border-b border-gray-200 flex items-center justify-end px-6 shadow-sm">
       <div className="flex items-center">
         <div className="relative mr-4">
-          <button onClick={onNotificationsClick} className="p-2 rounded-full hover:bg-[#BEE9E8] transition-colors relative">
+          {/* <button onClick={onNotificationsClick} className="p-2 rounded-full hover:bg-[#BEE9E8] transition-colors relative">
             <BellIcon className="text-[#101828]" size={20} />
             {notificationCount > 0 && <span className="absolute top-0 right-0 bg-red-500 text-[#FDFFFC] text-xs rounded-full h-5 w-5 flex items-center justify-center">
                 {notificationCount}
               </span>}
-          </button>
+          </button> */}
         </div>
         <div className="flex items-center">
           <div className="mr-3 text-right">

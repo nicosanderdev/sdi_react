@@ -1,5 +1,11 @@
 import { Clipboard, ClipboardCheck, KeyRound, Loader2, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+// --- START: Key Change ---
+// Import the stylish six-box input component
+import { TwoFactorInput } from '../../pages/public/TwoFactorInput';
+// Note: You might need to adjust the import path '../public/form/TwoFactorInput'
+// based on your actual file structure.
+// --- END: Key Change ---
 
 export type TwoFactorStep = 'password' | 'code' | 'success';
 export type ActionType = 'enable' | 'disable';
@@ -30,6 +36,16 @@ export function TwoFactorAuthModal({
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  
+  // Effect to clear local state when the modal re-opens or changes step
+  useEffect(() => {
+    if (isOpen) {
+        setPassword('');
+        setCode('');
+        setIsCopied(false);
+    }
+  }, [isOpen, step]);
+
 
   if (!isOpen) {
     return null;
@@ -39,7 +55,7 @@ export function TwoFactorAuthModal({
     if (recoveryCode) {
       navigator.clipboard.writeText(recoveryCode);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -109,21 +125,22 @@ export function TwoFactorAuthModal({
 
         {/* --- Step 2: 2FA Code Prompt --- */}
         {step === 'code' && (
-          <form onSubmit={handleCodeFormSubmit} className="space-y-4">
+          <form onSubmit={handleCodeFormSubmit} className="space-y-6">
             <div>
-              <label htmlFor="2fa-code" className="block text-sm font-medium text-gray-700 mb-1">Código de 6 dígitos</label>
-              <input
-                id="2fa-code"
-                type="text"
+              <TwoFactorInput
+                length={6}
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-                maxLength={6}
-                className="tracking-[0.5em] text-center font-semibold text-lg py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
-                autoFocus
+                onChange={setCode}
+                onComplete={(completedCode) => {
+                  // Automatically submit when the code is complete for better UX
+                  if (!isSubmitting) {
+                    onCodeSubmit(completedCode);
+                  }
+                }}
+                disabled={isSubmitting}
               />
             </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {error && <p className="text-sm text-red-500 text-center -mt-2">{error}</p>}
             <div className="flex justify-end space-x-3 pt-2">
               <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm">Cancelar</button>
               <button type="submit" disabled={isSubmitting || code.length < 6} className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#47A9C2] transition-colors text-sm disabled:opacity-50 flex items-center">

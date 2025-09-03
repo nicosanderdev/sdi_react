@@ -27,6 +27,8 @@ import { AppDispatch } from './store/store';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
+import { TermsAndConditionsPage } from './pages/public/TermsAndConditions';
+import { NotFoundPage } from './pages/public/NotFoundPage';
 
 
 export function App() {
@@ -46,6 +48,8 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+        <Route path="/terms" element={<TermsAndConditionsPage />} />
+        <Route path="/notfound" element={<NotFoundPage />} />
 
         {/* Dashboard Routes */}
         <Route path="/dashboard" element={<DashboardLayout /> } > 
@@ -61,7 +65,7 @@ export function App() {
         </Route>
 
         {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/notfound" />} />
       </Routes>
     </Router>
   );

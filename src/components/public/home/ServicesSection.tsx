@@ -1,6 +1,7 @@
 import React from 'react';
 import { Building2, Globe, Link, BarChart3 } from 'lucide-react';
 export function ServicesSection() {
+  
   const services = [{
     icon: <Building2 size={32} className="text-[#62B6CB]" />,
     title: 'Publica y gestiona propiedades',
@@ -18,6 +19,7 @@ export function ServicesSection() {
     title: 'Estadísticas y seguimiento',
     description: 'Visualiza visitas, contactos y rendimiento de tus publicaciones. Mejora tu estrategia con datos reales.'
   }];
+  
   return <section className="py-20 bg-[#FDFFFC]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">

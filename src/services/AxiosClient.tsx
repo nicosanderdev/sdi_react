@@ -1,5 +1,4 @@
-// src/services/api.js
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios';
 
 export interface CustomAxiosInstance extends AxiosInstance {
   get<T = unknown, R = T, D = any>(url: string, config?: AxiosRequestConfig<D>, credentials?: "include"): Promise<R>;
@@ -8,7 +7,6 @@ export interface CustomAxiosInstance extends AxiosInstance {
   delete<T = unknown, R = T, D = any>(url: string, config?: AxiosRequestConfig<D>): Promise<R>;
 }
 
-// For local development, you can use a .env.local file
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 const TENANT_API_KEY = import.meta.env.VITE_TENANT_API_KEY || 'YOUR_DEFAULT_TENANT_KEY';
 

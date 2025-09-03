@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, ShieldOff, Loader2, Bell, Mail, Smartphone, Trash2, Check, Save, MailCheck } from 'lucide-react';
 import { ActionType, TwoFactorAuthModal, TwoFactorStep } from './2FaModal';
 import AuthService from '../../services/AuthService';
+import { set } from 'lodash';
 
 // --- Type Definitions for State and Props ---
 
@@ -159,14 +160,17 @@ export function UserSettings() {
         setModalError(null);
 
         try {
-            // --- UPDATED: Check which action is being performed for the correct API call
             if (modalAction === 'enable') {
-            await AuthService.requestLogin2faCode(password);
-            console.log('Password verification successful. 2FA code requested.');
-            setModalStep('code');
-            } else { // 'disable' action
-                // For disabling, you might just need a password and code together.
-                // Assuming the flow is: enter password -> enter code to disable.
+            var response = await AuthService.requestLogin2faCode(password);
+            if (response.success) {
+              console.log('Password verification successful. 2FA code requested.');
+              setModalStep('code');
+            } else {
+              console.log('Password verification failed:', response.errorMessage);
+              setModalError("La contraseña es incorrecta. Por favor, inténtalo de nuevo.");
+              setIsModalSubmitting(false);
+            }
+            } else {
                 setModalStep('code');
             }
         } catch (error: any) {
@@ -313,7 +317,7 @@ export function UserSettings() {
                     )}
                 </div>
 
-                {/* --- Notification Settings Card --- */}
+                {/* --- Notification Settings Card --- 
                 <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
                     <h2 className="text-lg font-semibold text-[#1B4965] mb-1">Notificaciones</h2>
                     <p className="text-sm text-gray-500 mb-6">Elige qué actualizaciones recibes y cómo las recibes.</p>
@@ -371,7 +375,7 @@ export function UserSettings() {
                             </button>
                         </div>
                     </form>
-                </div>
+                </div> */}
 
                 {/* --- Danger Zone Card --- */}
                 <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-red-300 p-6">

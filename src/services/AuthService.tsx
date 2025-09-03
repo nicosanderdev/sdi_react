@@ -1,4 +1,5 @@
 // authService.ts
+import SdiApiResponse from '../models/SdiApiResponse';
 import apiClient from './AxiosClient'; // Assuming this is your pre-configured Axios instance
 
 // --- INTERFACES ---
@@ -29,11 +30,7 @@ interface LoginResponse {
   succeeded: boolean;
   requires2FA: boolean;
   user: User | null;
-  message: string | null;
-}
-
-interface SuccessResponse {
-  message: string;
+  errorMessage: string | null;
 }
 
 interface RecoveryCodeResponse {
@@ -45,11 +42,6 @@ export interface RegisterUserPayload {
   lastName: string;
   email: string;
   password: string;
-}
-
-export interface RegistrationResponse {
-  message: string;
-  userId?: string;
 }
 
 export interface ConfirmPasswordChangePayload {
@@ -129,7 +121,7 @@ const login = async (
   password?: string, // Password is optional for the 2FA step
   twoFactorCode?: string // 2FA code is optional for the credentials step
 ): Promise<LoginResponse> => {
-  // The API expects `usernameOrEmail`, let's send that
+
   const payload = {
     usernameOrEmail,
     password,
@@ -163,12 +155,15 @@ const logout = async () => {
  */
 const verifyAuth = async (): Promise<User | null> => {
   try {
-    return await apiClient.get<User>(ENDPOINTS.VERIFY);
+    var result = await apiClient.get<User>(ENDPOINTS.VERIFY);
+    if (result && result.id !== null) {
+      return result;
+    }
   } catch (error: any) {
     console.error("Auth verification failed:", error || error?.message);
-    console.log("Auth verification failed, user is not logged in.");
-    return null;
   }
+  console.log("Auth verification failed, user is not logged in.");
+  return null;
 };
 
 // --- PASSWORD AND EMAIL MANAGEMENT ---
@@ -191,9 +186,9 @@ const forgotPassword = async (email: string): Promise<ForgotPasswordResponse> =>
  * @param token - The password reset token from the email link.
  * @param newPassword - The new password for the user.
  */
-const resetPassword = async (resetPasswordDto: ResetPasswordPayload): Promise<SuccessResponse> => {
+const resetPassword = async (resetPasswordDto: ResetPasswordPayload): Promise<SdiApiResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESET_PASSWORD, { token: resetPasswordDto.token, newPassword: resetPasswordDto.newPassword, email: resetPasswordDto.email, resetEmail: resetPasswordDto.resetEmail });
+    return await apiClient.post<SdiApiResponse>(ENDPOINTS.RESET_PASSWORD, { token: resetPasswordDto.token, newPassword: resetPasswordDto.newPassword, email: resetPasswordDto.email, resetEmail: resetPasswordDto.resetEmail });
   } catch (error: any) {
     console.error('Reset password error:', error?.response?.data || error?.message);
     throw error;
@@ -204,9 +199,9 @@ const resetPassword = async (resetPasswordDto: ResetPasswordPayload): Promise<Su
  * Confirms a user's email address using a confirmation token.
  * @param token - The email confirmation token from the email link.
  */
-const confirmEmail = async (token: string): Promise<SuccessResponse> => {
+const confirmEmail = async (token: string): Promise<SdiApiResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.CONFIRM_EMAIL, { token });
+    return await apiClient.post<SdiApiResponse>(ENDPOINTS.CONFIRM_EMAIL, { token });
   } catch (error: any) {
     console.error('Email confirmation error:', error?.response?.data || error?.message);
     throw error;
@@ -217,9 +212,9 @@ const confirmEmail = async (token: string): Promise<SuccessResponse> => {
  * Requests a new confirmation email to be sent.
  * @param email - The email address to send the confirmation link to.
  */
-const resendConfirmationEmail = async (): Promise<SuccessResponse> => {
+const resendConfirmationEmail = async (): Promise<SdiApiResponse> => {
   try {
-    return await apiClient.get<SuccessResponse>(ENDPOINTS.RESEND_CONFIRMATION_EMAIL);
+    return await apiClient.get<SdiApiResponse>(ENDPOINTS.RESEND_CONFIRMATION_EMAIL);
   } catch (error: any) {
     console.error('Resend confirmation email error:', error?.response?.data || error?.message);
     throw error;
@@ -253,13 +248,12 @@ const getAccessToken = (): string | null => {
  * This is called after successful password verification when 2FA is required.
  * @param password The user's email to identify who needs a code.
  */
-const requestLogin2faCode = async (password: string): Promise<void> => {
+const requestLogin2faCode = async (password: string): Promise<SdiApiResponse> => {
   try {
-    // Per feature description, we call the generate endpoint to trigger the code sending.
-    // The backend should differentiate this from a setup request (e.g., via POST vs GET).
-    await apiClient.post(ENDPOINTS.TWO_FA_ENABLE_FIRST_STEP, { password });
+    const response = await apiClient.post<SdiApiResponse>(ENDPOINTS.TWO_FA_ENABLE_FIRST_STEP, { password });
+    return response;
   } catch (error: any) {
-    console.error('Error requesting 2FA login code:', error?.response?.data || error?.message);
+    console.error('Error requesting 2FA login code:', error?.response?.data || error?.message );
     throw new Error('Could not send verification code. Please try logging in again.');
   }
 };
@@ -282,20 +276,25 @@ const enable2fa = async (twoFactorCode: string): Promise<RecoveryCodeResponse> =
  * @param userData The user's registration data.
  * @returns A promise that resolves with the registration response.
  */
-export const registerUser = async (userData: RegisterUserPayload): Promise<RegistrationResponse> => {
+export const registerUser = async (userData: RegisterUserPayload): Promise<SdiApiResponse> => {
   const requestBody = {
     registerUserDto: userData,
   };
 
   try {
-    const response = await apiClient.post<RegistrationResponse>(ENDPOINTS.REGISTER, requestBody);
+    const response = await apiClient.post<SdiApiResponse>(ENDPOINTS.REGISTER, requestBody);
     return response;
   } catch (error: any) {
-    console.error('Error during user registration:', error.message);
+    console.error('Error during user registration:', error?.response?.data || error?.message);
     throw error;
   }
 };
 
+
+/**
+ * Retrieves the user's settings.
+ * @returns A promise that resolves with the user's settings.
+ */
 const getUserSettings = async () => {
   try {
     return await apiClient.get<UserSettings>(ENDPOINTS.SETTINGS);
@@ -305,6 +304,11 @@ const getUserSettings = async () => {
   }
 };
 
+/**
+ * Validates the 2FA code for password change.
+ * @param payload The payload containing the 2FA code.
+ * @returns A promise that resolves with the response data.
+ */
 const validate2FaCodePasswordChange = async (payload: TwoFaPayload): Promise<RequestPasswordChangeResponse> => {
   try {
     return await apiClient.post<RequestPasswordChangeResponse>(ENDPOINTS.RESET_PASSWORD_2FA_VALIDATE, { twoFactorCode: payload.twoFactorCode });
@@ -314,9 +318,15 @@ const validate2FaCodePasswordChange = async (payload: TwoFaPayload): Promise<Req
   }
 };
 
-const validateRecoveryPasswordChange = async (payload: ValidateRecoveryPayload): Promise<SuccessResponse> => {
+
+/**
+ * Validates the recovery code for password change.
+ * @param payload The payload containing the recovery code.
+ * @returns A promise that resolves with the response data.
+ */
+const validateRecoveryPasswordChange = async (payload: ValidateRecoveryPayload): Promise<SdiApiResponse> => {
   try {
-    return await apiClient.post<SuccessResponse>(ENDPOINTS.RESET_PASSWORD_RECOVERY_VALIDATE, { payload });
+    return await apiClient.post<SdiApiResponse>(ENDPOINTS.RESET_PASSWORD_RECOVERY_VALIDATE, { payload });
   } catch (error: any) {
     console.error('Invalid recovery code:', error?.response?.data || error?.message);
     throw error;

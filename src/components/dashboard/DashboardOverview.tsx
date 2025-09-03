@@ -106,7 +106,7 @@ export function DashboardOverview() {
         {/* Messages Card */}
         <div className="bg-[#FDFFFC] p-6 rounded-lg shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-[#1B4965]">Mensajes</h3>
+            <h3 className="text-lg font-medium text-[#1B4965]">Mensajes sin leer</h3>
             <div className="p-2 bg-[#BEE9E8] rounded-full">
               <MessageSquareIcon size={20} className="text-[#1B4965]" />
             </div>
