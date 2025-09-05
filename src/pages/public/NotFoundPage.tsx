@@ -1,7 +1,7 @@
 import React from 'react';
 import { SearchX } from 'lucide-react'; 
-// Make sure the path to your PublicLayout component is correct
-import { PublicLayout } from '../../components/public/layout/PublicLayout';
+import { PublicLayout } from '../../components/layout/PublicLayout';
+
 
 export function NotFoundPage() {
   return (

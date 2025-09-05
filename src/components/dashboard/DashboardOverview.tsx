@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyStats } from './PropertyStats';
 import { RecentMessages } from './RecentMessages';
 import { PropertyMap } from './PropertyMap';
 import { PropertyCard } from './PropertyCard';
+import { DashboardCard } from './DashboardCard';
+import DashboardPageTitle from './DashboardPageTitle';
 import { CalendarIcon, TrendingUpIcon, TrendingDownIcon, AlertCircleIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react';
 
 // Import services
 import reportService from './../../services/ReportService';
 import propertyService, { PropertyImage } from './../../services/PropertyService';
+import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
@@ -21,6 +24,13 @@ export function DashboardOverview() {
     queryKey: ['dashboardSummary', period],
     queryFn: () => reportService.getDashboardSummary({ period })
   });
+
+  const TIME_RANGES = [
+    { id: 'last7days', label: 'Últimos 7 días' },
+    { id: 'last30days', label: 'Últimos 30 días' },
+    { id: 'last90days', label: 'Últimos 90 días' },
+    { id: 'thisyear', label: 'Este año' },
+  ];
 
   // --- Data Fetching for Featured Properties ---
   const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
@@ -61,7 +71,7 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#1B4965]">Panel de Control</h1>
+        <DashboardPageTitle title="Panel de Control" />
         <div className="flex items-center space-x-2 text-sm">
           <CalendarIcon size={16} className="text-[#62B6CB]" />
           <span>
@@ -76,65 +86,51 @@ export function DashboardOverview() {
       </div>
 
       <div className="flex justify-end">
-        <select
+        <Dropdown
           value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="p-2 border rounded-md shadow-sm text-base font-light"
-        >
-          <option value="last7days">Últimos 7 días</option>
-          <option value="last30days">Últimos 30 días</option>
-          <option value="last90days">Últimos 90 días</option>
-        </select>
+          dismissOnClick={true}
+          label={TIME_RANGES.find(range => range.id === period)?.label}>
+          {TIME_RANGES.map(range => (
+            <DropdownItem onClick={() => setPeriod(range.id)} key={range.id} value={range.id}>
+              {range.label}
+            </DropdownItem>
+          ))}
+        </Dropdown>
       </div>
 
       {/* --- Cards Section --- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
         {/* Visits Card */}
-        <div className="bg-[#FDFFFC] p-6 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-[#1B4965]">Visitas</h3>
-            <div className="p-2 bg-[#BEE9E8] rounded-full">
-              <EyeIcon size={20} className="text-[#1B4965]" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">
-            {renderCardValue(summaryData?.visits?.currentPeriod, isLoadingSummary, isErrorSummary)}
-          </div>
-          {renderPercentageChange(summaryData?.visits?.percentageChange, summaryData?.visits?.changeDirection, isLoadingSummary, isErrorSummary)}
-        </div>
+        <DashboardCard
+          title="Visitas"
+          icon={EyeIcon}
+          value={renderCardValue(summaryData?.visits?.currentPeriod, isLoadingSummary, isErrorSummary)}
+          subtitle={renderPercentageChange(summaryData?.visits?.percentageChange, summaryData?.visits?.changeDirection, isLoadingSummary, isErrorSummary)}
+        />
 
         {/* Messages Card */}
-        <div className="bg-[#FDFFFC] p-6 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-[#1B4965]">Mensajes sin leer</h3>
-            <div className="p-2 bg-[#BEE9E8] rounded-full">
-              <MessageSquareIcon size={20} className="text-[#1B4965]" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">
-            {renderCardValue(summaryData?.messages?.currentPeriod, isLoadingSummary, isErrorSummary)}
-          </div>
-          {renderPercentageChange(summaryData?.messages?.percentageChange, summaryData?.messages?.changeDirection, isLoadingSummary, isErrorSummary)}
-        </div>
+        <DashboardCard
+          title="Mensajes sin leer"
+          icon={MessageSquareIcon}
+          value={renderCardValue(summaryData?.messages?.currentPeriod, isLoadingSummary, isErrorSummary)}
+          subtitle={renderPercentageChange(summaryData?.messages?.percentageChange, summaryData?.messages?.changeDirection, isLoadingSummary, isErrorSummary)}
+        />
 
         {/* Properties Card */}
-        <div className="bg-[#FDFFFC] p-6 rounded-lg shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-[#1B4965]">Propiedades Activas</h3>
-            <div className="p-2 bg-[#BEE9E8] rounded-full">
-              <HomeIcon size={20} className="text-[#1B4965]" />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">
-            {renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
-          </div>
-          {summaryData && typeof summaryData.totalProperties?.percentageChange === 'number' && summaryData.propertiesNeedingAttention > 0 && (
-            <div className="flex items-center mt-2 text-sm text-orange-600">
-              <AlertCircleIcon size={16} />
-              <span className="ml-1">{summaryData.totalProperties?.percentageChange} requieren atención</span>
-            </div>
-          )}
-        </div>
+        <DashboardCard
+          title="Propiedades Activas"
+          icon={HomeIcon}
+          value={renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
+          subtitle={
+            summaryData && typeof summaryData.totalProperties?.percentageChange === 'number' && summaryData.propertiesNeedingAttention > 0 ? (
+              <div className="flex items-center text-sm text-orange-600">
+                <AlertCircleIcon size={16} />
+                <span className="ml-1">{summaryData.totalProperties?.percentageChange} requieren atención</span>
+              </div>
+            ) : undefined
+          }
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -147,14 +143,14 @@ export function DashboardOverview() {
       </div>
 
       {/* --- Featured Properties Section --- */}
-      <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
+      <Card>
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-[#1B4965]">
+          <h2 className="text-xl font-bold">
             Propiedades Destacadas
           </h2>
-          <button className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#539BAF] transition-colors">
+          <Button>
             Ver todas
-          </button>
+          </Button>
         </div>
         {isLoadingProperties && <p>Cargando propiedades...</p>}
         {isErrorProperties && <p className="text-red-500">Error al cargar propiedades: {errorProperties?.message}</p>}
@@ -199,7 +195,7 @@ export function DashboardOverview() {
                   bedrooms: property?.bedrooms ?? 0,
                   bathrooms: property?.bathrooms ?? 0,
                   image: property?.propertyImages?.find((i: PropertyImage) =>
-                  String(i.id) === String(property.mainImageId))?.url || "https://placehold.co/600x400",
+                    String(i.id) === String(property.mainImageId))?.url || "https://placehold.co/600x400",
                   // Safely access nested statistics
                   visits: property?.statistics?.visits ?? 0,
                   messages: property?.statistics?.messages ?? 0,
@@ -208,16 +204,17 @@ export function DashboardOverview() {
               })}
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
-        <h2 className="text-xl font-bold text-[#1B4965] mb-6">
+      <Card>
+        <h2 className="text-xl font-bold mb-6">
           Ubicación de Propiedades
         </h2>
         <div className="h-80">
           <PropertyMap />
         </div>
-      </div>
+      </Card>
+
     </div>
   );
 }

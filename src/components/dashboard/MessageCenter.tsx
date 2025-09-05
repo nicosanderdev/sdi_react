@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import messageService, { Message, MessageDetail, TabCounts, GetMessagesParams } from '../../services/MessageService';
 import { formatRelativeTime } from '../../utils/TimeUtils';
+import DashboardPageTitle from './DashboardPageTitle';
+import { Card } from 'flowbite-react';
+import { IconWrapper } from '../ui/IconWrapper';
 
 const ITEMS_PER_PAGE = 15; // Or get from config/props
 
@@ -256,11 +259,12 @@ export function MessageCenter() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-[#1B4965] mb-6">Centro de Mensajes</h1>
-      <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      <DashboardPageTitle title="Centro de Mensajes" />
+      <Card>
         <div className="flex flex-col md:flex-row h-full min-h-[700px]">
+          
           {/* Sidebar */}
-          <div className="w-full md:w-72 border-r border-gray-200 bg-gray-50/50 flex flex-col">
+          <div className="w-full md:w-72 border-r border-gray-200 dark:border-gray-700 flex flex-col">
             <div className="p-4">
               <div className="relative">
                 <input
@@ -268,9 +272,9 @@ export function MessageCenter() {
                   placeholder="Buscar mensajes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
+                  className="pl-10 pr-4 py-2 w-full border border-primary-200 dark:border-primary-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2" size={18} />
               </div>
             </div>
             <nav className="mt-1 flex-grow">
@@ -278,17 +282,17 @@ export function MessageCenter() {
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setCurrentPage(1); setSelectedMessage(null); }}
-                  className={`flex items-center justify-between w-full px-4 py-3 text-left transition-colors duration-150 ${activeTab === tab.id ? 'bg-[#BEE9E8]/50 border-r-2 border-[#62B6CB]' : 'hover:bg-gray-100'
-                    }`}
+                  className={`flex items-center justify-between w-full px-4 py-3 text-left transition-colors duration-150 
+                    ${activeTab === tab.id ? 'bg-primary-200/50 border-primary-800 dark:bg-gray-700 border-r-2 dark:border-gray-400' : 'hover:bg-primary-200/50 dark:hover:bg-gray-700'}`}
                 >
                   <div className="flex items-center">
-                    <span className={`mr-3 ${activeTab === tab.id ? 'text-[#1B4965]' : 'text-gray-500'}`}>{tab.icon}</span>
-                    <span className={`${activeTab === tab.id ? 'font-semibold text-[#1B4965]' : 'text-gray-700'}`}>
+                    <span className={`mr-3 ${activeTab === tab.id ? 'text-primary-800 dark:text-white' : 'text-gray-600 dark:text-gray-300'}`}>{tab.icon}</span>
+                    <span className={`${activeTab === tab.id ? 'font-semibold text-primary-800 dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
                       {tab.label}
                     </span>
                   </div>
                   {tabCounts[tab.id] !== undefined && tabCounts[tab.id]! > 0 && (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-[#62B6CB] text-white' : 'bg-gray-200 text-gray-600'
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-[#62B6CB] text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                       }`}>
                       {tabCounts[tab.id]}
                     </span>
@@ -302,16 +306,16 @@ export function MessageCenter() {
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
             {/* Messages list */}
-            <div className={`w-full ${selectedMessage !== null ? 'hidden md:flex' : 'flex'} md:w-1/2 lg:w-2/5 border-r border-gray-200 flex-col max-h-full`}>
-              <div className="p-4 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                <h2 className="font-semibold text-[#1B4965] text-lg">{currentTabLabel}</h2>
-                <div className="text-sm text-gray-500">
+            <div className={`w-full ${selectedMessage !== null ? 'hidden md:flex' : 'flex'} md:w-1/2 lg:w-2/5 border-r border-gray-200 dark:border-gray-700 flex-col max-h-full`}>
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+                <h2 className="font-semibold text-primary-800 dark:text-white text-lg">{currentTabLabel}</h2>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
                   {totalMessages > 0 ? `${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalMessages)} de ${totalMessages}` : '0 mensajes'}
                 </div>
               </div>
 
-              {listError && <div className="p-4 text-red-600 bg-red-50 text-center">{listError}</div>}
-              {actionError && <div className="p-2 text-xs text-red-600 bg-red-50 text-center sticky top-0 z-10">{actionError}</div>}
+              {listError && <div className="p-4 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center">{listError}</div>}
+              {actionError && <div className="p-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center sticky top-0 z-10">{actionError}</div>}
 
               {/* Message detail */}
               {isLoadingList ? (
@@ -319,13 +323,13 @@ export function MessageCenter() {
                   <Loader2Icon size={32} className="text-[#62B6CB] animate-spin" />
                 </div>
               ) : messages.length === 0 && !listError ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-4">
-                  <InboxIcon size={48} className="mb-3 text-gray-400" />
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-4">
+                  <InboxIcon size={48} className="mb-3 text-gray-400 dark:text-gray-500" />
                   <p>No hay mensajes en {currentTabLabel.toLowerCase()}.</p>
                 </div>
               ) : filteredMessages.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 p-4 text-center">
-                  <SearchIcon size={48} className="mb-3 text-gray-400" />
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-4 text-center">
+                  <SearchIcon size={48} className="mb-3 text-gray-400 dark:text-gray-500" />
                   <p className="font-medium">No se encontraron resultados</p>
                   <p className="text-sm">Ningún mensaje en esta página coincide con tu búsqueda.</p>
                 </div>
@@ -335,33 +339,33 @@ export function MessageCenter() {
                     <div
                       key={message.id}
                       onClick={() => handleSelectMessage(message)}
-                      className={`p-4 border-b border-gray-200 cursor-pointer relative group transition-colors duration-150 ${!message.isRead ? 'bg-[#E0F7FA]/60' : '' // Light cyan for unread
-                        } ${selectedMessage?.id === message.id ? 'bg-[#CAE9FF]' : 'hover:bg-gray-50'}`}
+                      className={`p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer relative group transition-colors duration-150 ${!message.isRead ? 'bg-[#E0F7FA]/60 dark:bg-blue-900/20' : '' // Light cyan for unread
+                        } ${selectedMessage?.id === message.id ? 'bg-[#CAE9FF] dark:bg-blue-800/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                       {!message.isRead && (
                         <span className="absolute top-3 left-2 w-2 h-2 bg-[#62B6CB] rounded-full" title="No leído"></span>
                       )}
                       <div className="flex items-start">
-                        <div className={`flex-shrink-0 h-10 w-10 rounded-full bg-[#CAE9FF] flex items-center justify-center text-[#1B4965] mr-3 ${!message.isRead ? 'ring-2 ring-[#62B6CB]' : ''}`}>
-                          <UserIcon size={20} />
+                        <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center mr-3 ${!message.isRead ? '' : ''}`}>
+                          <IconWrapper icon={UserIcon} size={20} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <h3 className={`text-sm font-semibold ${!message.isRead ? 'text-[#103A53]' : 'text-[#1B4965]'}`}>
+                            <h3 className={`text-sm font-semibold text-gray-900 dark:text-white ${!message.isRead ? '' : ''}`}>
                               {message.senderName}
                             </h3>
-                            <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                            <span className="text-xs whitespace-nowrap ml-2 text-gray-500 dark:text-gray-400">
                               {formatRelativeTime(message.createdAt)}
                             </span>
                           </div>
                           {message.propertyTitle &&
-                            <p className="text-xs text-gray-500 mt-0.5 truncate" title={message.propertyTitle}>
+                            <p className="text-xs mt-0.5 truncate text-gray-600 dark:text-gray-300" title={message.propertyTitle}>
                               Propiedad: {message.propertyTitle}
                             </p>}
-                          <p className={`text-sm mt-0.5 truncate ${!message.isRead ? 'text-black font-medium' : 'text-gray-700'}`} title={message.subject}>
+                          <p className={`text-sm mt-0.5 truncate text-gray-800 dark:text-gray-200 ${!message.isRead ? 'font-medium' : ''}`} title={message.subject}>
                             {message.subject}
                           </p>
-                          <p className="text-xs text-gray-500 mt-0.5 truncate" title={message.snippet}>
+                          <p className="text-xs mt-0.5 truncate text-gray-600 dark:text-gray-400" title={message.snippet}>
                             {message.snippet}
                           </p>
                         </div>
@@ -411,7 +415,7 @@ export function MessageCenter() {
             </div>
 
             {/* Message detail */}
-            <div className="flex-1 flex flex-col bg-white max-h-full">
+            <div className="flex-1 flex flex-col max-h-full">
               {isLoadingDetail ? (
                 <div className="flex-1 flex items-center justify-center">
                   <Loader2Icon size={32} className="text-[#62B6CB] animate-spin" />
@@ -487,8 +491,8 @@ export function MessageCenter() {
                   <p className="text-sm">{detailError}</p>
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col items-center justify-center p-6 text-gray-500 bg-gray-50/30">
-                  <InboxIcon size={48} className="mb-4 text-gray-400" />
+                <div className="flex-1 flex flex-col items-center justify-center p-6">
+                  <InboxIcon size={48} className="mb-4" />
                   <p>Selecciona un mensaje para ver los detalles.</p>
                   <p className="text-sm">O comienza una nueva conversación.</p>
                 </div>
@@ -496,7 +500,7 @@ export function MessageCenter() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

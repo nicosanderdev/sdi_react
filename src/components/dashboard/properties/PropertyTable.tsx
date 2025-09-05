@@ -1,5 +1,5 @@
 import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, ImageIcon, AlertTriangleIcon } from 'lucide-react';
-import { PropertyData } from '../../services/PropertyService';
+import { PropertyData } from '../../../services/PropertyService';
 
 interface PropertyTableProps {
   properties: PropertyData[];

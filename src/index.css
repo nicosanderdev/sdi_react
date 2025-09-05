@@ -1,5 +1,59 @@
-/* PLEASE NOTE: THESE TAILWIND IMPORTS SHOULD NEVER BE DELETED */
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
-/* DO NOT DELETE THESE TAILWIND IMPORTS, OTHERWISE THE STYLING WILL NOT RENDER AT ALL */
+@import 'tailwindcss';
+@plugin 'flowbite-react/plugin/tailwindcss';
+@source '../.flowbite-react/class-list.json';
+@import "flowbite/src/themes/default";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
+
+  /* Foreground (text) colors for contrast */
+  --color-primary-50-foreground: #1e1b4b;
+  --color-primary-100-foreground: #1e1b4b;
+  --color-primary-200-foreground: #1e1b4b;
+  --color-primary-300-foreground: #1e1b4b;
+  --color-primary-400-foreground: #1e1b4b;
+  --color-primary-500-foreground: #ffffff;
+  --color-primary-600-foreground: #ffffff;
+  --color-primary-700-foreground: #ffffff;
+  --color-primary-800-foreground: #ffffff;
+  --color-primary-900-foreground: #ffffff;
+  --color-primary-950-foreground: #ffffff;
+
+  /* Secondary color palette - Teal/Emerald tones */
+  --color-secondary-50: #f0fdfa;
+  --color-secondary-100: #ccfbf1;
+  --color-secondary-200: #99f6e4;
+  --color-secondary-300: #5eead4;
+  --color-secondary-400: #2dd4bf;
+  --color-secondary-500: #14b8a6;
+  --color-secondary-600: #0d9488;
+  --color-secondary-700: #0f766e;
+  --color-secondary-800: #115e59;
+  --color-secondary-900: #134e4a;
+  --color-secondary-950: #042f2e;
+
+  /* Foreground (text) colors for secondary contrast */
+  --color-secondary-50-foreground: #042f2e;
+  --color-secondary-100-foreground: #042f2e;
+  --color-secondary-200-foreground: #042f2e;
+  --color-secondary-300-foreground: #042f2e;
+  --color-secondary-400-foreground: #042f2e;
+  --color-secondary-500-foreground: #ffffff;
+  --color-secondary-600-foreground: #ffffff;
+  --color-secondary-700-foreground: #ffffff;
+  --color-secondary-800-foreground: #ffffff;
+  --color-secondary-900-foreground: #ffffff;
+  --color-secondary-950-foreground: #ffffff;
+}

@@ -21,7 +21,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useParams } from 'react-router-dom';
-import propertyService, { PropertyData, PropertyImage } from '../../services/PropertyService';
+import propertyService, { PropertyData, PropertyImage } from '../../../services/PropertyService';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 

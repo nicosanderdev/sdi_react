@@ -11,6 +11,7 @@ import reportService, {
   //  PropertyVisitStat
 } from '../../services/ReportService';
 import { useReactToPrint } from "react-to-print";
+import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
 
 const TIME_RANGES = [
   { id: 'last7days', label: 'Últimos 7 días' },
@@ -28,19 +29,19 @@ const mapTimeRangeToPeriod = (timeRangeValue: string): string => {
 
 export function ReportsAndMetrics() {
   const [timeRange, setTimeRange] = useState<string>('last30days'); // Default to one of the mapped IDs
-  
+
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummaryData | null>(null);
   const [dailyVisits, setDailyVisits] = useState<DailyVisit[]>([]);
   const [visitsBySource, setVisitsBySource] = useState<VisitSource[]>([]);
   // const [propertiesPerformance, setPropertiesPerformance] = useState<PropertyVisitStat[]>([]);
-  
+
   const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(true);
   const [isLoadingDailyVisits, setIsLoadingDailyVisits] = useState<boolean>(true);
   const [isLoadingVisitsBySource, setIsLoadingVisitsBySource] = useState<boolean>(true);
   // const [isLoadingPropertiesPerf, setIsLoadingPropertiesPerf] = useState<boolean>(true);
-  
+
   const [error, setError] = useState<string | null>(null);
-  
+
   const componentToPrintRef = useRef(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
@@ -113,54 +114,46 @@ export function ReportsAndMetrics() {
     title: string, value: string | number, icon: React.ReactNode,
     trendValue?: number, trendDirection?: 'increase' | 'decrease' | 'neutral', isLoading: boolean
   }) => (
-    <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6 min-h-[150px] flex flex-col justify-between">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-6 min-h-[150px] flex flex-col justify-between">
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-[#1B4965]">{title}</h3>
-          <div className="p-2 bg-[#BEE9E8]/60 rounded-full">{icon}</div>
+          <h3 className="text-lg font-medium">{title}</h3>
+          <div className="p-2 bg-[#BEE9E8]/60 dark:bg-blue-900/30 rounded-full">{icon}</div>
         </div>
         {isLoading ? (
           <Loader2Icon className="h-8 w-8 text-[#62B6CB] animate-spin" />
         ) : (
-          <div className="text-3xl font-bold text-[#1B4965]">{value}</div>
+          <div className="text-3xl font-bold">{value}</div>
         )}
       </div>
-      {isLoading ? <div className="h-5 bg-gray-200 rounded w-3/4 animate-pulse mt-2"></div> : renderTrend(trendValue, trendDirection)}
+      {isLoading ? <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-3/4 animate-pulse mt-2"></div> : renderTrend(trendValue, trendDirection)}
     </div>
   );
 
   return (
     <div className="p-4 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#1B4965] mb-4 md:mb-0">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 md:mb-0">
           Reportes y Métricas
         </h1>
         <div className="flex items-center space-x-3 print-hide">
-          <div className="relative">
-            <select
-              value={timeRange}
-              onChange={e => setTimeRange(e.target.value)}
-              className="pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-1 focus:ring-[#62B6CB] bg-[#FDFFFC] text-sm"
-            >
-              {TIME_RANGES.map(range => (
-                <option key={range.id} value={range.id}>
-                  {range.label}
-                </option>
-              ))}
-            </select>
-            <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
-          </div>
-            <button
-              className="flex items-center bg-[#62B6CB] text-[#FDFFFC] px-4 py-2.5 rounded-md hover:opacity-90 transition-opacity shadow-sm"
-              onClick={reactToPrintFn} >
-              <DownloadIcon size={18} className="mr-2" />
-              <span>Exportar</span>
-            </button>
+
+          <Dropdown
+            value={timeRange}
+            dismissOnClick={true}
+            label={TIME_RANGES.find(range => range.id === timeRange)?.label}>
+            {TIME_RANGES.map(range => (
+              <DropdownItem onClick={() => setTimeRange(range.id)} key={range.id} value={range.id}>
+                {range.label}
+              </DropdownItem>
+            ))}
+          </Dropdown>
+
+          <Button
+            onClick={reactToPrintFn} >
+            <DownloadIcon size={18} className="mr-2" />
+            <span>Exportar</span>
+          </Button>
         </div>
       </div>
 
@@ -191,8 +184,8 @@ export function ReportsAndMetrics() {
       </div>
 
       <div ref={contentRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6 min-h-[400px]">
-          <h2 className="text-xl font-semibold text-[#1B4965] mb-6">Visitas por Día</h2>
+        <Card>
+          <h2 className="text-xl font-semibold mb-6">Visitas por Día</h2>
           <div className="h-80">
             {isLoadingDailyVisits ? (
               <div className="flex items-center justify-center h-full"><Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" /></div>
@@ -202,9 +195,9 @@ export function ReportsAndMetrics() {
               <div className="flex items-center justify-center h-full text-gray-500">No hay datos de visitas.</div>
             )}
           </div>
-        </div>
-        <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6 min-h-[400px]">
-          <h2 className="text-xl font-semibold text-[#1B4965] mb-6">Visitas por Fuente</h2>
+        </Card>
+        <Card>
+          <h2 className="text-xl font-semibold mb-6">Visitas por Fuente</h2>
           <div className="h-80">
             {isLoadingVisitsBySource ? (
               <div className="flex items-center justify-center h-full"><Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" /></div>
@@ -214,7 +207,7 @@ export function ReportsAndMetrics() {
               <div className="flex items-center justify-center h-full text-gray-500">No hay datos de fuentes.</div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

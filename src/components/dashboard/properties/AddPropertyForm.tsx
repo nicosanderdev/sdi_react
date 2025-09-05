@@ -8,9 +8,9 @@ import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
-import PropertyService, { PropertyData } from '../../services/PropertyService';
-import { SuccessDisplay } from '../ui/SuccessDisplay';
-import { ErrorDisplay } from '../ui/ErrorDisplay';
+import PropertyService, { PropertyData } from '../../../services/PropertyService';
+import { SuccessDisplay } from '../../ui/SuccessDisplay';
+import { ErrorDisplay } from '../../ui/ErrorDisplay';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
 import reportService from './../../services/ReportService'; // Adjust path if needed
+import { Card } from 'flowbite-react';
 
 export function PropertyStats() {
   // --- Data Fetching for Visits Per Day Chart ---
@@ -29,12 +30,12 @@ export function PropertyStats() {
   };
 
   return (
-    <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
-      <h2 className="text-xl font-bold text-[#1B4965] mb-6">
+    <Card>
+      <h2 className="text-xl font-bold mb-6">
         Estadísticas de Visitas (Últimos 7 días)
       </h2>
       <div className="mb-8">
-        <h3 className="text-md font-medium text-[#1B4965] mb-3">
+        <h3 className="text-md font-medium mb-3">
           Visitas por día
         </h3>
         <div className="h-64">
@@ -53,7 +54,7 @@ export function PropertyStats() {
         </div>
       </div>
       <div>
-        <h3 className="text-md font-medium text-[#1B4965] mb-3">
+        <h3 className="text-md font-medium mb-3">
           Visitas por fuente
         </h3>
         <div className="h-64">
@@ -71,6 +72,6 @@ export function PropertyStats() {
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

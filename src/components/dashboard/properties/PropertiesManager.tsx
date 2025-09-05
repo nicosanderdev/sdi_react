@@ -1,10 +1,11 @@
-// src/components/PropertiesManager.tsx
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
-import { PropertyTable } from './PropertyTable'; // Assuming same directory
-import { AddPropertyForm } from './AddPropertyForm'; // Assuming same directory
-import propertyService, { PropertyData } from '../../services/PropertyService'; // Adjust path
+import { PropertyTable } from './PropertyTable';
+import { AddPropertyForm } from './AddPropertyForm';
+import propertyService, { PropertyData } from '../../../services/PropertyService';
+import DashboardPageTitle from '../DashboardPageTitle';
+import { Button, Card } from 'flowbite-react';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
@@ -71,10 +72,6 @@ export function PropertiesManager() {
     navigate(`/properties/${id}`);
   }; */ 
 
-  const handleEditProperty = (id: string) => {
-    navigate(`/properties/${id}/edit`);
-  };
-
   const handlePrintProperty = (id: string) => {
     console.log(`Placeholder: Print property with ID: ${id}`);
     // Future implementation for printing
@@ -113,18 +110,14 @@ export function PropertiesManager() {
   }
 
   return (
-    <div className="p-4 md:p-6">
+    <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <h1 className="text-2xl font-bold text-[#101828] mb-4 md:mb-0">
-          Gestión de Propiedades
-        </h1>
-        <button 
-          onClick={() => setShowAddProperty(true)} 
-          className="flex items-center bg-[#62B6CB] text-[#FDFFFC] px-4 py-2.5 rounded-md hover:opacity-90 transition-colors shadow-sm"
-        >
+      <DashboardPageTitle title="Gestión de Propiedades" />
+        <Button
+          onClick={() => setShowAddProperty(true)} >
           <PlusIcon size={18} className="mr-2" />
           <span>Nueva Propiedad</span>
-        </button>
+        </Button>
       </div>
 
       {error && !isDeleting && ( // Show general fetch error, not delete error which is handled in modal
@@ -134,21 +127,17 @@ export function PropertiesManager() {
             </div>
         )}
 
-      <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-4 md:p-6">
+      <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <div className="flex space-x-1 mb-4 md:mb-0 overflow-x-auto pb-2">
             {TABS.map(tab => (
-              <button 
+              <Button
+                color={activeTab === tab.id ? 'default' : 'alternative'}
                 key={tab.id} 
                 onClick={() => setActiveTab(tab.id)} 
-                className={`px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap ${
-                  activeTab === tab.id 
-                    ? 'bg-[#62B6CB] text-[#FDFFFC] shadow-sm' 
-                    : 'bg-[#BEE9E8] text-[#101828] hover:bg-opacity-80 transition-colors'
-                }`}
               >
                 {tab.label}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="relative">
@@ -172,12 +161,11 @@ export function PropertiesManager() {
           <PropertyTable 
             properties={filteredProperties}
             // onViewProperty={handleViewProperty}
-            onEditProperty={handleEditProperty}
             onPrintProperty={handlePrintProperty}
             onDeleteProperty={handleDeleteRequest}
           />
         )}
-      </div>
+      </Card>
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && propertyToDelete && (

@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react'; // Import useRef
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/AuthService';
-import { PublicLayout } from '../../components/public/layout/PublicLayout';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
-import { TwoFactorInput } from './TwoFactorInput'; // <-- IMPORT THE NEW COMPONENT
+import { TwoFactorInput } from '../../components/public/TwoFactorInput'; // <-- IMPORT THE NEW COMPONENT
+import { PublicLayout } from '../../components/layout/PublicLayout';
 
 export function LoginPage() {
 
@@ -25,7 +25,6 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   
-  // Create a ref for the 2FA form to trigger submission programmatically
   const twoFaFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

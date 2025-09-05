@@ -12,10 +12,13 @@
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
     "@reduxjs/toolkit": "^2.8.2",
+    "@tailwindcss/vite": "^4.1.12",
     "@tanstack/react-query": "^5.79.0",
     "@tanstack/react-query-devtools": "^5.79.2",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
+    "flowbite": "^3.1.2",
+    "flowbite-react": "^0.12.8",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.441.0",
@@ -42,7 +45,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
     "postcss": "latest",
-    "tailwindcss": "3.4.17",
+    "tailwindcss": "^4.1.12",
     "typescript": "^5.5.4",
     "vite": "^5.2.0"
   }

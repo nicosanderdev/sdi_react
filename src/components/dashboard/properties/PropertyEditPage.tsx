@@ -10,7 +10,7 @@ import {
   Loader2, Mailbox, Globe, Landmark, Building2, Hash, Upload, Trash2, Star,
   CheckCircle
 } from 'lucide-react';
-import propertyService, { PropertyImage, PropertyData, PropertyDocument } from '../../services/PropertyService';
+import propertyService, { PropertyImage, PropertyData, PropertyDocument } from '../../../services/PropertyService';
 
 // Assuming you have these maps in a utility file, similar to your create form
 const propertyStatusMap: Record<string, number> = { 'Sale': 0, 'Rent': 1, 'Sold': 2, 'Reserved': 3, 'Unavailable': 4 };

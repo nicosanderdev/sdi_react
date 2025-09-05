@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { PublicLayout } from '../../components/public/layout/PublicLayout';
 import { UserIcon, MailIcon, PhoneIcon, MessageSquareIcon, MapPinIcon, ClockIcon, PhoneCallIcon, MailOpenIcon } from 'lucide-react';
+import { PublicLayout } from '../../components/layout/PublicLayout';
 export function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',

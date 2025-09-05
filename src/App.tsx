@@ -1,5 +1,7 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeInit } from '../.flowbite-react/init';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -12,14 +14,14 @@ import { RegisterPage } from './pages/public/RegisterPage';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { UserProfile } from './components/user/UserProfile';
-import { PropertiesManager } from './components/properties/PropertiesManager';
-import { MessageCenter } from './components/communication/MessageCenter';
+import { PropertiesManager } from './components/dashboard/properties/PropertiesManager';
+import { MessageCenter } from './components/dashboard/MessageCenter';
 import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
 import { UserSettings } from './components/user/UserSettings';
 import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
-import { PropertyViewPage } from './components/properties/PropertyViewPage';
-import { PropertyEditPage } from './components/properties/PropertyEditPage';
+import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
+import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
 
 import { useDispatch } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
@@ -38,9 +40,11 @@ export function App() {
   }, [dispatch]);
 
   return (
-    <Router>
-      <RouteChangeTracker />
-      <Routes>
+    <ThemeProvider>
+      <ThemeInit />
+      <Router>
+        <RouteChangeTracker />
+        <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/contact" element={<ContactPage />} />
@@ -66,7 +70,8 @@ export function App() {
 
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/notfound" />} />
-      </Routes>
-    </Router>
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }

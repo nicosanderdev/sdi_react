@@ -32,8 +32,8 @@ export function VisitsByDateChart({ data }: VisitsByDateChartProps) {
         />
         <Tooltip 
           contentStyle={{
-            backgroundColor: '#FDFFFC', // Ensure Tailwind evaluates this
-            borderColor: '#e2e8f0',
+            backgroundColor: '#eef2ff',
+            borderColor: '#c7d2fe',
             borderRadius: '0.375rem',
             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
             fontSize: '12px',

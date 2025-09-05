@@ -1,6 +1,5 @@
 import React from 'react';
-// Make sure the path to your PublicLayout component is correct
-import { PublicLayout } from '../../components/public/layout/PublicLayout'; 
+import { PublicLayout } from '../../components/layout/PublicLayout';
 
 export function TermsAndConditionsPage() {
   const lastUpdatedDate = new Date().toLocaleDateString('es-ES', {
