@@ -235,28 +235,6 @@ export function UserProfile() {
               <h3 className="text-lg font-semibold">
                 Información Personal
               </h3>
-              {!editing ? (
-                <div className="flex space-x-2">
-                    <Button
-                    size='xs'
-                    color="alternative"
-                    onClick={() => setIsChangePasswordModalOpen(true)}
-                    >
-                    <LockIcon size={10}
-                      className="mr-2" />
-                      Cambiar Contraseña
-                    </Button>
-                    
-                    <Button
-                    size='xs'
-                    onClick={handleEditToggle}
-                    >
-                    <Edit3Icon size={10}
-                      className="mr-2"/> 
-                      Editar Perfil
-                    </Button>
-                </div>
-              ) : null}
             </div>
 
             {!editing && profileData ? (
@@ -332,9 +310,32 @@ export function UserProfile() {
                 </div>
               </form>
             ) : (
-                // Fallback if !profileData in display mode (already handled by main error display but good for structure)
                 <p>No hay información de perfil para mostrar.</p>
             )}
+            <div className="flex justify-end">
+                {!editing ? (
+                    <div className="flex space-x-2">
+                        <Button
+                        size='md'
+                        color="alternative"
+                        onClick={() => setIsChangePasswordModalOpen(true)}
+                        >
+                        <LockIcon size={10}
+                        className="mr-2" />
+                        Cambiar Contraseña
+                        </Button>
+                        
+                        <Button
+                        size='md'
+                        onClick={handleEditToggle}
+                        >
+                        <Edit3Icon size={10}
+                        className="mr-2"/> 
+                        Editar Perfil
+                        </Button>
+                    </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </Card>

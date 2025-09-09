@@ -17,12 +17,18 @@ import {
   Dribbble 
 } from "lucide-react";
 
+const footerTheme = {
+    "root": {
+      "base": "w-full rounded-lg bg-white shadow-none md:flex md:items-center md:justify-between dark:bg-gray-800"
+    }
+  }
+
 export function PublicFooter() {
   return (<>
     <footer>
       <div className="grid grid-cols-12 w-full">
 
-      <Footer container className="col-span-12 md:col-span-8 md:col-start-3">
+      <Footer theme={footerTheme} container className="col-span-12 md:col-span-8 md:col-start-3">
         <div className="w-full">
           <div className="grid w-full justify-between sm:flex sm:justify-between md:flex md:grid-cols-1">
             <div>
