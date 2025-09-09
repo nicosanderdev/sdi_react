@@ -3,7 +3,7 @@ import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, Briefc
 import profileService, { ProfileData, AddressData, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { IconWrapper } from '../ui/IconWrapper';
-import { Button, Card } from 'flowbite-react';
+import { Button, Card, Label, TextInput } from 'flowbite-react';
 
 const initialProfileState: ProfileData = {
   firstName: '',
@@ -161,16 +161,16 @@ export function UserProfile() {
     name: string,
     value: string | undefined,
     type: string = 'text',
-    icon?: React.ReactNode,
+    icon?: any,
     required: boolean = true,
     disabled: boolean = false
   ) => (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
+      <Label htmlFor={name}>
         {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        <input
+      </Label>
+      <div className="relative mt-1">
+        <TextInput
           type={type}
           name={name}
           id={name}
@@ -178,9 +178,8 @@ export function UserProfile() {
           onChange={handleInputChange}
           required={required}
           disabled={disabled}
-          className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
-        />
-        {icon && <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">{icon}</div>}
+          icon={icon}
+          />
       </div>
     </div>
   );
@@ -226,7 +225,7 @@ export function UserProfile() {
               </button>
             </div>
             <h2 className="text-xl font-semibold mt-4">{currentData.firstName} {currentData.lastName}</h2>
-            <p className="text-gray-600">{currentData.title || 'Título no especificado'}</p>
+            <p>{currentData.title || 'Título no especificado'}</p>
           </div>
 
           {/* Personal Information / Edit Form */}
@@ -248,7 +247,7 @@ export function UserProfile() {
                         <IconWrapper icon={MapPinIcon} size={20} />
                      </div>
                      <div>
-                        <p className="text-sm text-gray-500">Dirección</p>
+                        <p className="text-sm">Dirección</p>
                         <p className="font-medium">{profileData.address.street || '-'}</p>
                         {profileData.address.street2 && <p className="font-medium">{profileData.address.street2}</p>}
                         <p className="font-medium">{`${profileData.address.city || ''}${profileData.address.city && profileData.address.state ? ', ' : ''}${profileData.address.state || ''} ${profileData.address.postalCode || ''}`}</p>
@@ -259,23 +258,23 @@ export function UserProfile() {
             ) : editing ? (
               <form onSubmit={handleSubmitProfile} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Nombre", "firstName", formData.firstName, "text", <IconWrapper icon={UserIcon} size={18} />)}
-                    {renderInputField("Apellido", "lastName", formData.lastName, "text", <IconWrapper icon={UserIcon} size={18} />)}
+                    {renderInputField("Nombre", "firstName", formData.firstName, "text", UserIcon)}
+                    {renderInputField("Apellido", "lastName", formData.lastName, "text", UserIcon)}
                 </div>
-                {renderInputField("Título / Cargo (Opcional)", "title", formData.title, "text", <IconWrapper icon={BriefcaseIcon} size={18} />, false)}
-                {renderInputField("Correo Electrónico", "email", formData.email, "email", <IconWrapper icon={MailIcon} size={18} />, true, true)}
-                {renderInputField("Teléfono (Opcional)", "phone", formData.phone, "tel", <IconWrapper icon={PhoneIcon} size={18} />, false)}
+                {renderInputField("Título / Cargo (Opcional)", "title", formData.title, "text", BriefcaseIcon, false)}
+                {renderInputField("Correo Electrónico", "email", formData.email, "email", MailIcon, true, true)}
+                {renderInputField("Teléfono (Opcional)", "phone", formData.phone, "tel", PhoneIcon, false)}
                 
-                <h4 className="text-md font-semibold text-[#1B4965] pt-2">Dirección (Opcional)</h4>
-                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
-                {renderInputField("Apartamento, suite, etc.", "address.street2", formData.address.street2, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
+                <h4 className="text-md font-semibold pt-2">Dirección (Opcional)</h4>
+                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", false)}
+                {renderInputField("Apartamento, suite, etc.", "address.street2", formData.address.street2, "text", false)}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
-                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
+                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", false)}
+                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", false)}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
-                    {renderInputField("País", "address.country", formData.address.country, "text", <IconWrapper icon={MapPinIcon} size={18} />, false)}
+                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", false)}
+                    {renderInputField("País", "address.country", formData.address.country, "text", false)}
                 </div>
 
                 {error && isUpdating && (
@@ -283,19 +282,16 @@ export function UserProfile() {
                 )}
 
                 <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
+                  <Button
+                    color="alternative"
                     onClick={handleEditToggle}
-                    disabled={isUpdating}
-                    className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm flex items-center"
-                  >
-                    <XIcon size={16} className="mr-2"/> Cancelar
-                  </button>
-                  <button
+                    disabled={isUpdating}>
+                    <XIcon size={16} className="mr-2"/>
+                    Cancelar
+                  </Button>
+                  <Button
                     type="submit"
-                    disabled={isUpdating}
-                    className="bg-[#5CA4B8] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#62B6CB] transition-colors text-sm flex items-center disabled:opacity-50"
-                  >
+                    disabled={isUpdating}>
                     {isUpdating ? (
                         <>
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -306,7 +302,7 @@ export function UserProfile() {
                            <SaveIcon size={16} className="mr-2"/> Guardar Cambios
                         </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               </form>
             ) : (
