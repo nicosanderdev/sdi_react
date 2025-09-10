@@ -129,7 +129,7 @@ export function PropertiesManager() {
 
       <Card>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <div className="flex space-x-1 mb-4 md:mb-0 overflow-x-auto pb-2">
+          <div className="flex space-x-1 mb-4 md:mb-0 overflow-x-auto p-2">
             {TABS.map(tab => (
               <Button
                 color={activeTab === tab.id ? 'default' : 'alternative'}

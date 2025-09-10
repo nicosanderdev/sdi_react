@@ -2,6 +2,7 @@ import React from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import { PlusIcon, TrashIcon, FileTextIcon } from 'lucide-react';
 import { PropertyFormData } from './AddPropertyForm';
+import { Button, FileInput, Label } from 'flowbite-react';
 
 interface PropertyFormStep4Props {
   onSubmit: (e: React.FormEvent) => void;
@@ -10,22 +11,26 @@ interface PropertyFormStep4Props {
 }
 
 const DocumentUploadField = ({ name, label, register, error }: { name: keyof PropertyFormData, label: string, register: any, error?: any }) => (
-  <div className="p-4 border border-gray-200 rounded-lg">
-    <label htmlFor={name} className="block text-sm font-medium text-[#101828] mb-2">{label}</label>
+  <div className="p-4 border border-primary-500 dark:border-gray-300 rounded-lg">
+    <div className="mb-3 block">
+        <Label htmlFor={name}>{label}</Label>
+    </div>
     <div className="flex items-center space-x-4">
-      <FileTextIcon className="text-gray-400" size={24} />
-      <input
+      <FileTextIcon className="" size={24} />
+      <FileInput id={name} 
+        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" 
+        {...register(name)}
+        color="alternative" />
+      {/* <Button
         id={name}
+        color="alternative"
+        size="sm"
+        pill
         type="file"
         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-        {...register(name)}
-        className="block w-full text-sm text-gray-500
-          file:mr-4 file:py-2 file:px-4
-          file:rounded-full file:border-0
-          file:text-sm file:font-semibold
-          file:bg-[#BEE9E8] file:text-[#1B4965]
-          hover:file:bg-[#a8dad9]"
-      />
+        {...register(name)}>
+        Seleccionar archivo
+      </Button> */}
     </div>
     {error && <p className="text-red-500 text-sm mt-1">{error.message}</p>}
   </div>
@@ -53,7 +58,7 @@ export function PropertyFormStep4({ onSubmit, onBack }: PropertyFormStep4Props) 
         </div>
 
         <div>
-          <h3 className="text-md font-semibold text-[#101828]">Otros Documentos</h3>
+          <h3 className="text-md font-semibold">Otros Documentos</h3>
           <div className="space-y-4 mt-2">
             {fields.map((field, index) => (
               <div key={field.id} className="p-4 border border-gray-200 rounded-lg flex items-center space-x-4">
@@ -83,23 +88,22 @@ export function PropertyFormStep4({ onSubmit, onBack }: PropertyFormStep4Props) 
               </div>
             ))}
           </div>
-          <button
+          <Button
+            color="alternative"
             type="button"
-            onClick={() => append({ name: '', file: null as any })}
-            className="mt-4 flex items-center text-sm font-medium text-[#62B6CB] hover:text-[#1B4965]"
-          >
+            onClick={() => append({ name: '', file: null as any })}>
             <PlusIcon size={16} className="mr-2" />
             Añadir otro documento
-          </button>
+          </Button>
         </div>
 
         <div className="flex justify-between pt-4">
-          <button type="button" onClick={onBack} className="bg-gray-200 text-[#101828] px-6 py-2 rounded-md hover:bg-gray-300 transition-colors">
+          <Button color="alternative" onClick={onBack}>
             Atrás
-          </button>
-          <button type="submit" disabled={isSubmitting} className="bg-[#1B4965] text-[#FDFFFC] px-6 py-2 rounded-md hover:opacity-90 transition-colors disabled:opacity-50">
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Guardando...' : 'Guardar Propiedad'}
-          </button>
+          </Button>
         </div>
       </div>
     </form>

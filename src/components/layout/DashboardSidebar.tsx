@@ -22,6 +22,7 @@ interface NavItem {
   path: string;
   badgeCount?: number;
 }
+
 export function DashboardSidebar() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
@@ -50,8 +51,8 @@ export function DashboardSidebar() {
   return (
     <>
       <Sidebar aria-label="Sidebar with logo branding example">
-        <SidebarLogo href="#" img="/favicon.svg" imgAlt="Flowbite logo">
-          Flowbite
+        <SidebarLogo href="/dashboard" img="/favicon.svg" imgAlt="SGI logo">
+          SGI
         </SidebarLogo>
         <SidebarItems>
           <SidebarItemGroup>
@@ -82,8 +83,8 @@ export function DashboardSidebar() {
         <ModalHeader />
         <ModalBody>
           <div className="text-center">
-            <TriangleAlert className="mx-auto mb-4 h-14 w-14 text-gray-400 dark:text-gray-200" />
-            <h3 className="mb-5 text-lg font-normal text-gray-500 dark:text-gray-400">
+            <TriangleAlert className="mx-auto mb-4 h-14 w-14 dark:text-gray-300" />
+            <h3 className="mb-5 text-lg dark:text-gray-300">
               ¿Seguro que quieres cerrar sesión?
             </h3>
             <div className="flex justify-center gap-4">

@@ -29,9 +29,9 @@ export function HeaderLayout() {
 
   const navbarTheme = {
     "root": {
-      "base": "bg-white px-2 py-2.5 sm:px-4 dark:border-gray-700 dark:bg-gray-800",
+      "base": "bg-gray-50 px-2 py-2.5 sm:px-4 dark:border-gray-700 dark:bg-gray-800",
       "rounded": {
-        "on": "rounded",
+        "on": "",
         "off": ""
       },
       "bordered": {

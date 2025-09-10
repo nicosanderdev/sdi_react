@@ -3,6 +3,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { Upload, Image as ImageIcon, X } from 'lucide-react';
 import { PropertyFormData } from './AddPropertyForm';
+import { Button } from 'flowbite-react';
 
 interface PropertyFormStep3Props {
   onNext: () => void;
@@ -117,15 +118,15 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="space-y-6">
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" onDrop={handleDrop} onDragOver={handleDragOver}>
+        <div className="border-2 border-dashed border-primary-500 dark:border-gray-200 rounded-lg p-8 text-center" onDrop={handleDrop} onDragOver={handleDragOver}>
           <input type="file" ref={fileInputRef} onChange={handleFileChange} multiple accept="image/*" className="hidden" />
           <div className="flex flex-col items-center">
             <Upload size={40} className="text-gray-400 mb-4" />
-            <p className="text-[#101828] font-medium mb-2">Arrastra y suelta las imágenes aquí (hasta 15)</p>
-            <p className="text-gray-500 text-sm mb-4">o</p>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:opacity-90 transition-colors">
+            <p className="font-medium mb-2">Arrastra y suelta las imágenes aquí (hasta 15)</p>
+            <p className="text-sm mb-4">o</p>
+            <Button onClick={() => fileInputRef.current?.click()}>
               Seleccionar archivos
-            </button>
+            </Button>
           </div>
         </div>
         {errors.images && <p className="text-red-500 text-sm mt-1">{errors.images.message}</p>}
@@ -167,12 +168,12 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
         
         {/* Navigation Buttons */}
         <div className="flex justify-between pt-4">
-          <button type="button" onClick={onBack} className="bg-gray-200 text-[#101828] px-6 py-2 rounded-md hover:bg-gray-300 transition-colors">
+          <Button color="alternative" onClick={onBack}>
             Atrás
-          </button>
-          <button type="button" onClick={onNext} className="bg-[#1B4965] text-[#FDFFFC] px-6 py-2 rounded-md hover:opacity-90 transition-colors">
+          </Button>
+          <Button onClick={onNext}>
             Siguiente
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { ShieldCheck, ShieldOff, Loader2, Bell, Mail, Smartphone, Trash2, Check,
 import { ActionType, TwoFactorAuthModal, TwoFactorStep } from './2FaModal';
 import AuthService from '../../services/AuthService';
 import { set } from 'lodash';
+import { Button, Card } from 'flowbite-react';
 
 // --- Type Definitions for State and Props ---
 
@@ -253,26 +254,25 @@ export function UserSettings() {
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-6">
-            <h1 className="text-2xl font-bold text-[#1B4965] mb-6">Configuración</h1>
+            <h1 className="text-2xl font-bold mb-6">Configuración</h1>
 
             <div className="space-y-8">
                 {/* --- Security Settings Card --- */}
-                <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-lg font-semibold text-[#1B4965] mb-1">Seguridad</h2>
-                    <p className="text-sm text-gray-500 mb-6">Gestiona la seguridad de tu cuenta.</p>
+                <Card className="max-w-4xl">
+                    <h2 className="text-lg font-semibold mb-1">Seguridad</h2>
+                    <p className="text-sm mb-6">Gestiona la seguridad de tu cuenta.</p>
 
-                    {/* --- UPDATED: Conditional rendering based on email confirmation status --- */}
                     {!isEmailConfirmed ? (
-                        // STATE 1: Email is NOT confirmed
-                        <div className="flex flex-col md:flex-row justify-between items-center p-4 border rounded-lg bg-amber-50 border-amber-200">
+                        <div className="flex flex-col md:flex-row justify-between items-center p-4 border rounded-lg dark:bg-gray-800 bg-amber-50 border-amber-200">
                         <div>
-                            <p className="font-medium text-gray-800">Verificación de email</p>
-                            <p className="text-sm text-gray-500 mt-1">Verifica tu correo para poder acceder a todas las funcionalidades de la aplicación.</p>
+                            <p className="font-medium ">Verificación de email</p>
+                            <p className="text-sm mt-1">Verifica tu correo para poder acceder a todas las funcionalidades de la aplicación.</p>
                         </div>
-                        <button
+                        <Button
                                 onClick={handleResendConfirmationEmail}
                                 disabled={isResendingEmail}
-                                className="mt-4 md:mt-0 px-4 py-2 rounded-md transition-colors text-sm font-semibold flex items-center justify-center min-w-[180px] bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                size="sm"
+                                color="yellow"
                             >
                                 {isResendingEmail ? (
                                     <>
@@ -285,14 +285,13 @@ export function UserSettings() {
                             Reenviar correo
                                     </>
                                 )}
-                        </button>
+                        </Button>
                         </div>
                     ) : (
-                        // STATE 2 & 3: Email IS confirmed, show 2FA options
                         <div className="flex flex-col md:flex-row justify-between items-center p-4 border rounded-lg">
                         <div>
-                            <p className="font-medium text-gray-800">Autenticación de dos factores (2FA)</p>
-                            <p className="text-sm text-gray-500 mt-1">Añade una capa extra de seguridad a tu cuenta al iniciar sesión.</p>
+                            <p className="font-medium">Autenticación de dos factores (2FA)</p>
+                            <p className="text-sm mt-1">Añade una capa extra de seguridad a tu cuenta al iniciar sesión.</p>
                         </div>
                         <button
                                 onClick={handleInitiate2fa}
@@ -315,7 +314,7 @@ export function UserSettings() {
                         </button>
                         </div>
                     )}
-                </div>
+                </Card>
 
                 {/* --- Notification Settings Card --- 
                 <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
@@ -378,24 +377,24 @@ export function UserSettings() {
                 </div> */}
 
                 {/* --- Danger Zone Card --- */}
-                <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-red-300 p-6">
+                <Card>
                     <h2 className="text-lg font-semibold text-red-700 mb-1">Zona Peligrosa</h2>
-                    <p className="text-sm text-gray-500 mb-6">Estas acciones son permanentes y no se pueden deshacer.</p>
+                    <p className="text-sm mb-6">Estas acciones son permanentes y no se pueden deshacer.</p>
 
-                    <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex flex-col md:flex-row justify-between items-center p-4 dark:bg-gray-800 bg-red-50 border dark:border-red-700 border-red-200 rounded-lg">
                         <div>
-                            <p className="font-medium text-red-800">Eliminar Cuenta</p>
-                            <p className="text-sm text-red-600 mt-1">Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, ten la certeza.</p>
+                            <p className="font-medium ">Eliminar Cuenta</p>
+                            <p className="text-sm mt-1">Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, ten la certeza.</p>
                         </div>
-                        <button
+                        <Button
                             onClick={handleDeleteAccount}
-                            className="mt-4 md:mt-0 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors text-sm font-semibold flex items-center"
-                        >
+                            color="red"
+                            size="sm">
                             <Trash2 size={16} className="mr-2" />
                             Eliminar mi cuenta
-                        </button>
+                        </Button>
                     </div>
-                </div>
+                </Card>
             </div>
 
             <TwoFactorAuthModal

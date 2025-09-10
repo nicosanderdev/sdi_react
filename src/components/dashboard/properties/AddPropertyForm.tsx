@@ -11,6 +11,7 @@ import { PropertyFormStep4 } from './PropertyFormStep4';
 import PropertyService, { PropertyData } from '../../../services/PropertyService';
 import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { ErrorDisplay } from '../../ui/ErrorDisplay';
+import { Card } from 'flowbite-react';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -313,30 +314,30 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   return (
 
     <FormProvider {...methods}>
-      <div className="bg-[#FDFFFC] min-h-full">
+      <Card className="min-h-full">
         {view === 'form' && (
           <>
-            <div className="border-b border-gray-200">
+            <div>
               <div className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center">
                   {currentStep > 1 && (
                     <button onClick={handleBack} className="mr-4 p-2 hover:bg-gray-100 rounded-full">
-                      <ArrowLeft size={20} className="text-[#101828]" />
+                      <ArrowLeft size={20} />
                     </button>
                   )}
-                  <h1 className="text-xl font-semibold text-[#101828]">
+                  <h1 className="text-xl font-semibold">
                     Nueva Propiedad - Paso {currentStep} de 4
                   </h1>
                 </div>
-                <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
-                  <X size={20} className="text-[#101828]" />
+                <button onClick={onClose} className="p-2 hover:bg-primary-400/20 rounded-full">
+                  <X size={20} />
                 </button>
               </div>
               <div className="px-6 flex space-x-1">
                 {[1, 2, 3, 4].map(step => (
                   <div
                     key={step}
-                    className={`flex-1 h-1 rounded-full ${step <= currentStep ? 'bg-[#62B6CB]' : 'bg-gray-200'}`}
+                    className={`flex-1 h-1 rounded-full ${step <= currentStep ? 'bg-primary-400' : 'bg-gray-200'}`}
                   />
                 ))}
               </div>
@@ -377,7 +378,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
             onRetry={handleRetry}
           />
         )}
-      </div>
+      </Card>
     </FormProvider>
   );
 }

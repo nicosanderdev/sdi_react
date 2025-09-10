@@ -3,6 +3,7 @@ import { useFormContext } from 'react-hook-form';
 import { debounce } from 'lodash';
 import { PropertyFormMap } from './PropertyFormMap';
 import { PropertyFormData } from './AddPropertyForm';
+import { Button, Label, TextInput } from 'flowbite-react';
 
 interface PropertyFormStep1Props {
   onNext: () => void;
@@ -57,75 +58,103 @@ export function PropertyFormStep1({
       <div className="space-y-6">
         <div className='grid grid-cols-2 gap-4'>
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              Calle*
-            </label>
-            <input type="text" {...register('streetName')} onChange={() => {setUserEditedAddress(true);}} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" placeholder="Nombre de calle" />
+            <div className="mb-2 block">
+                <Label htmlFor="streetName">
+                Calle*
+                </Label>
+            </div>
+            <TextInput id="streetName"
+            {...register('streetName')} 
+            onChange={() => {setUserEditedAddress(true);}}
+            placeholder="Nombre de calle" />
             {errors.streetName && <p className="text-red-500 text-sm mt-1">{errors.streetName.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              Número de casa*
-            </label>
-            <input type="text" {...register('houseNumber')} onChange={() => {setUserEditedAddress(true);}} className="w-full px-4 py-2 border border-gray-300 rounded-lg" />
+            <div className="mb-2 block">
+                <Label htmlFor="houseNumber">
+                Número de casa*
+                </Label>
+            </div>
+            <TextInput id="houseNumber" 
+            {...register('houseNumber')} 
+            onChange={() => {setUserEditedAddress(true);}} />
             {errors.houseNumber && <p className="text-red-500 text-sm mt-1">{errors.houseNumber.message}</p>}
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#101828] mb-1">
-              Barrio
-            </label>
-            <input type="text" {...register('neighborhood')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" placeholder="Barrio" />
+            <div className="mb-2 block">
+                <Label htmlFor="neighborhood">
+                Barrio
+                </Label>
+            </div>
+            <TextInput id="neighborhood"
+            {...register('neighborhood')}
+            placeholder="Barrio" />
             {errors.neighborhood && <p className="text-red-500 text-sm mt-1">{errors.neighborhood.message}</p>}
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              Ciudad*
-            </label>
-            <input type="text" {...register('city')} onChange={() => {setUserEditedAddress(true);}} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" />
+            <div className="mb-2 block">
+                <Label htmlFor="city">
+                Ciudad*
+                </Label>
+            </div>
+            <TextInput id="city"
+            {...register('city')} 
+            onChange={() => {setUserEditedAddress(true);}} />
             {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              Estado/Provincia*
-            </label>
-            <input type="text" {...register('state')} onChange={() => {setUserEditedAddress(true);}} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" />
+            <div className="mb-2 block">
+                <Label htmlFor="state">
+                Estado/Provincia*
+                </Label>
+            </div>
+            <TextInput id="state" 
+            {...register('state')} 
+            onChange={() => {setUserEditedAddress(true);}} />
             {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              Código Postal*
-            </label>
-            <input type="text" {...register('zipCode')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" />
+            <div className="mb-2 block">
+                <Label htmlFor="zipCode">
+                Código Postal*
+                </Label>
+            </div>
+            <TextInput id="zipCode" 
+            {...register('zipCode')} />
             {errors.zipCode && <p className="text-red-500 text-sm mt-1">{errors.zipCode.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#101828] mb-1">
-              País*
-            </label>
-            <input type="text" {...register('country')} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" />
+            <div className="mb-2 block">
+                <Label htmlFor="country">
+                País*
+                </Label>
+            </div>
+            <TextInput id="country"
+            {...register('country')} />
             {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>}
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#101828] mb-1">
-            Ubicación en el mapa*
-          </label>
-          <div className="h-[300px] border border-gray-300 rounded-lg overflow-hidden">
+          <div className="mb-2 block">
+                <Label htmlFor="location">
+                Ubicación en el mapa*
+                </Label>
+            </div>
+          <div id="location" className="h-[300px] border border-gray-300 rounded-lg overflow-hidden">
             <PropertyFormMap
               location={location}
-              onLocationChange={newLocation => setValue('location', newLocation, { shouldValidate: true })}
-            />
+              onLocationChange={newLocation => setValue('location', newLocation, { shouldValidate: true })}/>
           </div>
           {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location.message}</p>}
         </div>
         <div className="flex justify-end">
-          <button type="submit" className="bg-[#62B6CB] text-[#FDFFFC] px-6 py-2 rounded-md hover:opacity-90 transition-colors">
+          <Button type="submit">
             Siguiente
-          </button>
+          </Button>
         </div>
       </div>
     </form>;

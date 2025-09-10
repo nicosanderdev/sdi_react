@@ -11,10 +11,7 @@ export function PropertyMap() {
 
   const { data: properties, isLoading, isError, error } = useQuery({
     queryKey: ['mapProperties'],
-    // Fetch properties with location data. Adjust fields as needed.
     queryFn: () => propertyService.getUserProperties(),
-    // Assuming getProperties returns { data: [properties] }
-    // and each property has { id, title, listingType, location: { latitude, longitude } }
   });
 
   useEffect(() => {
