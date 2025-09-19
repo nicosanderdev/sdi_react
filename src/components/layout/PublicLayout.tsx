@@ -7,7 +7,7 @@ interface PublicLayoutProps {
 export function PublicLayout({
   children
 }: PublicLayoutProps) {
-  return <div className="min-h-screen bg-[#FDFFFC] flex flex-col">
+  return <div className="min-h-screen bg-white dark:bg-gray-800 flex flex-col">
       <PublicHeader />
       <main className="flex-1">{children}</main>
       <PublicFooter />

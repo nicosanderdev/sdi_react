@@ -65,7 +65,7 @@ const documentSchema = z.object({
 
 const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
 const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
-const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'arePetsAllowed', 'capacity', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesAmount'];
+const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'arePetsAllowed', 'capacity', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
 
 export const propertyFormSchema = z.object({
   // ESTATE PROPERTY
@@ -104,14 +104,14 @@ export const propertyFormSchema = z.object({
   salePrice: z.string().optional(),
   rentPrice: z.string().optional(),
   hasCommonExpenses: z.boolean(),
-  commonExpensesAmount: z.string().optional(),
+  commonExpensesValue: z.string().optional(),
   isElectricityIncluded: z.boolean(),
   isWaterIncluded: z.boolean(),
   isPriceVisible: z.boolean(),
   status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']),
   isActive: z.boolean(),
   isPropertyVisible: z.boolean(),
-  mainImageUrl: z.string().min(1, 'Debes seleccionar una imagen principal.'),
+  mainImageId: z.string().min(1, 'Debes seleccionar una imagen principal.'),
   images: imageArraySchema,
 
   // --- Documents (Step 4) ---
@@ -124,9 +124,9 @@ export const propertyFormSchema = z.object({
 }).refine((data) => data.salePrice || data.rentPrice, {
   message: 'Debes especificar un precio de venta o de alquiler.',
   path: ['salePrice'],
-}).refine(data => !data.hasCommonExpenses || (data.hasCommonExpenses && data.commonExpensesAmount), {
+}).refine(data => !data.hasCommonExpenses || (data.hasCommonExpenses && data.commonExpensesValue), {
   message: 'Debes especificar el monto de los gastos comunes.',
-  path: ['commonExpensesAmount'],
+  path: ['commonExpensesValue'],
 });
 
 export type PropertyFormData = z.infer<typeof propertyFormSchema>;
@@ -173,7 +173,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       salePrice: '',
       rentPrice: '',
       hasCommonExpenses: false,
-      commonExpensesAmount: '',
+      commonExpensesValue: '',
       isElectricityIncluded: false,
       isWaterIncluded: false,
       isPriceVisible: true,
@@ -181,7 +181,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       isActive: true,
       isPropertyVisible: true,
       images: [],
-      mainImageUrl: '',
+      mainImageId: '',
 
       // --- Documents (Step 4) ---
       publicDeed: undefined,
@@ -240,8 +240,8 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
         formData.append('RentPrice', data.rentPrice);
       }
       formData.append('HasCommonExpenses', String(data.hasCommonExpenses));
-      if (data.commonExpensesAmount) {
-        formData.append('CommonExpensesAmount', data.commonExpensesAmount);
+      if (data.commonExpensesValue) {
+        formData.append('commonExpensesValue', data.commonExpensesValue);
       }
       formData.append('IsElectricityIncluded', String(data.isElectricityIncluded));
       formData.append('IsWaterIncluded', String(data.isWaterIncluded));
@@ -253,11 +253,9 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       if (data.images && data.images.length > 0) {
         data.images.forEach(file => formData.append('Images', file));
       }
-      formData.append('MainImageUrl', data.mainImageUrl);
+      formData.append('MainImageId', data.mainImageId);
 
       // --- Handle Files ---
-      // Documents (IFormFile[])
-      // Gather all potential document files into one array first.
       const allDocumentFiles: File[] = [];
       if (data.publicDeed) allDocumentFiles.push(data.publicDeed);
       if (data.propertyPlans) allDocumentFiles.push(data.propertyPlans);

@@ -225,7 +225,7 @@ export function UserSettings() {
         }, 2000);
     };
 
-    const handleChannelChange = (channel: keyof NotificationChannels): void => {
+    /* const handleChannelChange = (channel: keyof NotificationChannels): void => {
         setNotificationChannels(prev => ({ ...prev, [channel]: !prev[channel] }));
     };
 
@@ -235,7 +235,7 @@ export function UserSettings() {
             ...prev,
             [name as keyof NotificationSettings]: checked,
         }));
-    };
+    };*/
     
     const handleDeleteAccount = (): void => {
         if (window.confirm("¿Estás seguro de que quieres eliminar tu cuenta permanentemente? Esta acción no se puede deshacer.")) {
@@ -259,7 +259,7 @@ export function UserSettings() {
             <div className="space-y-8">
                 {/* --- Security Settings Card --- */}
                 <Card className="max-w-4xl">
-                    <h2 className="text-lg font-semibold mb-1">Seguridad</h2>
+                    <h2 className="text-lg font-semibold mb-1 text-yellow-500">Seguridad</h2>
                     <p className="text-sm mb-6">Gestiona la seguridad de tu cuenta.</p>
 
                     {!isEmailConfirmed ? (

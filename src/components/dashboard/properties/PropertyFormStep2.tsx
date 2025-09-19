@@ -33,7 +33,7 @@ export function PropertyFormStep2({
       'availableFrom',
       'salePrice',
       'rentPrice',
-      'commonExpensesAmount'
+      'commonExpensesValue'
     ];
     const isValid = await trigger(fieldsToValidate);
     if (isValid) {
@@ -269,10 +269,10 @@ export function PropertyFormStep2({
             {hasCommonExpenses && (
               <div className="pl-6">
                 <div className="mb-2 block">
-                  <Label htmlFor="commonExpensesAmount">Monto de gastos comunes ({currency})</Label>
+                  <Label htmlFor="commonExpensesValue">Monto de gastos comunes ({currency})</Label>
                 </div>
-                <TextInput id="commonExpensesAmount" type="number" min="0" {...register('commonExpensesAmount')} />
-                {errors.commonExpensesAmount && <p className="text-red-500 text-sm mt-1">{errors.commonExpensesAmount.message}</p>}
+                <TextInput id="commonExpensesValue" type="number" min="0" {...register('commonExpensesValue')} />
+                {errors.commonExpensesValue && <p className="text-red-500 text-sm mt-1">{errors.commonExpensesValue.message}</p>}
               </div>
             )}
             <div className="flex items-center">

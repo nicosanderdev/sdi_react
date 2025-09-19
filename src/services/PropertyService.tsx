@@ -11,6 +11,7 @@ export interface PropertyImage {
   estatePropertyId?: string;
   isPublic?: boolean;
   fileName?: string;
+  file?: File;
 }
 
 export interface EstatePropertyDescription {
@@ -36,6 +37,7 @@ export interface PropertyDocument {
   url: string;
   title: string;
   fileName: string;
+  file?: File;
 }
 
 // --- Main PropertyData Interface ---
@@ -64,16 +66,9 @@ export interface PropertyData {
   garageSpaces: number;
   // other info
   //relationships
-  images: File[];
   propertyImages: PropertyImage[];
-  mainImage?: File;
-  mainImageUrl?: string;
   mainImageId?: string;
-  publicDeed: File;
-  propertyPlans: File;
-  taxReceipts: File;
   propertyDocuments?: PropertyDocument[];
-  otherDocuments?: File[];
   // estate property values
   description?: string;
   availableFrom: Date;
@@ -86,7 +81,7 @@ export interface PropertyData {
   salePrice?: string;
   rentPrice?: string;
   hasCommonExpenses: boolean;
-  commonExpensesAmount?: string;
+  commonExpensesValue?: string;
   isElectricityIncluded: boolean;
   isWaterIncluded: boolean;
   isPriceVisible: boolean;
@@ -94,6 +89,7 @@ export interface PropertyData {
   isActive: boolean;
   isPropertyVisible: boolean;
   created: Date;
+  visits?: number;
 }
 
 // API Endpoints

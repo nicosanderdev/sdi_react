@@ -1,5 +1,6 @@
 import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, ImageIcon, AlertTriangleIcon } from 'lucide-react';
 import { PropertyData } from '../../../services/PropertyService';
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 
 interface PropertyTableProps {
   properties: PropertyData[];
@@ -31,39 +32,39 @@ export function PropertyTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      <Table className="min-w-full">
+        <TableHead>
+          <TableRow>
+            <TableHeadCell>
               Propiedad
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Estado/Pais
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Detalles
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Valor
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Estado
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Visitas
-            </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Fecha
-            </th>
-            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            </TableHeadCell>
+            <TableHeadCell>
               Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-[#FDFFFC] divide-y divide-gray-200">
+            </TableHeadCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {properties.map(property => (
-            <tr key={property.id} className="hover:bg-gray-50 transition-colors duration-150">
-              <td className="px-6 py-4 whitespace-nowrap">
+            <TableRow key={property.id}>
+              <TableCell className="px-6 py-4 whitespace-nowrap">
                 <div className="flex items-center">
                   {/*<div className="flex-shrink-0 h-10 w-10 rounded bg-[#BEE9E8] flex items-center justify-center text-[#1B4965] overflow-hidden border border-gray-200">
                     {property.mainImageUrl ? (
@@ -73,35 +74,35 @@ export function PropertyTable({
                     )}
                   </div> */}
                   <div className="ml-4">
-                    <div className="text-sm font-medium text-[#1B4965] line-clamp-2" title={property.title}>
+                    <div title={property.title}>
                       {property.title || 'N/A'}
                     </div>
-                    <div className="text-sm text-gray-500 line-clamp-1" title={property.streetName || ''}>
+                    <div title={property.streetName || ''}>
                       {property.streetName + " " + property.houseNumber || `${property.city || ''}, ${property.state || ''}`}
                     </div>
                   </div>
                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-500">
+              </TableCell>
+              <TableCell className="px-6 py-4 whitespace-nowrap">
+                <div>
                   {property.state  ? `${property.state}, ` : ''}
-                  <span className="text-gray-800 font-medium">{property.country ? `${property.country} ` : ''}</span>
+                  <span>{property.country ? `${property.country} ` : ''}</span>
                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{property.type || 'N/A'}</div>
-                <div className="text-sm text-gray-500">
+              </TableCell>
+              <TableCell className="px-6 py-4 whitespace-nowrap">
+                <div>{property.type || 'N/A'}</div>
+                <div>
                   {property.bedrooms ? `${property.bedrooms} hab, ` : ''} 
                   {property.bathrooms ? `${property.bathrooms} baños, ` : ''}
                   {property.areaValue || ''}
                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-[#1B4965]">
+              </TableCell>
+              <TableCell>
+                <div className="text-sm font-medium">
                   ${property.salePrice || property.salePrice || '0'}
                 </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              </TableCell>
+              <TableCell>
                 <span className={`px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     property.status === 'sale' ? 'bg-[#5CA4B8] text-[#FDFFFC]' : 
                     property.status === 'rent' ? 'bg-[#BEE9E8] text-[#1B4965]' : 
@@ -115,14 +116,14 @@ export function PropertyTable({
                    property.status === 'sold' ? 'Vendida' :
                    (property.status || 'N/A').toString().charAt(0).toUpperCase() + (property.status || 'N/A').toString().slice(1)}
                 </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+              </TableCell>
+              <TableCell>
                 {property.rentPrice ?? '-'}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              </TableCell>
+              <TableCell className="px-6 py-4 whitespace-nowrap text-sm">
                 { new Date(property.created).toLocaleDateString('es-UY', {}) }
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">
                   <button 
                     onClick={() => onViewProperty(property.id)}
@@ -153,11 +154,11 @@ export function PropertyTable({
                     <TrashIcon size={18} />
                   </button>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

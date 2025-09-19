@@ -5,7 +5,7 @@ import { PropertyTable } from './PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
 import propertyService, { PropertyData } from '../../../services/PropertyService';
 import DashboardPageTitle from '../DashboardPageTitle';
-import { Button, Card } from 'flowbite-react';
+import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader } from 'flowbite-react';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
@@ -26,8 +26,6 @@ export function PropertiesManager() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  const navigate = useNavigate();
 
   const fetchProperties = async () => {
     setIsLoading(true);
@@ -68,13 +66,8 @@ export function PropertiesManager() {
     return properties;
   }, [allProperties, activeTab, searchTerm]);
 
-  /* const handleViewProperty = (id: string) => {
-    navigate(`/properties/${id}`);
-  }; */ 
-
   const handlePrintProperty = (id: string) => {
     console.log(`Placeholder: Print property with ID: ${id}`);
-    // Future implementation for printing
   };
 
   const handleDeleteRequest = (property: PropertyData) => {
@@ -168,48 +161,48 @@ export function PropertiesManager() {
       </Card>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && propertyToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 transition-opacity duration-300">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-100">
-            <h3 className="text-xl font-semibold text-[#1B4965] mb-2">Confirmar Eliminación</h3>
-            <p className="text-gray-600 mb-1">
-              ¿Estás seguro de que quieres eliminar la propiedad: <br/>
-              <strong className="text-gray-800">{propertyToDelete.title}</strong>?
-            </p>
-            <p className="text-sm text-gray-500 mb-4">Esta acción no se puede deshacer.</p>
-            
-            {error && isDeleting && ( // Show delete-specific error here
-                <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm mb-3" role="alert">
-                    {error}
-                </div>
-            )}
+      {propertyToDelete &&
+      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} className='text-gray-800 dark:text-gray-50'>
+        <ModalHeader>
+          <h3 className="text-xl font-semibold mb-2">Confirmar Eliminación</h3>
+        </ModalHeader>
+        <ModalBody>
+          <p className="mb-4 text-xl text-center">
+            ¿Estás seguro de que quieres eliminar la propiedad: <br />
+            <strong>{propertyToDelete.title}</strong>?
+          </p>
+          <p className="text-sm mb-8 text-center">Esta acción no se puede deshacer.</p>
 
-            <div className="flex justify-end space-x-3 pt-2">
-              <button
-                onClick={() => { setShowDeleteModal(false); setError(null); }}
-                disabled={isDeleting}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDeleteProperty}
-                disabled={isDeleting}
-                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2Icon size={16} className="animate-spin mr-2" />
-                    Eliminando...
-                  </>
-                ) : (
-                  "Eliminar"
-                )}
-              </button>
+          {error && isDeleting && ( // Show delete-specific error here
+            <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm mb-3" role="alert">
+              {error}
             </div>
+          )}
+          <div className='flex justify-end gap-2 w-100'>
+            <Button
+              color="alternative"
+              onClick={() => { setShowDeleteModal(false); setError(null); }}
+              disabled={isDeleting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              color="red"
+              onClick={confirmDeleteProperty}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2Icon size={16} className="animate-spin mr-2" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </Button>
           </div>
-        </div>
-      )}
+        </ModalBody>
+      </Modal>}
     </div>
   );
 }
