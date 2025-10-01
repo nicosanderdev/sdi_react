@@ -24,5 +24,4 @@ export function DashboardLayout() {
       </div>
     </>
   )
-
 }

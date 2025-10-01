@@ -1,6 +1,20 @@
 // src/services/propertyService.ts
 import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up
 
+// 
+export interface PropertyParams {
+  pageNumber?: number,
+  pageSize?: number,
+  filter: {
+    isDeleted?: boolean,
+    ownerId?: string,
+    createdAfter?: Date,
+    createdBefore?: Date,
+    status?: string,
+    searchTerm?: string
+  }
+}
+
 // --- Helper Interfaces ---
 export interface PropertyImage {
   id?: string;
@@ -28,6 +42,12 @@ export interface Location {
 
 export interface PropertyDataList {
   items: PropertyData[];
+  total?: number;
+  page?: number;
+}
+
+export interface PublicPropertyDataList {
+  items: PublicProperty[];
   total?: number;
   page?: number;
 }
@@ -92,6 +112,35 @@ export interface PropertyData {
   visits?: number;
 }
 
+export interface PublicProperty {
+  id: string;
+  streetName: string;
+  houseNumber: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  location: { lat: number; lng: number; };
+  title: string;
+  type: string;
+  areaValue: number;
+  areaUnit: 'sqm' | 'sqft';
+  bedrooms: number;
+  bathrooms: number;
+  hasGarage: boolean;
+  garageSpaces: number;
+  images: { id: string; url: string; }[];
+  mainImageId: string;
+  description: string;
+  arePetsAllowed: boolean;
+  salePrice?: number;
+  rentPrice?: number;
+  currency: 'USD' | 'EUR' | 'GBP';
+  isElectricityIncluded: boolean;
+  isWaterIncluded: boolean;
+}
+
 // API Endpoints
 const ENDPOINTS = {
   PROPERTIES: '/properties',
@@ -104,9 +153,9 @@ const ENDPOINTS = {
 /**
  * Fetches a list of properties.
  */
-const getProperties = async (params?: any): Promise<PropertyDataList> => {
+const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDataList> => {
   try {
-    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.PROPERTIES, { params });
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params });
     return response;
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);

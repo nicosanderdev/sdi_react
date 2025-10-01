@@ -31,6 +31,10 @@ import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
 import { TermsAndConditionsPage } from './pages/public/TermsAndConditions';
 import { NotFoundPage } from './pages/public/NotFoundPage';
+import PropertiesResultsPage from './components/public/PropertiesResultsPage';
+import SearchPage from './components/public/SearchPage';
+import MapSearchPage from './components/public/MapSearchPage';
+import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
 
 
 export function App() {
@@ -45,31 +49,37 @@ export function App() {
       <Router>
         <RouteChangeTracker />
         <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
-        <Route path="/terms" element={<TermsAndConditionsPage />} />
-        <Route path="/notfound" element={<NotFoundPage />} />
 
-        {/* Dashboard Routes */}
-        <Route path="/dashboard" element={<DashboardLayout /> } > 
-          <Route index element={<DashboardOverview />} />
-          <Route path="profile" element={<UserProfile />} />
-          <Route path="properties" element={<PropertiesManager />} />
-          <Route path="messages" element={<MessageCenter />} />
-          <Route path="reports" element={<ReportsAndMetrics />} />
-          <Route path="settings" element={<UserSettings />} />
-          <Route path="logout" element={<LogoutPage />} />
-          <Route path="property/:propertyId" element={<PropertyViewPage />} />
-          <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
-        </Route>
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
+          <Route path="/terms" element={<TermsAndConditionsPage />} />
+          <Route path="/notfound" element={<NotFoundPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/properties" element={<PropertiesResultsPage />} />
+          <Route path="/properties/view/:propertyId" element={<PublicPropertyViewPage />} />
+          <Route path="/map-search" element={<MapSearchPage />} />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/notfound" />} />
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={<DashboardLayout /> } > 
+            <Route index element={<DashboardOverview />} />
+            <Route path="profile" element={<UserProfile />} />
+            <Route path="properties" element={<PropertiesManager />} />
+            <Route path="messages" element={<MessageCenter />} />
+            <Route path="reports" element={<ReportsAndMetrics />} />
+            <Route path="settings" element={<UserSettings />} />
+            <Route path="logout" element={<LogoutPage />} />
+            <Route path="property/:propertyId" element={<PropertyViewPage />} />
+            <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
+          </Route>
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/notfound" />} />
+          
         </Routes>
       </Router>
     </ThemeProvider>
