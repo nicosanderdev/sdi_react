@@ -31,7 +31,7 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
   // No need for trigger here, parent handles it.
   const { watch, setValue, formState: { errors } } = useFormContext<PropertyFormData>();
   const images = watch('images', []);
-  const mainImage = watch('mainImageUrl');
+  const mainImage = watch('mainImageId');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
@@ -61,9 +61,9 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
       const currentImages = watch('images', []);
       setValue('images', [...currentImages, ...validatedFiles], { shouldValidate: true });
       
-      const currentMainImage = watch('mainImageUrl');
+      const currentMainImage = watch('mainImageId');
       if (!currentMainImage && (images.length + validatedFiles.length) > 0) {
-         setValue('mainImageUrl', validatedFiles[0].name, { shouldValidate: true });
+         setValue('mainImageId', validatedFiles[0].name, { shouldValidate: true });
       }
     }
   };
@@ -92,13 +92,13 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
 
     if (mainImage === removedImage.name) {
       if (newImages.length > 0) {
-        setValue('mainImageUrl', newImages[0].name, { shouldValidate: true });
+        setValue('mainImageId', newImages[0].name, { shouldValidate: true });
       }
     }
   };
 
   const setMainImage = (image: File) => {
-    setValue('mainImageUrl', image.name, { shouldValidate: true });
+    setValue('mainImageId', image.name, { shouldValidate: true });
   };
 
   // Use a state to manage previews and clean them up properly.
@@ -130,7 +130,7 @@ export function PropertyFormStep3({ onNext, onBack }: PropertyFormStep3Props) {
           </div>
         </div>
         {errors.images && <p className="text-red-500 text-sm mt-1">{errors.images.message}</p>}
-        {errors.mainImageUrl && !mainImage && <p className="text-red-500 text-sm mt-1">{errors.mainImageUrl.message}</p>}
+        {errors.mainImageId && !mainImage && <p className="text-red-500 text-sm mt-1">{errors.mainImageId.message}</p>}
         {uploadErrors.length > 0 && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mt-4" role="alert">
             <strong className="font-bold">Errores de subida:</strong>

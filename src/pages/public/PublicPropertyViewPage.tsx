@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, Bath, Car, Square, PawPrint, Droplets, Zap, Check, HouseIcon } from 'lucide-react';
-import { mockPropertyData, Property } from '../../data/PropertyData';
+import { Bed, Bath, Car, Square, Check, Home } from 'lucide-react';
 import PropertyImageGallery from '../../components/public/properties/PropertyImageGallery';
-import IconLabel from '../../components/public/properties/IconLabel';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Badge, Card } from 'flowbite-react';
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
+import propertyService from '../../services/PropertyService';
+import { PropertyData } from '../../models/properties';
 
 interface ServiceGridElement {
   icon: any;
@@ -15,38 +15,33 @@ interface ServiceGridElement {
   value: string;
 }
 
+function getAreaUnit(id: string): "m²" | "ft²" | "yd²" | "acres" | "hectares" | "sq_km" | "sq_mi" {
+    switch (id) {
+      case '0': return 'm²';
+      case '1': return 'ft²';
+      case '2': return 'yd²';
+      case '3': return 'acres';
+      case '4': return 'hectares';
+      case '5': return 'sq_km';
+      default: return 'sq_mi';
+    }
+  }
+
 function PublicPropertyViewPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
 
   // State for loading, data, and errors
-  const [property, setProperty] = useState<Property | null>(null);
+  const [property, setProperty] = useState<PropertyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const servicesArray: ServiceGridElement[] = [
-    { icon: PawPrint, label: 'Pets Allowed', value: property?.ArePetsAllowed ? 'Yes' : 'No' },
-    { icon: Droplets, label: 'Water Included', value: property?.IsWaterIncluded ? 'Yes' : 'No' },
-    { icon: Zap, label: 'Electricity Included', value: property?.IsElectricityIncluded ? 'Yes' : 'No' },
-  ];
-
   useEffect(() => {
-    // Simulate fetching data from an API
     const fetchPropertyData = async () => {
       try {
         setLoading(true);
-        // In a real app, you would make an API call here:
-        // const response = await fetch(`/api/properties/${propertyId}`);
-        // const data = await response.json();
-        
-        // For now, we use the mock data after a short delay
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-        
-        // Here you could check if `propertyId` matches the mock data's ID
-        if (propertyId) {
-             setProperty(mockPropertyData);
-        } else {
-            throw new Error("Property not found");
-        }
+        var result = await propertyService.getPropertyById(propertyId!);
+        result = { ...result, areaUnit: getAreaUnit(result.areaUnit) }
+        setProperty(result);
       } catch (err) {
         setError("Failed to fetch property data.");
         console.error(err);
@@ -70,15 +65,19 @@ function PublicPropertyViewPage() {
     return <div className="text-center text-red-500 mt-10">{error || "Property not found."}</div>;
   }
 
-  // Helper to format currency
   const formatPrice = (price?: number) => {
     if (!price) return 'Price not available';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: property.Currency,
+      currency: property.currency || 'USD',
       maximumFractionDigits: 0,
     }).format(price);
   };
+
+  const formatAreaValue = (value?: number, unit?: string) => {
+    if (!value || !unit) return 'N/A';
+    return `${value} ${unit}`;
+  }
 
   return (<>
     <PublicLayout>
@@ -88,7 +87,7 @@ function PublicPropertyViewPage() {
 
             {/* Left Column (or Top on Mobile) - Image Gallery */}
             <div className="lg:col-span-2">
-              <PropertyImageGallery images={property.Images} mainImageId={property.MainImageId} />
+              <PropertyImageGallery images={property.propertyImages} mainImageId={property.mainImageId!} />
             </div>
 
             {/* Right Column (or Bottom on Mobile) - Property Info */}
@@ -96,13 +95,14 @@ function PublicPropertyViewPage() {
               <Card>
                 <div className='flex justify-normal'>
                   <Badge
+                    color='green'
                     icon={Check} size='xs'>
-                    For {property.SalePrice ? 'Sale' : 'Rent'}
+                    For {property.salePrice ? 'Sale' : 'Rent'}
                   </Badge>
                 </div>
-                <h1 className="text-3xl font-bold">{property.Title}</h1>
-                <p className="mt-1">{`${property.StreetName} ${property.HouseNumber}, ${property.City}, ${property.State}`}</p>
-                <p className="text-4xl font-extrabold mt-4">{formatPrice(property.SalePrice || property.RentPrice)}</p>
+                <h1 className="text-3xl font-bold">{property.title}</h1>
+                <p className="mt-1">{`${property.streetName} ${property.houseNumber}, ${property.city}, ${property.state}`}</p>
+                <p className="text-4xl font-bold mt-4">{property.salePrice != null ? formatPrice(Number.parseFloat(property.salePrice)) : formatPrice(Number.parseFloat(property.rentPrice!))}</p>
               </Card>
 
               {/* Key Features */}
@@ -111,19 +111,19 @@ function PublicPropertyViewPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className='flex items-center space-x-2'>
                     <IconWrapper icon={Bed} size={20}></IconWrapper>
-                    <span>{property.Bedrooms} Bedrooms</span>
+                    <span>{property.bedrooms} Bedrooms</span>
                   </div>
                   <div className='flex items-center space-x-2'>
                     <IconWrapper icon={Bath} size={20}></IconWrapper>
-                    <span>{property.Bathrooms} Bathrooms</span>
+                    <span>{property.bathrooms} Bathrooms</span>
                   </div>
                   <div className='flex items-center space-x-2'>
                     <IconWrapper icon={Square} size={20}></IconWrapper>
-                    <span>{property.AreaValue} {property.AreaUnit}</span>
+                    <span>{formatAreaValue(property.areaValue, property.areaUnit)}</span>
                   </div>
                   <div className='flex items-center space-x-2'>
                     <IconWrapper icon={Car} size={20}></IconWrapper>
-                    <span>{property.GarageSpaces} Garage Spaces</span>
+                    <span>{property.garageSpaces} Garage Spaces</span>
                   </div>
                 </div>
               </Card>
@@ -131,19 +131,19 @@ function PublicPropertyViewPage() {
           </div>
 
           {/* Full-width Description */}
-          <Card className='mt-8 mb-8'>
+          <Card className='mt-8 mb-8 p-3'>
             <h2 className="text-2xl font-bold mb-4">About this property</h2>
-            <p className="leading-relaxed whitespace-pre-line">{property.Description}</p>
+            <p className="leading-relaxed whitespace-pre-line">{property.description}</p>
           </Card>
           
-          {/* Services Included / Not Included */}
-          <Card className='mb-8'>
-            <h2 className="text-2xl font-bold mb-4">Services</h2>
-            <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-              {servicesArray.map((e: ServiceGridElement, idx: number) => (
-                <div key={e.label} className='flex items-center space-x-2'>
-                  <IconWrapper icon={e.icon} hoverable={true} size={25} />
-                  <span>{e.label} {e.value}</span>
+          {/* Amenities */}
+          <Card className='mb-8 p-3'>
+            <h2 className="text-2xl font-bold mb-4">Otros servicios y características</h2>
+            <div className='grid grid-cols-1 md:grid-cols-3 gap-4 p-4'>
+              {property.amenities.map(e => (
+                <div key={e.name} className='flex items-center space-x-2'>
+                  <IconWrapper icon={Home} hoverable={true} size={25} />
+                  <span>{e.name}</span>
                 </div>
               ))}
             </div>
