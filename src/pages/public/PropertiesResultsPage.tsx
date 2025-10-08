@@ -1,9 +1,10 @@
 import { Card, TextInput, Dropdown, Sidebar, Button, DropdownItem, SidebarItems, SidebarItemGroup, Banner, Pagination } from 'flowbite-react';
 import { Search } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckboxFilterGroup } from './properties/CheckboxFilterGroup';
-import { RadioFilterGroup } from './properties/RadioFilterGroup';
-import propertyService, { PropertyParams, PublicProperty } from '../../services/PropertyService';
+import { CheckboxFilterGroup } from '../../components/public/properties/CheckboxFilterGroup';
+import { RadioFilterGroup } from '../../components/public/properties/RadioFilterGroup';
+import { PropertyParams, PublicProperty } from '../../models/properties';
+import propertyService from '../../services/PropertyService';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [

@@ -31,10 +31,10 @@ import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
 import { TermsAndConditionsPage } from './pages/public/TermsAndConditions';
 import { NotFoundPage } from './pages/public/NotFoundPage';
-import PropertiesResultsPage from './components/public/PropertiesResultsPage';
+import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
 import SearchPage from './components/public/SearchPage';
-import MapSearchPage from './components/public/MapSearchPage';
 import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
+import MapSearchPage from './pages/public/MapSearchPage';
 
 
 export function App() {
