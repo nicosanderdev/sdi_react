@@ -4,29 +4,28 @@ import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set 
 // --- Type Definitions ---
 export interface Message {
   id: string;
-  threadId?: string; // For grouping messages in a conversation/thread
-  senderId?: string; // ID of the user who sent this specific message
+  threadId?: string;
+  senderId?: string;
   senderName: string;
   senderEmail?: string;
   
-  recipientId?: string; // ID of the user who is the recipient of this specific message (current user)
+  recipientId?: string;
 
   propertyId?: string;
   propertyTitle?: string;
   
   subject: string;
-  snippet: string; // Short preview for list view
+  snippet: string;
 
-  createdAt: string; // ISO date string from backend
+  createdAt: string;
 
   isRead: boolean;
   isReplied: boolean;
   isStarred: boolean;
   isArchived: boolean;
-  // isTrash?: boolean; // If you have a separate trash status
+  // isTrash?: boolean;
 }
 
-// For the detail view, ensuring fullBody is present
 export interface MessageDetail extends Message {
   fullBody: string;
 }
@@ -34,8 +33,8 @@ export interface MessageDetail extends Message {
 export interface GetMessagesParams {
   page?: number;
   limit?: number;
-  filter?: 'inbox' | 'starred' | 'replied' | 'archived' | 'sent' | 'trash' | string; // Allow custom filters
-  query?: string; // For search
+  filter?: 'inbox' | 'starred' | 'replied' | 'archived' | 'sent' | 'trash' | string;
+  query?: string;
   propertyId?: string;
   sortBy?: string;
 }

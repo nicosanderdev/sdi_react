@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
-
-interface Image {
-  id: string;
-  url: string;
-}
+import { PropertyImage } from '../../../models/properties';
 
 interface Props {
-  images: Image[];
+  images:PropertyImage[];
   mainImageId: string;
 }
 
-function PropertyImageGallery({ images, mainImageId }: Props) {
-  const [selectedImage, setSelectedImage] = useState<Image | undefined>();
+function PropertyImageGallery({ images , mainImageId }: Props) {
+  const [selectedImage, setSelectedImage] = useState<PropertyImage | undefined>();
 
   useEffect(() => {
     const mainImage = images.find(img => img.id === mainImageId) || images[0];

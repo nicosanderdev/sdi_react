@@ -17,7 +17,7 @@ const MessageDisplay = ({ message }: { message: MessageSample }) => {
           <p className="font-semibold">{message.senderName}</p>
           {isOwner && (
             <Badge 
-              color='indigo'>
+              color='green'>
               Property Owner
             </Badge>
           )}
@@ -33,10 +33,8 @@ const MessageDisplay = ({ message }: { message: MessageSample }) => {
 
 interface Props {
   thread: ThreadType;
-  // This prop will be controlled by a parent to decide if this thread's reply box is open
   isReplying: boolean; 
   onReplyClick: () => void;
-  // We'll simulate submitting a reply
   onReplySubmit: (threadId: string, replyText: string) => void;
 }
 
@@ -54,7 +52,7 @@ function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Pro
   };
 
   return (
-    <div className="border-b border-gray-200 p-6">
+    <div className="border-b border-gray-200 dark:border-gray-600 p-6">
       {/* The original question */}
       <MessageDisplay message={question} />
 
@@ -62,7 +60,7 @@ function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Pro
       {answer && (
         <div className="mt-4 pl-8 md:pl-16 relative">
           <CornerDownRight className="absolute left-2 md:left-6 top-3 h-5 w-5 text-gray-400" />
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
             <MessageDisplay message={answer} />
           </div>
         </div>
@@ -74,7 +72,7 @@ function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Pro
           {!isReplying ? (
             <button
               onClick={onReplyClick}
-              className="flex items-center space-x-2 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+              className="flex items-center space-x-2 text-sm font-semibold text-green-400 hover:text-green-600 transition-colors"
             >
               <MessageSquare size={16} />
               <span>Reply to this question</span>
