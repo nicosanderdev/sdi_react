@@ -81,7 +81,7 @@ export function PropertiesResultsPage() {
           pageNumber: 1,
           pageSize: 10,
           filter: {
-            isDeleted: true,
+            isDeleted: false
           }
         }
         const properties = await propertyService.getProperties(params);

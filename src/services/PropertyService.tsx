@@ -21,10 +21,41 @@ const ENDPOINTS = {
  */
 const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDataList> => {
   try {
-    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params });
+    const response = await apiClient.post<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, params);
     return response;
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetches properties within a specific map bounding box.
+ * This is optimized for map viewport-based queries.
+ */
+const getPropertiesInBounds = async (
+  swLat: number,
+  swLng: number,
+  neLat: number,
+  neLng: number,
+  additionalParams?: Partial<PropertyParams>
+): Promise<PublicPropertyDataList> => {
+  try {
+    const params: PropertyParams = {
+      pageNumber: additionalParams?.pageNumber ?? 1,
+      pageSize: additionalParams?.pageSize ?? 100,
+      filter: {
+        swLat,
+        swLng,
+        neLat,
+        neLng,
+        ...additionalParams?.filter
+      }
+    };
+    const response = await apiClient.post<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, params);
+    return response;
+  } catch (error: any) {
+    console.error('Error fetching properties in bounds:', error.message);
     throw error;
   }
 };
@@ -111,6 +142,7 @@ const deleteProperty = async (id: string): Promise<void> => {
 
 const propertyService = {
   getProperties,
+  getPropertiesInBounds,
   getUserProperties,
   getPropertyById,
   createProperty,
