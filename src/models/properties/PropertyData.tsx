@@ -28,8 +28,8 @@ export interface PropertyData {
   garageSpaces: number;
   // other info
   //relationships
-  propertyImages: PropertyImage[];
   mainImageId?: string;
+  propertyImages: PropertyImage[];
   propertyDocuments?: PropertyDocument[];
   propertyVideos: PropertyVideo[];
   amenities: Amenity[];

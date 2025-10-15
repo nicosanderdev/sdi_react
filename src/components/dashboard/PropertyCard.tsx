@@ -1,5 +1,6 @@
 import React from 'react';
 import { BuildingIcon, BedIcon, BathIcon, SquareIcon, EyeIcon, MessageSquareIcon } from 'lucide-react';
+import { Badge } from 'flowbite-react';
 interface PropertyProps {
   property: {
     id: number;
@@ -23,9 +24,9 @@ export function PropertyCard({
       <div className="relative h-48">
         <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
         <div className="absolute top-3 right-3">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${property.status === 'En venta' ? 'bg-[#62B6CB] text-white' : 'bg-[#62B6CB] text-white'}`}>
-            {property.status}
-          </span>
+            <Badge color='info'>
+                {property.status}
+            </Badge>
         </div>
       </div>
       <div className="p-4">

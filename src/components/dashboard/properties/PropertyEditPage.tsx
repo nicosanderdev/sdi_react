@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import propertyService from '../../../services/PropertyService';
 import { Button, Card, Checkbox, Label, Select, TextInput } from 'flowbite-react';
-import { PropertyData, PropertyImage } from '../../../models/properties';
+import { PropertyData, PropertyDocument, PropertyImage } from '../../../models/properties';
 import { ImageManager, DisplayImage } from './ImageManager';
 import { DocumentManager, DisplayDocument } from './DocumentManager';
 
@@ -109,8 +109,8 @@ export function PropertyEditPage() {
                     formData.append(`PropertyImages[${index}].AltText`, imgData.altText || '');
                     formData.append(`PropertyImages[${index}].IsMain`, imgData.isMain ? 'true' : 'false');
                     formData.append(`PropertyImages[${index}].EstatePropertyId`, payload.id);
-                    formData.append(`PropertyImages[${index}].IsPublic`, imgData.isPublic ? 'true' : 'false');
-                    formData.append(`PropertyImages[${index}].FileName`, imgData.altText || '');
+                    formData.append(`PropertyImages[${index}].IsPublic`, 'true');
+                    formData.append(`PropertyImages[${index}].FileName`, imgData.fileName! || imgData.altText! || '');
     
                     if (imgData.url)
                         formData.append(`PropertyImages[${index}].Url`, imgData.url);
@@ -127,6 +127,29 @@ export function PropertyEditPage() {
             } else {
                 formData.append('MainImageId', '');
             }
+
+            // Documents
+            if (payload.propertyDocuments && payload.propertyDocuments.length > 0) {
+                payload.propertyDocuments.forEach((docData: PropertyDocument, index: number) => {
+                    var docId = docData.id || crypto.randomUUID();
+                    
+                    if (docData.id?.startsWith('temp-'))
+                        docId = crypto.randomUUID();
+
+                    formData.append(`PropertyDocuments[${index}].Id`, docId);
+                    formData.append(`PropertyDocuments[${index}].Name`, docData.name || '');
+                    formData.append(`PropertyDocuments[${index}].EstatePropertyId`, payload.id);
+                    formData.append(`PropertyDocuments[${index}].FileName`, docData.fileName! || docData.name! || '');
+                    formData.append(`PropertyDocuments[${index}].IsPublic`, 'true');
+    
+                    if (docData.url)
+                        formData.append(`PropertyDocuments[${index}].Url`, docData.url);
+    
+                    if (docData.file)
+                        formData.append(`PropertyDocuments[${index}].File`, docData.file);
+                });
+            }
+            
             // Financials & Status
             formData.append('SalePrice', String(payload.salePrice) || '');
             formData.append('RentPrice', String(payload.rentPrice) || '');
@@ -185,7 +208,11 @@ export function PropertyEditPage() {
             }
             if (property.propertyDocuments) {
                 setDisplayDocuments(property.propertyDocuments.map((doc: any) => ({
-                    key: doc.id!, id: doc.id, source: 'existing', title: doc.title, fileName: doc.fileName,
+                    key: doc.id!, 
+                    id: doc.id, 
+                    source: 'existing', 
+                    name: doc.name, 
+                    fileName: doc.name,
                     url: `${API_BASE_URL}${doc.url.startsWith('/') ? '' : '/'}${doc.url}`,
                 })));
             }
@@ -198,6 +225,7 @@ export function PropertyEditPage() {
         if (!propertyId) return;
 
         const mainImage = displayImages.find(img => img.isMain);
+        
         const propertyImages = displayImages.map(img => ({
             id: img.id,
             file: img.file,
@@ -206,11 +234,23 @@ export function PropertyEditPage() {
             isMain: img.isMain,
             ...(img.source === 'new' && !img.id && { id: `temp-${img.key}` })
         }));
+        
+        const propertyDocuments = displayDocuments.map(doc => ({
+            id: doc.id,
+            file: doc.file,
+            url: (doc.source === 'existing' ? doc.url : '') || '',
+            name: doc.name,
+            estatePropertyId: formValues.id,
+            fileName: doc.fileName,
+            isPublic: true,
+            ...(doc.source === 'new' && !doc.id && { id: `temp-${doc.key}` })
+        }));
 
         const payload: PropertyData = {
             ...formValues,
             propertyImages,
-            mainImageId: mainImage?.source === 'existing' ? mainImage.id : undefined
+            mainImageId: mainImage?.source === 'existing' ? mainImage.id : undefined,
+            propertyDocuments
         };
         updateProperty({ id: propertyId, payload });
     };
@@ -552,7 +592,6 @@ export function PropertyEditPage() {
                     <ImageManager
                         displayImages={displayImages}
                         onImagesChange={setDisplayImages}
-                        API_BASE_URL={API_BASE_URL}
                     />
 
                     {/* --- Section: Documents --- */}
