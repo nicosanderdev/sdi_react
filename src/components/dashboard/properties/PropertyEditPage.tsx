@@ -11,9 +11,10 @@ import {
 } from 'lucide-react';
 import propertyService from '../../../services/PropertyService';
 import { Button, Card, Checkbox, Label, Select, TextInput } from 'flowbite-react';
-import { PropertyData, PropertyDocument, PropertyImage } from '../../../models/properties';
+import { PropertyData, PropertyDocument, PropertyImage, PropertyVideo, Amenity } from '../../../models/properties';
 import { ImageManager, DisplayImage } from './ImageManager';
 import { DocumentManager, DisplayDocument } from './DocumentManager';
+import { VideoManager, DisplayVideo } from './VideoManager';
 
 const propertyStatusMap: Record<string, number> = { 'Sale': 0, 'Rent': 1, 'Sold': 2, 'Reserved': 3, 'Unavailable': 4 };
 const currencyMap: Record<string, number> = { 'USD': 0, 'UYU': 1, 'BRL': 2, 'EUR': 3, 'CLP': 4 };
@@ -52,6 +53,8 @@ export function PropertyEditPage() {
     const [apiError, setApiError] = useState<string | null>(null);
     const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
     const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
+    const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
+    const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
     const hasGarage = watch("hasGarage");
 
     // --- Data Fetching ---
@@ -59,6 +62,11 @@ export function PropertyEditPage() {
         queryKey: ['property', propertyId],
         queryFn: () => propertyService.getOwnersPropertyById(propertyId!),
         enabled: !!propertyId,
+    });
+
+    const { data: allAmenities, isLoading: isLoadingAmenities } = useQuery({
+        queryKey: ['amenities'],
+        queryFn: () => propertyService.getAmenities(),
     });
 
     // --- MUTATION HOOK ---
@@ -149,6 +157,34 @@ export function PropertyEditPage() {
                         formData.append(`PropertyDocuments[${index}].File`, docData.file);
                 });
             }
+
+            // Videos
+            if (payload.propertyVideos && payload.propertyVideos.length > 0) {
+                payload.propertyVideos.forEach((videoData: PropertyVideo, index: number) => {
+                    var videoId = videoData.id || crypto.randomUUID();
+                    
+                    if (videoData.id?.startsWith('temp-'))
+                        videoId = crypto.randomUUID();
+
+                    formData.append(`PropertyVideos[${index}].Id`, videoId);
+                    formData.append(`PropertyVideos[${index}].Title`, videoData.title || '');
+                    formData.append(`PropertyVideos[${index}].Description`, videoData.description || '');
+                    formData.append(`PropertyVideos[${index}].Url`, videoData.url || '');
+                    formData.append(`PropertyVideos[${index}].EstatePropertyId`, payload.id);
+                    formData.append(`PropertyVideos[${index}].IsPublic`, 'true');
+                });
+            }
+
+            // Amenities
+            if (payload.amenities && payload.amenities.length > 0) {
+                payload.amenities.forEach((amenity, index: number) => {
+                    formData.append(`Amenities[${index}].Id`, amenity.id);
+                    formData.append(`Amenities[${index}].Name`, amenity.name);
+                    if (amenity.iconId) {
+                        formData.append(`Amenities[${index}].IconId`, amenity.iconId);
+                    }
+                });
+            }
             
             // Financials & Status
             formData.append('SalePrice', String(payload.salePrice) || '');
@@ -213,8 +249,22 @@ export function PropertyEditPage() {
                     source: 'existing', 
                     name: doc.name, 
                     fileName: doc.name,
+                    fileType: "pdf",
                     url: `${API_BASE_URL}${doc.url.startsWith('/') ? '' : '/'}${doc.url}`,
                 })));
+            }
+            if (property.propertyVideos) {
+                setDisplayVideos(property.propertyVideos.map((video: any) => ({
+                    key: video.id!, 
+                    id: video.id, 
+                    source: 'existing', 
+                    title: video.title || '',
+                    description: video.description || '',
+                    url: video.url,
+                })));
+            }
+            if (property.amenities) {
+                setSelectedAmenities(property.amenities.map((amenity: any) => amenity.id));
             }
         }
     }, [property, reset, API_BASE_URL]);
@@ -246,11 +296,27 @@ export function PropertyEditPage() {
             ...(doc.source === 'new' && !doc.id && { id: `temp-${doc.key}` })
         }));
 
+        const propertyVideos = displayVideos.map(video => ({
+            id: video.id,
+            url: video.url || '',
+            title: video.title,
+            description: video.description,
+            estatePropertyId: formValues.id,
+            isPublic: true,
+            ...(video.source === 'new' && !video.id && { id: `temp-${video.key}` })
+        }));
+
+        const selectedAmenitiesData = allAmenities?.filter(amenity => 
+            selectedAmenities.includes(amenity.id)
+        ) || [];
+
         const payload: PropertyData = {
             ...formValues,
             propertyImages,
             mainImageId: mainImage?.source === 'existing' ? mainImage.id : undefined,
-            propertyDocuments
+            propertyDocuments,
+            propertyVideos,
+            amenities: selectedAmenitiesData
         };
         updateProperty({ id: propertyId, payload });
     };
@@ -588,10 +654,54 @@ export function PropertyEditPage() {
                         </div>
                     </div>
 
+                    {/* --- Section: Amenities --- */}
+                    <div className='p-4 md:p-6 flex flex-col items-center'>
+                        <h3 className="text-xl font-semibold mb-4 border-b pb-2">Servicios</h3>
+                        <div className="flex flex-col items-center w-[50%] gap-y-4 mb-8">
+                            {isLoadingAmenities ? (
+                                <div className="flex justify-center items-center py-8">
+                                    <Loader2 className="animate-spin" size={24} />
+                                    <span className="ml-2">Cargando servicios...</span>
+                                </div>
+                            ) : allAmenities && allAmenities.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+                                    {allAmenities.map((amenity) => (
+                                        <div key={amenity.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                id={`amenity-${amenity.id}`}
+                                                checked={selectedAmenities.includes(amenity.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedAmenities(prev => [...prev, amenity.id]);
+                                                    } else {
+                                                        setSelectedAmenities(prev => prev.filter(id => id !== amenity.id));
+                                                    }
+                                                }}
+                                            />
+                                            <Label htmlFor={`amenity-${amenity.id}`} className="text-sm font-light">
+                                                {amenity.name}
+                                            </Label>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500 py-8">
+                                    No hay amenidades disponibles
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* --- Section: Property Images --- */}
                     <ImageManager
                         displayImages={displayImages}
                         onImagesChange={setDisplayImages}
+                    />
+
+                    {/* --- Section: Videos --- */}
+                    <VideoManager
+                        displayVideos={displayVideos}
+                        onVideosChange={setDisplayVideos}
                     />
 
                     {/* --- Section: Documents --- */}

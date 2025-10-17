@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bed, Bath, Car, Square, Check, Home } from 'lucide-react';
 import PropertyImageGallery from '../../components/public/properties/PropertyImageGallery';
+import PropertyVideoSection from '../../components/public/properties/PropertyVideoSection';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Badge, Card } from 'flowbite-react';
 import { IconWrapper } from '../../components/ui/IconWrapper';
@@ -9,11 +10,6 @@ import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
 import { PropertyData } from '../../models/properties';
 
-interface ServiceGridElement {
-  icon: any;
-  label: string;
-  value: string;
-}
 
 function getAreaUnit(id: string): "m²" | "ft²" | "yd²" | "acres" | "hectares" | "sq_km" | "sq_mi" {
     switch (id) {
@@ -148,6 +144,9 @@ function PublicPropertyViewPage() {
               ))}
             </div>
           </Card>
+          
+          {/* Property Videos */}
+          <PropertyVideoSection videos={property.propertyVideos} />
           
           {/* Q&A Section */}
           <div>

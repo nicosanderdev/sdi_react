@@ -3,6 +3,7 @@ import {
   PublicPropertyDataList,
   PropertyDataList,
   PropertyData,
+  Amenity,
 } from '../models/properties';
 
 import apiClient from './AxiosClient';
@@ -14,6 +15,7 @@ const ENDPOINTS = {
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
   USERS_PROPERTY_DETAIL: (id: string) => `/properties/mine/${id}`,
+  AMENITIES: '/properties/amenities',
 };
 
 /**
@@ -109,6 +111,16 @@ const deleteProperty = async (id: string): Promise<void> => {
   }
 };
 
+// Get all amenities for a property
+const getAmenities = async (): Promise<Amenity[]> => {
+    try {
+      return await apiClient.get<Amenity[]>(ENDPOINTS.AMENITIES);
+    } catch (error: any) {
+      console.error(`Error fetching amenities:`, error.message);
+      throw error;
+    }
+  };
+
 const propertyService = {
   getProperties,
   getUserProperties,
@@ -116,7 +128,8 @@ const propertyService = {
   createProperty,
   updateProperty,
   deleteProperty,
-  getOwnersPropertyById
+  getOwnersPropertyById,
+  getAmenities
 };
 
 export default propertyService;

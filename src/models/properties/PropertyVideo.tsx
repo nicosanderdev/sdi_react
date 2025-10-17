@@ -1,6 +1,8 @@
 export interface PropertyVideo {
   id?: string;
-  url: string;
+  title: string;
+  description?: string;
+  url?: string;
   altText?: string;
   estatePropertyId: string;
   isPublic?: boolean;
