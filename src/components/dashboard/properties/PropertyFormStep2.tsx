@@ -1,7 +1,10 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { PropertyFormData } from './AddPropertyForm';
 import { Button, Label, Select, TextInput, Textarea, Checkbox } from 'flowbite-react';
+import PropertyService from '../../../services/PropertyService';
+import { Amenity } from '../../../models/properties/Amenity';
 
 interface PropertyFormStep2Props {
   onNext: () => void;
@@ -12,14 +15,27 @@ export function PropertyFormStep2({
   onNext,
   onBack
 }: PropertyFormStep2Props) {
-  const { register, formState: { errors }, watch, trigger } = useFormContext<PropertyFormData>();
+  const { register, formState: { errors }, watch, trigger, setValue } = useFormContext<PropertyFormData>();
   const currency = watch('currency');
   const hasCommonExpenses = watch('hasCommonExpenses');
   const hasGarage = watch('hasGarage');
+  const selectedAmenities = watch('amenities') || [];
+
+  const { data: allAmenities, isLoading: isLoadingAmenities } = useQuery({
+    queryKey: ['amenities'],
+    queryFn: () => PropertyService.getAmenities(),
+  });
+
+  const handleAmenityChange = (amenityId: string, isChecked: boolean) => {
+    if (isChecked) {
+      setValue('amenities', [...selectedAmenities, amenityId]);
+    } else {
+      setValue('amenities', selectedAmenities.filter(id => id !== amenityId));
+    }
+  };
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
-    // --- UPDATED: Add all required fields from this step to the validation array ---
     const fieldsToValidate: (keyof PropertyFormData)[] = [
       'title',
       'type',
@@ -43,11 +59,9 @@ export function PropertyFormStep2({
 
   return (
     <form onSubmit={handleNext} className="max-w-2xl mx-auto">
-      {/* --- ADDED: Container for new fields for better layout --- */}
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-2">Información Principal</h3>
-          {/* --- ADDED: Title Field --- */}
           <div>
             <div className="mb-2 block">
                 <Label htmlFor="title">
@@ -62,9 +76,7 @@ export function PropertyFormStep2({
           </div>
         </div>
 
-        {/* --- ADDED: Grid container for Type, Status, Area --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* --- ADDED: Property Type Field --- */}
           <div>
             <div className="mb-2 block">
                 <Label htmlFor="type">
@@ -84,7 +96,6 @@ export function PropertyFormStep2({
             {errors.type && <p className="text-red-500 text-sm mt-1">{errors.type.message}</p>}
           </div>
 
-          {/* --- ADDED: Status Field --- */}
           <div>
             <div className="mb-2 block">
               <Label htmlFor="status">
@@ -106,7 +117,6 @@ export function PropertyFormStep2({
           </div>
         </div>
         
-        {/* --- ADDED: Area Value and Unit Fields --- */}
         <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="mb-2 block">
@@ -175,7 +185,6 @@ export function PropertyFormStep2({
           </div>
         </div>
 
-        {/* This section remains largely the same, but with corrected field names for checkboxes */}
         <div className="border-t border-gray-200 pt-6">
           <h3 className="text-lg font-semibold mb-2">Precio y Gastos</h3>
           <div>
@@ -243,16 +252,13 @@ export function PropertyFormStep2({
         <div className="border-t border-gray-200 pt-6 space-y-4">
             <h3 className="text-lg font-semibold mb-4">Opciones Adicionales</h3>
             <div className="flex items-center">
-                {/* --- CORRECTED: Use 'isPriceVisible' from schema --- */}
                 <Checkbox id="isPriceVisible" {...register('isPriceVisible')} />
                 <Label htmlFor="isPriceVisible" className="ml-2">Mostrar precio en la publicación</Label>
             </div>
             <div className="flex items-center">
-                {/* --- CORRECTED: Use 'hasGarage' from schema --- */}
                 <Checkbox id="hasGarage" {...register('hasGarage')} />
                 <Label htmlFor="hasGarage" className="ml-2">Tiene garaje</Label>
             </div>
-            {/* --- ADDED: Conditional input for garage spaces --- */}
             {hasGarage && (
               <div className="pl-6">
                 <div className="mb-2 block">
@@ -276,20 +282,41 @@ export function PropertyFormStep2({
               </div>
             )}
             <div className="flex items-center">
-                {/* --- CORRECTED: Use 'isWaterIncluded' from schema --- */}
                 <Checkbox id="isWaterIncluded" {...register('isWaterIncluded')} />
                 <Label htmlFor="isWaterIncluded" className="ml-2">Pago de agua incluido</Label>
             </div>
             <div className="flex items-center">
-                {/* --- CORRECTED: Use 'isElectricityIncluded' from schema --- */}
                 <Checkbox id="isElectricityIncluded" {...register('isElectricityIncluded')} />
                 <Label htmlFor="isElectricityIncluded" className="ml-2">Pago de electricidad incluido</Label>
             </div>
-            {/* --- ADDED: Field for pets --- */}
-            <div className="flex items-center">
-                <Checkbox id="arePetsAllowed" {...register('arePetsAllowed')} />
-                <Label htmlFor="arePetsAllowed" className="ml-2">Se permiten mascotas</Label>
-            </div>
+        </div>
+
+        <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-semibold mb-4">Servicios</h3>
+            {isLoadingAmenities ? (
+                <div className="text-center py-4">
+                    <div className="text-gray-500">Cargando servicios...</div>
+                </div>
+            ) : allAmenities && allAmenities.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {allAmenities.map((amenity: Amenity) => (
+                        <div key={amenity.id} className="flex items-center">
+                            <Checkbox
+                                id={`amenity-${amenity.id}`}
+                                checked={selectedAmenities.includes(amenity.id)}
+                                onChange={(e) => handleAmenityChange(amenity.id, e.target.checked)}
+                            />
+                            <Label htmlFor={`amenity-${amenity.id}`} className="ml-2">
+                                {amenity.name}
+                            </Label>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-4">
+                    <div className="text-gray-500">No hay servicios disponibles</div>
+                </div>
+            )}
         </div>
         
         <div className="flex justify-between pt-4">

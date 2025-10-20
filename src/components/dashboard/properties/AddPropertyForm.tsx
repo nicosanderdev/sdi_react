@@ -8,18 +8,15 @@ import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
-import PropertyService, { PropertyData } from '../../../services/PropertyService';
+import PropertyService from '../../../services/PropertyService';
+import { PropertyData } from '../../../models/properties';
 import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { ErrorDisplay } from '../../ui/ErrorDisplay';
 import { Card } from 'flowbite-react';
+import { DisplayImage } from './ImageManager';
+import { DisplayDocument } from './DocumentManager';
+import { DisplayVideo } from './VideoManager';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const ACCEPTED_DOC_TYPES = [
-  "application/pdf", "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "image/jpeg", "image/png"
-];
 
 const propertyStatusMap: { [key: string]: number } = {
   sale: 0, rent: 1, reserved: 2, sold: 3, unavailable: 4,
@@ -31,37 +28,6 @@ const currencyMap: { [key: string]: number } = {
   USD: 0, UYU: 1, BRL: 2, EUR: 3, GBP: 4,
 };
 
-const optionalFileSchema = z.preprocess(
-  (val) => (val instanceof FileList && val.length > 0 ? val[0] : undefined),
-  z.instanceof(File, { message: "Input not instance of File" })
-    .refine((file) => file.size <= MAX_FILE_SIZE, `El tamaño máximo del archivo es 5MB.`)
-    .refine((file) => ACCEPTED_DOC_TYPES.includes(file.type), "Formato de archivo no válido.")
-    .optional()
-    .nullable()
-);
-
-const requiredFileSchema = z.preprocess(
-  (val) => (val instanceof FileList && val.length > 0 ? val[0] : undefined),
-  z.instanceof(File, { message: "El archivo es requerido." })
-    .refine((file) => file.size <= MAX_FILE_SIZE, `El tamaño máximo del archivo es 5MB.`)
-    .refine((file) => ACCEPTED_DOC_TYPES.includes(file.type), "Formato de archivo no válido.")
-);
-
-const imageFileSchema = z.instanceof(File, { message: "El archivo de imagen es requerido." })
-  .refine((file) => file.size <= MAX_FILE_SIZE, `El tamaño máximo de la imagen es 5MB.`)
-  .refine((file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-    "Solo se aceptan formatos .jpg, .jpeg, .png y .webp."
-  );
-
-const imageArraySchema = z.preprocess(
-  (val) => (val instanceof FileList ? Array.from(val) : val),
-  z.array(imageFileSchema).min(1, 'Debes subir al menos una imagen.').max(15, 'Puedes subir un máximo de 15 imágenes.')
-);
-
-const documentSchema = z.object({
-  file: requiredFileSchema,
-  name: z.string().min(1, 'El nombre del documento es requerido.'),
-});
 
 const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
 const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
@@ -111,15 +77,9 @@ export const propertyFormSchema = z.object({
   status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']),
   isActive: z.boolean(),
   isPropertyVisible: z.boolean(),
-  mainImageId: z.string().min(1, 'Debes seleccionar una imagen principal.'),
-  images: imageArraySchema,
 
-  // --- Documents (Step 4) ---
-  // Use the pre-processing schemas here
-  publicDeed: optionalFileSchema,
-  propertyPlans: optionalFileSchema,
-  taxReceipts: optionalFileSchema,
-  otherDocuments: z.array(documentSchema).optional(),
+  // --- Amenities ---
+  amenities: z.array(z.string()).optional(),
 
 }).refine((data) => data.salePrice || data.rentPrice, {
   message: 'Debes especificar un precio de venta o de alquiler.',
@@ -140,6 +100,11 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('form');
   const [currentStep, setCurrentStep] = useState(1);
   const queryClient = useQueryClient();
+
+  // --- State Management for Images, Videos, and Documents ---
+  const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
+  const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
+  const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const methods = useForm<PropertyFormData>({
     resolver: zodResolver(propertyFormSchema),
     mode: 'onTouched',
@@ -180,14 +145,9 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       status: undefined,
       isActive: true,
       isPropertyVisible: true,
-      images: [],
-      mainImageId: '',
 
-      // --- Documents (Step 4) ---
-      publicDeed: undefined,
-      propertyPlans: undefined,
-      taxReceipts: undefined,
-      otherDocuments: [],
+      // --- Amenities ---
+      amenities: [],
     },
   });
   const { handleSubmit, trigger, formState: { isSubmitting } } = methods;
@@ -249,25 +209,76 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       formData.append('Status', String(propertyStatusMap[data.status]));
       formData.append('IsActive', String(data.isActive));
       formData.append('IsPropertyVisible', String(data.isPropertyVisible));
-      // Images (IFormFile[])
-      if (data.images && data.images.length > 0) {
-        data.images.forEach(file => formData.append('Images', file));
-      }
-      formData.append('MainImageId', data.mainImageId);
+      
+      // Images
+      if (displayImages && displayImages.length > 0) {
+        displayImages.forEach((imgData: DisplayImage, index: number) => {
+          let imageId = imgData.id || crypto.randomUUID();
+          
+          if (imgData.id?.startsWith('temp-'))
+            imageId = crypto.randomUUID();
 
-      // --- Handle Files ---
-      const allDocumentFiles: File[] = [];
-      if (data.publicDeed) allDocumentFiles.push(data.publicDeed);
-      if (data.propertyPlans) allDocumentFiles.push(data.propertyPlans);
-      if (data.taxReceipts) allDocumentFiles.push(data.taxReceipts);
-      if (data.otherDocuments) {
-        data.otherDocuments.forEach(doc => allDocumentFiles.push(doc.file));
+          formData.append(`PropertyImages[${index}].Id`, imageId);
+          formData.append(`PropertyImages[${index}].AltText`, imgData.alt || '');
+          formData.append(`PropertyImages[${index}].IsMain`, imgData.isMain ? 'true' : 'false');
+          formData.append(`PropertyImages[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
+          formData.append(`PropertyImages[${index}].IsPublic`, 'true');
+          formData.append(`PropertyImages[${index}].FileName`, imgData.alt || '');
+
+          if (imgData.source === 'existing' && imgData.previewUrl)
+            formData.append(`PropertyImages[${index}].Url`, imgData.previewUrl);
+
+          if (imgData.file)
+            formData.append(`PropertyImages[${index}].File`, imgData.file);
+
+          if (imgData.isMain)
+            formData.append('MainImageId', imageId);
+        });
       }
 
-      if (allDocumentFiles.length > 0) {
-        console.log(`Appending ${allDocumentFiles.length} files to FormData under the key 'Documents'.`);
-        allDocumentFiles.forEach((file) => {
-          formData.append('Documents', file);
+      // Documents
+      if (displayDocuments && displayDocuments.length > 0) {
+        displayDocuments.forEach((docData: DisplayDocument, index: number) => {
+          let docId = docData.id || crypto.randomUUID();
+          
+          if (docData.id?.startsWith('temp-'))
+            docId = crypto.randomUUID();
+
+          formData.append(`PropertyDocuments[${index}].Id`, docId);
+          formData.append(`PropertyDocuments[${index}].Name`, docData.name || '');
+          formData.append(`PropertyDocuments[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
+          formData.append(`PropertyDocuments[${index}].FileName`, docData.fileName || docData.name || '');
+          formData.append(`PropertyDocuments[${index}].IsPublic`, 'true');
+
+          if (docData.url)
+            formData.append(`PropertyDocuments[${index}].Url`, docData.url);
+
+          if (docData.file)
+            formData.append(`PropertyDocuments[${index}].File`, docData.file);
+        });
+      }
+
+      // Videos
+      if (displayVideos && displayVideos.length > 0) {
+        displayVideos.forEach((videoData: DisplayVideo, index: number) => {
+          let videoId = videoData.id || crypto.randomUUID();
+          
+          if (videoData.id?.startsWith('temp-'))
+            videoId = crypto.randomUUID();
+
+          formData.append(`PropertyVideos[${index}].Id`, videoId);
+          formData.append(`PropertyVideos[${index}].Title`, videoData.title || '');
+          formData.append(`PropertyVideos[${index}].Description`, videoData.description || '');
+          formData.append(`PropertyVideos[${index}].Url`, videoData.url || '');
+          formData.append(`PropertyVideos[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
+          formData.append(`PropertyVideos[${index}].IsPublic`, 'true');
+        });
+      }
+
+      // Amenities
+      if (data.amenities && data.amenities.length > 0) {
+        data.amenities.forEach((amenityId, index) => {
+          formData.append(`Amenities[${index}].Id`, amenityId);
         });
       }
 
@@ -343,7 +354,16 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
             <div className="p-6">
               {currentStep === 1 && <PropertyFormStep1 onNext={() => handleNext(step1Fields)} />}
               {currentStep === 2 && <PropertyFormStep2 onNext={() => handleNext(step2Fields)} onBack={handleBack} />}
-              {currentStep === 3 && <PropertyFormStep3 onNext={() => handleNext(step3Fields)} onBack={handleBack} />}
+              {currentStep === 3 && (
+                <PropertyFormStep3 
+                  onNext={() => handleNext(step3Fields)} 
+                  onBack={handleBack}
+                  displayImages={displayImages}
+                  setDisplayImages={setDisplayImages}
+                  displayVideos={displayVideos}
+                  setDisplayVideos={setDisplayVideos}
+                />
+              )}
               {currentStep === 4 && (
                 <PropertyFormStep4
                   onSubmit={handleSubmit(
@@ -354,6 +374,8 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
                   )}
                   onBack={handleBack}
                   isSubmitting={isLoading || isSubmitting}
+                  displayDocuments={displayDocuments}
+                  setDisplayDocuments={setDisplayDocuments}
                 />
               )}
             </div>
