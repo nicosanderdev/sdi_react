@@ -1,145 +1,12 @@
-// src/services/propertyService.ts
-import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up
+import {
+  PropertyParams,
+  PublicPropertyDataList,
+  PropertyDataList,
+  PropertyData,
+  Amenity,
+} from '../models/properties';
 
-// 
-export interface PropertyParams {
-  pageNumber?: number,
-  pageSize?: number,
-  filter: {
-    isDeleted?: boolean,
-    ownerId?: string,
-    createdAfter?: Date,
-    createdBefore?: Date,
-    status?: string,
-    searchTerm?: string
-  }
-}
-
-// --- Helper Interfaces ---
-export interface PropertyImage {
-  id?: string;
-  contentType?: string;
-  url: string;
-  altText?: string;
-  isMain?: boolean;
-  estatePropertyId?: string;
-  isPublic?: boolean;
-  fileName?: string;
-  file?: File;
-}
-
-export interface EstatePropertyDescription {
-  id?: string;
-  languageCode?: string;
-  title?: string;
-  text: string;
-}
-
-export interface Location {
-  lat: number;
-  lng: number;
-}
-
-export interface PropertyDataList {
-  items: PropertyData[];
-  total?: number;
-  page?: number;
-}
-
-export interface PublicPropertyDataList {
-  items: PublicProperty[];
-  total?: number;
-  page?: number;
-}
-
-export interface PropertyDocument {
-  id?: string;
-  url: string;
-  title: string;
-  fileName: string;
-  file?: File;
-}
-
-// --- Main PropertyData Interface ---
-export interface PropertyData {
-  id: string;
-  // address
-  streetName: string;
-  houseNumber: string;
-  neighborhood?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  // description
-  title: string;
-  type: 'house' | 'apartment' | 'commercial' | 'land' | 'other';
-  areaValue: number;
-  areaUnit: 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi';
-  bedrooms: number;
-  bathrooms: number;
-  hasGarage: boolean;
-  garageSpaces: number;
-  // other info
-  //relationships
-  propertyImages: PropertyImage[];
-  mainImageId?: string;
-  propertyDocuments?: PropertyDocument[];
-  // estate property values
-  description?: string;
-  availableFrom: Date;
-  availableFromText: string;
-  arePetsAllowed: boolean;
-  capacity: number;
-  ownerId?: string;
-  // price and status
-  currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
-  salePrice?: string;
-  rentPrice?: string;
-  hasCommonExpenses: boolean;
-  commonExpensesValue?: string;
-  isElectricityIncluded: boolean;
-  isWaterIncluded: boolean;
-  isPriceVisible: boolean;
-  status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
-  isActive: boolean;
-  isPropertyVisible: boolean;
-  created: Date;
-  visits?: number;
-}
-
-export interface PublicProperty {
-  id: string;
-  streetName: string;
-  houseNumber: string;
-  neighborhood?: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  location: { lat: number; lng: number; };
-  title: string;
-  type: string;
-  areaValue: number;
-  areaUnit: 'sqm' | 'sqft';
-  bedrooms: number;
-  bathrooms: number;
-  hasGarage: boolean;
-  garageSpaces: number;
-  images: { id: string; url: string; }[];
-  mainImageId: string;
-  description: string;
-  arePetsAllowed: boolean;
-  salePrice?: number;
-  rentPrice?: number;
-  currency: 'USD' | 'EUR' | 'GBP';
-  isElectricityIncluded: boolean;
-  isWaterIncluded: boolean;
-}
+import apiClient from './AxiosClient';
 
 // API Endpoints
 const ENDPOINTS = {
@@ -148,6 +15,7 @@ const ENDPOINTS = {
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
   USERS_PROPERTY_DETAIL: (id: string) => `/properties/mine/${id}`,
+  AMENITIES: '/properties/amenities',
 };
 
 /**
@@ -181,13 +49,8 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
 // Fetch a single property with public info by its ID
 const getPropertyById = async (id: string): Promise<PropertyData> => {
   try {
-    const response = await apiClient.get<{ data: PropertyData }>(ENDPOINTS.PROPERTY_DETAIL(id));
-    const rawProperty = response.data;
-     return {
-      ...rawProperty,
-      id: String(rawProperty.id),
-      isPropertyVisible: rawProperty.isPropertyVisible === undefined ? true : rawProperty.isPropertyVisible,
-    };
+    const response = await apiClient.get<PropertyData>(ENDPOINTS.PROPERTY_DETAIL(id));
+    return response;
   } catch (error: any) {
     console.error(`Error fetching property ${id}:`, error.message);
     throw error;
@@ -248,6 +111,16 @@ const deleteProperty = async (id: string): Promise<void> => {
   }
 };
 
+// Get all amenities for a property
+const getAmenities = async (): Promise<Amenity[]> => {
+    try {
+      return await apiClient.get<Amenity[]>(ENDPOINTS.AMENITIES);
+    } catch (error: any) {
+      console.error(`Error fetching amenities:`, error.message);
+      throw error;
+    }
+  };
+
 const propertyService = {
   getProperties,
   getUserProperties,
@@ -255,7 +128,8 @@ const propertyService = {
   createProperty,
   updateProperty,
   deleteProperty,
-  getOwnersPropertyById
+  getOwnersPropertyById,
+  getAmenities
 };
 
 export default propertyService;
