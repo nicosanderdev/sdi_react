@@ -15,6 +15,7 @@ const ENDPOINTS = {
   CREATE_PROPERTY: '/properties/create',
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
+  PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
   AMENITIES: '/properties/amenities',
 };
 
@@ -164,6 +165,20 @@ const getAmenities = async (): Promise<Amenity[]> => {
     }
   };
 
+// Duplicate a property by its ID
+const duplicateProperty = async (id: string): Promise<PropertyData> => {
+  try {
+    const response = await apiClient.post<PropertyData>(ENDPOINTS.PROPERTY_DUPLICATE(id));
+    return {
+      ...response,
+      id: String(response.id),
+    };
+  } catch (error: any) {
+    console.error(`Error duplicating property ${id}:`, error.message);
+    throw error;
+  }
+};
+
 const propertyService = {
   getProperties,
   getPropertyById,
@@ -172,6 +187,7 @@ const propertyService = {
   createProperty,
   updateProperty,
   deleteProperty,
+  duplicateProperty,
   getAmenities
 };
 

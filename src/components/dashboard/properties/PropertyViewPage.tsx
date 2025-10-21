@@ -24,11 +24,12 @@ import {
     Globe,
     ChevronLeft,
     ChevronRight,
-    Star
+    Star,
+    Copy
 } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import propertyService from '../../../services/PropertyService';
-import { Button, Card } from 'flowbite-react';
+import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader } from 'flowbite-react';
 import { PropertyData } from '../../../models/properties/PropertyData';
 import { PropertyImage } from '../../../models/properties/PropertyImage';
 import { PropertyVideo } from '../../../models/properties/PropertyVideo';
@@ -90,11 +91,14 @@ const iconStyle = "text-white";
 
 export function PropertyViewPage() {
     const { propertyId } = useParams<{ propertyId: string }>();
+    const navigate = useNavigate();
     const [property, setProperty] = useState<PropertyData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedImage, setSelectedImage] = useState<string>('');
     const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+    const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
+    const [duplicating, setDuplicating] = useState<boolean>(false);
 
     useEffect(() => {
         if (!propertyId) {
@@ -210,6 +214,23 @@ export function PropertyViewPage() {
         return '';
     };
 
+    // Duplicate property function
+    const handleDuplicateProperty = async () => {
+        if (!propertyId) return;
+        
+        try {
+            setDuplicating(true);
+            const duplicatedProperty = await propertyService.duplicateProperty(propertyId);
+            setShowDuplicateModal(false);
+            navigate(`/dashboard/property/${duplicatedProperty.id}/edit`);
+        } catch (error) {
+            console.error('Error duplicating property:', error);
+            setError('Error al duplicar la propiedad. Por favor, inténtalo de nuevo.');
+        } finally {
+            setDuplicating(false);
+        }
+    };
+
     if (error) {
         return <div className="text-center text-red-500 mt-10">{error}</div>;
     }
@@ -222,9 +243,19 @@ export function PropertyViewPage() {
         <Card>
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl font-bold">{property.title}</h1>
-                <Button href={`/dashboard/property/${property.id}/edit`}>
-                    Editar
-                </Button>
+                <div className="flex space-x-2">
+                    <Button 
+                        color="gray" 
+                        onClick={() => setShowDuplicateModal(true)}
+                        disabled={duplicating}
+                    >
+                        <Copy size={16} className="mr-2" />
+                        Duplicar
+                    </Button>
+                    <Button href={`/dashboard/property/${property.id}/edit`}>
+                        Editar
+                    </Button>
+                </div>
             </div>
             <Card>
                 <div className='mb-2'>
@@ -489,6 +520,34 @@ export function PropertyViewPage() {
 
             </Card>
         </Card>
+
+        {/* Duplicate Confirmation Modal */}
+        <Modal show={showDuplicateModal} onClose={() => setShowDuplicateModal(false)}>
+            <ModalHeader>Confirmar acción de duplicar</ModalHeader>
+            <ModalBody>
+                <div className="space-y-6">
+                    <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+                        ¿Estás seguro de que quieres duplicar esta propiedad? Se creará una copia exacta que podrás editar.
+                    </p>
+                </div>
+            </ModalBody>
+            <ModalFooter>
+                <Button 
+                    color="alternative" 
+                    onClick={() => setShowDuplicateModal(false)}
+                    disabled={duplicating}
+                >
+                    Cancelar
+                </Button>
+                <Button 
+                    onClick={handleDuplicateProperty}
+                    disabled={duplicating}
+                >
+                    {duplicating && <Loader2 className="animate-spin mr-2" size={16} />}
+                    {duplicating ? 'Duplicando...' : 'Duplicar'}
+                </Button>
+            </ModalFooter>
+        </Modal>
     </>);
 };
 
