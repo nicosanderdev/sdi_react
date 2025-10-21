@@ -1,17 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from './PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
-import propertyService, { PropertyData } from '../../../services/PropertyService';
+import propertyService from '../../../services/PropertyService';
 import DashboardPageTitle from '../DashboardPageTitle';
-import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader } from 'flowbite-react';
+import { Button, Card, Modal, ModalBody, ModalHeader } from 'flowbite-react';
+import { PropertyData } from '../../../models/properties';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
   { id: 'sale', label: 'En Venta' },
   { id: 'rent', label: 'En Alquiler' },
-  { id: 'reserved', label: 'Reservadas' }
+  { id: 'reserved', label: 'Reservadas' },
+  { id: 'archived', label: 'Archivadas' }
 ];
 
 const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
@@ -31,7 +32,7 @@ export function PropertiesManager() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await propertyService.getUserProperties();
+      const data = await propertyService.getOwnersProperties();
       setAllProperties(data.items || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch properties.');
@@ -48,12 +49,10 @@ export function PropertiesManager() {
   const filteredProperties = useMemo(() => {
     let properties = [...allProperties];
 
-    // Filter by activeTab
     if (activeTab !== 'all') {
       properties = properties.filter(p => p.status && p.status.toLowerCase() === activeTab.toLowerCase());
     }
 
-    // Filter by searchTerm
     if (searchTerm.trim() !== '') {
       const lowerSearchTerm = searchTerm.toLowerCase();
       properties = properties.filter(property => 
@@ -84,7 +83,7 @@ export function PropertiesManager() {
       setAllProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
       setShowDeleteModal(false);
       setPropertyToDelete(null);
-      // Optionally show a success toast/message
+      
     } catch (err: any) {
       setError(err.message || 'Failed to delete property.');
       console.error(err);
@@ -95,7 +94,7 @@ export function PropertiesManager() {
 
   const handleAddPropertyFormClose = () => {
     setShowAddProperty(false);
-    fetchProperties(); // Refetch properties after adding a new one
+    fetchProperties();
   };
 
   if (showAddProperty) {
@@ -113,7 +112,7 @@ export function PropertiesManager() {
         </Button>
       </div>
 
-      {error && !isDeleting && ( // Show general fetch error, not delete error which is handled in modal
+      {error && !isDeleting && ( 
             <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
                 <p className="font-bold">Error</p>
                 <p>{error}</p>
@@ -125,7 +124,7 @@ export function PropertiesManager() {
           <div className="flex space-x-1 mb-4 md:mb-0 overflow-x-auto p-2">
             {TABS.map(tab => (
               <Button
-                color={activeTab === tab.id ? 'default' : 'alternative'}
+                color={activeTab === tab.id ? (tab.id === 'archived' ? 'red' : 'default') : 'alternative'}
                 key={tab.id} 
                 onClick={() => setActiveTab(tab.id)} 
               >
@@ -153,7 +152,6 @@ export function PropertiesManager() {
         ) : (
           <PropertyTable 
             properties={filteredProperties}
-            // onViewProperty={handleViewProperty}
             onPrintProperty={handlePrintProperty}
             onDeleteProperty={handleDeleteRequest}
           />

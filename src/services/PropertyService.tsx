@@ -3,6 +3,7 @@ import {
   PublicPropertyDataList,
   PropertyDataList,
   PropertyData,
+  PublicProperty,
   Amenity,
 } from '../models/properties';
 
@@ -14,13 +15,11 @@ const ENDPOINTS = {
   CREATE_PROPERTY: '/properties/create',
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
-  USERS_PROPERTY_DETAIL: (id: string) => `/properties/mine/${id}`,
   AMENITIES: '/properties/amenities',
 };
 
-/**
- * Fetches a list of properties.
- */
+
+// Fetches a list of public properties.
 const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDataList> => {
   try {
     const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params });
@@ -31,39 +30,84 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
   }
 };
 
-// Fetch a list of properties owned by the user
-const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
-  try {
-    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { params });
-    response.items.map(prop => ({
-      ...prop,
-      id: String(prop.id),
-    }));
-    return response;
-  } catch (error: any) {
-    console.error('Error fetching properties:', error.message);
-    throw error;
-  }
-};
-
 // Fetch a single property with public info by its ID
-const getPropertyById = async (id: string): Promise<PropertyData> => {
-  try {
-    const response = await apiClient.get<PropertyData>(ENDPOINTS.PROPERTY_DETAIL(id));
-    return response;
-  } catch (error: any) {
-    console.error(`Error fetching property ${id}:`, error.message);
-    throw error;
-  }
+const getPropertyById = async (id: string, params?: PropertyParams): Promise<PublicProperty> => {
+    try {
+        if (params?.filter?.includeImages !== undefined) {
+            params = {...params, filter: { ...params.filter, includeImages: true } }
+        };
+        if (params?.filter?.includeVideos !== undefined) {
+            params = { ...params, filter: { ...params.filter, includeVideos: true } }
+        };
+        if (params?.filter?.includeAmenities !== undefined) {
+            params = { ...params, filter: { ...params.filter, includeAmenities: true } }
+        };
+        const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+            params: {
+                Ids: [id],
+                ...(params?.filter?.includeImages !== undefined && { 'Filter.IncludeImages': true }),
+                ...(params?.filter?.includeVideos !== undefined && { 'Filter.IncludeVideos': true }),
+                ...(params?.filter?.includeAmenities !== undefined && { 'Filter.IncludeAmenities': true }),
+            },
+            paramsSerializer: { indexes: null }
+        });
+        if (response.items && response.items.length > 0) {
+            return response.items[0];
+        }
+        throw new Error('Property not found');
+    } catch (error: any) {
+        console.error(`Error fetching property ${id}:`, error.message);
+        throw error;
+    }
 };
 
-// Fetch a single property by its ID
+// Fetch a single property owned by the user by its ID
 const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
   try {
-    const response = await apiClient.get<PropertyData>(ENDPOINTS.USERS_PROPERTY_DETAIL(id));
-    return response;
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { 
+        params: { Ids: [id],
+        'Filter.IncludeImages': true,
+        'Filter.IncludeVideos': true,
+        'Filter.IncludeDocuments': true,
+        'Filter.IncludeAmenities': true
+        },
+        paramsSerializer: { indexes: null }
+    });
+    if (response.items && response.items.length > 0) {
+      return response.items[0];
+    }
+    throw new Error('Property not found');
   } catch (error: any) {
     console.error(`Error fetching property ${id}:`, error.message);
+    throw error;
+  }
+};
+
+// Fetch a list of properties owned by the user
+const getOwnersProperties = async (params?: PropertyParams): Promise<PropertyDataList> => {
+  try {
+    if (params?.filter?.includeImages !== undefined) {
+      params.filter.includeImages = true;
+    }
+    if (params?.filter?.includeDocuments !== undefined) {
+      params.filter.includeDocuments = true;
+    }
+    if (params?.filter?.includeVideos !== undefined) {
+      params.filter.includeVideos = true;
+    }
+    if (params?.filter?.includeAmenities !== undefined) {
+      params.filter.includeAmenities = true;
+    }
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { params });
+    return {
+      ...response,
+      items: response.items.map(prop => ({
+        ...prop,
+        id: String(prop.id),
+      }))
+    };
+  } catch (error: any) {
+    console.error('Error fetching properties:', error.message);
     throw error;
   }
 };
@@ -74,10 +118,9 @@ const createProperty = async (formData: FormData): Promise<PropertyData> => {
     const response = await apiClient.post<PropertyData>(ENDPOINTS.CREATE_PROPERTY, formData, {
       headers: { 'Content-Type': 'multipart/form-data' } 
     });
-    const rawProperty = response;
     return { 
-      ...rawProperty,
-      id: String(rawProperty!),
+      ...response,
+      id: String(response.id),
     };
   } catch (error: any) {
     console.error('Error creating property:', error.response?.data || error.message);
@@ -123,13 +166,16 @@ const getAmenities = async (): Promise<Amenity[]> => {
 
 const propertyService = {
   getProperties,
-  getUserProperties,
   getPropertyById,
+  getOwnersProperties,
+  getOwnersPropertyById,
   createProperty,
   updateProperty,
   deleteProperty,
-  getOwnersPropertyById,
   getAmenities
 };
+
+// Legacy method names for backward compatibility
+export const getUserProperties = getOwnersProperties;
 
 export default propertyService;

@@ -1,6 +1,7 @@
-import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, ImageIcon, AlertTriangleIcon } from 'lucide-react';
-import { PropertyData } from '../../../services/PropertyService';
+import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, AlertTriangleIcon } from 'lucide-react';
+import { PropertyData } from '../../../models/properties';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
+import { useNavigate } from 'react-router-dom';
 
 interface PropertyTableProps {
   properties: PropertyData[];
@@ -13,6 +14,8 @@ export function PropertyTable({
   onPrintProperty,
   onDeleteProperty,
 }: PropertyTableProps) {
+  const navigate = useNavigate();
+
   if (!properties || properties.length === 0) {
     return (
       <div className="text-center py-10">
@@ -22,12 +25,12 @@ export function PropertyTable({
     );
   }
 
-  const onViewProperty = (id: string) => {
-    window.location.href = `/dashboard/property/${id}`;
+  const handleViewClick = (property: PropertyData) => {
+    navigate(`/dashboard/property/${property.id}`);
   };
 
-  const onEditProperty = (id: string) => {
-    window.location.href = `/dashboard/property/${id}/edit`;
+  const handleEditClick = (property: PropertyData) => {
+    navigate(`/dashboard/property/${property.id}/edit`);
   };
 
   return (
@@ -126,22 +129,22 @@ export function PropertyTable({
               <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">
                   <button 
-                    onClick={() => onViewProperty(property.id)}
-                    className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
+                    onClick={() => handleViewClick(property)}
+                    className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Ver Propiedad"
                   > 
                     <EyeIcon size={18} />
                   </button>
                   <button 
-                    onClick={() => onEditProperty(property.id)}
-                    className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
+                    onClick={() => handleEditClick(property)}
+                    className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Editar Propiedad"
                   >
                     <EditIcon size={18} />
                   </button>
                   <button 
                     onClick={() => onPrintProperty(property.id)} // Does nothing for now
-                    className="p-1.5 text-[#62B6CB] hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
+                    className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Imprimir Ficha (Próximamente)"
                   >
                     <FileTextIcon size={18} />

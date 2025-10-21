@@ -1,3 +1,7 @@
+import { Amenity } from "./Amenity";
+import { PropertyImage } from "./PropertyImage";
+import { PropertyVideo } from "./PropertyVideo";
+
 export interface PublicProperty {
   id: string;
   streetName: string;
@@ -16,7 +20,9 @@ export interface PublicProperty {
   bathrooms: number;
   hasGarage: boolean;
   garageSpaces: number;
-  images: { id: string; url: string; }[];
+  propertyImages: PropertyImage[];
+  propertyVideos: PropertyVideo[];
+  amenities: Amenity[];
   mainImageId: string;
   description: string;
   arePetsAllowed: boolean;

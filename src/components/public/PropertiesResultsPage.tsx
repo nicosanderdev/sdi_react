@@ -3,7 +3,8 @@ import { Search } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { CheckboxFilterGroup } from './properties/CheckboxFilterGroup';
 import { RadioFilterGroup } from './properties/RadioFilterGroup';
-import propertyService, { PropertyParams, PublicProperty } from '../../services/PropertyService';
+import propertyService from '../../services/PropertyService';
+import { PropertyParams, PublicProperty } from '../../models/properties';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [
@@ -80,7 +81,7 @@ export function PropertiesResultsPage() {
           pageNumber: 1,
           pageSize: 10,
           filter: {
-            isDeleted: true,
+            isDeleted: false,
           }
         }
         const properties = await propertyService.getProperties(params);

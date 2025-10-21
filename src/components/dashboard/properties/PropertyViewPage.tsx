@@ -123,7 +123,7 @@ export function PropertyViewPage() {
                     const fullUrl = `${API_BASE_URL}${mainImage.url.startsWith('/') ? '' : '/'}${mainImage.url}`;
                     setSelectedImage(fullUrl);
                 } else {
-                    setSelectedImage('https://via.placeholder.com/800x600.png?text=No+Image');
+                    setSelectedImage('https://placehold.co/600x400');
                 }
             } catch (err) {
                 setError("Failed to fetch property details. Please try again later.");
