@@ -62,7 +62,7 @@ export function DashboardOverview() {
   // --- Data Fetching for Featured Properties ---
   const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
     queryKey: ['featuredProperties'],
-    queryFn: () => propertyService.getUserProperties({ limit: 3, isFeatured: true }),
+    queryFn: () => propertyService.getOwnersProperties({ pageSize: 3 }),
     select: (data) => data.items
   });
   const featuredProperties = propertiesData || [];
