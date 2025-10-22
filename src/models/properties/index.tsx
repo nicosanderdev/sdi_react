@@ -9,3 +9,4 @@ export * from './PropertyData';
 export * from './PropertyVideo';
 export * from './PublicProperty';
 export * from './Amenity';
+export * from './EstatePropertyValues';
