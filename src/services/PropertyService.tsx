@@ -6,6 +6,7 @@ import {
   PublicProperty,
   Amenity,
 } from '../models/properties';
+import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateProperty';
 
 import apiClient from './AxiosClient';
 
@@ -166,13 +167,10 @@ const getAmenities = async (): Promise<Amenity[]> => {
   };
 
 // Duplicate a property by its ID
-const duplicateProperty = async (id: string): Promise<PropertyData> => {
+const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> => {
   try {
-    const response = await apiClient.post<PropertyData>(ENDPOINTS.PROPERTY_DUPLICATE(id));
-    return {
-      ...response,
-      id: String(response.id),
-    };
+    const response = await apiClient.post<DuplicatedEstateProperty>(ENDPOINTS.PROPERTY_DUPLICATE(id));
+    return response;
   } catch (error: any) {
     console.error(`Error duplicating property ${id}:`, error.message);
     throw error;

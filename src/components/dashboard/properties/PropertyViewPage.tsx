@@ -35,6 +35,7 @@ import { PropertyImage } from '../../../models/properties/PropertyImage';
 import { PropertyVideo } from '../../../models/properties/PropertyVideo';
 import { PropertyDocument } from '../../../models/properties/PropertyDocument';
 import { Amenity } from '../../../models/properties/Amenity';
+import { DuplicatedEstateProperty } from '../../../models/properties/DuplicatedEstateProperty';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
@@ -220,9 +221,9 @@ export function PropertyViewPage() {
         
         try {
             setDuplicating(true);
-            const duplicatedProperty = await propertyService.duplicateProperty(propertyId);
+            const duplicatedProperty: DuplicatedEstateProperty = await propertyService.duplicateProperty(propertyId);
             setShowDuplicateModal(false);
-            navigate(`/dashboard/property/${duplicatedProperty.id}/edit`);
+            navigate(`/dashboard/property/${duplicatedProperty.newPropertyId}/edit`);
         } catch (error) {
             console.error('Error duplicating property:', error);
             setError('Error al duplicar la propiedad. Por favor, inténtalo de nuevo.');
@@ -245,7 +246,7 @@ export function PropertyViewPage() {
                 <h1 className="text-3xl font-bold">{property.title}</h1>
                 <div className="flex space-x-2">
                     <Button 
-                        color="gray" 
+                        color="alternative" 
                         onClick={() => setShowDuplicateModal(true)}
                         disabled={duplicating}
                     >
@@ -423,7 +424,7 @@ export function PropertyViewPage() {
                                 <div key={video.id || index} className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden group">
                                     {/* Video Thumbnail */}
                                     <div className="relative aspect-video bg-gray-100">
-                                        {generateVideoThumbnail(video.url) ? (
+                                        {video.url && generateVideoThumbnail(video.url) ? (
                                             <img
                                                 src={generateVideoThumbnail(video.url)}
                                                 alt={video.title || 'Video thumbnail'}
@@ -440,7 +441,7 @@ export function PropertyViewPage() {
                                         ) : null}
 
                                         {/* Fallback when no thumbnail */}
-                                        <div className={`video-fallback absolute inset-0 flex items-center justify-center ${generateVideoThumbnail(video.url) ? 'hidden' : ''}`}>
+                                        <div className={`video-fallback absolute inset-0 flex items-center justify-center ${video.url && generateVideoThumbnail(video.url) ? 'hidden' : ''}`}>
                                             <Play size={48} className="text-gray-400" />
                                         </div>
 

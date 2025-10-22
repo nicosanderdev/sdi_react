@@ -91,7 +91,6 @@ export function PropertyEditPage() {
             formData.append('HasGarage', String(payload.hasGarage));
             formData.append('GarageSpaces', String(payload.garageSpaces || 0));
             formData.append('Capacity', String(payload.capacity));
-            formData.append('ArePetsAllowed', String(payload.arePetsAllowed));
             formData.append('AvailableFrom', new Date(payload.availableFromText || '').toISOString());
             formData.append('OwnerId', String(payload.ownerId));
 
@@ -221,7 +220,6 @@ export function PropertyEditPage() {
             const formData = {
                 ...property,
                 availableFromText: formattedDate,
-                arePetsAllowed: property.arePetsAllowed,
                 hasCommonExpenses: property.hasCommonExpenses,
                 isWaterIncluded: property.isWaterIncluded,
                 isElectricityIncluded: property.isElectricityIncluded,
@@ -458,17 +456,6 @@ export function PropertyEditPage() {
                                 <TextInput
                                     type="number"
                                     {...register("capacity", { required: "Campo obligatorio", valueAsNumber: true, min: 1 })} />
-                            </FormField>
-
-                            <FormField
-                                icon={<Dog size={20} className="text-[#1B4965]" />}
-                                label="Mascotas Permitidas"
-                                error={errors.arePetsAllowed?.message}>
-                                <Select {...register("arePetsAllowed", { required: "Debe seleccionar una opción" })}>
-                                    <option value="">Seleccione una opción...</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </Select>
                             </FormField>
 
                             <FormField
