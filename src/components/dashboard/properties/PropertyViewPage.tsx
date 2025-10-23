@@ -29,13 +29,14 @@ import {
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import propertyService from '../../../services/PropertyService';
-import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader } from 'flowbite-react';
+import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader, Dropdown, DropdownItem } from 'flowbite-react';
 import { PropertyData } from '../../../models/properties/PropertyData';
 import { PropertyImage } from '../../../models/properties/PropertyImage';
 import { PropertyVideo } from '../../../models/properties/PropertyVideo';
 import { PropertyDocument } from '../../../models/properties/PropertyDocument';
 import { Amenity } from '../../../models/properties/Amenity';
 import { DuplicatedEstateProperty } from '../../../models/properties/DuplicatedEstateProperty';
+import { EstatePropertyValues } from '../../../models/properties/EstatePropertyValues';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
@@ -100,6 +101,35 @@ export function PropertyViewPage() {
     const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
     const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
     const [duplicating, setDuplicating] = useState<boolean>(false);
+    const [selectedVersion, setSelectedVersion] = useState<EstatePropertyValues | null>(null);
+
+    // Helper function to get current property data (either main property or selected version)
+    const getCurrentPropertyData = (): PropertyData | null => {
+        if (!property) return null;
+        
+        if (selectedVersion) {
+            // Return property with version data overlaid
+            return {
+                ...property,
+                description: selectedVersion.description,
+                availableFrom: selectedVersion.availableFrom,
+                capacity: selectedVersion.capacity,
+                currency: selectedVersion.currency.toString() as any,
+                salePrice: selectedVersion.salePrice?.toString(),
+                rentPrice: selectedVersion.rentPrice?.toString(),
+                hasCommonExpenses: selectedVersion.hasCommonExpenses,
+                commonExpensesValue: selectedVersion.commonExpensesValue?.toString(),
+                isElectricityIncluded: selectedVersion.isElectricityIncluded || false,
+                isWaterIncluded: selectedVersion.isWaterIncluded || false,
+                isPriceVisible: selectedVersion.isPriceVisible,
+                status: selectedVersion.status.toString() as any,
+                isActive: selectedVersion.isActive,
+                isPropertyVisible: selectedVersion.isPropertyVisible,
+            };
+        }
+        
+        return property;
+    };
 
     useEffect(() => {
         if (!propertyId) {
@@ -258,9 +288,53 @@ export function PropertyViewPage() {
                     </Button>
                 </div>
             </div>
+            
+            {/* Version History Dropdown */}
+            {property.estatePropertyValues && property.estatePropertyValues.length > 0 && (
+                <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg">
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm font-medium">Historial de versiones:</span>
+                        <Dropdown
+                            label={selectedVersion ? 
+                                `Versión del ${new Date(selectedVersion.createdAt).toLocaleDateString('es-UY')}` : 
+                                'Versión actual'
+                            }
+                            dismissOnClick={true}
+                            size="sm"
+                        >
+                            <DropdownItem 
+                                onClick={() => setSelectedVersion(null)}
+                                className={!selectedVersion ? 'bg-blue-50 text-blue-700' : ''}
+                            >
+                                Versión actual
+                            </DropdownItem>
+                            {property.estatePropertyValues
+                                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                .map((version) => (
+                                <DropdownItem 
+                                    key={version.id}
+                                    onClick={() => setSelectedVersion(version)}
+                                    className={selectedVersion?.id === version.id ? 'bg-blue-50 text-blue-700' : ''}
+                                >
+                                    {new Date(version.createdAt).toLocaleDateString('es-UY')} - {new Date(version.createdAt).toLocaleTimeString('es-UY', { hour: '2-digit', minute: '2-digit' })}
+                                </DropdownItem>
+                            ))}
+                        </Dropdown>
+                        {selectedVersion && (
+                            <Button 
+                                size="sm" 
+                                color="light" 
+                                onClick={() => setSelectedVersion(null)}
+                            >
+                                Volver a actual
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            )}
             <Card>
                 <div className='mb-2'>
-                    <h3 className="text-xl font-semibold mb-4 border-b pb-2">{`${propertyTypeMap[property.type]} en ${property.neighborhood}, ${property.city}`}</h3>
+                    <h3 className="text-xl font-semibold mb-4 border-b pb-2">{`${propertyTypeMap[getCurrentPropertyData()?.type || property.type]} en ${getCurrentPropertyData()?.neighborhood || property.neighborhood}, ${getCurrentPropertyData()?.city || property.city}`}</h3>
                 </div>
                 {/* --- Image Gallery --- */}
                 <div className="p-4 md:p-6">
@@ -335,20 +409,20 @@ export function PropertyViewPage() {
                 </div>
                 {/* --- Section: Main Details --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8 mb-8">
-                    <InfoField icon={<Home size={20} className={iconStyle} />} label="Tipo de Propiedad" value={propertyTypeMap[property.type]} />
-                    <InfoField icon={<Building size={20} className={iconStyle} />} label="Área Total" value={`${property.areaValue} ${formatAreaUnit(property.areaUnit)}`} />
-                    <InfoField icon={<BedDouble size={20} className={iconStyle} />} label="Dormitorios" value={property.bedrooms} />
-                    <InfoField icon={<Bath size={20} className={iconStyle} />} label="Baños" value={property.bathrooms} />
-                    <InfoField icon={<Car size={20} className={iconStyle} />} label="Espacios de Garage" value={property.hasGarage ? property.garageSpaces : 'No tiene'} />
-                    <InfoField icon={<Users size={20} className={iconStyle} />} label="Capacidad" value={`${property.capacity} persona(s)`} />
-                    <InfoField icon={<Dog size={20} className={iconStyle} />} label="Mascotas Permitidas" value={property.arePetsAllowed ? 'Sí' : 'No'} />
-                    <InfoField icon={<Calendar size={20} className={iconStyle} />} label="Disponible Desde" value={new Date(property.availableFrom).toLocaleDateString('es-UY')} />
+                    <InfoField icon={<Home size={20} className={iconStyle} />} label="Tipo de Propiedad" value={propertyTypeMap[getCurrentPropertyData()?.type || property.type]} />
+                    <InfoField icon={<Building size={20} className={iconStyle} />} label="Área Total" value={`${getCurrentPropertyData()?.areaValue || property.areaValue} ${formatAreaUnit(getCurrentPropertyData()?.areaUnit || property.areaUnit)}`} />
+                    <InfoField icon={<BedDouble size={20} className={iconStyle} />} label="Dormitorios" value={getCurrentPropertyData()?.bedrooms || property.bedrooms} />
+                    <InfoField icon={<Bath size={20} className={iconStyle} />} label="Baños" value={getCurrentPropertyData()?.bathrooms || property.bathrooms} />
+                    <InfoField icon={<Car size={20} className={iconStyle} />} label="Espacios de Garage" value={(getCurrentPropertyData()?.hasGarage || property.hasGarage) ? (getCurrentPropertyData()?.garageSpaces || property.garageSpaces) : 'No tiene'} />
+                    <InfoField icon={<Users size={20} className={iconStyle} />} label="Capacidad" value={`${getCurrentPropertyData()?.capacity || property.capacity} persona(s)`} />
+                    <InfoField icon={<Dog size={20} className={iconStyle} />} label="Mascotas Permitidas" value={(getCurrentPropertyData()?.arePetsAllowed || property.arePetsAllowed) ? 'Sí' : 'No'} />
+                    <InfoField icon={<Calendar size={20} className={iconStyle} />} label="Disponible Desde" value={new Date(getCurrentPropertyData()?.availableFrom || property.availableFrom).toLocaleDateString('es-UY')} />
                 </div>
 
                 {/* --- Section: Description --- */}
                 <div className='mb-8'>
                     <h3 className="text-xl font-semibold mb-4 border-b pb-2">Descripción</h3>
-                    <p className="whitespace-pre-wrap">{property.description || 'No se proporcionó una descripción.'}</p>
+                    <p className="whitespace-pre-wrap">{getCurrentPropertyData()?.description || property.description || 'No se proporcionó una descripción.'}</p>
                 </div>
 
                 {/* --- Section: Address --- */}
@@ -368,11 +442,11 @@ export function PropertyViewPage() {
                 <div className='mb-8'>
                     <h3 className="text-xl font-semibold mb-4 border-b pb-2">Información Financiera</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {property.salePrice && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Precio de Venta" value={formatCurrency(property.salePrice, property.currency)} />}
-                        {property.rentPrice && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Precio de Alquiler" value={`${formatCurrency(property.rentPrice, property.currency)} /mes`} />}
-                        {property.hasCommonExpenses && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Gastos Comunes" value={formatCurrency(property.commonExpensesValue, property.currency)} />}
-                        <BooleanField icon={<Wrench size={20} className={iconStyle} />} label="Agua Incluida" value={property.isWaterIncluded} />
-                        <BooleanField icon={<Wrench size={20} className={iconStyle} />} label="Electricidad Incluida" value={property.isElectricityIncluded} />
+                        {(getCurrentPropertyData()?.salePrice || property.salePrice) && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Precio de Venta" value={formatCurrency(getCurrentPropertyData()?.salePrice || property.salePrice, getCurrentPropertyData()?.currency || property.currency)} />}
+                        {(getCurrentPropertyData()?.rentPrice || property.rentPrice) && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Precio de Alquiler" value={`${formatCurrency(getCurrentPropertyData()?.rentPrice || property.rentPrice, getCurrentPropertyData()?.currency || property.currency)} /mes`} />}
+                        {(getCurrentPropertyData()?.hasCommonExpenses || property.hasCommonExpenses) && <InfoField icon={<DollarSign size={20} className={iconStyle} />} label="Gastos Comunes" value={formatCurrency(getCurrentPropertyData()?.commonExpensesValue || property.commonExpensesValue, getCurrentPropertyData()?.currency || property.currency)} />}
+                        <BooleanField icon={<Wrench size={20} className={iconStyle} />} label="Agua Incluida" value={getCurrentPropertyData()?.isWaterIncluded || property.isWaterIncluded} />
+                        <BooleanField icon={<Wrench size={20} className={iconStyle} />} label="Electricidad Incluida" value={getCurrentPropertyData()?.isElectricityIncluded || property.isElectricityIncluded} />
                     </div>
                 </div>
 
@@ -512,10 +586,10 @@ export function PropertyViewPage() {
                 <div className='mb-8 bg-blue-50 dark:bg-gray-700 p-6 rounded-lg border border-blue-200 dark:border-gray-500'>
                     <h3 className="text-xl font-semibold mb-4 border-b pb-2">Estado Interno (Solo visible para ti)</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InfoField icon={<Info size={20} className={iconStyle} />} label="Estado de la publicación" value={propertyStatusMap[property.status] || 'No definido'} />
-                        <BooleanField icon={<CheckCircle size={20} className={iconStyle} />} label="Activa en el sistema" value={property.isActive} />
-                        <BooleanField icon={<Eye size={20} className={iconStyle} />} label="Visible al público" value={property.isPropertyVisible} />
-                        <BooleanField icon={<EyeOff size={20} className={iconStyle} />} label="Precio visible al público" value={property.isPriceVisible} />
+                        <InfoField icon={<Info size={20} className={iconStyle} />} label="Estado de la publicación" value={propertyStatusMap[getCurrentPropertyData()?.status || property.status] || 'No definido'} />
+                        <BooleanField icon={<CheckCircle size={20} className={iconStyle} />} label="Activa en el sistema" value={getCurrentPropertyData()?.isActive || property.isActive} />
+                        <BooleanField icon={<Eye size={20} className={iconStyle} />} label="Visible al público" value={getCurrentPropertyData()?.isPropertyVisible || property.isPropertyVisible} />
+                        <BooleanField icon={<EyeOff size={20} className={iconStyle} />} label="Precio visible al público" value={getCurrentPropertyData()?.isPriceVisible || property.isPriceVisible} />
                     </div>
                 </div>
 
