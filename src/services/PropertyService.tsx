@@ -18,6 +18,7 @@ const ENDPOINTS = {
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
   PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
   AMENITIES: '/properties/amenities',
+  FAVORITE_UPDATE: '/properties/favorite-update',
 };
 
 
@@ -177,6 +178,22 @@ const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> 
   }
 };
 
+// Update favorite status for a property
+const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: boolean): Promise<void> => {
+  try {
+    await apiClient.post(ENDPOINTS.FAVORITE_UPDATE, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
+  } catch (error: any) {
+    console.error(`Error updating favorite status for property ${estatePropertyId}:`, error.message);
+    throw error;
+  }
+};
+
 const propertyService = {
   getProperties,
   getPropertyById,
@@ -186,7 +203,8 @@ const propertyService = {
   updateProperty,
   deleteProperty,
   duplicateProperty,
-  getAmenities
+  getAmenities,
+  updatePropertyFavorite
 };
 
 // Legacy method names for backward compatibility

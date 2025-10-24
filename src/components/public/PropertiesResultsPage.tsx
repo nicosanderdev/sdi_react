@@ -1,10 +1,11 @@
 import { Card, TextInput, Dropdown, Sidebar, Button, DropdownItem, SidebarItems, SidebarItemGroup, Banner, Pagination } from 'flowbite-react';
 import { Search } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CheckboxFilterGroup } from './properties/CheckboxFilterGroup';
 import { RadioFilterGroup } from './properties/RadioFilterGroup';
 import propertyService from '../../services/PropertyService';
 import { PropertyParams, PublicProperty } from '../../models/properties';
+import { FavoriteButton } from '../ui/FavoriteButton';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [
@@ -22,16 +23,6 @@ const STATES = [
 ];
 
 // --- TYPES ---
-type Property = {
-  id: number;
-  title: string;
-  address: string;
-  price: string;
-  bedrooms: number;
-  bathrooms: number;
-  imageUrl: string;
-  type: 'House' | 'Apartment' | 'Condo' | 'Land';
-};
 
 const propertyTypeOptions = [
   { id: 'type-apartment', value: 'apartment', label: 'Apartment' },
@@ -219,8 +210,13 @@ export function PropertiesResultsPage() {
                 key={property.id}
                 imgAlt={property.title}
                 imgSrc={property.mainImageId}
-                className="transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl hover:cursor-pointer"
+                className="transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl hover:cursor-pointer relative"
               >
+                {/* Favorite Button positioned absolutely in top-right corner */}
+                <div className="absolute top-4 right-4 z-10">
+                  <FavoriteButton propertyId={property.id} size="md" />
+                </div>
+                
                 <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
                   {property.title}
                 </h5>
