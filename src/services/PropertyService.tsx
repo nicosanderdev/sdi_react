@@ -19,6 +19,7 @@ const ENDPOINTS = {
   PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
   AMENITIES: '/properties/amenities',
   FAVORITE_UPDATE: '/properties/favorite-update',
+  FAVORITES: '/properties/favorites',
 };
 
 
@@ -181,6 +182,13 @@ const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> 
 // Update favorite status for a property
 const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: boolean): Promise<void> => {
   try {
+    console.log(`Making API call to update favorite: ${ENDPOINTS.FAVORITE_UPDATE}`, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
     await apiClient.post(ENDPOINTS.FAVORITE_UPDATE, {
       favoriteDto: {
         estatePropertyId: estatePropertyId,
@@ -188,8 +196,22 @@ const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: bool
         isFavorite: isFavorite
       }
     });
+    console.log(`API call successful for property ${estatePropertyId}`);
   } catch (error: any) {
     console.error(`Error updating favorite status for property ${estatePropertyId}:`, error.message);
+    throw error;
+  }
+};
+
+// Get user's favorite property IDs
+const getPropertiesAsFavorite = async (): Promise<string[]> => {
+  try {
+    console.log(`Making API call to fetch favorites: ${ENDPOINTS.FAVORITES}`);
+    const response = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorites API response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
     throw error;
   }
 };
@@ -204,7 +226,8 @@ const propertyService = {
   deleteProperty,
   duplicateProperty,
   getAmenities,
-  updatePropertyFavorite
+  updatePropertyFavorite,
+  getPropertiesAsFavorite
 };
 
 // Legacy method names for backward compatibility

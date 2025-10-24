@@ -22,10 +22,12 @@ import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
+import { FavoritesPage } from './components/dashboard/FavoritesPage';
 
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
-import { AppDispatch } from './store/store';
+import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
+import { AppDispatch, RootState } from './store/store';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -39,9 +41,18 @@ import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
 
 export function App() {
   const dispatch = useDispatch<AppDispatch>();
+  const user = useSelector((state: RootState) => state.user.profile);
+  
   useEffect(() => {
     dispatch(fetchUserProfile());
   }, [dispatch]);
+
+  // Fetch favorites when user is logged in
+  useEffect(() => {
+    if (user && user.id) {
+      dispatch(fetchFavoriteProperties());
+    }
+  }, [dispatch, user]);
 
   return (
     <ThemeProvider>
@@ -69,6 +80,7 @@ export function App() {
             <Route index element={<DashboardOverview />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
+            <Route path="favorites" element={<FavoritesPage />} />
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />

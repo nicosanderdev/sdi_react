@@ -14,11 +14,24 @@ const initialState: FavoritesState = {
   error: null,
 };
 
+// Async thunk to fetch favorite property IDs
+export const fetchFavoriteProperties = createAsyncThunk(
+  'favorites/fetchFavoriteProperties',
+  async () => {
+    console.log('Fetching favorite properties...');
+    const propertyIds = await propertyService.getPropertiesAsFavorite();
+    console.log('Fetched favorite properties:', propertyIds);
+    return propertyIds;
+  }
+);
+
 // Async thunk to update favorite status
 export const updatePropertyFavorite = createAsyncThunk(
   'favorites/updatePropertyFavorite',
   async ({ propertyId, isFavorite }: { propertyId: string; isFavorite: boolean }) => {
+    console.log(`Updating favorite status for property ${propertyId} to ${isFavorite}`);
     await propertyService.updatePropertyFavorite(propertyId, isFavorite);
+    console.log(`Successfully updated favorite status for property ${propertyId}`);
     return { propertyId, isFavorite };
   }
 );
@@ -38,6 +51,20 @@ const favoritesSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Fetch favorite property IDs
+      .addCase(fetchFavoriteProperties.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchFavoriteProperties.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.favoritePropertyIds = new Set(action.payload);
+      })
+      .addCase(fetchFavoriteProperties.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch favorite properties';
+      })
+      // Update favorite status
       .addCase(updatePropertyFavorite.pending, (state) => {
         state.status = 'loading';
       })
