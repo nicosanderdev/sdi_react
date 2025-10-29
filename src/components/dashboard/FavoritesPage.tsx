@@ -9,7 +9,7 @@ import { IconWrapper } from '../ui/IconWrapper';
 import propertyService from '../../services/PropertyService';
 import { PublicProperty } from '../../models/properties';
 
-export const FavoritesPage: React.FC = () => {
+export default function FavoritesPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const favoritePropertyIds = useSelector(selectFavoritePropertyIds);
@@ -205,10 +205,8 @@ export const FavoritesPage: React.FC = () => {
               </div>
             </div>
           </Card>
-        ))}
+        ))} 
       </div>
-    </div>
+    </div> 
   );
-};
-
-export default FavoritesPage;
+}; 

@@ -24,6 +24,7 @@ export interface ProfileData {
   title: string;
   avatarUrl?: string;
   address: AddressData;
+  roles?: string[];
 }
 
 export interface UpdateProfilePayload {

@@ -1,27 +1,30 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import propertyService from '../../services/PropertyService';
 import { RootState } from '../store';
+import { PublicProperty } from '../../models/properties';
 
 interface FavoritesState {
   favoritePropertyIds: Set<string>;
+  favoriteProperties: PublicProperty[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
 const initialState: FavoritesState = {
   favoritePropertyIds: new Set(),
+  favoriteProperties: [],
   status: 'idle',
   error: null,
 };
 
-// Async thunk to fetch favorite property IDs
+// Async thunk to fetch favorite properties as full objects
 export const fetchFavoriteProperties = createAsyncThunk(
   'favorites/fetchFavoriteProperties',
   async () => {
     console.log('Fetching favorite properties...');
-    const propertyIds = await propertyService.getPropertiesAsFavorite();
-    console.log('Fetched favorite properties:', propertyIds);
-    return propertyIds;
+    const properties = await propertyService.getFavoriteProperties();
+    console.log('Fetched favorite properties:', properties);
+    return properties;
   }
 );
 
@@ -58,7 +61,8 @@ const favoritesSlice = createSlice({
       })
       .addCase(fetchFavoriteProperties.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.favoritePropertyIds = new Set(action.payload);
+        state.favoriteProperties = action.payload;
+        state.favoritePropertyIds = new Set(action.payload.map(prop => prop.id));
       })
       .addCase(fetchFavoriteProperties.rejected, (state, action) => {
         state.status = 'failed';
@@ -86,6 +90,7 @@ const favoritesSlice = createSlice({
 
 // Selectors
 export const selectFavoritePropertyIds = (state: RootState) => state.favorites.favoritePropertyIds;
+export const selectFavoriteProperties = (state: RootState) => state.favorites.favoriteProperties;
 export const selectIsPropertyFavorite = (propertyId: string) => (state: RootState) => 
   state.favorites.favoritePropertyIds.has(propertyId);
 export const selectFavoritesStatus = (state: RootState) => state.favorites.status;

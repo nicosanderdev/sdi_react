@@ -1,7 +1,7 @@
 // src/store/slices/userSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import profileService, { ProfileData } from '../../services/ProfileService'; // Adjust path as needed
-import { RootState } from '../store'; // We'll create this or you have it
+import profileService, { ProfileData } from '../../services/ProfileService';
+import { RootState } from '../store';
 
 interface UserState {
   profile: ProfileData | null;

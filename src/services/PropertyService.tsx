@@ -216,6 +216,36 @@ const getPropertiesAsFavorite = async (): Promise<string[]> => {
   }
 };
 
+// Get user's favorite properties as full objects
+const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
+  try {
+    console.log(`Making API call to fetch favorite property IDs: ${ENDPOINTS.FAVORITES}`);
+    const propertyIds = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorite property IDs:', propertyIds);
+    
+    if (!propertyIds || propertyIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch the full property objects using the IDs
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+      params: {
+        Ids: propertyIds,
+        'Filter.IncludeImages': true,
+        'Filter.IncludeVideos': true,
+        'Filter.IncludeAmenities': true
+      },
+      paramsSerializer: { indexes: null }
+    });
+    
+    console.log('Favorite properties fetched:', response.items);
+    return response.items || [];
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
 const propertyService = {
   getProperties,
   getPropertyById,
@@ -227,7 +257,8 @@ const propertyService = {
   duplicateProperty,
   getAmenities,
   updatePropertyFavorite,
-  getPropertiesAsFavorite
+  getPropertiesAsFavorite,
+  getFavoriteProperties
 };
 
 // Legacy method names for backward compatibility
