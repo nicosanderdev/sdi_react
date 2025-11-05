@@ -40,7 +40,7 @@ export interface GetMessagesParams {
 }
 
 export interface SendMessageData {
-  recipientId: string;
+  recipientId?: string;
   propertyId?: string;
   subject: string;
   body: string;
@@ -71,6 +71,8 @@ const ENDPOINTS = {
   UNARCHIVE: (id: string) => `/messages/${id}/unarchive`,
   DELETE: (id: string) => `/messages/${id}`,
   MESSAGE_COUNTS: '/messages/counts',
+  MESSAGES_BY_PROPERTY: (propertyId: string) => `/messages/property/${propertyId}`,
+  MESSAGES_BY_THREAD: (threadId: string) => `/messages/thread/${threadId}`,
 };
 
 // --- Service Functions ---
@@ -232,6 +234,61 @@ const getMessageCounts = async (): Promise<TabCounts> => {
     }
   };
 
+/**
+ * Fetches messages for a specific property.
+ * Handles 400 and 401 responses gracefully.
+ */
+const getMessagesByPropertyId = async (propertyId: string): Promise<Message[]> => {
+  try {
+    const response = await apiClient.get<Message[]>(ENDPOINTS.MESSAGES_BY_PROPERTY(propertyId));
+    return response.map(m => ({...m, id: String(m.id)})); // Ensure IDs are strings
+  } catch (error: any) {
+    // Handle 400 and 401 responses silently (as per requirements)
+    if (error.status === 400 || error.status === 401) {
+      console.log(`Silently handling ${error.status} response for property ${propertyId}:`, error.message);
+      return []; // Return empty array instead of throwing
+    }
+    console.error(`Error fetching messages for property ${propertyId}:`, error.response?.data?.message || error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetches all messages in a thread by threadId.
+ * Falls back to using getMessages with threadId filter if specific endpoint doesn't exist.
+ */
+const getMessagesByThreadId = async (threadId: string): Promise<MessageDetail[]> => {
+  try {
+    // Try the specific thread endpoint first
+    const response = await apiClient.get<MessageDetail[]>(ENDPOINTS.MESSAGES_BY_THREAD(threadId));
+    return response.map(m => ({...m, id: String(m.id)})); // Ensure IDs are strings
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      try {
+        const params: GetMessagesParams = {
+          page: 1,
+          limit: 100,
+          sortBy: 'createdAt_asc',
+        };
+        // Try using threadId as a query parameter (adjust based on backend API)
+        const fallbackResponse = await getMessages(params);
+        // Filter messages by threadId on the client side
+        const threadMessages = fallbackResponse.data.filter(m => m.threadId === threadId);
+        // Fetch full details for each message
+        const detailedMessages = await Promise.all(
+          threadMessages.map(msg => getMessageById(msg.id))
+        );
+        return detailedMessages;
+      } catch (fallbackError: any) {
+        console.error(`Error fetching messages for thread ${threadId}:`, fallbackError.response?.data?.message || fallbackError.message);
+        throw fallbackError;
+      }
+    }
+    console.error(`Error fetching messages for thread ${threadId}:`, error.response?.data?.message || error.message);
+    throw error;
+  }
+};
+
 
 const messageService = {
   getMessages,
@@ -246,6 +303,8 @@ const messageService = {
   unarchiveMessage,
   deleteMessage,
   getMessageCounts,
+  getMessagesByPropertyId,
+  getMessagesByThreadId,
 };
 
 export default messageService;

@@ -18,6 +18,8 @@ const ENDPOINTS = {
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
   PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
   AMENITIES: '/properties/amenities',
+  FAVORITE_UPDATE: '/properties/favorite-update',
+  FAVORITES: '/properties/favorites',
 };
 
 
@@ -177,6 +179,73 @@ const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> 
   }
 };
 
+// Update favorite status for a property
+const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: boolean): Promise<void> => {
+  try {
+    console.log(`Making API call to update favorite: ${ENDPOINTS.FAVORITE_UPDATE}`, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
+    await apiClient.post(ENDPOINTS.FAVORITE_UPDATE, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
+    console.log(`API call successful for property ${estatePropertyId}`);
+  } catch (error: any) {
+    console.error(`Error updating favorite status for property ${estatePropertyId}:`, error.message);
+    throw error;
+  }
+};
+
+// Get user's favorite property IDs
+const getPropertiesAsFavorite = async (): Promise<string[]> => {
+  try {
+    console.log(`Making API call to fetch favorites: ${ENDPOINTS.FAVORITES}`);
+    const response = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorites API response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
+// Get user's favorite properties as full objects
+const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
+  try {
+    console.log(`Making API call to fetch favorite property IDs: ${ENDPOINTS.FAVORITES}`);
+    const propertyIds = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorite property IDs:', propertyIds);
+    
+    if (!propertyIds || propertyIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch the full property objects using the IDs
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+      params: {
+        Ids: propertyIds,
+        'Filter.IncludeImages': true,
+        'Filter.IncludeVideos': true,
+        'Filter.IncludeAmenities': true
+      },
+      paramsSerializer: { indexes: null }
+    });
+    
+    console.log('Favorite properties fetched:', response.items);
+    return response.items || [];
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
 const propertyService = {
   getProperties,
   getPropertyById,
@@ -186,7 +255,10 @@ const propertyService = {
   updateProperty,
   deleteProperty,
   duplicateProperty,
-  getAmenities
+  getAmenities,
+  updatePropertyFavorite,
+  getPropertiesAsFavorite,
+  getFavoriteProperties
 };
 
 // Legacy method names for backward compatibility

@@ -9,19 +9,9 @@ import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
 import { PropertyParams, PublicProperty } from '../../models/properties';
+import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
 
-function getAreaUnit(id: string): "m²" | "ft²" | "yd²" | "acres" | "hectares" | "sq_km" | "sq_mi" {
-    switch (id) {
-      case '0': return 'm²';
-      case '1': return 'ft²';
-      case '2': return 'yd²';
-      case '3': return 'acres';
-      case '4': return 'hectares';
-      case '5': return 'sq_km';
-      default: return 'sq_mi';
-    }
-  }
 
 function PublicPropertyViewPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -95,12 +85,15 @@ function PublicPropertyViewPage() {
             {/* Right Column (or Bottom on Mobile) - Property Info */}
             <div className="lg:col-span-1 space-y-6">
               <Card>
-                <div className='flex justify-normal'>
-                  <Badge
-                    color='green'
-                    icon={Check} size='xs'>
-                    For {property.salePrice ? 'Sale' : 'Rent'}
-                  </Badge>
+                <div className='flex justify-between items-start'>
+                  <div className='flex justify-normal'>
+                    <Badge
+                      color='green'
+                      icon={Check} size='xs'>
+                      For {property.salePrice ? 'Sale' : 'Rent'}
+                    </Badge>
+                  </div>
+                  <FavoriteButton propertyId={property.id} size="lg" />
                 </div>
                 <h1 className="text-3xl font-bold">{property.title}</h1>
                 <p className="mt-1">{`${property.streetName} ${property.houseNumber}, ${property.city}, ${property.state}`}</p>
@@ -156,7 +149,7 @@ function PublicPropertyViewPage() {
           
           {/* Q&A Section */}
           <div>
-            <PropertyContact />
+            <PropertyContact propertyId={propertyId} ownerId={property.ownerId} />
           </div>
         </div>
       </div>
