@@ -149,7 +149,7 @@ function PublicPropertyViewPage() {
           
           {/* Q&A Section */}
           <div>
-            <PropertyContact />
+            <PropertyContact propertyId={propertyId} ownerId={property.ownerId} />
           </div>
         </div>
       </div>

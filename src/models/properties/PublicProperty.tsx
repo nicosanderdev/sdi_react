@@ -31,4 +31,5 @@ export interface PublicProperty {
   currency: 'USD' | 'EUR' | 'GBP';
   isElectricityIncluded: boolean;
   isWaterIncluded: boolean;
+  ownerId?: string;
 }

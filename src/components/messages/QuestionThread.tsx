@@ -5,8 +5,9 @@ import { Badge, Button, Textarea } from 'flowbite-react';
 import { MessageSample, ThreadType } from '../../data/MessagesData';
 
 // Helper component for displaying a single message (question or answer)
-const MessageDisplay = ({ message }: { message: MessageSample }) => {
-  const isOwner = message.sender === 'owner';
+const MessageDisplay = ({ message, ownerId }: { message: MessageSample & { senderId?: string }; ownerId?: string }) => {
+  const messageSenderId = (message as any).senderId;
+  const isOwner = ownerId ? (messageSenderId === ownerId) : (message.sender === 'owner');
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
@@ -33,15 +34,19 @@ const MessageDisplay = ({ message }: { message: MessageSample }) => {
 
 interface Props {
   thread: ThreadType;
-  isReplying: boolean; 
+  ownerId?: string;
+  isReplying: boolean;
+  isSubmitting?: boolean;
   onReplyClick: () => void;
   onReplySubmit: (threadId: string, replyText: string) => void;
 }
 
-function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Props) {
+function QuestionThread({ thread, ownerId, isReplying, isSubmitting = false, onReplyClick, onReplySubmit }: Props) {
   const [replyText, setReplyText] = useState('');
   const question = thread.messages[0];
-  const answer = thread.messages.find((msg : any) => msg.sender === 'owner');
+  const answer = ownerId 
+    ? thread.messages.find((msg: any) => (msg as any).senderId === ownerId)
+    : thread.messages.find((msg : any) => msg.sender === 'owner');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,14 +59,14 @@ function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Pro
   return (
     <div className="border-b border-gray-200 dark:border-gray-600 p-6">
       {/* The original question */}
-      <MessageDisplay message={question} />
+      <MessageDisplay message={question} ownerId={ownerId} />
 
       {/* The owner's answer */}
       {answer && (
         <div className="mt-4 pl-8 md:pl-16 relative">
           <CornerDownRight className="absolute left-2 md:left-6 top-3 h-5 w-5 text-gray-400" />
           <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-            <MessageDisplay message={answer} />
+            <MessageDisplay message={answer} ownerId={ownerId} />
           </div>
         </div>
       )}
@@ -75,27 +80,30 @@ function QuestionThread({ thread, isReplying, onReplyClick, onReplySubmit }: Pro
               className="flex items-center space-x-2 text-sm font-semibold text-green-400 hover:text-green-600 transition-colors"
             >
               <MessageSquare size={16} />
-              <span>Reply to this question</span>
+              <span>Responder en el hilo</span>
             </button>
           ) : (
-            <form onSubmit={handleSubmit} className="mt-2">
+            <form onSubmit={handleSubmit} className="mt-2 mb-8">
               <Textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 placeholder="Type your answer..."
                 rows={3}
                 required
+                disabled={isSubmitting}
               />
               <div className="flex justify-end space-x-2 mt-2">
                  <Button 
                   color="alternative"
-                  onClick={onReplyClick}>
+                  onClick={onReplyClick}
+                  disabled={isSubmitting}>
                    Cancel
                  </Button>
                  <Button 
                   type="submit"
-                  color="green">
-                   Submit Reply
+                  color="green"
+                  disabled={isSubmitting || !replyText.trim()}>
+                   {isSubmitting ? 'Enviando...' : 'Submit Reply'}
                  </Button>
               </div>
             </form>
