@@ -5,7 +5,7 @@ import { CheckboxFilterGroup } from '../../components/public/properties/Checkbox
 import { RadioFilterGroup } from '../../components/public/properties/RadioFilterGroup';
 import { PropertyParams, PublicProperty } from '../../models/properties';
 import propertyService from '../../services/PropertyService';
-import { FavoriteButton } from '../ui/FavoriteButton';
+import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [
@@ -23,7 +23,6 @@ const STATES = [
 ];
 
 // --- TYPES ---
-
 const propertyTypeOptions = [
   { id: 'type-apartment', value: 'apartment', label: 'Apartment' },
   { id: 'type-house', value: 'house', label: 'House' },
@@ -209,7 +208,7 @@ export function PropertiesResultsPage() {
               <Card
                 key={property.id}
                 imgAlt={property.title}
-                imgSrc={property.mainImageId}
+                imgSrc={property.propertyImages?.[0]?.url ?? ''}
                 className="transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl hover:cursor-pointer relative"
               >
                 {/* Favorite Button positioned absolutely in top-right corner */}

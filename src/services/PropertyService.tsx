@@ -19,14 +19,22 @@ const ENDPOINTS = {
   PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
   AMENITIES: '/properties/amenities',
   FAVORITE_UPDATE: '/properties/favorite-update',
-  FAVORITES: '/properties/favorites',
+  FAVORITES: '/properties/favorites'
 };
 
 
-// Fetches a list of public properties.
+/**
+ * Fetches a list of public properties.
+ * @param params - The parameters for the query.
+ * @returns A list of public properties.
+ */
 const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDataList> => {
   try {
-    const response = await apiClient.post<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, params);
+    var newParams = {
+      ...params,
+      includeImages: true
+    };
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params: newParams });
     return response;
   } catch (error: any) {
     console.error('Error fetching properties:', error.message);
@@ -57,7 +65,7 @@ const getPropertiesInBounds = async (
         ...additionalParams?.filter
       }
     };
-    const response = await apiClient.post<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, params);
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params });
     return response;
   } catch (error: any) {
     console.error('Error fetching properties in bounds:', error.message);
@@ -78,6 +86,7 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
     console.error('Error fetching properties:', error.message);
     throw error;
   }
+};
 // Fetch a single property with public info by its ID
 const getPropertyById = async (id: string, params?: PropertyParams): Promise<PublicProperty> => {
     try {
@@ -306,8 +315,5 @@ const propertyService = {
   getPropertiesAsFavorite,
   getFavoriteProperties
 };
-
-// Legacy method names for backward compatibility
-export const getUserProperties = getOwnersProperties;
 
 export default propertyService;

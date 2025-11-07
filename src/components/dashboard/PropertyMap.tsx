@@ -21,8 +21,8 @@ export function PropertyMap() {
     if (!mapInstanceRef.current) {
       const montevideo: L.LatLngExpression = [-30.9025, -55.5505];
       mapInstanceRef.current = L.map(mapRef.current).setView(montevideo, 12);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
       }).addTo(mapInstanceRef.current);
     }
 
@@ -38,22 +38,30 @@ export function PropertyMap() {
     if (properties.items.length > 0) {
       const propertyMarkers: L.Marker[] = [];
       properties.items.forEach(property => {
-        if (property.location && property.location.lat && property.location.lng) {
-          const position: L.LatLngExpression = [property.location.lat, property.location.lng];
-          // Custom icon based on listingType (For Sale / For Rent)
-          const iconHtml = `<div class="${property.status === 'sale' ? 'bg-blue-500' : 'bg-green-500'} w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs">A</div>`;
+          if (property.location && property.location.lat && property.location.lng) {
+              const position: L.LatLngExpression = [property.location.lat, property.location.lng];
+              // Custom icon based on listingType (For Sale / For Rent)
+              const iconHtml = `
+                    <div class="relative flex items-center justify-center">
+                    <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
+                    <div class="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs bg-[var(--color-primary-600)]">
+                        ${property.status === 'sale' ? 'S' : 'R'}
+                    </div>
+                    </div>
+                `;
 
-          const customIcon = L.divIcon({
-            html: iconHtml,
-            className: '', // Important to be empty for Tailwind styles to apply
-            iconSize: [24, 24],
-            iconAnchor: [12, 24], // Point of the icon which will correspond to marker's location
-            popupAnchor: [0, -24] // Point from which the popup should open relative to the iconAnchor
-          });
+              const customIcon = L.divIcon({
+                  html: iconHtml,
+                  className: '', // Important so Tailwind styles apply
+                  iconSize: [24, 24],
+                  iconAnchor: [12, 24],
+                  popupAnchor: [0, -24]
+              });
 
           const marker = L.marker(position, { icon: customIcon })
             .addTo(map)
             .bindPopup(`<b>${property.title}</b><br>${property.status === 'sale' ? 'En venta' : 'En alquiler'}`);
+
           propertyMarkers.push(marker);
         }
       });
@@ -61,15 +69,11 @@ export function PropertyMap() {
       // Fit map to bounds of all markers if there are any
       if (propertyMarkers.length > 0) {
         const group = L.featureGroup(propertyMarkers);
-        map.fitBounds(group.getBounds().pad(0.3)); // Add some padding
+        map.fitBounds(group.getBounds().pad(0.3));
       }
     }
 
-    // No cleanup function that removes the map instance here,
-    // as we want to preserve it across re-renders unless the component unmounts.
-    // The map instance removal should be in the main unmount cleanup.
-
-  }, [properties]); // Re-run effect if properties data changes
+  }, [properties]);
 
   // Cleanup map instance on component unmount
   useEffect(() => {

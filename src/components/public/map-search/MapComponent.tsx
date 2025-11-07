@@ -2,15 +2,8 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Tooltip } from '
 import { PublicProperty } from '../../../models/properties';
 
 import L from 'leaflet';
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
-
-const DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow
-});
-L.Marker.prototype.options.icon = DefaultIcon;
 
 function MapEvents({ setMapBounds }: { setMapBounds: (bounds: L.LatLngBoundsExpression) => void }) {
     const initialBoundsSet = useRef(false);
@@ -86,28 +79,35 @@ const MapComponent = ({
         <div className="relative h-full w-full">
             <MapContainer center={position} zoom={13} style={{ height: '100vh', width: '100%' }}>
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                    attribution='&copy; <a href="https://carto.com/">CARTO</a>'
                 />
                 {properties.map(property => {
                 const isSelected = selectedPropertyId === property.id;
                 const isHovered = hoveredPropertyId === property.id;
                 
-                // Create custom icon for selected/hovered markers
-                const customIcon = (isSelected || isHovered) ? L.divIcon({
-                    className: 'custom-marker',
-                    html: `<div style="
-                        width: 30px; 
-                        height: 30px; 
-                        background-color: ${isSelected ? '#2563eb' : '#3b82f6'}; 
-                        border: 3px solid white;
-                        border-radius: 50%;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                        transform: scale(${isSelected ? 1.2 : 1.1});
-                    "></div>`,
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15],
-                }) : DefaultIcon;
+                // Determine if property is for sale or rent
+                const isForSale = property.salePrice !== undefined && property.salePrice !== null;
+                const statusLabel = isForSale ? 'S' : 'R';
+                
+                // Create custom icon matching PropertyMap style with selected/hovered states
+                const scale = isSelected ? 1.3 : isHovered ? 1.15 : 1.0;
+                const iconHtml = `
+                    <div class="relative flex items-center justify-center" style="transform: scale(${scale});">
+                        <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
+                        <div class="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs bg-[var(--color-primary-600)]">
+                            ${statusLabel}
+                        </div>
+                    </div>
+                `;
+
+                const customIcon = L.divIcon({
+                    html: iconHtml,
+                    className: '', // Important so Tailwind styles apply
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 24],
+                    popupAnchor: [0, -24]
+                });
 
                 return (
                     <Marker
