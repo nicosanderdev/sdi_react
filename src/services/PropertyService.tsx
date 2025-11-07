@@ -3,7 +3,10 @@ import {
   PublicPropertyDataList,
   PropertyDataList,
   PropertyData,
+  PublicProperty,
+  Amenity,
 } from '../models/properties';
+import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateProperty';
 
 import apiClient from './AxiosClient';
 
@@ -13,12 +16,14 @@ const ENDPOINTS = {
   CREATE_PROPERTY: '/properties/create',
   USERS_PROPERTIES: '/properties/mine',
   PROPERTY_DETAIL: (id: string) => `/properties/${id}`,
-  USERS_PROPERTY_DETAIL: (id: string) => `/properties/mine/${id}`,
+  PROPERTY_DUPLICATE: (id: string) => `/properties/${id}/duplicate`,
+  AMENITIES: '/properties/amenities',
+  FAVORITE_UPDATE: '/properties/favorite-update',
+  FAVORITES: '/properties/favorites',
 };
 
-/**
- * Fetches a list of properties.
- */
+
+// Fetches a list of public properties.
 const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDataList> => {
   try {
     const response = await apiClient.post<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, params);
@@ -73,26 +78,84 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
     console.error('Error fetching properties:', error.message);
     throw error;
   }
+// Fetch a single property with public info by its ID
+const getPropertyById = async (id: string, params?: PropertyParams): Promise<PublicProperty> => {
+    try {
+        if (params?.filter?.includeImages !== undefined) {
+            params = {...params, filter: { ...params.filter, includeImages: true } }
+        };
+        if (params?.filter?.includeVideos !== undefined) {
+            params = { ...params, filter: { ...params.filter, includeVideos: true } }
+        };
+        if (params?.filter?.includeAmenities !== undefined) {
+            params = { ...params, filter: { ...params.filter, includeAmenities: true } }
+        };
+        const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+            params: {
+                Ids: [id],
+                ...(params?.filter?.includeImages !== undefined && { 'Filter.IncludeImages': true }),
+                ...(params?.filter?.includeVideos !== undefined && { 'Filter.IncludeVideos': true }),
+                ...(params?.filter?.includeAmenities !== undefined && { 'Filter.IncludeAmenities': true }),
+            },
+            paramsSerializer: { indexes: null }
+        });
+        if (response.items && response.items.length > 0) {
+            return response.items[0];
+        }
+        throw new Error('Property not found');
+    } catch (error: any) {
+        console.error(`Error fetching property ${id}:`, error.message);
+        throw error;
+    }
 };
 
-// Fetch a single property with public info by its ID
-const getPropertyById = async (id: string): Promise<PropertyData> => {
+// Fetch a single property owned by the user by its ID
+const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
   try {
-    const response = await apiClient.get<PropertyData>(ENDPOINTS.PROPERTY_DETAIL(id));
-    return response;
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { 
+        params: { Ids: [id],
+        'Filter.IncludeImages': true,
+        'Filter.IncludeVideos': true,
+        'Filter.IncludeDocuments': true,
+        'Filter.IncludeAmenities': true
+        },
+        paramsSerializer: { indexes: null }
+    });
+    if (response.items && response.items.length > 0) {
+      return response.items[0];
+    }
+    throw new Error('Property not found');
   } catch (error: any) {
     console.error(`Error fetching property ${id}:`, error.message);
     throw error;
   }
 };
 
-// Fetch a single property by its ID
-const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
+// Fetch a list of properties owned by the user
+const getOwnersProperties = async (params?: PropertyParams): Promise<PropertyDataList> => {
   try {
-    const response = await apiClient.get<PropertyData>(ENDPOINTS.USERS_PROPERTY_DETAIL(id));
-    return response;
+    if (params?.filter?.includeImages !== undefined) {
+      params.filter.includeImages = true;
+    }
+    if (params?.filter?.includeDocuments !== undefined) {
+      params.filter.includeDocuments = true;
+    }
+    if (params?.filter?.includeVideos !== undefined) {
+      params.filter.includeVideos = true;
+    }
+    if (params?.filter?.includeAmenities !== undefined) {
+      params.filter.includeAmenities = true;
+    }
+    const response = await apiClient.get<PropertyDataList>(ENDPOINTS.USERS_PROPERTIES, { params });
+    return {
+      ...response,
+      items: response.items.map(prop => ({
+        ...prop,
+        id: String(prop.id),
+      }))
+    };
   } catch (error: any) {
-    console.error(`Error fetching property ${id}:`, error.message);
+    console.error('Error fetching properties:', error.message);
     throw error;
   }
 };
@@ -103,10 +166,9 @@ const createProperty = async (formData: FormData): Promise<PropertyData> => {
     const response = await apiClient.post<PropertyData>(ENDPOINTS.CREATE_PROPERTY, formData, {
       headers: { 'Content-Type': 'multipart/form-data' } 
     });
-    const rawProperty = response;
     return { 
-      ...rawProperty,
-      id: String(rawProperty!),
+      ...response,
+      id: String(response.id),
     };
   } catch (error: any) {
     console.error('Error creating property:', error.response?.data || error.message);
@@ -140,15 +202,112 @@ const deleteProperty = async (id: string): Promise<void> => {
   }
 };
 
+// Get all amenities for a property
+const getAmenities = async (): Promise<Amenity[]> => {
+    try {
+      return await apiClient.get<Amenity[]>(ENDPOINTS.AMENITIES);
+    } catch (error: any) {
+      console.error(`Error fetching amenities:`, error.message);
+      throw error;
+    }
+  };
+
+// Duplicate a property by its ID
+const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> => {
+  try {
+    const response = await apiClient.post<DuplicatedEstateProperty>(ENDPOINTS.PROPERTY_DUPLICATE(id));
+    return response;
+  } catch (error: any) {
+    console.error(`Error duplicating property ${id}:`, error.message);
+    throw error;
+  }
+};
+
+// Update favorite status for a property
+const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: boolean): Promise<void> => {
+  try {
+    console.log(`Making API call to update favorite: ${ENDPOINTS.FAVORITE_UPDATE}`, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
+    await apiClient.post(ENDPOINTS.FAVORITE_UPDATE, {
+      favoriteDto: {
+        estatePropertyId: estatePropertyId,
+        userId: null,
+        isFavorite: isFavorite
+      }
+    });
+    console.log(`API call successful for property ${estatePropertyId}`);
+  } catch (error: any) {
+    console.error(`Error updating favorite status for property ${estatePropertyId}:`, error.message);
+    throw error;
+  }
+};
+
+// Get user's favorite property IDs
+const getPropertiesAsFavorite = async (): Promise<string[]> => {
+  try {
+    console.log(`Making API call to fetch favorites: ${ENDPOINTS.FAVORITES}`);
+    const response = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorites API response:', response);
+    return response;
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
+// Get user's favorite properties as full objects
+const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
+  try {
+    console.log(`Making API call to fetch favorite property IDs: ${ENDPOINTS.FAVORITES}`);
+    const propertyIds = await apiClient.get<string[]>(ENDPOINTS.FAVORITES);
+    console.log('Favorite property IDs:', propertyIds);
+    
+    if (!propertyIds || propertyIds.length === 0) {
+      return [];
+    }
+    
+    // Fetch the full property objects using the IDs
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+      params: {
+        Ids: propertyIds,
+        'Filter.IncludeImages': true,
+        'Filter.IncludeVideos': true,
+        'Filter.IncludeAmenities': true
+      },
+      paramsSerializer: { indexes: null }
+    });
+    
+    console.log('Favorite properties fetched:', response.items);
+    return response.items || [];
+  } catch (error: any) {
+    console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
 const propertyService = {
   getProperties,
   getPropertiesInBounds,
   getUserProperties,
   getPropertyById,
+  getOwnersProperties,
+  getOwnersPropertyById,
   createProperty,
   updateProperty,
   deleteProperty,
-  getOwnersPropertyById
+  duplicateProperty,
+  getAmenities,
+  updatePropertyFavorite,
+  getPropertiesAsFavorite,
+  getFavoriteProperties
 };
+
+// Legacy method names for backward compatibility
+export const getUserProperties = getOwnersProperties;
 
 export default propertyService;

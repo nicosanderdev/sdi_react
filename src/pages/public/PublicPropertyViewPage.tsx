@@ -1,37 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Bed, Bath, Car, Square, Check, Home } from 'lucide-react';
 import PropertyImageGallery from '../../components/public/properties/PropertyImageGallery';
+import PropertyVideoSection from '../../components/public/properties/PropertyVideoSection';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Badge, Card } from 'flowbite-react';
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
-import { PropertyData } from '../../models/properties';
+import { PropertyParams, PublicProperty } from '../../models/properties';
+import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
-interface ServiceGridElement {
-  icon: any;
-  label: string;
-  value: string;
-}
 
-function getAreaUnit(id: string): "m²" | "ft²" | "yd²" | "acres" | "hectares" | "sq_km" | "sq_mi" {
-    switch (id) {
-      case '0': return 'm²';
-      case '1': return 'ft²';
-      case '2': return 'yd²';
-      case '3': return 'acres';
-      case '4': return 'hectares';
-      case '5': return 'sq_km';
-      default: return 'sq_mi';
-    }
-  }
 
 function PublicPropertyViewPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
 
   // State for loading, data, and errors
-  const [property, setProperty] = useState<PropertyData | null>(null);
+  const [property, setProperty] = useState<PublicProperty | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,8 +25,14 @@ function PublicPropertyViewPage() {
     const fetchPropertyData = async () => {
       try {
         setLoading(true);
-        var result = await propertyService.getPropertyById(propertyId!);
-        result = { ...result, areaUnit: getAreaUnit(result.areaUnit) }
+        const params: PropertyParams = {
+            filter: {
+                includeImages: true,
+                includeVideos: true,
+                includeAmenities: true,
+            }
+        }
+        var result = await propertyService.getPropertyById(propertyId!, params);
         setProperty(result);
       } catch (err) {
         setError("Failed to fetch property data.");
@@ -69,7 +61,7 @@ function PublicPropertyViewPage() {
     if (!price) return 'Price not available';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: property.currency || 'USD',
+      currency: property?.currency || 'USD',
       maximumFractionDigits: 0,
     }).format(price);
   };
@@ -93,16 +85,19 @@ function PublicPropertyViewPage() {
             {/* Right Column (or Bottom on Mobile) - Property Info */}
             <div className="lg:col-span-1 space-y-6">
               <Card>
-                <div className='flex justify-normal'>
-                  <Badge
-                    color='green'
-                    icon={Check} size='xs'>
-                    For {property.salePrice ? 'Sale' : 'Rent'}
-                  </Badge>
+                <div className='flex justify-between items-start'>
+                  <div className='flex justify-normal'>
+                    <Badge
+                      color='green'
+                      icon={Check} size='xs'>
+                      For {property.salePrice ? 'Sale' : 'Rent'}
+                    </Badge>
+                  </div>
+                  <FavoriteButton propertyId={property.id} size="lg" />
                 </div>
                 <h1 className="text-3xl font-bold">{property.title}</h1>
                 <p className="mt-1">{`${property.streetName} ${property.houseNumber}, ${property.city}, ${property.state}`}</p>
-                <p className="text-4xl font-bold mt-4">{property.salePrice != null ? formatPrice(Number.parseFloat(property.salePrice)) : formatPrice(Number.parseFloat(property.rentPrice!))}</p>
+                <p className="text-4xl font-bold mt-4">{property.salePrice != null ? formatPrice(property.salePrice) : formatPrice(property.rentPrice!)}</p>
               </Card>
 
               {/* Key Features */}
@@ -149,9 +144,12 @@ function PublicPropertyViewPage() {
             </div>
           </Card>
           
+          {/* Property Videos */}
+          <PropertyVideoSection videos={property.propertyVideos} />
+          
           {/* Q&A Section */}
           <div>
-            <PropertyContact />
+            <PropertyContact propertyId={propertyId} ownerId={property.ownerId} />
           </div>
         </div>
       </div>

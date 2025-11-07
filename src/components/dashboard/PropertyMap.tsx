@@ -11,7 +11,7 @@ export function PropertyMap() {
 
   const { data: properties, isLoading, isError, error } = useQuery({
     queryKey: ['mapProperties'],
-    queryFn: () => propertyService.getUserProperties(),
+    queryFn: () => propertyService.getOwnersProperties(),
   });
 
   useEffect(() => {

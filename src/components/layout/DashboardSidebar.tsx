@@ -7,7 +7,9 @@ import {
   BarChartIcon,
   SettingsIcon,
   LogOutIcon,
-  TriangleAlert
+  TriangleAlert,
+  Heart as HeartIcon,
+  Crown
 } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
@@ -37,9 +39,11 @@ export function DashboardSidebar() {
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
     { id: 'properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/properties' },
+    { id: 'favorites', label: 'Favoritos', icon: HeartIcon, path: '/dashboard/favorites' },
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.unread ?? 3 },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
+    { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' },
   ];
   const navigate = useNavigate();
 

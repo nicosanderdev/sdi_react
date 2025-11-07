@@ -4,7 +4,8 @@ import { Button } from 'flowbite-react';
 
 export interface DisplayDocument {
     key: string;
-    title: string;
+    name: string;
+    fileType: string;
     fileName: string;
     source: 'existing' | 'new';
     file?: File;
@@ -29,7 +30,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
         const newFiles = Array.from(files);
         const newDisplayDocuments: DisplayDocument[] = newFiles.map(file => ({
             key: `${file.name}-${file.lastModified}`,
-            title: file.name.split('.').slice(0, -1).join('.'),
+            name: file.name.split('.').slice(0, -1).join('.'),
+            fileType: "pdf",
             fileName: file.name,
             source: 'new',
             file: file
@@ -90,17 +92,18 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             {displayDocuments.length > 0 && (
                 <div className="mt-6 space-y-3">
                     {displayDocuments.map((doc) => (
-                        <div key={doc.key} className="flex items-center gap-4 p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                            <FileText className="w-6 h-6 text-[#1B4965] flex-shrink-0" />
+                        <div key={doc.key} className="flex items-center gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+                            <FileText className="w-6 h-6 text-primary-500 dark:text-primary-400 flex-shrink-0" />
+                            <p className="text-md font-semibold text-gray-800 dark:text-gray-200">.pdf</p>
                             <div className="flex-grow">
                                 <input
                                     type="text"
-                                    value={doc.title}
+                                    value={doc.name}
                                     onChange={(e) => handleDocumentTitleChange(doc.key, e.target.value)}
                                     placeholder="Título del documento"
-                                    className="w-full text-sm font-medium text-gray-800 border-b border-transparent focus:outline-none focus:border-gray-300"
+                                    className="w-full text-sm font-medium text-gray-800 dark:text-gray-200 border-b border-transparent focus:outline-none focus:border-gray-300"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">{doc.fileName}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-300 mt-1">{doc.fileName}</p>
                             </div>
                             <button
                                 type="button"

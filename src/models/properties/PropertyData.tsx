@@ -2,6 +2,7 @@ import { PropertyImage } from "./PropertyImage";
 import { PropertyDocument } from "./PropertyDocument";
 import { PropertyVideo } from "./PropertyVideo";
 import { Amenity } from "./Amenity";
+import { EstatePropertyValues } from "./EstatePropertyValues";
 
 export interface PropertyData {
   id: string;
@@ -28,8 +29,8 @@ export interface PropertyData {
   garageSpaces: number;
   // other info
   //relationships
-  propertyImages: PropertyImage[];
   mainImageId?: string;
+  propertyImages: PropertyImage[];
   propertyDocuments?: PropertyDocument[];
   propertyVideos: PropertyVideo[];
   amenities: Amenity[];
@@ -54,4 +55,7 @@ export interface PropertyData {
   isPropertyVisible: boolean;
   created: Date;
   visits?: number;
+  
+  // Version history
+  estatePropertyValues?: EstatePropertyValues[];
 }

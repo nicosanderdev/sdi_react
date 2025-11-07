@@ -6,6 +6,9 @@ import authService from '../../services/AuthService';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from 'lucide-react';
 import { TwoFactorInput } from '../../components/public/TwoFactorInput'; // <-- IMPORT THE NEW COMPONENT
 import { PublicLayout } from '../../components/layout/PublicLayout';
+import { getRedirectPath } from '../../utils/RoleUtils';
+import { useAppDispatch } from '../../hooks/reduxHooks';
+import { fetchUserProfile } from '../../store/slices/userSlice';
 
 export function LoginPage() {
 
@@ -24,6 +27,7 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   
   const twoFaFormRef = useRef<HTMLFormElement>(null);
 
@@ -32,13 +36,15 @@ export function LoginPage() {
       setIsVerifying(true);
       const user = await authService.verifyAuth();
       if (user && user.isAuthenticated) {
-        navigate('/dashboard');
+        dispatch(fetchUserProfile());
+        const redirectPath = getRedirectPath(user);
+        navigate(redirectPath);
       } else {
         setIsVerifying(false);
       }
     };
     checkAuthStatus();
-  }, [navigate]);
+  }, [navigate, dispatch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -63,8 +69,10 @@ export function LoginPage() {
 
     try {
       const response = await authService.login(formData.email, formData.password);
-      if (response.succeeded) {
-        navigate('/dashboard');
+      if (response.succeeded && response.user) {
+        dispatch(fetchUserProfile());
+        const redirectPath = getRedirectPath(response.user);
+        navigate(redirectPath);
       } else if (response.requires2FA) {
           setLoginStep('2fa');
       } else {
@@ -89,8 +97,12 @@ export function LoginPage() {
 
     try {
       const response = await authService.login(formData.email, undefined, formData.twoFactorCode);
-      if (response.succeeded) {
-        navigate('/dashboard');
+      if (response.succeeded && response.user) {
+        // Fetch user profile data and load it into the Redux store
+        dispatch(fetchUserProfile());
+        // Redirect based on user role
+        const redirectPath = getRedirectPath(response.user);
+        navigate(redirectPath);
       } else {
         setFormData(prev => ({ ...prev, twoFactorCode: '' }));
         setError(response.errorMessage || 'Invalid 2FA code.');

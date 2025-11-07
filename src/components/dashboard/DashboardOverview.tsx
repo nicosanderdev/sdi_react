@@ -10,11 +10,38 @@ import { CalendarIcon, TrendingUpIcon, TrendingDownIcon, AlertCircleIcon, EyeIco
 
 // Import services
 import reportService from './../../services/ReportService';
-import propertyService, { PropertyImage } from './../../services/PropertyService';
+import propertyService from './../../services/PropertyService';
 import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
+import { PropertyImage } from '../../models/properties';
+
+// Get the API base URL for files
+const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
+
+interface PropertyDisplayDashboard {
+    id: string | number;
+    title?: string;
+    streetName?: string;
+    houseNumber?: string;
+    neighborhood?: string;
+    city?: string;
+    salePrice?: number;
+    rentPrice?: number;
+    currency?: string;
+    status?: string;
+    propertyType?: string;
+    squareMeters?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    mainImageId?: string;
+    propertyImages?: PropertyImage[];
+    statistics?: {
+        visits?: number;
+        messages?: number;
+    };
+}
 
 export function DashboardOverview() {
 
@@ -35,7 +62,7 @@ export function DashboardOverview() {
   // --- Data Fetching for Featured Properties ---
   const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
     queryKey: ['featuredProperties'],
-    queryFn: () => propertyService.getUserProperties({ limit: 3, isFeatured: true }),
+    queryFn: () => propertyService.getOwnersProperties({ pageSize: 3 }),
     select: (data) => data.items
   });
   const featuredProperties = propertiesData || [];
@@ -157,26 +184,8 @@ export function DashboardOverview() {
         {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length === 0 && <p>No hay propiedades destacadas.</p>}
         {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {(featuredProperties as Array<{
-              id: string | number;
-              title?: string;
-              streetName?: string;
-              houseNumber?: string;
-              neighborhood?: string;
-              city?: string;
-              salePrice?: number;
-              rentPrice?: number;
-              currency?: string;
-              status?: string;
-              propertyType?: string;
-              squareMeters?: number;
-              bedrooms?: number;
-              bathrooms?: number;
-              mainImageId?: string;
-              propertyImages?: PropertyImage[];
-              statistics?: { visits?: number; messages?: number };
-            }>)
-              .filter(property => !!property && !!property.id) // Filter out any null/undefined entries
+            {(featuredProperties as Array<PropertyDisplayDashboard>)
+              .filter(property => !!property && !!property.id)
               .map((property) => {
                 const cardProperty = {
                   id: typeof property.id === 'number' ? property.id : Number(property.id), // Ensure id is a number
@@ -186,7 +195,6 @@ export function DashboardOverview() {
                     ? (property?.salePrice !== undefined && property?.salePrice !== null ? formatNumber(property.salePrice) : '-')
                     : (property?.rentPrice !== undefined && property?.rentPrice !== null ? formatNumber(property.rentPrice) : '-')),
 
-                  // Safely determine the status
                   status: property?.status === 'Sale' ? 'En venta'
                     : (property?.status === 'Rent' ? 'En alquiler' : 'No especificado'),
 
@@ -194,9 +202,11 @@ export function DashboardOverview() {
                   area: property?.squareMeters ? `${property.squareMeters}m²` : '-',
                   bedrooms: property?.bedrooms ?? 0,
                   bathrooms: property?.bathrooms ?? 0,
-                  image: property?.propertyImages?.find((i: PropertyImage) =>
-                    String(i.id) === String(property.mainImageId))?.url || "https://placehold.co/600x400",
-                  // Safely access nested statistics
+                  image: (() => {
+                    const imageUrl = property?.propertyImages?.find((i: PropertyImage) => 
+                      String(i.id) === String(property.mainImageId))?.url;
+                    return imageUrl ? `${API_BASE_URL}${imageUrl}` : "https://placehold.co/600x400";
+                  })(),
                   visits: property?.statistics?.visits ?? 0,
                   messages: property?.statistics?.messages ?? 0,
                 };

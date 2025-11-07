@@ -10,6 +10,13 @@ import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
 
+// New public user pages
+import { PublicWelcomePage } from './pages/public/PublicWelcomePage';
+import { PublicUserProfilePage } from './pages/public/PublicUserProfilePage';
+import { PublicUserMessagesPage } from './pages/public/PublicUserMessagesPage';
+import { PublicUserFavoritesPage } from './pages/public/PublicUserFavoritesPage';
+import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
+
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
@@ -22,10 +29,15 @@ import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
+import { ManagerSubscriptionPage } from './pages/dashboard/ManagerSubscriptionPage';
 
-import { useDispatch } from 'react-redux';
+// Auth components
+import { ManagerOnlyRoute, PublicUserOnlyRoute, PublicRoute } from './components/auth/ProtectedRoute';
+
+import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
-import { AppDispatch } from './store/store';
+import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
+import { AppDispatch, RootState } from './store/store';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -34,14 +46,23 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
 import SearchPage from './components/public/SearchPage';
 import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
+import FavoritesPage from './components/dashboard/FavoritesPage';
 import MapSearchPage from './pages/public/MapSearchPage';
 
 
 export function App() {
   const dispatch = useDispatch<AppDispatch>();
+  const user = useSelector((state: RootState) => state.user.profile);
+
   useEffect(() => {
     dispatch(fetchUserProfile());
   }, [dispatch]);
+
+  useEffect(() => {
+    if (user && user.id) {
+      dispatch(fetchFavoriteProperties());
+    }
+  }, [dispatch, user]);
 
   return (
     <ThemeProvider>
@@ -50,28 +71,37 @@ export function App() {
         <RouteChangeTracker />
         <Routes>
 
-          {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/contact" element={<ContactPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/email-confirmation" element={<EmailConfirmationPage />} />
-          <Route path="/terms" element={<TermsAndConditionsPage />} />
-          <Route path="/notfound" element={<NotFoundPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/properties" element={<PropertiesResultsPage />} />
-          <Route path="/properties/view/:propertyId" element={<PublicPropertyViewPage />} />
-          <Route path="/map-search" element={<MapSearchPage />} />
+          {/* Public Routes (No Authentication Required) */}
+          <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
+          <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
+          <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+          <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
+          <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
+          <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
+          <Route path="/search" element={<PublicRoute><SearchPage /></PublicRoute>} />
+          <Route path="/properties" element={<PublicRoute><PropertiesResultsPage /></PublicRoute>} />
+          <Route path="/properties/view/:propertyId" element={<PublicRoute><PublicPropertyViewPage /></PublicRoute>} />
+          <Route path="/map-search" element={<PublicRoute><MapSearchPage /></PublicRoute>} />
 
-          {/* Dashboard Routes */}
-          <Route path="/dashboard" element={<DashboardLayout /> } > 
+          {/* Public User Routes (Authentication Required, Public Users Only) */}
+          <Route path="/welcome" element={<PublicUserOnlyRoute><PublicWelcomePage /></PublicUserOnlyRoute>} />
+          <Route path="/profile" element={<PublicUserOnlyRoute><PublicUserProfilePage /></PublicUserOnlyRoute>} />
+          <Route path="/messages" element={<PublicUserOnlyRoute><PublicUserMessagesPage /></PublicUserOnlyRoute>} />
+          <Route path="/favorites" element={<PublicUserOnlyRoute><PublicUserFavoritesPage /></PublicUserOnlyRoute>} />
+          <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} />
+
+          {/* Manager Dashboard Routes (Authentication Required, Managers Only) */}
+          <Route path="/dashboard" element={<ManagerOnlyRoute><DashboardLayout /></ManagerOnlyRoute>} > 
             <Route index element={<DashboardOverview />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
+            <Route path="favorites" element={<FavoritesPage />} />
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
+            <Route path="subscription" element={<ManagerSubscriptionPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />

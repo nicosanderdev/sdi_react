@@ -1,7 +1,9 @@
 export interface PropertyDocument {
   id?: string;
   url: string;
-  title: string;
+  name: string;
+  estatePropertyId: string;
   fileName: string;
   file?: File;
+  isPublic: boolean;
 }
