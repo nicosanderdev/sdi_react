@@ -34,13 +34,11 @@ export function PropertyMap() {
       }
     });
 
-    // Add property markers
     if (properties.items.length > 0) {
       const propertyMarkers: L.Marker[] = [];
       properties.items.forEach(property => {
           if (property.location && property.location.lat && property.location.lng) {
               const position: L.LatLngExpression = [property.location.lat, property.location.lng];
-              // Custom icon based on listingType (For Sale / For Rent)
               const iconHtml = `
                     <div class="relative flex items-center justify-center">
                     <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
@@ -52,7 +50,7 @@ export function PropertyMap() {
 
               const customIcon = L.divIcon({
                   html: iconHtml,
-                  className: '', // Important so Tailwind styles apply
+                  className: '',
                   iconSize: [24, 24],
                   iconAnchor: [12, 24],
                   popupAnchor: [0, -24]
@@ -66,7 +64,7 @@ export function PropertyMap() {
         }
       });
 
-      // Fit map to bounds of all markers if there are any
+
       if (propertyMarkers.length > 0) {
         const group = L.featureGroup(propertyMarkers);
         map.fitBounds(group.getBounds().pad(0.3));
@@ -75,7 +73,7 @@ export function PropertyMap() {
 
   }, [properties]);
 
-  // Cleanup map instance on component unmount
+  // Cleanup instance on unmount
   useEffect(() => {
     return () => {
       if (mapInstanceRef.current) {

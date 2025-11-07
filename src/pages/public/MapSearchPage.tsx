@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import MapComponent from '../../components/public/map-search/MapComponent';
 import PropertyListSidebar from '../../components/public/map-search/PropertyListSidebar';
-import PropertyDetailSidebar from '../../components/public/map-search/PropertyDetailSidebar';
 import { PublicProperty } from '../../models/properties';
 import propertyService from '../../services/PropertyService';
 import L from 'leaflet';
@@ -56,10 +55,8 @@ const MapSearchPage = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-
                 const sw = bounds.getSouthWest();
                 const ne = bounds.getNorthEast();
-
                 const response = await propertyService.getPropertiesInBounds(
                     sw.lat,
                     sw.lng,
@@ -150,14 +147,6 @@ const MapSearchPage = () => {
                     isLoading={isLoading}
                 />
             </div>
-
-            {/* Right Sidebar - Property Details */}
-            {selectedProperty && (
-                <PropertyDetailSidebar
-                    property={selectedProperty}
-                    onClose={handleCloseDetailSidebar}
-                />
-            )}
         </div>
     );
 };

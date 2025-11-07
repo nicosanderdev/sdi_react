@@ -1,9 +1,11 @@
-import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Tooltip } from 'react-leaflet';
-import { PublicProperty } from '../../../models/properties';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Popup } from 'react-leaflet';
+import { PublicProperty, PropertyImage } from '../../../models/properties';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
 function MapEvents({ setMapBounds }: { setMapBounds: (bounds: L.LatLngBoundsExpression) => void }) {
     const initialBoundsSet = useRef(false);
@@ -49,13 +51,17 @@ function MapController({
 }
 
 
+type MapProperty = PublicProperty & {
+    images?: PropertyImage[];
+};
+
 interface MapComponentProps {
-    properties: PublicProperty[];
+    properties: MapProperty[];
     setMapBounds: (bounds: L.LatLngBoundsExpression) => void;
     hoveredPropertyId: string | null;
     setHoveredPropertyId: (id: string | null) => void;
     selectedPropertyId: string | null;
-    onPropertyClick: (id: string) => void;
+    onPropertyClick?: (id: string) => void;
     center?: { lat: number; lng: number } | null;
     zoom?: number | null;
     isLoading?: boolean;
@@ -67,7 +73,7 @@ const MapComponent = ({
     hoveredPropertyId, 
     setHoveredPropertyId,
     selectedPropertyId,
-    onPropertyClick,
+    onPropertyClick: _onPropertyClick,
     center = null,
     zoom = null,
     isLoading = false
@@ -85,18 +91,49 @@ const MapComponent = ({
                 {properties.map(property => {
                 const isSelected = selectedPropertyId === property.id;
                 const isHovered = hoveredPropertyId === property.id;
-                
-                // Determine if property is for sale or rent
+
                 const isForSale = property.salePrice !== undefined && property.salePrice !== null;
-                const statusLabel = isForSale ? 'S' : 'R';
-                
+                const statusLabel = property.rentPrice !== undefined && property.rentPrice !== null
+                    ? 'For Rent'
+                    : isForSale
+                        ? 'For Sale'
+                        : null;
+
+                const priceValue = property.rentPrice ?? property.salePrice ?? null;
+                const formattedPrice = priceValue !== null
+                    ? [property.currency, priceValue.toLocaleString()].filter(Boolean).join(' ')
+                    : 'Price unavailable';
+
+                const propertyImages = (property.propertyImages ?? []).filter((image): image is PropertyImage => Boolean(image && image.url));
+                const mainImage = property.mainImageId
+                    ? propertyImages.find(img => img.id === property.mainImageId) ?? propertyImages[0]
+                    : propertyImages[0];
+
+                const addressLines = [
+                    [property.streetName, property.houseNumber].filter(Boolean).join(' ').trim(),
+                    property.neighborhood,
+                    [property.city, property.state, property.zipCode].filter(Boolean).join(', ').trim(),
+                    property.country
+                ].filter(line => line && line.length > 0);
+
+                const statusClassName = statusLabel
+                    ? `property-popup__status ${statusLabel === 'For Rent'
+                        ? 'property-popup__status--rent'
+                        : 'property-popup__status--sale'}`
+                    : '';
+
                 // Create custom icon matching PropertyMap style with selected/hovered states
                 const scale = isSelected ? 1.3 : isHovered ? 1.15 : 1.0;
+                const statusIconLabel = property.rentPrice !== undefined && property.rentPrice !== null
+                    ? 'R'
+                    : isForSale
+                        ? 'S'
+                        : '?';
                 const iconHtml = `
                     <div class="relative flex items-center justify-center" style="transform: scale(${scale});">
                         <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
                         <div class="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs bg-[var(--color-primary-600)]">
-                            ${statusLabel}
+                            ${statusIconLabel}
                         </div>
                     </div>
                 `;
@@ -117,12 +154,39 @@ const MapComponent = ({
                         eventHandlers={{
                             mouseover: () => setHoveredPropertyId(property.id),
                             mouseout: () => setHoveredPropertyId(null),
-                            click: () => onPropertyClick(property.id),
                         }}
                     >
-                        <Tooltip>
-                            <strong>{property.title}</strong><br />${property.rentPrice || property.salePrice || 'N/A'}/month
-                        </Tooltip>
+                        <Popup minWidth={500}>
+                            <div className="property-popup">
+                                {mainImage ? (
+                                    <img
+                                        className="popup-img"
+                                        src={`${API_BASE_URL}${mainImage?.url?.startsWith('/') ? '' : '/'}${mainImage?.url}`}
+                                        alt={mainImage.altText || property.title}
+                                    />
+                                ) : (
+                                    <div className="popup-img popup-img--placeholder">
+                                        No image available
+                                    </div>
+                                )}
+                                <div className="property-popup__content">
+                                    <div className="property-popup__header">
+                                        <h3 className="property-popup__title">{property.title}</h3>
+                                        {statusLabel && (
+                                            <span className={statusClassName}>{statusLabel}</span>
+                                        )}
+                                    </div>
+                                    <div className="property-popup__price">{formattedPrice}</div>
+                                    {addressLines.length > 0 && (
+                                        <div className="property-popup__address">
+                                            {addressLines.map((line, index) => (
+                                                <span key={`${property.id}-address-${index}`}>{line}</span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Popup>
                     </Marker>
                 );
             })}

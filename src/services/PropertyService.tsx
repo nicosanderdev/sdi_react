@@ -54,19 +54,38 @@ const getPropertiesInBounds = async (
   additionalParams?: Partial<PropertyParams>
 ): Promise<PublicPropertyDataList> => {
   try {
+    const filter: PropertyParams['filter'] = {
+      ...additionalParams?.filter,
+      swLat,
+      swLng,
+      neLat,
+      neLng,
+      includeImages: true
+    };
+
     const params: PropertyParams = {
       pageNumber: additionalParams?.pageNumber ?? 1,
       pageSize: additionalParams?.pageSize ?? 100,
-      filter: {
-        swLat,
-        swLng,
-        neLat,
-        neLng,
-        ...additionalParams?.filter
-      }
+      filter
     };
-    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, { params });
-    return response;
+
+    const requestParams: Record<string, unknown> = {
+      ...params,
+      'Filter.IncludeImages': true
+    };
+
+    const response = await apiClient.get<PublicPropertyDataList>(ENDPOINTS.PROPERTIES, {
+      params: requestParams,
+      paramsSerializer: { indexes: null }
+    });
+
+    return {
+      ...response,
+      items: response.items?.map(property => ({
+        ...property,
+        propertyImages: property.propertyImages ?? []
+      })) ?? []
+    };
   } catch (error: any) {
     console.error('Error fetching properties in bounds:', error.message);
     throw error;
