@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
 import { 
@@ -18,60 +18,33 @@ import {
   Eye,
   Shield
 } from 'lucide-react';
+import subscriptionService from '../../services/SubscriptionService';
+import { SubscriptionData } from '../../models/subscriptions/SubscriptionData';
+import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
+
+
 
 export function ManagerSubscriptionPage() {
   const user = useSelector((state: RootState) => state.user.profile);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
 
-  // TODO: Implement subscription data from the API
-  const subscription = {
-    plan: 'Manager Premium',
-    status: 'active',
-    nextBillingDate: '2024-02-15',
-    amount: 59,
-    currency: 'EUR',
-    period: 'monthly',
-    propertiesUsed: 12,
-    propertiesLimit: 25,
-    features: [
-      'Panel de gestión avanzado',
-      'Soporte prioritario',
-      'Reportes avanzados y métricas',
-      'Integración con CRM',
-      'Análisis de mercado',
-      'Plantillas personalizadas'
-    ],
-    usage: {
-      messages: 245,
-      messagesLimit: 1000,
-      storage: 2.3,
-      storageLimit: 10
-    }
-  };
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      const response = await subscriptionService.getCurrentSubscription();
+      setSubscription(response);
+    };
+    fetchSubscription();
+  }, []);
 
-  const billingHistory = [
-    {
-      id: '1',
-      date: '2024-01-15',
-      amount: 59,
-      status: 'paid',
-      description: 'Manager Premium - Enero 2024'
-    },
-    {
-      id: '2',
-      date: '2023-12-15',
-      amount: 59,
-      status: 'paid',
-      description: 'Manager Premium - Diciembre 2023'
-    },
-    {
-      id: '3',
-      date: '2023-11-15',
-      amount: 59,
-      status: 'paid',
-      description: 'Manager Premium - Noviembre 2023'
-    }
-  ];
+  useEffect(() => {
+    const fetchBillingHistory = async () => {
+      const response = await subscriptionService.getBillingHistory();
+      setBillingHistory(response);
+    };
+    fetchBillingHistory();
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {

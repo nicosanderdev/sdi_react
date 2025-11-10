@@ -19,7 +19,7 @@ import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
-import { DashboardOverview } from './components/dashboard/DashboardOverview';
+import { DashboardOverview } from './pages/dashboard/DashboardOverview';
 import { UserProfile } from './components/user/UserProfile';
 import { PropertiesManager } from './components/dashboard/properties/PropertiesManager';
 import { MessageCenter } from './components/dashboard/MessageCenter';
@@ -46,7 +46,7 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
 import SearchPage from './components/public/SearchPage';
 import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
-import FavoritesPage from './components/dashboard/FavoritesPage';
+import FavoritesPage from './pages/dashboard/FavoritesPage';
 import MapSearchPage from './pages/public/MapSearchPage';
 
 
