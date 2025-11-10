@@ -1,9 +1,9 @@
-import React from 'react';
-import { BuildingIcon, BedIcon, BathIcon, SquareIcon, EyeIcon, MessageSquareIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BedIcon, BathIcon, SquareIcon, EyeIcon, MessageSquareIcon } from 'lucide-react';
 import { Badge } from 'flowbite-react';
 interface PropertyProps {
   property: {
-    id: number;
+    id: string;
     title: string;
     address: string;
     price: string;
@@ -20,7 +20,16 @@ interface PropertyProps {
 export function PropertyCard({
   property
 }: PropertyProps) {
-  return <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    navigate(`/dashboard/property/${property.id}`);
+  };
+
+  return <div 
+    className="group bg-white dark:bg-gray-400 rounded-lg overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow relative cursor-pointer"
+    onClick={handleCardClick}
+  >
       <div className="relative h-48">
         <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
         <div className="absolute top-3 right-3">
@@ -61,6 +70,10 @@ export function PropertyCard({
             <span>{property.messages} mensajes</span>
           </div>
         </div>
+      </div>
+      {/* Hover Overlay */}
+      <div className="absolute inset-0 bg-primary-700 bg-opacity-30 dark:bg-opacity-70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg z-10 pointer-events-none">
+        <span className="text-white text-lg font-medium">Ver propiedad</span>
       </div>
     </div>;
 }
