@@ -83,7 +83,6 @@ export function PropertyMap() {
     };
   }, []);
 
-
   if (isLoading) return <div className="flex items-center justify-center h-full"><p>Cargando mapa...</p></div>;
   if (isError) return <div className="flex items-center justify-center h-full"><p className="text-red-500">Error al cargar propiedades para el mapa: {error?.message}</p></div>;
 

@@ -13,6 +13,7 @@ import reportService from './../../services/ReportService';
 import propertyService from './../../services/PropertyService';
 import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { PropertyImage } from '../../models/properties';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 // Get the API base URL for files
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
@@ -21,7 +22,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
 
 interface PropertyDisplayDashboard {
-    id: string | number;
+    id: string;
     title?: string;
     streetName?: string;
     houseNumber?: string;
@@ -29,6 +30,8 @@ interface PropertyDisplayDashboard {
     city?: string;
     salePrice?: number;
     rentPrice?: number;
+    areaUnit?: string;
+    areaValue?: number;
     currency?: string;
     status?: string;
     propertyType?: string;
@@ -59,19 +62,39 @@ export function DashboardOverview() {
     { id: 'thisyear', label: 'Este año' },
   ];
 
-  // --- Data Fetching for Featured Properties ---
+  const params = {
+    pageSize: 3,
+    filter: {
+      includeImages: true
+    }
+  };
+  //  --- Data Fetching for Featured Properties ---
   const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
     queryKey: ['featuredProperties'],
-    queryFn: () => propertyService.getOwnersProperties({ pageSize: 3 }),
+    queryFn: () => propertyService.getOwnersProperties( params ),
     select: (data) => data.items
   });
   const featuredProperties = propertiesData || [];
+
+
+  const areaMap = (areaUnit: number) => {
+    if (areaUnit === 0) return `m²`;
+    if (areaUnit === 1) return `ft²`;
+    if (areaUnit === 2) return `yd²`;
+    if (areaUnit === 3) return `acres`;
+    if (areaUnit === 4) return `hectares`;
+    if (areaUnit === 5) return `sq_km`;
+    if (areaUnit === 6) return `sq_mi`;
+    return '-';
+  };
 
   const renderCardValue = (value: any, isLoading: boolean, isError: boolean, unit = '') => {
     if (isLoading) return <span className="text-gray-400">Cargando...</span>;
     if (isError || typeof value === 'undefined' || value === null) return <span className="text-gray-400">No disponible</span>;
     return <>{formatNumber(value)}{unit}</>;
   };
+  
+  const navigate = useNavigate();
 
   const renderPercentageChange = (
     percentage: number | undefined,
@@ -175,7 +198,7 @@ export function DashboardOverview() {
           <h2 className="text-xl font-bold">
             Propiedades Destacadas
           </h2>
-          <Button>
+          <Button onClick={() => navigate('/dashboard/properties')}>
             Ver todas
           </Button>
         </div>
@@ -188,7 +211,7 @@ export function DashboardOverview() {
               .filter(property => !!property && !!property.id)
               .map((property) => {
                 const cardProperty = {
-                  id: typeof property.id === 'number' ? property.id : Number(property.id), // Ensure id is a number
+                  id: property.id,
                   title: property?.title ?? 'Propiedad sin título',
                   address: `${property?.streetName || ''} ${property?.houseNumber || ''}, ${property?.neighborhood || ''}, ${property?.city || ''}`.trim() || 'Dirección no disponible',
                   price: (property?.currency ? property.currency + ' ' : '') + ((property?.status !== undefined && property?.status === 'Sale')
@@ -199,13 +222,13 @@ export function DashboardOverview() {
                     : (property?.status === 'Rent' ? 'En alquiler' : 'No especificado'),
 
                   type: property?.propertyType ?? 'No especificado',
-                  area: property?.squareMeters ? `${property.squareMeters}m²` : '-',
+                  area: (property?.areaValue ?? 0) + ' ' + areaMap(Number(property?.areaUnit ?? 0)),
                   bedrooms: property?.bedrooms ?? 0,
                   bathrooms: property?.bathrooms ?? 0,
                   image: (() => {
                     const imageUrl = property?.propertyImages?.find((i: PropertyImage) => 
-                      String(i.id) === String(property.mainImageId))?.url;
-                    return imageUrl ? `${API_BASE_URL}${imageUrl}` : "https://placehold.co/600x400";
+                        String(i.id) === String(property.mainImageId))?.url;
+                        return imageUrl ? `${API_BASE_URL}${imageUrl?.startsWith('/') ? '' : '/'}${imageUrl}` : "https://placehold.co/600x400";
                   })(),
                   visits: property?.statistics?.visits ?? 0,
                   messages: property?.statistics?.messages ?? 0,

@@ -1,4 +1,4 @@
-import { PropertyData } from "../../../services/PropertyService";
+import { PropertyData } from "../../../models/properties";
 
 interface PropertyCardProps {
     key: string;
