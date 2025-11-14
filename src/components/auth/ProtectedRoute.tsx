@@ -66,3 +66,11 @@ export function PublicRoute({ children }: { children: React.ReactNode }) {
     </ProtectedRoute>
   );
 }
+
+export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute allowedRoles={[Roles.Admin]}>
+      {children}
+    </ProtectedRoute>
+  );
+}

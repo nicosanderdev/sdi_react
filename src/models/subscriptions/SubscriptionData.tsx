@@ -1,17 +1,17 @@
 import { PlanData } from "./PlanData";
 
 export interface SubscriptionData {
-    Id: string;
-    OwnerType: string;
-    OwnerId: string;
-    ProviderCustomerId: string;
-    ProviderSubscriptionId: string;
-    PlanId: string;
-    Plan: PlanData;
-    Status: string;
-    CurrentPeriodStart: Date;
-    CurrentPeriodEnd: Date;
-    CancelAtPeriodEnd: boolean;
-    CreatedAt: Date;
-    UpdatedAt: Date;
+    id: string;
+    ownerType: string;
+    ownerId: string;
+    providerCustomerId: string;
+    providerSubscriptionId: string;
+    planId: string;
+    plan: PlanData;
+    status: string;
+    currentPeriodStart: Date;
+    currentPeriodEnd: Date;
+    cancelAtPeriodEnd: boolean;
+    createdAt: Date;
+    updatedAt: Date;
 }

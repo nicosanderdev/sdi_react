@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   HomeIcon,
   UserIcon,
@@ -9,13 +9,17 @@ import {
   LogOutIcon,
   TriangleAlert,
   Heart as HeartIcon,
-  Crown
+  Crown,
+  Shield,
+  FileText
 } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, fetchMessageCounts, RootState } from '../../store';
 import { Button, Modal, ModalBody, ModalHeader, Sidebar, SidebarItem, SidebarItemGroup, SidebarItems, SidebarLogo } from 'flowbite-react';
+import { hasRole } from '../../utils/RoleUtils';
+import { Roles } from '../../models/Roles';
 
 interface NavItem {
   id: string;
@@ -29,6 +33,10 @@ export function DashboardSidebar() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const dispatch = useDispatch<AppDispatch>();
   const { counts, status } = useSelector((state: RootState) => state.notifications);
+  const user = useSelector((state: RootState) => state.user.profile);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAdmin = user ? hasRole(user, Roles.Admin) : false;
 
   useEffect(() => {
     if (status === 'idle') {
@@ -45,7 +53,11 @@ export function DashboardSidebar() {
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
     { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' },
   ];
-  const navigate = useNavigate();
+
+  const adminNavItems: NavItem[] = [
+    { id: 'admin-subscriptions', label: 'Suscripciones', icon: Shield, path: '/dashboard/admin/subscriptions' },
+    { id: 'admin-invoices', label: 'Facturas', icon: FileText, path: '/dashboard/admin/invoices' },
+  ];
 
   const handleLogout = async () => {
     await authService.logout();
@@ -55,7 +67,15 @@ export function DashboardSidebar() {
   return (
     <>
       <Sidebar aria-label="Sidebar with logo branding example">
-        <SidebarLogo href="/dashboard" img="/favicon.svg" imgAlt="SGI logo">
+        <SidebarLogo 
+          href="/dashboard" 
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/dashboard');
+          }}
+          img="/favicon.svg" 
+          imgAlt="SGI logo"
+        >
           SGI
         </SidebarLogo>
         <SidebarItems>
@@ -63,17 +83,34 @@ export function DashboardSidebar() {
             {navItems.map(item => (
               <SidebarItem
                 key={item.id}
-                href={item.path}
+                onClick={() => navigate(item.path)}
                 icon={item.icon}
                 label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
-                active={item.path === location.pathname}
+                active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
               >
                 {item.label}
               </SidebarItem>
             ))}
           </SidebarItemGroup>
+          {isAdmin && (
+            <SidebarItemGroup>
+              <SidebarItem className="text-gray-500 text-xs font-semibold uppercase px-4 py-2" disabled>
+                Administración
+              </SidebarItem>
+              {adminNavItems.map(item => (
+                <SidebarItem
+                  key={item.id}
+                  onClick={() => navigate(item.path)}
+                  icon={item.icon}
+                  active={location.pathname === item.path || location.pathname.startsWith(item.path)}
+                >
+                  {item.label}
+                </SidebarItem>
+              ))}
+            </SidebarItemGroup>
+          )}
           <SidebarItemGroup>
-            <SidebarItem href="/dashboard/settings" icon={SettingsIcon}>
+            <SidebarItem onClick={() => navigate('/dashboard/settings')} icon={SettingsIcon}>
               Configuración
             </SidebarItem>
             <SidebarItem icon={LogOutIcon} onClick={() => setIsLogoutModalOpen(true)}>

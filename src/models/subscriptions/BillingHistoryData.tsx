@@ -1,10 +1,16 @@
 export interface BillingHistoryData {
-    Id: string;
-    SubscriptionId: string;
-    ProviderInvoiceId: string;
-    Amount: number;
-    Currency: string;
-    Status: string;
-    PaidAt: Date;
-    Created: Date;
+    id: string;
+    subscriptionId: string;
+    providerInvoiceId: string;
+    amount: number;
+    currency: string;
+    status: string;
+    paidAt: Date;
+    createdAt: Date;
 }
+
+export interface BillingHistoryList {
+    items: BillingHistoryData[];
+    total?: number;
+    page?: number;
+  }

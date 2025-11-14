@@ -1,14 +1,14 @@
 import { PlanKey } from "./PlanKey";
 
 export interface PlanData {
-    Id: string;
-    Key: PlanKey;
-    Name: string;
-    MonthlyPrice: number;
-    Currency: string;
-    MaxProperties: number;
-    MaxUsers: number;
-    MaxStorageMb: number;
-    BillingCycle: string;
-    IsActive: boolean;
+    id: string;
+    key: PlanKey;
+    name: string;
+    monthlyPrice: number;
+    currency: string;
+    maxProperties: number;
+    maxUsers: number;
+    maxStorageMb: number;
+    billingCycle: string;
+    isActive: boolean;
 }
