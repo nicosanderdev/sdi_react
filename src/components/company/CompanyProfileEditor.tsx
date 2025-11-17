@@ -211,7 +211,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
     return (
       <Card>
         <div className="text-center py-8">
-          <p className="text-gray-500">No se encontró información de la compañía</p>
+          <p className="text-gray-500">No se encontró información de la empresa</p>
         </div>
       </Card>
     );
@@ -227,7 +227,6 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
         {!editing && (
           <Button
             onClick={() => setEditing(true)}
-            color="blue"
             className="flex items-center space-x-2"
           >
             <Edit3 className="w-4 h-4" />
@@ -324,7 +323,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Logo Upload */}
           <div>
-            <Label>Logo de la Compañía</Label>
+            <Label>Logo de la Empresa</Label>
             <div className="mt-2 flex items-center space-x-4">
               {logoPreview && (
                 <img
@@ -337,7 +336,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
                 <Button
                   type="button"
                   onClick={() => logoInputRef.current?.click()}
-                  color="gray"
+                  color="alternative"
                   size="sm"
                   disabled={isLogoUploading}
                 >
@@ -366,12 +365,12 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
 
           {/* Banner Upload */}
           <div>
-            <Label>Banner de la Compañía</Label>
+            <Label>Banner de la Empresa</Label>
             <div className="mt-2">
               <Button
                 type="button"
                 onClick={() => bannerInputRef.current?.click()}
-                color="gray"
+                color="alternative"
                 size="sm"
                 disabled={isBannerUploading}
               >
@@ -398,7 +397,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
           </div>
 
           <div>
-            <Label htmlFor="name" title="Nombre de la Compañía" />
+            <Label htmlFor="name" title="Nombre de la empresa" />
             <TextInput
               id="name"
               name="name"
@@ -418,7 +417,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
               onChange={handleInputChange}
               rows={4}
               className="mt-1"
-              placeholder="Describe tu compañía..."
+              placeholder="Describe tu empresa..."
             />
           </div>
 
@@ -426,7 +425,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
             <h4 className="text-md font-semibold mb-4">Dirección</h4>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="address.street" title="Calle y Número" />
+                <Label htmlFor="address.street">Calle y Número</Label>
                 <TextInput
                   id="address.street"
                   name="address.street"
@@ -436,7 +435,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
                 />
               </div>
               <div>
-                <Label htmlFor="address.street2" title="Apartamento, suite, etc." />
+                <Label htmlFor="address.street2">Apartamento, suite, etc.</Label>
                 <TextInput
                   id="address.street2"
                   name="address.street2"
@@ -447,7 +446,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="address.city" title="Ciudad" />
+                  <Label htmlFor="address.city">Ciudad</Label>
                   <TextInput
                     id="address.city"
                     name="address.city"
@@ -457,7 +456,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
                   />
                 </div>
                 <div>
-                  <Label htmlFor="address.state" title="Estado / Provincia" />
+                  <Label htmlFor="address.state">Estado / Provincia</Label>
                   <TextInput
                     id="address.state"
                     name="address.state"
@@ -469,7 +468,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="address.postalCode" title="Código Postal" />
+                  <Label htmlFor="address.postalCode">Código Postal</Label>
                   <TextInput
                     id="address.postalCode"
                     name="address.postalCode"
@@ -479,7 +478,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
                   />
                 </div>
                 <div>
-                  <Label htmlFor="address.country" title="País" />
+                  <Label htmlFor="address.country">País</Label>
                   <TextInput
                     id="address.country"
                     name="address.country"
@@ -495,7 +494,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
           <div className="flex justify-end space-x-3 pt-4">
             <Button
               type="button"
-              color="gray"
+              color="alternative"
               onClick={handleCancel}
               disabled={isUpdating}
             >
@@ -504,7 +503,6 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
             </Button>
             <Button
               type="submit"
-              color="blue"
               disabled={isUpdating}
             >
               {isUpdating ? (

@@ -33,7 +33,7 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
     return (
       <Card>
         <div className="text-center py-8">
-          <p className="text-gray-500">Cargando información de la compañía...</p>
+          <p className="text-gray-500">Cargando información de la empresa...</p>
         </div>
       </Card>
     );
@@ -43,7 +43,7 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
     return (
       <Card>
         <div className="text-center py-8">
-          <p className="text-gray-500">No se encontró información de la compañía</p>
+          <p className="text-gray-500">No se encontró información de la empresa</p>
         </div>
       </Card>
     );
@@ -88,48 +88,56 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
         </div>
       </Card>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <DashboardCard
-          title="Fecha de Creación"
-          icon={Calendar}
-          value={formatDate(companyInfo.createdAt)}
-        />
-        
-        {companyInfo.subscription && (
-          <DashboardCard
-            title="Fin de Suscripción"
-            icon={Crown}
-            value={formatDate(companyInfo.subscription.endDate)}
-            subtitle={
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                Plan: {companyInfo.subscription.planName}
-              </span>
-            }
-          />
-        )}
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <DashboardCard
+                title="Fecha de Creación"
+                icon={Calendar}
+                value={formatDate(companyInfo.createdAt)}
+                className='max-h-fit'
+                subtitle={
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Agregada por Nicolás
+                    </span>
+                }
+            />
+            
+            {companyInfo.subscription && (
+            <DashboardCard
+                title="Fin de Suscripción"
+                icon={Crown}
+                value={formatDate(companyInfo.subscription.endDate)}
+                subtitle={
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Plan: {companyInfo.subscription.planName}
+                    </span>
+                }
+            />
+            )}
 
-        {companyInfo.statistics && (
-          <>
-            <DashboardCard
-              title="Propiedades"
-              icon={Home}
-              value={companyInfo.statistics.totalProperties || 0}
-            />
-            
-            <DashboardCard
-              title="Mensajes sin Responder"
-              icon={MessageSquare}
-              value={companyInfo.statistics.unansweredMessages || 0}
-            />
-            
-            <DashboardCard
-              title="Visitas Totales"
-              icon={Eye}
-              value={companyInfo.statistics.totalVisits || 0}
-            />
-          </>
-        )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {companyInfo.statistics && (
+            <>
+                <DashboardCard
+                title="Propiedades"
+                icon={Home}
+                value={companyInfo.statistics.totalProperties || 0}
+                />
+                
+                <DashboardCard
+                title="Mensajes sin Responder"
+                icon={MessageSquare}
+                value={companyInfo.statistics.unansweredMessages || 0}
+                />
+                
+                <DashboardCard
+                title="Visitas Totales"
+                icon={Eye}
+                value={companyInfo.statistics.totalVisits || 0}
+                />
+            </>
+            )}
       </div>
     </div>
   );

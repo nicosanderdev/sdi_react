@@ -18,7 +18,7 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   const handleRemoveUser = async (userId: string) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario de la compañía?')) {
+    if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario de la empresa?')) {
       return;
     }
 
@@ -75,11 +75,10 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <Users className="w-6 h-6" />
-            <h2 className="text-xl font-bold">Usuarios de la Compañía</h2>
+            <h2 className="text-xl font-bold">Usuarios de la empresa</h2>
           </div>
           <Button
             onClick={() => setShowAddModal(true)}
-            color="blue"
             className="flex items-center space-x-2"
           >
             <UserPlus className="w-4 h-4" />
@@ -102,7 +101,7 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
             <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No hay usuarios</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Comienza agregando usuarios a tu compañía.
+              Comienza agregando usuarios a tu empresa.
             </p>
             <Button
               onClick={() => setShowAddModal(true)}

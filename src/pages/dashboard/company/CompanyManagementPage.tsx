@@ -88,7 +88,7 @@ export function CompanyManagementPage() {
 
   return (
     <div className="space-y-6">
-      <DashboardPageTitle title="Gestión de Compañía" />
+      <DashboardPageTitle title="Gestión de Empresa" />
 
       {error && (
         <Alert color="failure" icon={AlertCircle}>
