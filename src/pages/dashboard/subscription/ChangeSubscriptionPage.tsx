@@ -15,6 +15,7 @@ import {
 import subscriptionService from '../../../services/SubscriptionService';
 import { PlanData } from '../../../models/subscriptions/PlanData';
 import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
+import { PlanKey } from '../../../models/subscriptions/PlanKey';
 
 export function ChangeSubscriptionPage() {
     const user = useSelector((state: RootState) => state.user.profile);
@@ -77,9 +78,9 @@ export function ChangeSubscriptionPage() {
             <div className="max-w-6xl mx-auto p-6">
                 <Card>
                     <div className="text-center py-8">
-                        <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <AlertCircle className="w-16 h-16 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">No tienes una suscripción activa</h3>
-                        <p className="text-gray-600 mb-4">Necesitas tener una suscripción activa para cambiar de plan.</p>
+                        <p className="mb-4">Necesitas tener una suscripción activa para cambiar de plan.</p>
                         <Button onClick={() => navigate('/dashboard/subscription/upgrade')}>
                             Ver Planes Disponibles
                         </Button>
@@ -98,7 +99,7 @@ export function ChangeSubscriptionPage() {
             <div className="mb-8">
                 <button
                     onClick={() => navigate('/dashboard/subscription')}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-400 mb-4"
                 >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Volver a Suscripción</span>
@@ -109,7 +110,7 @@ export function ChangeSubscriptionPage() {
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold">Cambiar Plan</h1>
-                        <p>Actualiza o degrada tu plan actual</p>
+                        <p>Actualiza tu plan actual</p>
                     </div>
                 </div>
             </div>
@@ -122,7 +123,7 @@ export function ChangeSubscriptionPage() {
             )}
 
             {/* Current Plan Card */}
-            <Card className="mb-6 border-2 border-[#1B4965]">
+            <Card className="mb-6 border-2 border-primary-500">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">Plan Actual</h3>
                     <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
@@ -131,28 +132,28 @@ export function ChangeSubscriptionPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <h4 className="text-xl font-bold text-[#1B4965] mb-2">
+                        <h4 className="text-xl font-bold mb-2">
                             {currentPlan?.name || currentSubscription.plan.name}
                         </h4>
                         <p className="text-2xl font-bold mb-2">
                             €{currentPlan?.monthlyPrice || currentSubscription.plan.monthlyPrice}
-                            <span className="text-gray-600 text-lg">/{currentPlan?.billingCycle || currentSubscription.plan.billingCycle}</span>
+                            <span className="text-lg">/{currentPlan?.billingCycle || currentSubscription.plan.billingCycle}</span>
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm">
                             Renovación: {new Date(currentSubscription.currentPeriodEnd).toLocaleDateString('es-ES')}
                         </p>
                     </div>
                     <div className="space-y-2">
                         <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Propiedades:</span>
+                            <span className="">Propiedades:</span>
                             <span className="font-medium">{currentPlan?.maxProperties || currentSubscription.plan.maxProperties}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Usuarios:</span>
+                            <span className="">Usuarios:</span>
                             <span className="font-medium">{currentPlan?.maxUsers || currentSubscription.plan.maxUsers}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-gray-600">Almacenamiento:</span>
+                            <span className="">Almacenamiento:</span>
                             <span className="font-medium">{currentPlan?.maxStorageMb || currentSubscription.plan.maxStorageMb} GB</span>
                         </div>
                     </div>
@@ -168,13 +169,13 @@ export function ChangeSubscriptionPage() {
                         .map((plan) => {
                             const isSelected = selectedPlanId === plan.id;
                             const isUpgrade = (plan.monthlyPrice || 0) > (currentPlan?.monthlyPrice || 0);
-                            const isPopular = plan.key === 'MANAGER' || plan.key === 'COMPANY_SMALL';
+                            const isPopular = plan.key === PlanKey.MANAGER || plan.key === PlanKey.COMPANY_SMALL;
 
                             return (
                                 <Card
                                     key={plan.id}
                                     className={`relative cursor-pointer transition-all ${
-                                        isSelected ? 'ring-2 ring-[#1B4965] shadow-lg' : 'hover:shadow-md'
+                                        isSelected ? 'ring-2 ring-primary-500 shadow-lg' : 'hover:shadow-md'
                                     }`}
                                     onClick={() => setSelectedPlanId(plan.id)}
                                 >
@@ -193,18 +194,23 @@ export function ChangeSubscriptionPage() {
                                         } text-white rounded-full mb-4`}>
                                             {isUpgrade ? <ArrowRight className="w-8 h-8" /> : <Crown className="w-8 h-8" />}
                                         </div>
-                                        <h4 className="text-xl font-bold text-[#1B4965] mb-2">
+                                        <h4 className="text-xl font-bold text-[#1B4965] dark:text-gray-200 mb-2">
                                             {plan.name}
                                         </h4>
                                         <div className="mb-4">
-                                            <span className="text-4xl font-bold text-[#1B4965]">
+                                            <span className="text-4xl font-bold text-[#1B4965] dark:text-gray-200">
                                                 €{plan.monthlyPrice}
                                             </span>
-                                            <span className="text-gray-600">/{plan.billingCycle}</span>
+                                            <span className="text-gray-600 dark:text-gray-400">/{plan.billingCycle}</span>
                                         </div>
+                                        {!isUpgrade && (
+                                            <span className="inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
+                                                Bajar plan
+                                            </span>
+                                        )}
                                         {isUpgrade && (
                                             <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
-                                                Actualización
+                                                Subir plan
                                             </span>
                                         )}
                                     </div>
@@ -212,19 +218,19 @@ export function ChangeSubscriptionPage() {
                                     <ul className="space-y-3 mb-6">
                                         <li className="flex items-center space-x-3">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                            <span className="text-gray-700">
+                                            <span className="">
                                                 Hasta {plan.maxProperties} propiedades
                                             </span>
                                         </li>
                                         <li className="flex items-center space-x-3">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                            <span className="text-gray-700">
+                                            <span className="">
                                                 {plan.maxUsers} usuarios
                                             </span>
                                         </li>
                                         <li className="flex items-center space-x-3">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                            <span className="text-gray-700">
+                                            <span className="">
                                                 {plan.maxStorageMb} GB almacenamiento
                                             </span>
                                         </li>
@@ -235,7 +241,7 @@ export function ChangeSubscriptionPage() {
                                         className={`w-full ${
                                             isSelected
                                                 ? 'bg-[#1B4965] text-white'
-                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                : 'bg-gray-100  hover:bg-gray-200'
                                         }`}
                                     >
                                         {isSelected ? 'Seleccionado' : 'Seleccionar Plan'}
@@ -262,27 +268,31 @@ export function ChangeSubscriptionPage() {
                             </div>
                         </div>
                     </Card>
-                    <Button
-                        onClick={handleChangePlan}
-                        disabled={isProcessing}
-                        size="lg"
-                        className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50"
-                    >
-                        {isProcessing ? (
-                            <>
-                                <Spinner size="sm" className="mr-2" />
-                                Procesando...
-                            </>
-                        ) : (
-                            <>
-                                <CreditCard className="w-5 h-5 mr-2 inline" />
-                                Confirmar Cambio de Plan
-                            </>
-                        )}
-                    </Button>
-                    <p className="text-sm text-gray-500 mt-4">
-                        Los cambios se aplicarán en tu próxima facturación
-                    </p>
+                    <div className='w-full flex flex-col justify-center'>
+                        <Button
+                            onClick={handleChangePlan}
+                            disabled={isProcessing}
+                            size="lg"
+                            className="w-md bg-gradient-to-r from-blue-500 to-purple-500 text-white 
+                            px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-purple-600 
+                            transition-all disabled:opacity-50 mx-auto"
+                        >
+                            {isProcessing ? (
+                                <>
+                                    <Spinner size="sm" className="mr-2" />
+                                    Procesando...
+                                </>
+                            ) : (
+                                <>
+                                    <CreditCard className="w-5 h-5 mr-2 inline" />
+                                    Confirmar Cambio de Plan
+                                </>
+                            )}
+                        </Button>
+                        <p className="text-sm text-gray-500 mt-4">
+                            Los cambios se aplicarán en tu próxima facturación
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

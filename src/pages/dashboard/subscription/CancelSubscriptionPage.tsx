@@ -115,7 +115,7 @@ export function CancelSubscriptionPage() {
             <div className="mb-8">
                 <button
                     onClick={() => navigate('/dashboard/subscription')}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-400 mb-4"
                 >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Volver a Suscripción</span>
@@ -139,14 +139,14 @@ export function CancelSubscriptionPage() {
             )}
 
             {/* Warning Card */}
-            <Card className="mb-6 border-2 border-red-200 bg-red-50">
+            <Card className="mb-6 border-2 border-red-200 dark:border-2 dark:border-red-600 bg-red-50">
                 <div className="flex items-start space-x-4">
                     <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0 mt-1" />
                     <div>
-                        <h3 className="text-lg font-semibold text-red-900 mb-2">
+                        <h3 className="text-lg font-semibold text-red-900 dark:text-red-400 mb-2">
                             ¿Estás seguro de que quieres cancelar?
                         </h3>
-                        <p className="text-red-800">
+                        <p className="text-red-800 dark:text-gray-100">
                             Al cancelar tu suscripción, perderás acceso a todas las funciones premium 
                             y se aplicará un downgrade al plan gratuito.
                         </p>
@@ -159,12 +159,12 @@ export function CancelSubscriptionPage() {
                 <h3 className="text-lg font-semibold mb-4">Tu Plan Actual</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <p className="text-sm text-gray-600 mb-1">Plan</p>
-                        <p className="text-xl font-bold text-[#1B4965]">{subscription.plan.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Plan</p>
+                        <p className="text-xl font-bold text-[#1B4965] dark:text-gray-200">{subscription.plan.name}</p>
                     </div>
                     <div>
-                        <p className="text-sm text-gray-600 mb-1">Próxima Facturación</p>
-                        <p className="text-xl font-bold">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Próxima Facturación</p>
+                        <p className="text-xl font-bold text-[#1B4965] dark:text-gray-200">
                             {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-ES')}
                         </p>
                     </div>
@@ -173,18 +173,18 @@ export function CancelSubscriptionPage() {
 
             {/* Consequences */}
             <Card className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">Lo que perderás</h3>
+                <h3 className="text-lg font-semibold mb-2">Lo que perderás</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {consequences.map((consequence, index) => (
-                        <div key={index} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                            <div className="text-red-600 flex-shrink-0">
+                        <div key={index} className="flex items-start space-x-3 p-3 dark:bg-gray-800 bg-gray-50 rounded-lg">
+                            <div className="text-primary-500 flex-shrink-0">
                                 {consequence.icon}
                             </div>
                             <div>
-                                <h4 className="font-semibold text-gray-900 mb-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-gray-200 mb-1">
                                     {consequence.title}
                                 </h4>
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-gray-600 dark:text-gray-300">
                                     {consequence.description}
                                 </p>
                             </div>
@@ -192,58 +192,22 @@ export function CancelSubscriptionPage() {
                     ))}
                 </div>
             </Card>
-
-            {/* Cancellation Options */}
-            <Card className="mb-6">
-                <h3 className="text-lg font-semibold mb-4">Opciones de Cancelación</h3>
-                <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                        <Checkbox
-                            id="end-of-period"
-                            checked={!cancelImmediately}
-                            onChange={() => setCancelImmediately(false)}
-                        />
-                        <label htmlFor="end-of-period" className="cursor-pointer">
-                            <div className="font-semibold mb-1">
-                                Cancelar al final del período actual
-                            </div>
-                            <div className="text-sm text-gray-600">
-                                Mantendrás acceso hasta {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-ES')}. 
-                                No se realizarán más cargos después de esa fecha.
-                            </div>
-                        </label>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                        <Checkbox
-                            id="immediate"
-                            checked={cancelImmediately}
-                            onChange={() => setCancelImmediately(true)}
-                        />
-                        <label htmlFor="immediate" className="cursor-pointer">
-                            <div className="font-semibold mb-1">
-                                Cancelar inmediatamente
-                            </div>
-                            <div className="text-sm text-gray-600">
-                                Perderás acceso inmediatamente. Puede haber un reembolso parcial según tu política de reembolsos.
-                            </div>
-                        </label>
-                    </div>
-                </div>
-            </Card>
-
+            
             {/* Confirmation */}
             <Card className="mb-6 border-2 border-yellow-200 bg-yellow-50">
-                <div className="flex items-start space-x-3">
-                    <Checkbox
-                        id="confirm"
-                        checked={confirmed}
-                        onChange={() => setConfirmed(!confirmed)}
-                    />
+                <div className="flex items-center space-x-3">
+                    <div className="flex items-center h-5">
+                        <Checkbox
+                            id="confirm"
+                            checked={confirmed}
+                            onChange={() => setConfirmed(!confirmed)}
+                        />
+                    </div>
                     <label htmlFor="confirm" className="cursor-pointer">
-                        <div className="font-semibold text-yellow-900 mb-1">
+                        <div className="font-semibold text-yellow-900 dark:text-yellow-400 mb-1">
                             Confirmo que entiendo las consecuencias
                         </div>
-                        <div className="text-sm text-yellow-800">
+                        <div className="text-sm text-yellow-800 dark:text-gray-100">
                             Entiendo que al cancelar perderé acceso a las funciones premium y 
                             mi cuenta será degradada al plan gratuito.
                         </div>
@@ -255,7 +219,7 @@ export function CancelSubscriptionPage() {
             <div className="flex space-x-4">
                 <Button
                     onClick={() => navigate('/dashboard/subscription')}
-                    color="gray"
+                    color="alternative"
                     className="flex-1"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />
@@ -264,7 +228,7 @@ export function CancelSubscriptionPage() {
                 <Button
                     onClick={handleCancel}
                     disabled={!confirmed || isProcessing}
-                    color="failure"
+                    color="red"
                     className="flex-1"
                 >
                     {isProcessing ? (
@@ -283,8 +247,8 @@ export function CancelSubscriptionPage() {
 
             {/* Help Text */}
             <div className="mt-6 text-center">
-                <p className="text-sm text-gray-600">
-                    ¿Necesitas ayuda? <a href="/contact" className="text-[#1B4965] hover:underline">Contacta con soporte</a>
+                <p className="text-sm text-gray-600 dark:text-gray-200">
+                    ¿Necesitas ayuda? <a href="/contact" className="text-[#1B4965] dark:text-blue-500    hover:underline">Contacta con soporte</a>
                 </p>
             </div>
         </div>

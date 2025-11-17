@@ -14,7 +14,6 @@ import {
 import subscriptionService from '../../services/SubscriptionService';
 import { SubscriptionData } from '../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
-import { UpgradeSubscriptionPage } from '../dashboard/subscription/UpgradeSubscriptionPage';
 import { ChangeSubscriptionPage } from '../dashboard/subscription/ChangeSubscriptionPage';
 import { CancelSubscriptionPage } from '../dashboard/subscription/CancelSubscriptionPage';
 
@@ -201,9 +200,6 @@ export function CompanySubscriptionPage() {
                             </div>
                         </Card>
                     )}
-                </TabItem>
-                <TabItem title="Actualizar" icon={Crown}>
-                    <UpgradeSubscriptionPage />
                 </TabItem>
                 <TabItem title="Cambiar Plan" icon={Settings}>
                     <ChangeSubscriptionPage />

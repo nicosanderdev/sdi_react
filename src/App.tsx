@@ -29,10 +29,9 @@ import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
-import { ManagerSubscriptionPage } from './pages/dashboard/ManagerSubscriptionPage';
+import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 
 // Subscription pages
-import { UpgradeSubscriptionPage } from './pages/dashboard/subscription/UpgradeSubscriptionPage';
 import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSubscriptionPage';
 import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
 import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
@@ -116,7 +115,6 @@ export function App() {
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<ManagerSubscriptionPage />} />
-            <Route path="subscription/upgrade" element={<UpgradeSubscriptionPage />} />
             <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { RootState } from '../../store/store';
+import { RootState } from '../../../store/store';
 import {
     Crown,
     Calendar,
@@ -19,9 +19,9 @@ import {
     Eye,
     Shield
 } from 'lucide-react';
-import subscriptionService from '../../services/SubscriptionService';
-import { SubscriptionData } from '../../models/subscriptions/SubscriptionData';
-import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
+import subscriptionService from '../../../services/SubscriptionService';
+import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
+import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
 import { Button, Card } from 'flowbite-react';
 
 
@@ -48,6 +48,14 @@ export function ManagerSubscriptionPage() {
         };
         fetchBillingHistory();
     }, []);
+
+
+    const formatDate = (dateStr : string) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+      };
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -125,24 +133,16 @@ export function ManagerSubscriptionPage() {
                                     </span>
                                     <span className="text-gray-600">/{subscription?.plan.billingCycle ?? ''}</span>
                                 </div>
-                                <p className="text-gray-600 mb-4">
-                                    Próxima facturación: {new Date(subscription?.currentPeriodEnd ?? '').toLocaleDateString('es-ES')}
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                    Próxima facturación: {formatDate(subscription?.currentPeriodEnd?.toString() ?? '')}
                                 </p>
                                 <div className="flex flex-col space-y-2">
                                     <Button
-                                        onClick={() => navigate('/dashboard/subscription/upgrade')}
+                                        onClick={handleUpdatePlan}
+                                        disabled={isUpdating}
                                         className="bg-[#1B4965] text-white px-4 py-2 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2"
                                     >
                                         <Crown className="w-4 h-4" />
-                                        <span>Actualizar Plan</span>
-                                    </Button>
-                                    <Button
-                                        onClick={handleUpdatePlan}
-                                        disabled={isUpdating}
-                                        color="gray"
-                                        className="px-4 py-2 rounded-lg transition-colors disabled:opacity-50 flex items-center space-x-2"
-                                    >
-                                        <Settings className="w-4 h-4" />
                                         <span>{isUpdating ? 'Procesando...' : 'Cambiar Plan'}</span>
                                     </Button>
                                 </div>
@@ -192,19 +192,6 @@ export function ManagerSubscriptionPage() {
                         </div>
                     </Card>
 
-                    {/* Features */}
-                    <Card>
-                        <h3 className="text-lg font-semibold mb-4">Características Incluidas</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* {subscription?.plan.maxProperties.map((feature, index) => (
-                                        <div key={index} className="flex items-center space-x-3">
-                                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                                        <span className="text-gray-700">{feature}</span>
-                                        </div> 
-                                    ))} */}
-                        </div>
-                    </Card>
-
                     {/* Billing History */}
                     <Card>
                         <div className="flex items-center justify-between mb-4">
@@ -241,17 +228,10 @@ export function ManagerSubscriptionPage() {
                         <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
                         <div className="space-y-3">
                             <button 
-                                onClick={() => navigate('/dashboard/subscription/upgrade')}
-                                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                            >
-                                <Crown className="w-5 h-5" />
-                                <span>Actualizar Plan</span>
-                            </button>
-                            <button 
                                 onClick={() => navigate('/dashboard/subscription/change')}
                                 className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             >
-                                <Settings className="w-5 h-5" />
+                                <Crown className="w-5 h-5" />
                                 <span>Cambiar Plan</span>
                             </button>
                             <button 

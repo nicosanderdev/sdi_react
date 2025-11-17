@@ -50,14 +50,11 @@ export function BillingHistoryPage() {
     };
 
     const getStatusBadge = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'paid':
+        switch (status) {
             case '0':
                 return <Badge color="success">Pagada</Badge>;
-            case 'pending':
             case '1':
                 return <Badge color="warning">Pendiente</Badge>;
-            case 'failed':
             case '2':
                 return <Badge color="failure">Fallida</Badge>;
             default:
@@ -79,7 +76,7 @@ export function BillingHistoryPage() {
             <div className="mb-8">
                 <button
                     onClick={() => navigate('/dashboard/subscription')}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-200 hover:text-gray-900 dark:hover:text-gray-400 mb-4"
                 >
                     <ArrowLeft className="w-5 h-5" />
                     <span>Volver a Suscripción</span>
@@ -108,7 +105,7 @@ export function BillingHistoryPage() {
                     <div className="text-center py-12">
                         <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">No hay facturas disponibles</h3>
-                        <p className="text-gray-600 mb-4">
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">
                             Aún no tienes facturas en tu historial.
                         </p>
                     </div>
@@ -122,7 +119,7 @@ export function BillingHistoryPage() {
                                 className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
                             >
                                 <div className="flex items-center space-x-4 flex-1">
-                                    <div className="w-12 h-12 bg-[#1B4965] rounded-lg flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-primary-500 dark:bg-green-900 rounded-lg flex items-center justify-center">
                                         <CreditCard className="w-6 h-6 text-white" />
                                     </div>
                                     <div className="flex-1">
@@ -156,7 +153,7 @@ export function BillingHistoryPage() {
                                     <Button
                                         onClick={() => handleDownloadInvoice(invoice.id)}
                                         size="sm"
-                                        color="gray"
+                                        color="alternative"
                                         className="flex items-center space-x-2"
                                     >
                                         <Download className="w-4 h-4" />
@@ -174,14 +171,14 @@ export function BillingHistoryPage() {
                 <Card className="mt-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-sm text-gray-600">Total de Facturas</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Total de Facturas</p>
                             <p className="text-2xl font-bold">{billingHistory.length}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-sm text-gray-600">Total Facturado</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Total Facturado</p>
                             <p className="text-2xl font-bold">
                                 €{billingHistory
-                                    .filter(inv => inv.status.toLowerCase() === 'paid' || inv.status === '0')
+                                    .filter(inv => inv.status === '0' )
                                     .reduce((sum, inv) => sum + inv.amount, 0)
                                     .toFixed(2)}
                             </p>
