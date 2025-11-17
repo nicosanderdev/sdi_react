@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
@@ -121,7 +121,6 @@ export function UpgradeToManagerPage() {
     // Simulate API call
     setTimeout(() => {
       setIsProcessing(false);
-      // TODO: Implement redirect to payment processor
       alert('Redirigiendo al procesador de pagos...');
     }, 2000);
   };

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PropertyStats } from './PropertyStats';
-import { RecentMessages } from './RecentMessages';
-import { PropertyMap } from './PropertyMap';
-import { PropertyCard } from './PropertyCard';
-import { DashboardCard } from './DashboardCard';
-import DashboardPageTitle from './DashboardPageTitle';
+import { PropertyStats } from '../../components/dashboard/PropertyStats';
+import { RecentMessages } from '../../components/dashboard/RecentMessages';
+import { PropertyMap } from '../../components/dashboard/PropertyMap';
+import { PropertyCard } from '../../components/dashboard/PropertyCard';
+import { DashboardCard } from '../../components/dashboard/DashboardCard';
+import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { CalendarIcon, TrendingUpIcon, TrendingDownIcon, AlertCircleIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react';
 
 // Import services
@@ -13,7 +13,7 @@ import reportService from './../../services/ReportService';
 import propertyService from './../../services/PropertyService';
 import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { PropertyImage } from '../../models/properties';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 // Get the API base URL for files
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
