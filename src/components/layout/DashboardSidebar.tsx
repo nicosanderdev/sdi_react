@@ -11,7 +11,8 @@ import {
   Heart as HeartIcon,
   Crown,
   Shield,
-  FileText
+  FileText,
+  BoxesIcon
 } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
@@ -51,7 +52,9 @@ export function DashboardSidebar() {
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.unread ?? 3 },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
-    { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' },
+    { id: 'company', label: 'Empresa', icon: BoxesIcon, path: '/dashboard/company' },
+    { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' }
+    
   ];
 
   const adminNavItems: NavItem[] = [

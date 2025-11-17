@@ -39,6 +39,7 @@ import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistor
 
 // Company pages
 import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
+import { CompanyManagementPage } from './pages/dashboard/company/CompanyManagementPage';
 
 // Admin pages
 import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
@@ -119,6 +120,7 @@ export function App() {
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
             <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
+            <Route path="company" element={<CompanyManagementPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
