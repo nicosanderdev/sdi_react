@@ -153,7 +153,7 @@ const getPropertySpecificReport = async (propertyId: string, params: PropertySpe
   }
 };
 
-const getDashboardSummary = async (params?: { period: string }): Promise<DashboardSummaryData> => {
+const getDashboardSummary = async (params?: { period: string; companyId?: string }): Promise<DashboardSummaryData> => {
   try {
     return await apiClient.get<DashboardSummaryData>(ENDPOINTS.DASHBOARD_SUMMARY, { params });
   } catch (error: any) {
@@ -172,7 +172,7 @@ const getDashboardSummary = async (params?: { period: string }): Promise<Dashboa
   }
 };*/
 
-const getDailyVisits = async (params: DailyVisitsParams): Promise<DailyVisit[]> => {
+const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }): Promise<DailyVisit[]> => {
   try {
     const response = await apiClient.get<DailyVisit[]>(ENDPOINTS.DAILY_VISITS, { params });
     return Array.isArray(response) ? response : [];
@@ -182,7 +182,7 @@ const getDailyVisits = async (params: DailyVisitsParams): Promise<DailyVisit[]> 
   }
 };
 
-const getVisitsBySource = async (params: VisitsBySourceParams): Promise<VisitSource[]> => {
+const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: string }): Promise<VisitSource[]> => {
   try {
     const response = await apiClient.get<VisitSource[]>(ENDPOINTS.VISITS_BY_SOURCE, { params });
     return Array.isArray(response) ? response : [];

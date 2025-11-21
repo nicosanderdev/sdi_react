@@ -4,18 +4,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { ArrowLeft, X } from 'lucide-react';
-import { PropertyFormStep1 } from './PropertyFormStep1';
-import { PropertyFormStep2 } from './PropertyFormStep2';
-import { PropertyFormStep3 } from './PropertyFormStep3';
-import { PropertyFormStep4 } from './PropertyFormStep4';
-import PropertyService from '../../../services/PropertyService';
-import { PropertyData } from '../../../models/properties';
-import { SuccessDisplay } from '../../ui/SuccessDisplay';
-import { ErrorDisplay } from '../../ui/ErrorDisplay';
+import { PropertyFormStep1 } from '../../components/dashboard/properties/PropertyFormStep1';
+import { PropertyFormStep2 } from '../../components/dashboard/properties/PropertyFormStep2';
+import { PropertyFormStep3 } from '../../components/dashboard/properties/PropertyFormStep3';
+import { PropertyFormStep4 } from '../../components/dashboard/properties/PropertyFormStep4';
+import PropertyService from '../../services/PropertyService';
+import { PropertyData } from '../../models/properties';
+import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
+import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
 import { Card } from 'flowbite-react';
-import { DisplayImage } from './ImageManager';
-import { DisplayDocument } from './DocumentManager';
-import { DisplayVideo } from './VideoManager';
+import { DisplayImage } from '../../components/dashboard/properties/ImageManager';
+import { DisplayDocument } from '../../components/dashboard/properties/DocumentManager';
+import { DisplayVideo } from '../../components/dashboard/properties/VideoManager';
 
 
 const propertyStatusMap: { [key: string]: number } = {

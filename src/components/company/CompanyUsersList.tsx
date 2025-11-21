@@ -157,7 +157,7 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
                     <TableCell>
                       <Button
                         onClick={() => handleRemoveUser(user.id)}
-                        color="failure"
+                        color="alternative"
                         size="sm"
                         disabled={removingUserId === user.id}
                         className="flex items-center space-x-1"

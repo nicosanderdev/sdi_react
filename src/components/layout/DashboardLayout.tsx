@@ -1,13 +1,9 @@
-import { useState } from 'react';
 import { DashboardSidebar } from './DashboardSidebar';
 import { HeaderLayout } from './HeaderLayout';
 import { Outlet } from 'react-router-dom';
 
+
 export function DashboardLayout() {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
-  };
 
   return (
     <>

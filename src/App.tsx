@@ -21,13 +21,13 @@ import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverview } from './pages/dashboard/DashboardOverview';
 import { UserProfile } from './components/user/UserProfile';
-import { PropertiesManager } from './components/dashboard/properties/PropertiesManager';
+import { PropertiesManager } from './pages/dashboard/PropertiesManager';
 import { MessageCenter } from './components/dashboard/MessageCenter';
-import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
+import { ReportsAndMetrics } from './pages/dashboard/ReportsAndMetrics';
 import { UserSettings } from './components/user/UserSettings';
 import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
-import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
+import { PropertyViewPage } from './pages/dashboard/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
 import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 

@@ -160,7 +160,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 };
 
 // Fetch a list of properties owned by the user
-const getOwnersProperties = async (params?: PropertyParams): Promise<PropertyDataList> => {
+const getOwnersProperties = async (params?: PropertyParams & { companyId?: string }): Promise<PropertyDataList> => {
   try {
     if (params?.filter?.includeImages !== undefined) {
       params.filter.includeImages = true;

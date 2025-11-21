@@ -15,6 +15,11 @@ export interface AddressData {
   country: string;
 }
 
+export interface UserCompany {
+  id: string;
+  name: string;
+}
+
 export interface ProfileData {
   id?: string;
   firstName: string;
@@ -25,6 +30,7 @@ export interface ProfileData {
   avatarUrl?: string;
   address: AddressData;
   roles?: string[];
+  companies?: UserCompany[];
 }
 
 export interface UpdateProfilePayload {
@@ -96,7 +102,7 @@ const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> =>
     console.error('Reset password error:', error?.response?.data || error?.message);
     throw error;
   }
-} 
+}
 
 const profileService = {
   getCurrentUserProfile,

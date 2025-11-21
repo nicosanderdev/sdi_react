@@ -1,7 +1,7 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
-import { PropertyFormData } from './AddPropertyForm';
+import { PropertyFormData } from '../../../pages/dashboard/AddPropertyForm';
 import { Button, Label, Select, TextInput, Textarea, Checkbox } from 'flowbite-react';
 import PropertyService from '../../../services/PropertyService';
 import { Amenity } from '../../../models/properties/Amenity';

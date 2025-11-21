@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { CompanyInfo } from '../../models/companies/CompanyInfo';
 import { DashboardCard } from '../dashboard/DashboardCard';
+import { CompanySelector } from '../dashboard/CompanySelector';
 
 interface CompanyInfoCardProps {
   companyInfo: CompanyInfo | null;
@@ -59,6 +60,14 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
 
   return (
     <div className="space-y-6">
+        <div className="flex justify-end">
+            <CompanySelector
+                mode="companies-only"
+                value={companyInfo.id}
+                onChange={() => {}}
+                className="mb-4"
+            />
+        </div>
       {/* Company Header */}
       <Card>
         <div className="flex items-start space-x-4">

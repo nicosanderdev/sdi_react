@@ -222,7 +222,7 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
           <Building2 className="w-6 h-6" />
-          <h2 className="text-xl font-bold">Información del Perfil</h2>
+          <h2 className="text-xl font-bold">Información de la empresa</h2>
         </div>
         {!editing && (
           <Button
