@@ -36,6 +36,7 @@ import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSub
 import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
 import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
 import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistoryPage';
+import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStripeCheckoutPage';
 
 // Company pages
 import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
@@ -52,6 +53,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
 import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
 import { AppDispatch, RootState } from './store/store';
+import { NotificationManager } from './components/ui/NotificationManager';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -83,6 +85,7 @@ export function App() {
       <ThemeInit />
       <Router>
         <RouteChangeTracker />
+        <NotificationManager />
         <Routes>
 
           {/* Public Routes (No Authentication Required) */}
@@ -120,6 +123,7 @@ export function App() {
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
             <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
+            <Route path="subscription/checkout" element={<MockStripeCheckoutPage />} />
             <Route path="company" element={<CompanyManagementPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />

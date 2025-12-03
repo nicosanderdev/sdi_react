@@ -1,6 +1,7 @@
 import { Dropdown, DropdownItem, DropdownDivider } from 'flowbite-react';
 import { useSelector } from 'react-redux';
-import { selectUserCompanies, selectHasCompanies } from '../../store/slices/userSlice';
+import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../store/slices/userSlice';
+import { CompanyRoles } from '../../models/CompanyRoles';
 
 export type CompanySelectorMode = 'all-options' | 'companies-only' | 'without-all';
 
@@ -28,6 +29,10 @@ export function CompanySelector({
 }: CompanySelectorProps) {
   const companies = useSelector(selectUserCompanies);
   const hasCompanies = useSelector(selectHasCompanies);
+  const userProfile = useSelector(selectUserProfile);
+
+  // Check if user has admin role for any company
+  const hasAdminRole = userProfile?.roles?.includes(CompanyRoles.Admin) || false;
 
   // Don't render the selector if user has no companies
   if (!hasCompanies) {
@@ -37,7 +42,7 @@ export function CompanySelector({
   const getDisplayLabel = (): string => {
     if (!value) {
       if (mode === 'companies-only') {
-        return hasCompanies ? 'All companies' : 'No companies available';
+        return hasCompanies ? companies[0]?.name || 'Select company' : 'No companies available';
       }
       return 'My Properties';
     }
@@ -74,6 +79,19 @@ export function CompanySelector({
     );
   }
 
+  // If user doesn't have admin role, only show "My Properties" option
+  if (!hasAdminRole) {
+    return (
+      <Dropdown
+        label="My Properties"
+        className={className}
+        disabled={disabled}
+      >
+        <DropdownItem disabled>My Properties</DropdownItem>
+      </Dropdown>
+    );
+  }
+
   return (
     <Dropdown
       label={getDisplayLabel()}
@@ -92,14 +110,7 @@ export function CompanySelector({
         </>
       )}
 
-      {mode === 'companies-only' && (
-        <>
-          <DropdownItem onClick={() => handleItemClick(COMPANY_SELECTOR_OPTIONS.ALL_COMPANIES)}>
-            All companies
-          </DropdownItem>
-          {hasCompanies && <DropdownDivider />}
-        </>
-      )}
+      {mode === 'companies-only' && hasCompanies && <DropdownDivider />}
 
       {mode === 'without-all' && (
         <>

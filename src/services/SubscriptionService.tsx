@@ -15,7 +15,8 @@ const ENDPOINTS = {
     ADMIN_SUBSCRIPTIONS: '/admin/subscriptions',
     ADMIN_INVOICES: '/admin/invoices',
     ADMIN_MANUAL_INVOICE: '/admin/manual-invoice',
-    WEBHOOKS_PAYMENTS: '/webhooks/payments'
+    WEBHOOKS_PAYMENTS: '/webhooks/payments',
+    SUBSCRIPTION_STATUS: '/subscriptions/status'
 }
 
 /**
@@ -132,7 +133,7 @@ const downloadInvoice = async (invoiceId: string) => {
     const axios = (await import('axios')).default;
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
     const TENANT_API_KEY = import.meta.env.VITE_TENANT_API_KEY || 'YOUR_DEFAULT_TENANT_KEY';
-    
+
     const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.BILLING_HISTORY}/${invoiceId}/download`, {
         responseType: 'blob',
         headers: {
@@ -141,6 +142,18 @@ const downloadInvoice = async (invoiceId: string) => {
         withCredentials: true
     });
     return response.data;
+}
+
+/**
+ * Gets the current subscription status including user access permissions
+ * @returns The subscription status with user access information
+ */
+const getSubscriptionStatus = async () => {
+    const response = await apiClient.get<{
+        subscription: SubscriptionData;
+        userAccess: { hasCompanyAccess: boolean; companyIds: string[] }
+    }>(ENDPOINTS.SUBSCRIPTION_STATUS);
+    return response;
 }
 
 const subscriptionService = {
@@ -153,7 +166,8 @@ const subscriptionService = {
     getCompanySubscription,
     getAdminSubscriptions,
     getAdminInvoices,
-    downloadInvoice
+    downloadInvoice,
+    getSubscriptionStatus
 }
 
 export default subscriptionService;

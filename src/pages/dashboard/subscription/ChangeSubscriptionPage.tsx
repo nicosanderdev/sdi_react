@@ -56,9 +56,11 @@ export function ChangeSubscriptionPage() {
         try {
             setIsProcessing(true);
             setError(null);
-            const checkoutUrl = await subscriptionService.getCheckoutChange(selectedPlanId);
-            // Redirect to billing portal
-            window.location.href = checkoutUrl;
+            // For mock implementation, redirect to mock checkout
+            const selectedPlan = plans.find(p => p.id === selectedPlanId);
+            if (selectedPlan) {
+                navigate(`/dashboard/subscription/checkout?planId=${selectedPlanId}&planName=${encodeURIComponent(selectedPlan.name)}&planPrice=${selectedPlan.monthlyPrice}`);
+            }
         } catch (err: any) {
             setError(err.message || 'Error al cambiar el plan');
             setIsProcessing(false);

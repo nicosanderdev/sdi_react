@@ -1,6 +1,6 @@
 // src/store/slices/userSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import profileService, { ProfileData, UserCompany } from '../../services/ProfileService';
+import profileService, { ProfileData, UserCompany, ChangeRoleRequest, ChangeRoleResponse } from '../../services/ProfileService';
 import { RootState } from '../store';
 
 interface UserState {
@@ -26,10 +26,36 @@ export const fetchUserProfile = createAsyncThunk(
   }
 );
 
+// Create an async thunk to change user role
+export const changeUserRole = createAsyncThunk<
+  ChangeRoleResponse,
+  ChangeRoleRequest,
+  { rejectValue: string }
+>(
+  'user/changeRole',
+  async (request, { rejectWithValue }) => {
+    try {
+      const response = await profileService.changeRole(request);
+      return response;
+    } catch (error: any) {
+      return rejectWithValue(error.message || 'Failed to change role');
+    }
+  }
+);
+
 const userSlice = createSlice({
   name: 'user',
   initialState,
-  reducers: {},
+  reducers: {
+    updateUserCompanies: (state, action: PayloadAction<UserCompany[]>) => {
+      state.companies = action.payload;
+    },
+    updateUserRoles: (state, action: PayloadAction<string[]>) => {
+      if (state.profile) {
+        state.profile.roles = action.payload;
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchUserProfile.pending, (state) => {
@@ -43,6 +69,21 @@ const userSlice = createSlice({
       .addCase(fetchUserProfile.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.error.message || 'Failed to fetch profile';
+      })
+      .addCase(changeUserRole.pending, (state) => {
+        state.status = 'loading';
+      })
+      .addCase(changeUserRole.fulfilled, (state, action: PayloadAction<ChangeRoleResponse>) => {
+        state.status = 'succeeded';
+        // Update user roles and companies based on role change response
+        if (state.profile) {
+          state.profile.roles = [action.payload.newRole];
+          state.companies = action.payload.affectedCompanies;
+        }
+      })
+      .addCase(changeUserRole.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload || 'Failed to change role';
       });
   },
 });
