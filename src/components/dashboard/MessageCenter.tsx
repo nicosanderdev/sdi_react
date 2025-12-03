@@ -514,7 +514,7 @@ export function MessageCenter() {
                           Relacionado con la propiedad: <span className="font-medium text-[#1B4965] dark:text-white">{selectedMessage.propertyTitle}</span>
                         </div>
                         <button
-                          onClick={() => navigate(`/properties/view/${selectedMessage.propertyId}`)}
+                          onClick={() => navigate(`/dashboard/property/${selectedMessage.propertyId}`)}
                           className="ml-4 bg-[#62B6CB] text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center space-x-2 text-sm font-medium"
                         >
                           <ExternalLinkIcon size={16} />

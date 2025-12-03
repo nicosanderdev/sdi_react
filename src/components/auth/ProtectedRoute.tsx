@@ -51,13 +51,14 @@ export function ManagerOnlyRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PublicUserOnlyRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <ProtectedRoute allowedRoles={[Roles.PublicUser]}>
-      {children}
-    </ProtectedRoute>
-  );
-}
+// COMMENTED OUT: for reuse in new project managing public view - dashboard only system
+// export function PublicUserOnlyRoute({ children }: { children: React.ReactNode }) {
+//   return (
+//     <ProtectedRoute allowedRoles={[Roles.PublicUser]}>
+//       {children}
+//     </ProtectedRoute>
+//   );
+// }
 
 export function PublicRoute({ children }: { children: React.ReactNode }) {
   return (

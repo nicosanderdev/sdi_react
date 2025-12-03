@@ -10,11 +10,12 @@ import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
 
-// New public user pages
-import { PublicWelcomePage } from './pages/public/PublicWelcomePage';
-import { PublicUserProfilePage } from './pages/public/PublicUserProfilePage';
-import { PublicUserMessagesPage } from './pages/public/PublicUserMessagesPage';
-import { PublicUserFavoritesPage } from './pages/public/PublicUserFavoritesPage';
+// New public user pages - COMMENTED OUT: for reuse in new project managing public view
+// import { PublicWelcomePage } from './pages/public/PublicWelcomePage';
+// import { PublicUserProfilePage } from './pages/public/PublicUserProfilePage';
+// import { PublicUserMessagesPage } from './pages/public/PublicUserMessagesPage';
+// import { PublicUserFavoritesPage } from './pages/public/PublicUserFavoritesPage';
+// Keeping UpgradeToManagerPage for pricing route
 import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 
 // Dashboard layout and pages
@@ -47,23 +48,24 @@ import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptio
 import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 
 // Auth components
-import { ManagerOnlyRoute, PublicUserOnlyRoute, PublicRoute, AdminOnlyRoute } from './components/auth/ProtectedRoute';
+// PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
+import { ManagerOnlyRoute, PublicRoute, AdminOnlyRoute } from './components/auth/ProtectedRoute';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
 import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
 import { AppDispatch, RootState } from './store/store';
-import { NotificationManager } from './components/ui/NotificationManager';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
 import { TermsAndConditionsPage } from './pages/public/TermsAndConditions';
 import { NotFoundPage } from './pages/public/NotFoundPage';
-import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
-import SearchPage from './components/public/SearchPage';
-import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
+// COMMENTED OUT: for reuse in new project managing public view
+// import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
+// import SearchPage from './components/public/SearchPage';
+// import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
 import FavoritesPage from './pages/dashboard/FavoritesPage';
-import MapSearchPage from './pages/public/MapSearchPage';
+// import MapSearchPage from './pages/public/MapSearchPage';
 
 
 export function App() {
@@ -97,17 +99,19 @@ export function App() {
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
           <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
-          <Route path="/search" element={<PublicRoute><SearchPage /></PublicRoute>} />
-          <Route path="/properties" element={<PublicRoute><PropertiesResultsPage /></PublicRoute>} />
-          <Route path="/properties/view/:propertyId" element={<PublicRoute><PublicPropertyViewPage /></PublicRoute>} />
-          <Route path="/map-search" element={<PublicRoute><MapSearchPage /></PublicRoute>} />
+          <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
+          {/* COMMENTED OUT: for reuse in new project managing public view */}
+          {/* <Route path="/search" element={<PublicRoute><SearchPage /></PublicRoute>} /> */}
+          {/* <Route path="/properties" element={<PublicRoute><PropertiesResultsPage /></PublicRoute>} /> */}
+          {/* <Route path="/properties/view/:propertyId" element={<PublicRoute><PublicPropertyViewPage /></PublicRoute>} /> */}
+          {/* <Route path="/map-search" element={<PublicRoute><MapSearchPage /></PublicRoute>} /> */}
 
-          {/* Public User Routes (Authentication Required, Public Users Only) */}
-          <Route path="/welcome" element={<PublicUserOnlyRoute><PublicWelcomePage /></PublicUserOnlyRoute>} />
-          <Route path="/profile" element={<PublicUserOnlyRoute><PublicUserProfilePage /></PublicUserOnlyRoute>} />
-          <Route path="/messages" element={<PublicUserOnlyRoute><PublicUserMessagesPage /></PublicUserOnlyRoute>} />
-          <Route path="/favorites" element={<PublicUserOnlyRoute><PublicUserFavoritesPage /></PublicUserOnlyRoute>} />
-          <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} />
+          {/* Public User Routes (Authentication Required, Public Users Only) - COMMENTED OUT: removing free registered user functionality */}
+          {/* <Route path="/welcome" element={<PublicUserOnlyRoute><PublicWelcomePage /></PublicUserOnlyRoute>} /> */}
+          {/* <Route path="/profile" element={<PublicUserOnlyRoute><PublicUserProfilePage /></PublicUserOnlyRoute>} /> */}
+          {/* <Route path="/messages" element={<PublicUserOnlyRoute><PublicUserMessagesPage /></PublicUserOnlyRoute>} /> */}
+          {/* <Route path="/favorites" element={<PublicUserOnlyRoute><PublicUserFavoritesPage /></PublicUserOnlyRoute>} /> */}
+          {/* <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} /> */}
 
           {/* Manager Dashboard Routes (Authentication Required, Managers Only) */}
           <Route path="/dashboard" element={<ManagerOnlyRoute><DashboardLayout /></ManagerOnlyRoute>} > 

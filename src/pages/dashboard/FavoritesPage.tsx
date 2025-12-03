@@ -77,7 +77,7 @@ export default function FavoritesPage() {
   };
 
   const handleViewProperty = (propertyId: string) => {
-    navigate(`/properties/view/${propertyId}`);
+    navigate(`/dashboard/property/${propertyId}`);
   };
 
   if (status === 'loading' || loadingProperties) {
@@ -104,12 +104,12 @@ export default function FavoritesPage() {
         <p className="text-gray-500 text-center">
           Start exploring properties and add them to your favorites to see them here.
         </p>
-        <Button 
-          color="blue" 
-          onClick={() => navigate('/properties')}
+        <Button
+          color="blue"
+          onClick={() => navigate('/dashboard/properties')}
           className="mt-4"
         >
-          Browse Properties
+          Manage My Properties
         </Button>
       </div>
     );

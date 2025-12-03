@@ -56,10 +56,11 @@ export const getPrimaryRole = (user: UserData): UserRole | null => {
  */
 export const getRedirectPath = (user: UserData): string => {
   if (!user) return '/login';
-  
+
   if (isManager(user)) {
     return '/dashboard';
   } else {
-    return '/welcome';
+    // Dashboard-only system: redirect non-managers to login
+    return '/login';
   }
 };

@@ -47,9 +47,10 @@ export function ConnectSection() {
                 muestra información clara y completa, con enlaces directos al
                 sitio de la inmobiliaria que la gestiona.
               </p>
-              <a href="/search" className="inline-block bg-[#62B6CB] text-[#FDFFFC] px-6 py-3 rounded-md hover:opacity-90 transition-colors">
+              {/* COMMENTED OUT: for reuse in new project managing public view */}
+              {/* <a href="/search" className="inline-block bg-[#62B6CB] text-[#FDFFFC] px-6 py-3 rounded-md hover:opacity-90 transition-colors">
                 Explorar propiedades
-              </a>
+              </a> */}
             </div>
           </div>
         </div>

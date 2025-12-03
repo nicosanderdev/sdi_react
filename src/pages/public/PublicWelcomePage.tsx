@@ -39,13 +39,14 @@ export function PublicWelcomePage() {
       link: '/favorites',
       color: 'bg-red-500'
     },
-    {
-      title: 'Buscar Propiedades',
-      description: 'Explora nuevas oportunidades',
-      icon: <Search className="w-8 h-8" />,
-      link: '/properties',
-      color: 'bg-purple-500'
-    }
+    // COMMENTED OUT: for reuse in new project managing public view
+    // {
+    //   title: 'Buscar Propiedades',
+    //   description: 'Explora nuevas oportunidades',
+    //   icon: <Search className="w-8 h-8" />,
+    //   link: '/properties',
+    //   color: 'bg-purple-500'
+    // }
   ];
 
   const upgradeSection = {
@@ -182,13 +183,14 @@ export function PublicWelcomePage() {
               <span>Volver al Inicio</span>
             </Link>
             <span className="text-gray-300">|</span>
-            <Link
+            {/* COMMENTED OUT: for reuse in new project managing public view */}
+            {/* <Link
               to="/properties"
               className="flex items-center space-x-2 text-[#1B4965] hover:text-[#153a52] transition-colors"
             >
               <Search className="w-5 h-5" />
               <span>Explorar Propiedades</span>
-            </Link>
+            </Link> */}
           </div>
         </div>
       </div>
