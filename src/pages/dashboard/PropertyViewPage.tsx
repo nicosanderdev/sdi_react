@@ -28,15 +28,15 @@ import {
     Copy
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import propertyService from '../../../services/PropertyService';
+import propertyService from '../../services/PropertyService';
 import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader, Dropdown, DropdownItem } from 'flowbite-react';
-import { PropertyData } from '../../../models/properties/PropertyData';
-import { PropertyImage } from '../../../models/properties/PropertyImage';
-import { PropertyVideo } from '../../../models/properties/PropertyVideo';
-import { PropertyDocument } from '../../../models/properties/PropertyDocument';
-import { Amenity } from '../../../models/properties/Amenity';
-import { DuplicatedEstateProperty } from '../../../models/properties/DuplicatedEstateProperty';
-import { EstatePropertyValues } from '../../../models/properties/EstatePropertyValues';
+import { PropertyData } from '../../models/properties/PropertyData';
+import { PropertyImage } from '../../models/properties/PropertyImage';
+import { PropertyVideo } from '../../models/properties/PropertyVideo';
+import { PropertyDocument } from '../../models/properties/PropertyDocument';
+import { Amenity } from '../../models/properties/Amenity';
+import { DuplicatedEstateProperty } from '../../models/properties/DuplicatedEstateProperty';
+import { EstatePropertyValues } from '../../models/properties/EstatePropertyValues';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 

@@ -5,7 +5,7 @@ import { fetchFavoriteProperties, selectFavoritePropertyIds, selectFavoritesStat
 import { Card, Badge, Button } from 'flowbite-react';
 import { Heart, Bed, Bath, Car, Square, MapPin, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { IconWrapper } from '../ui/IconWrapper';
+import { IconWrapper } from '../../components/ui/IconWrapper';
 import propertyService from '../../services/PropertyService';
 import { PublicProperty } from '../../models/properties';
 

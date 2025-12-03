@@ -1,8 +1,8 @@
 // src/components/ReportsAndMetrics.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DownloadIcon, BarChartIcon, LineChartIcon, CalendarIcon, TrendingUpIcon, TrendingDownIcon, Loader2Icon } from 'lucide-react';
-import { VisitsBySourceChart } from './VisitsBySourceChart';
-import { VisitsByDateChart } from './VisitsByDateChart';
+import { VisitsBySourceChart } from '../../components/reports/VisitsBySourceChart';
+import { VisitsByDateChart } from '../../components/reports/VisitsByDateChart';
 //import { PropertiesPerformanceTable } from './PropertiesPerformanceTable';
 import reportService, {
   DashboardSummaryData,
@@ -12,6 +12,7 @@ import reportService, {
 } from '../../services/ReportService';
 import { useReactToPrint } from "react-to-print";
 import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
+import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 
 const TIME_RANGES = [
   { id: 'last7days', label: 'Últimos 7 días' },
@@ -29,6 +30,7 @@ const mapTimeRangeToPeriod = (timeRangeValue: string): string => {
 
 export function ReportsAndMetrics() {
   const [timeRange, setTimeRange] = useState<string>('last30days'); // Default to one of the mapped IDs
+  const [company, setCompany] = useState<string>('my'); // Default to my properties
 
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummaryData | null>(null);
   const [dailyVisits, setDailyVisits] = useState<DailyVisit[]>([]);
@@ -46,14 +48,30 @@ export function ReportsAndMetrics() {
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
 
+  // Helper function to get company filter for API calls
+  const getCompanyFilter = () => {
+    if (company === COMPANY_SELECTOR_OPTIONS.ALL_PROPERTIES) {
+      return { companyId: 'all' }; // Special value for all properties
+    }
+    if (company === COMPANY_SELECTOR_OPTIONS.ALL_COMPANIES) {
+      return { companyId: 'all-companies' }; // Special value for all companies
+    }
+    if (company === COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES) {
+      return {}; // No company filter for personal properties
+    }
+    return { companyId: company }; // Specific company ID
+  };
+
   const fetchData = useCallback(async () => {
     const currentPeriod = mapTimeRangeToPeriod(timeRange);
     setError(null);
 
+    const companyFilter = getCompanyFilter();
+
     // Fetch Dashboard Summary (Cards)
     setIsLoadingSummary(true);
     try {
-      const summary = await reportService.getDashboardSummary({ period: currentPeriod });
+      const summary = await reportService.getDashboardSummary({ period: currentPeriod, ...companyFilter });
       setDashboardSummary(summary);
     } catch (err) {
       console.error("Error fetching dashboard summary:", err);
@@ -66,7 +84,7 @@ export function ReportsAndMetrics() {
     // Fetch Daily Visits (VisitsByDateChart)
     setIsLoadingDailyVisits(true);
     try {
-      const visits = await reportService.getDailyVisits({ period: currentPeriod });
+      const visits = await reportService.getDailyVisits({ period: currentPeriod, ...companyFilter });
       setDailyVisits(visits);
     } catch (err) {
       console.error("Error fetching daily visits:", err);
@@ -78,7 +96,7 @@ export function ReportsAndMetrics() {
     // Fetch Visits by Source (VisitsBySourceChart)
     setIsLoadingVisitsBySource(true);
     try {
-      const sources = await reportService.getVisitsBySource({ period: currentPeriod });
+      const sources = await reportService.getVisitsBySource({ period: currentPeriod, ...companyFilter });
       setVisitsBySource(sources);
     } catch (err) {
       console.error("Error fetching visits by source:", err);
@@ -91,7 +109,7 @@ export function ReportsAndMetrics() {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, company]);
 
 
   const renderTrend = (value?: number, direction?: 'increase' | 'decrease' | 'neutral') => {
@@ -137,6 +155,12 @@ export function ReportsAndMetrics() {
           Reportes y Métricas
         </h1>
         <div className="flex items-center space-x-3 print-hide">
+          <CompanySelector
+            mode="all-options"
+            value={company}
+            onChange={setCompany}
+            className="mr-2"
+          />
 
           <Dropdown
             value={timeRange}

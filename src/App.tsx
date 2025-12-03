@@ -19,25 +19,41 @@ import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
-import { DashboardOverview } from './components/dashboard/DashboardOverview';
+import { DashboardOverview } from './pages/dashboard/DashboardOverview';
 import { UserProfile } from './components/user/UserProfile';
-import { PropertiesManager } from './components/dashboard/properties/PropertiesManager';
+import { PropertiesManager } from './pages/dashboard/PropertiesManager';
 import { MessageCenter } from './components/dashboard/MessageCenter';
-import { ReportsAndMetrics } from './components/reports/ReportsAndMetrics';
+import { ReportsAndMetrics } from './pages/dashboard/ReportsAndMetrics';
 import { UserSettings } from './components/user/UserSettings';
 import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
-import { PropertyViewPage } from './components/dashboard/properties/PropertyViewPage';
+import { PropertyViewPage } from './pages/dashboard/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
-import { ManagerSubscriptionPage } from './pages/dashboard/ManagerSubscriptionPage';
+import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
+
+// Subscription pages
+import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSubscriptionPage';
+import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
+import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
+import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistoryPage';
+import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStripeCheckoutPage';
+
+// Company pages
+import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
+import { CompanyManagementPage } from './pages/dashboard/company/CompanyManagementPage';
+
+// Admin pages
+import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
+import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 
 // Auth components
-import { ManagerOnlyRoute, PublicUserOnlyRoute, PublicRoute } from './components/auth/ProtectedRoute';
+import { ManagerOnlyRoute, PublicUserOnlyRoute, PublicRoute, AdminOnlyRoute } from './components/auth/ProtectedRoute';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
 import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
 import { AppDispatch, RootState } from './store/store';
+import { NotificationManager } from './components/ui/NotificationManager';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -46,7 +62,7 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
 import SearchPage from './components/public/SearchPage';
 import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
-import FavoritesPage from './components/dashboard/FavoritesPage';
+import FavoritesPage from './pages/dashboard/FavoritesPage';
 import MapSearchPage from './pages/public/MapSearchPage';
 
 
@@ -69,6 +85,7 @@ export function App() {
       <ThemeInit />
       <Router>
         <RouteChangeTracker />
+        <NotificationManager />
         <Routes>
 
           {/* Public Routes (No Authentication Required) */}
@@ -102,10 +119,23 @@ export function App() {
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<ManagerSubscriptionPage />} />
+            <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
+            <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
+            <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
+            <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
+            <Route path="subscription/checkout" element={<MockStripeCheckoutPage />} />
+            <Route path="company" element={<CompanyManagementPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
+            
+            {/* Admin Routes */}
+            <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
+            <Route path="admin/invoices" element={<AdminOnlyRoute><AdminInvoicesPage /></AdminOnlyRoute>} />
           </Route>
+
+          {/* Company Routes */}
+          <Route path="/company/:id/subscription" element={<ManagerOnlyRoute><CompanySubscriptionPage /></ManagerOnlyRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/notfound" />} />

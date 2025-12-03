@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
-import { PropertyTable } from './PropertyTable';
+import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
-import propertyService from '../../../services/PropertyService';
-import DashboardPageTitle from '../DashboardPageTitle';
-import { Button, Card, Modal, ModalBody, ModalHeader } from 'flowbite-react';
-import { PropertyData } from '../../../models/properties';
+import propertyService from '../../services/PropertyService';
+import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
+import { Button, Card, Dropdown, DropdownItem, Modal, ModalBody, ModalHeader } from 'flowbite-react';
+import { PropertyData } from '../../models/properties';
+import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
@@ -27,12 +28,43 @@ export function PropertiesManager() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+
+  // Helper function to get company filter for API calls
+  const getCompanyFilter = () => {
+    if (company === COMPANY_SELECTOR_OPTIONS.ALL_COMPANIES) {
+      return { companyId: 'all-companies' }; // Special value for all companies
+    }
+    if (company === COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES) {
+      return {}; // No company filter for personal properties
+    }
+    return { companyId: company }; // Specific company ID
+  };
 
   const fetchProperties = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await propertyService.getOwnersProperties();
+      let data;
+
+      if (company === COMPANY_SELECTOR_OPTIONS.ALL_PROPERTIES) {
+        // Fetch both personal properties and company properties, then combine
+        const [personalData, companyData] = await Promise.all([
+          propertyService.getOwnersProperties({}), // Personal properties
+          propertyService.getOwnersProperties({ companyId: 'all-companies' }) // Company properties
+        ]);
+
+        // Combine and deduplicate properties (in case some properties appear in both)
+        const allItems = [...(personalData.items || []), ...(companyData.items || [])];
+        const uniqueItems = allItems.filter((item, index, self) =>
+          index === self.findIndex(t => t.id === item.id)
+        );
+
+        data = { ...personalData, items: uniqueItems };
+      } else {
+        data = await propertyService.getOwnersProperties(getCompanyFilter());
+      }
+
       setAllProperties(data.items || []);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch properties.');
@@ -44,7 +76,7 @@ export function PropertiesManager() {
 
   useEffect(() => {
     fetchProperties();
-  }, []);
+  }, [company]);
 
   const filteredProperties = useMemo(() => {
     let properties = [...allProperties];
@@ -105,11 +137,19 @@ export function PropertiesManager() {
     <div>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
       <DashboardPageTitle title="Gestión de Propiedades" />
-        <Button
-          onClick={() => setShowAddProperty(true)} >
-          <PlusIcon size={18} className="mr-2" />
-          <span>Nueva Propiedad</span>
-        </Button>
+        <div className="flex items-center space-x-2">
+            <CompanySelector
+                mode="all-options"
+                value={company}
+                onChange={setCompany}
+                className="mr-4"
+            />
+            <Button
+                onClick={() => setShowAddProperty(true)} >
+                <PlusIcon size={18} className="mr-2" />
+                <span>Nueva Propiedad</span>
+            </Button>
+        </div>
       </div>
 
       {error && !isDeleting && ( 

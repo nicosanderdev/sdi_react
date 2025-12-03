@@ -15,6 +15,11 @@ export interface AddressData {
   country: string;
 }
 
+export interface UserCompany {
+  id: string;
+  name: string;
+}
+
 export interface ProfileData {
   id?: string;
   firstName: string;
@@ -25,6 +30,7 @@ export interface ProfileData {
   avatarUrl?: string;
   address: AddressData;
   roles?: string[];
+  companies?: UserCompany[];
 }
 
 export interface UpdateProfilePayload {
@@ -37,12 +43,26 @@ export interface ChangePasswordPayload {
   newPassword: string;
 }
 
+export interface ChangeRoleRequest {
+  userId: string;
+  newRole: string;
+  companyId?: string;
+}
+
+export interface ChangeRoleResponse {
+  success: boolean;
+  message: string;
+  newRole: string;
+  affectedCompanies: UserCompany[];
+}
+
 // API Endpoints
 const ENDPOINTS = {
   CURRENT_PROFILE: '/profile/me',
   CHANGE_PASSWORD: '/profile/me/change-password',
   UPLOAD_AVATAR: '/profile/avatar',
   RESET_PASSWORD_INIT: '/auth/reset-password-init',
+  CHANGE_ROLE: '/users/change-role',
 };
 
 /**
@@ -96,13 +116,28 @@ const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> =>
     console.error('Reset password error:', error?.response?.data || error?.message);
     throw error;
   }
-} 
+}
+
+/**
+ * Changes the role of a user (admin to manager, etc.)
+ * @param request - The role change request
+ * @returns The response with new role and affected companies
+ */
+const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleResponse> => {
+  try {
+    return await apiClient.post<ChangeRoleResponse>(ENDPOINTS.CHANGE_ROLE, request);
+  } catch (error: any) {
+    console.error('Change role error:', error?.response?.data || error?.message);
+    throw error;
+  }
+}
 
 const profileService = {
   getCurrentUserProfile,
   updateUserProfile,
   uploadProfilePicture,
-  requestPasswordChange
+  requestPasswordChange,
+  changeRole
 };
 
 export default profileService;
