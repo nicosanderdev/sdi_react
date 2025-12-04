@@ -2,22 +2,21 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyStats } from '../../components/dashboard/PropertyStats';
 import { RecentMessages } from '../../components/dashboard/RecentMessages';
-import { PropertyMap } from '../../components/dashboard/PropertyMap';
-import { PropertyCard } from '../../components/dashboard/PropertyCard';
-import { DashboardCard } from '../../components/dashboard/DashboardCard';
+import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
+import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
+import { ProgressCircle } from '../../components/dashboard/ProgressCircle';
+import { PropertyListCard } from '../../components/dashboard/PropertyListCard';
+import { ActivityTrackerCard } from '../../components/dashboard/ActivityTrackerCard';
+import { ReminderCard } from '../../components/dashboard/ReminderCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { CalendarIcon, TrendingUpIcon, TrendingDownIcon, AlertCircleIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react';
+import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon, CheckCircleIcon } from 'lucide-react';
 
 // Import services
 import reportService from './../../services/ReportService';
 import propertyService from './../../services/PropertyService';
-import { Button, Card, Dropdown, DropdownItem } from 'flowbite-react';
-import { PropertyImage } from '../../models/properties';
+import { Dropdown, DropdownItem } from 'flowbite-react';
 import { useNavigate } from 'react-router-dom';
 import { COMPANY_SELECTOR_OPTIONS, CompanySelector } from '../../components/dashboard/CompanySelector';
-
-// Get the API base URL for files
-const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
@@ -134,12 +133,87 @@ export function DashboardOverview() {
         );
     };
 
+    // Mock data for new components
+    const mockProperties = [
+        {
+            id: '1',
+            title: 'Casa Moderna en Zona Norte',
+            address: 'Av. Libertador 1234, Palermo',
+            price: '$450.000',
+            status: 'available' as const,
+            visits: 45,
+            messages: 12
+        },
+        {
+            id: '2',
+            title: 'Departamento Centro',
+            address: 'Florida 567, Microcentro',
+            price: '$2.500/mes',
+            status: 'rented' as const,
+            visits: 32,
+            messages: 8
+        },
+        {
+            id: '3',
+            title: 'PH 3 ambientes',
+            address: 'Corrientes 890, Almagro',
+            price: '$380.000',
+            status: 'pending' as const,
+            visits: 28,
+            messages: 5
+        }
+    ];
+
+    const mockActivities = [
+        {
+            id: '1',
+            title: 'Revisión de propiedades',
+            project: 'Portfolio Q1',
+            duration: 120,
+            status: 'active' as const,
+            startTime: new Date()
+        },
+        {
+            id: '2',
+            title: 'Respuesta a consultas',
+            duration: 45,
+            status: 'paused' as const
+        }
+    ];
+
+    const mockReminders = [
+        {
+            id: '1',
+            title: 'Llamar cliente - Propiedad Av. Libertador',
+            description: 'Cliente interesado en casa de 3 dormitorios',
+            priority: 'high' as const,
+            completed: false,
+            type: 'followup' as const,
+            dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+        },
+        {
+            id: '2',
+            title: 'Actualizar fotos propiedad ID-456',
+            priority: 'medium' as const,
+            completed: false,
+            type: 'task' as const,
+            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        },
+        {
+            id: '3',
+            title: 'Reunión con agente inmobiliario',
+            priority: 'high' as const,
+            completed: true,
+            type: 'meeting' as const
+        }
+    ];
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between mb-6">
                 <DashboardPageTitle title="Panel de Control" />
                 <div className="flex items-center space-x-2 text-sm">
-                    <CalendarIcon size={16} className="text-[#62B6CB]" />
+                    <CalendarIcon size={16} className="text-green-600 dark:text-green-400" />
                     <span>
                         {new Date().toLocaleDateString('es-ES', {
                             weekday: 'long',
@@ -170,105 +244,93 @@ export function DashboardOverview() {
                 </Dropdown>
             </div>
 
-            {/* --- Cards Section --- */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                {/* Visits Card */}
-                <DashboardCard
+            {/* --- Stats Cards Row --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <DashboardStatCard
                     title="Visitas"
                     icon={EyeIcon}
                     value={renderCardValue(summaryData?.visits?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    subtitle={renderPercentageChange(summaryData?.visits?.percentageChange, summaryData?.visits?.changeDirection, isLoadingSummary, isErrorSummary)}
+                    trend={{
+                        value: summaryData?.visits?.percentageChange || 0,
+                        direction: summaryData?.visits?.changeDirection || 'neutral'
+                    }}
                 />
 
-                {/* Messages Card */}
-                <DashboardCard
-                    title="Mensajes sin leer"
+                <DashboardStatCard
+                    title="Mensajes"
                     icon={MessageSquareIcon}
                     value={renderCardValue(summaryData?.messages?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    subtitle={renderPercentageChange(summaryData?.messages?.percentageChange, summaryData?.messages?.changeDirection, isLoadingSummary, isErrorSummary)}
+                    trend={{
+                        value: summaryData?.messages?.percentageChange || 0,
+                        direction: summaryData?.messages?.changeDirection || 'neutral'
+                    }}
                 />
 
-                {/* Properties Card */}
-                <DashboardCard
-                    title="Propiedades Activas"
+                <DashboardStatCard
+                    title="Propiedades"
                     icon={HomeIcon}
                     value={renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    subtitle={
-                        summaryData && typeof summaryData.totalProperties?.percentageChange === 'number' && summaryData.propertiesNeedingAttention > 0 ? (
-                            <div className="flex items-center text-sm text-orange-600">
-                                <AlertCircleIcon size={16} />
-                                <span className="ml-1">{summaryData.totalProperties?.percentageChange} requieren atención</span>
-                            </div>
-                        ) : undefined
-                    }
+                    trend={{
+                        value: summaryData?.totalProperties?.percentageChange || 0,
+                        direction: summaryData?.totalProperties?.changeDirection || 'neutral'
+                    }}
+                />
+
+                <DashboardStatCard
+                    title="Completadas"
+                    icon={CheckCircleIcon}
+                    value="24"
+                    trend={{
+                        value: 12.5,
+                        direction: 'increase'
+                    }}
                 />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                    <PropertyStats /> {/* This component will fetch its own data */}
+            {/* --- Main Dashboard Grid --- */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* Left Column - Charts and Progress */}
+                <div className="xl:col-span-2 space-y-6">
+                    {/* Analytics Chart */}
+                    <DashboardChartCard title="Análisis de Rendimiento">
+                        <PropertyStats />
+                    </DashboardChartCard>
+
+                    {/* Progress Circle */}
+                    <DashboardChartCard title="Progreso del Mes">
+                        <div className="flex items-center justify-center py-8">
+                            <ProgressCircle
+                                progress={78}
+                                size={140}
+                                label="Objetivos"
+                                subtitle="Meta mensual: 85%"
+                            />
+                        </div>
+                    </DashboardChartCard>
+
+                    {/* Recent Messages */}
+                    <RecentMessages />
                 </div>
-                <div>
-                    <RecentMessages /> {/* This component will fetch its own data */}
+
+                {/* Right Column - Property List and Activity */}
+                <div className="space-y-6">
+                    {/* Property List */}
+                    <PropertyListCard
+                        properties={mockProperties}
+                    />
+
+                    {/* Activity Tracker */}
+                    <ActivityTrackerCard
+                        activities={mockActivities}
+                        totalToday={165}
+                    />
+
+                    {/* Reminders */}
+                    <ReminderCard
+                        reminders={mockReminders}
+                    />
                 </div>
             </div>
-
-            {/* --- Featured Properties Section --- */}
-            <Card>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold">
-                        Propiedades Destacadas
-                    </h2>
-                    <Button onClick={() => navigate('/dashboard/properties')}>
-                        Ver todas
-                    </Button>
-                </div>
-                {isLoadingProperties && <p>Cargando propiedades...</p>}
-                {isErrorProperties && <p className="text-red-500">Error al cargar propiedades: {errorProperties?.message}</p>}
-                {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length === 0 && <p>No hay propiedades destacadas.</p>}
-                {!isLoadingProperties && !isErrorProperties && Array.isArray(featuredProperties) && featuredProperties.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {(featuredProperties as Array<PropertyDisplayDashboard>)
-                            .filter(property => !!property && !!property.id)
-                            .map((property) => {
-                                const cardProperty = {
-                                    id: property.id,
-                                    title: property?.title ?? 'Propiedad sin título',
-                                    address: `${property?.streetName || ''} ${property?.houseNumber || ''}, ${property?.neighborhood || ''}, ${property?.city || ''}`.trim() || 'Dirección no disponible',
-                                    price: (property?.currency ? property.currency + ' ' : '') + ((property?.status !== undefined && property?.status === 'Sale')
-                                        ? (property?.salePrice !== undefined && property?.salePrice !== null ? formatNumber(property.salePrice) : '-')
-                                        : (property?.rentPrice !== undefined && property?.rentPrice !== null ? formatNumber(property.rentPrice) : '-')),
-
-                                    status: property?.status === 'Sale' ? 'En venta'
-                                        : (property?.status === 'Rent' ? 'En alquiler' : 'No especificado'),
-
-                                    type: property?.propertyType ?? 'No especificado',
-                                    area: (property?.areaValue ?? 0) + ' ' + areaMap(Number(property?.areaUnit ?? 0)),
-                                    bedrooms: property?.bedrooms ?? 0,
-                                    bathrooms: property?.bathrooms ?? 0,
-                                    image: (() => {
-                                        const imageUrl = property?.propertyImages?.find((i: PropertyImage) =>
-                                            String(i.id) === String(property.mainImageId))?.url;
-                                        return imageUrl ? `${API_BASE_URL}${imageUrl?.startsWith('/') ? '' : '/'}${imageUrl}` : "https://placehold.co/600x400";
-                                    })(),
-                                    visits: property?.statistics?.visits ?? 0,
-                                    messages: property?.statistics?.messages ?? 0,
-                                };
-                                return <PropertyCard key={property.id} property={cardProperty} />;
-                            })}
-                    </div>
-                )}
-            </Card>
-
-            <Card>
-                <h2 className="text-xl font-bold mb-6">
-                    Ubicación de Propiedades
-                </h2>
-                <div className="h-80">
-                    <PropertyMap />
-                </div>
-            </Card>
 
         </div>
     );

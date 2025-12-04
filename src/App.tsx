@@ -65,6 +65,7 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 // import SearchPage from './components/public/SearchPage';
 // import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
 import FavoritesPage from './pages/dashboard/FavoritesPage';
+import { NotificationManager } from './components/ui/NotificationManager';
 // import MapSearchPage from './pages/public/MapSearchPage';
 
 

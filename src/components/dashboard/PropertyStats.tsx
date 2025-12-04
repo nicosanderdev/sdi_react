@@ -47,7 +47,7 @@ export function PropertyStats() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line type="monotone" dataKey="visits" name="Visitas" stroke="#62B6CB" strokeWidth={2} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="visits" name="Visitas" stroke="#0f9d58" strokeWidth={2} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -66,7 +66,7 @@ export function PropertyStats() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="visits" name="Visitas" fill="#62B6CB" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="visits" name="Visitas" fill="#0f9d58" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}

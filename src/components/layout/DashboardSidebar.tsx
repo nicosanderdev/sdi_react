@@ -12,7 +12,8 @@ import {
   Crown,
   Shield,
   FileText,
-  BoxesIcon
+  BoxesIcon,
+  type LucideIcon
 } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
@@ -25,7 +26,7 @@ import { Roles } from '../../models/Roles';
 interface NavItem {
   id: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
   path: string;
   badgeCount?: number;
 }
@@ -69,20 +70,23 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <Sidebar aria-label="Sidebar with logo branding example">
-        <SidebarLogo 
-          href="/dashboard" 
+      <Sidebar aria-label="Sidebar with logo branding example" className="bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 shadow-sm">
+        <SidebarLogo
+          href="/dashboard"
           onClick={(e) => {
             e.preventDefault();
             navigate('/dashboard');
           }}
-          img="/favicon.svg" 
+          img="/favicon.svg"
           imgAlt="SGI logo"
         >
           SGI
         </SidebarLogo>
         <SidebarItems>
           <SidebarItemGroup>
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Menú
+            </div>
             {navItems.map(item => (
               <SidebarItem
                 key={item.id}
@@ -90,6 +94,12 @@ export function DashboardSidebar() {
                 icon={item.icon}
                 label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
                 active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
+                className="hover:bg-green-50 dark:hover:bg-green-900/20"
+                style={{
+                  backgroundColor: (item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path)))
+                    ? 'rgb(240 253 244)'
+                    : undefined
+                }}
               >
                 {item.label}
               </SidebarItem>
@@ -97,15 +107,21 @@ export function DashboardSidebar() {
           </SidebarItemGroup>
           {isAdmin && (
             <SidebarItemGroup>
-              <SidebarItem className="text-gray-500 text-xs font-semibold uppercase px-4 py-2" disabled>
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Administración
-              </SidebarItem>
+              </div>
               {adminNavItems.map(item => (
                 <SidebarItem
                   key={item.id}
                   onClick={() => navigate(item.path)}
                   icon={item.icon}
                   active={location.pathname === item.path || location.pathname.startsWith(item.path)}
+                  className="hover:bg-green-50 dark:hover:bg-green-900/20"
+                  style={{
+                    backgroundColor: (location.pathname === item.path || location.pathname.startsWith(item.path))
+                      ? 'rgb(240 253 244)'
+                      : undefined
+                  }}
                 >
                   {item.label}
                 </SidebarItem>
@@ -113,10 +129,27 @@ export function DashboardSidebar() {
             </SidebarItemGroup>
           )}
           <SidebarItemGroup>
-            <SidebarItem onClick={() => navigate('/dashboard/settings')} icon={SettingsIcon}>
+            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              General
+            </div>
+            <SidebarItem
+              onClick={() => navigate('/dashboard/settings')}
+              icon={SettingsIcon}
+              className="hover:bg-green-50 dark:hover:bg-green-900/20"
+              active={location.pathname === '/dashboard/settings'}
+              style={{
+                backgroundColor: location.pathname === '/dashboard/settings'
+                  ? 'rgb(240 253 244)'
+                  : undefined
+              }}
+            >
               Configuración
             </SidebarItem>
-            <SidebarItem icon={LogOutIcon} onClick={() => setIsLogoutModalOpen(true)}>
+            <SidebarItem
+              icon={LogOutIcon}
+              onClick={() => setIsLogoutModalOpen(true)}
+              className="hover:bg-green-50 dark:hover:bg-green-900/20"
+            >
               Cerrar Sesión
             </SidebarItem>
           </SidebarItemGroup>
