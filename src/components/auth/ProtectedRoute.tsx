@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ 
   children,
-  allowedRoles = [Roles.Manager, Roles.PublicUser], 
+  allowedRoles = [Roles.Manager, Roles.PublicUser, Roles.Admin], 
   requireAuth = true 
 }: ProtectedRouteProps) {
   const user = useSelector((state: RootState) => state.user.profile);

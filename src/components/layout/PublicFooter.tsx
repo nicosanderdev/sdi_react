@@ -19,7 +19,7 @@ import {
 
 const footerTheme = {
     "root": {
-      "base": "w-full rounded-lg bg-white shadow-none md:flex md:items-center md:justify-between dark:bg-gray-800"
+      "base": "w-full rounded-lg bg-white shadow-none md:flex md:items-center md:justify-between dark:bg-gray-900"
     }
   }
 
@@ -33,45 +33,46 @@ export function PublicFooter() {
           <div className="grid w-full justify-between sm:flex sm:justify-between md:flex md:grid-cols-1">
             <div>
               <FooterBrand
-                href="https://flowbite.com"
-                src="https://flowbite.com/docs/images/logo.svg"
-                alt="Flowbite Logo"
-                name="Flowbite"
+                href="/"
+                src="/favicon.svg"
+                alt="SGI Logo"
+                name="SGI"
+                className="text-gray-900 dark:text-white"
               />
             </div>
             <div className="grid grid-cols-2 gap-8 sm:mt-4 sm:grid-cols-3 sm:gap-6">
               <div>
-                <FooterTitle title="about" />
+                <FooterTitle title="Plataforma" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
-                  <FooterLink href="#">Flowbite</FooterLink>
-                  <FooterLink href="#">Tailwind CSS</FooterLink>
+                  <FooterLink href="/pricing" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Planes y Precios</FooterLink>
+                  <FooterLink href="/contact" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Contacto</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>
-                <FooterTitle title="Follow us" />
+                <FooterTitle title="Recursos" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
-                  <FooterLink href="#">Github</FooterLink>
-                  <FooterLink href="#">Discord</FooterLink>
+                  <FooterLink href="/demo" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Demo</FooterLink>
+                  <FooterLink href="/register" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Registro</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>
-                <FooterTitle title="Legal" />
+                <FooterTitle title="Legal" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
-                  <FooterLink href="#">Privacy Policy</FooterLink>
-                  <FooterLink href="#">Terms & Conditions</FooterLink>
+                  <FooterLink href="/terms" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Términos y Condiciones</FooterLink>
+                  <FooterLink href="#" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Política de Privacidad</FooterLink>
                 </FooterLinkGroup>
               </div>
             </div>
           </div>
           <FooterDivider />
           <div className="w-full sm:flex sm:items-center sm:justify-between">
-            <FooterCopyright href="#" by="Flowbite™" year={2025} />
+            <FooterCopyright href="/" by="SGI™" year={2025} className="text-gray-600 dark:text-gray-400" />
             <div className="mt-4 flex space-x-6 sm:mt-0 sm:justify-center">
-              <FooterIcon href="#" icon={Facebook} />
-              <FooterIcon href="#" icon={Instagram} />
-              <FooterIcon href="#" icon={Twitter} />
-              <FooterIcon href="#" icon={Github} />
-              <FooterIcon href="#" icon={Dribbble} />
+              <FooterIcon href="#" icon={Facebook} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
+              <FooterIcon href="#" icon={Instagram} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
+              <FooterIcon href="#" icon={Twitter} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
+              <FooterIcon href="#" icon={Github} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
+              <FooterIcon href="#" icon={Dribbble} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
             </div>
           </div>
         </div>

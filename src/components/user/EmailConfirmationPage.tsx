@@ -1,7 +1,11 @@
 import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import AuthService  from '../../services/AuthService';
+import AuthService from '../../services/AuthService';
+import { AuthCard } from '../public/AuthCard';
+import { PublicLayout } from '../layout/PublicLayout';
+import { Button } from 'flowbite-react';
+import { CheckCircleIcon, XCircleIcon, LoaderIcon } from 'lucide-react';
 
 export function EmailConfirmationPage() {
   const [searchParams] = useSearchParams();
@@ -31,46 +35,58 @@ export function EmailConfirmationPage() {
 
   if (isPending) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <div className="p-10 bg-white rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Confirming your email...</h1>
-          <p className="text-gray-600 mt-2">Please wait a moment.</p>
-          {/* You can add a spinner here */}
-        </div>
-      </div>
+      <PublicLayout>
+        <AuthCard
+          title="Confirmando tu email..."
+          subtitle="Por favor espera un momento."
+          icon={<LoaderIcon className="w-8 h-8 text-green-600 dark:text-green-400 animate-spin" />}
+        >
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mx-auto mb-4"></div>
+          </div>
+        </AuthCard>
+      </PublicLayout>
     );
   }
 
   if (isError) {
     const errorMessage =
       (error as any)?.response?.data?.message ||
-      'The confirmation link is invalid or has expired.';
+      'El enlace de confirmación no es válido o ha expirado.';
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <div className="p-10 bg-white rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold text-red-600">Confirmation Failed</h1>
-          <p className="text-gray-600 mt-2">{errorMessage}</p>
-          <button
+      <PublicLayout>
+        <AuthCard
+          title="Confirmación Fallida"
+          subtitle={errorMessage}
+          icon={<XCircleIcon className="w-8 h-8 text-red-600 dark:text-red-400" />}
+        >
+          <Button
             onClick={() => navigate('/login')}
-            className="mt-6 px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            color="failure"
+            className="w-full"
           >
-            Go to Login
-          </button>
-        </div>
-      </div>
+            Ir al Inicio de Sesión
+          </Button>
+        </AuthCard>
+      </PublicLayout>
     );
   }
 
   if (isSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-        <div className="p-10 bg-white rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold text-green-600">Email Confirmed!</h1>
-          <p className="text-gray-600 mt-2">
-            Thank you! You will be redirected to the dashboard shortly.
-          </p>
-        </div>
-      </div>
+      <PublicLayout>
+        <AuthCard
+          title="¡Email Confirmado!"
+          subtitle="¡Gracias! Serás redirigido al panel de control en breve."
+          icon={<CheckCircleIcon className="w-8 h-8 text-green-600 dark:text-green-400" />}
+        >
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-50 dark:bg-green-900/20 rounded-full mb-4">
+              <CheckCircleIcon className="w-8 h-8 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </AuthCard>
+      </PublicLayout>
     );
   }
 

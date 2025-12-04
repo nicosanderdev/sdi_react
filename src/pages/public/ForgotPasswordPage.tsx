@@ -1,8 +1,9 @@
-// src/pages/auth/ForgotPasswordPage.tsx
-
 import React, { useState } from 'react';
-import { MailIcon, KeyRoundIcon, LockKeyholeIcon, ArrowLeftIcon, CheckCircleIcon } from 'lucide-react';
+import { MailIcon, KeyRoundIcon, LockKeyholeIcon, ArrowLeftIcon, CheckCircleIcon, Shield } from 'lucide-react';
 import AuthService, { RecoveryCodePayload, ResetPasswordPayload } from '../../services/AuthService';
+import { AuthCard } from '../../components/public/AuthCard';
+import { PublicLayout } from '../../components/layout/PublicLayout';
+import { Button, TextInput } from 'flowbite-react';
 
 type PageStep = 'ENTER_EMAIL' | 'ENTER_RECOVERY' | 'SET_NEW_PASSWORD' | 'SUCCESS';
 
@@ -81,67 +82,146 @@ export function ForgotPasswordPage() {
     switch (step) {
       case 'ENTER_EMAIL':
         return (
-          <>
-            <div className="text-center mb-8"><h1 className="text-2xl font-bold text-[#1B4965] mb-2">Recuperar Contraseña</h1><p className="text-gray-600">Te enviaremos un enlace para restablecer tu contraseña.</p></div>
+          <div className="space-y-6">
             <form onSubmit={handleEmailSubmit} className="space-y-6">
-              <div><label className="block text-sm font-medium text-[#101828] mb-2">Correo electrónico</label><div className="relative"><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" placeholder="tu@empresa.com" disabled={isSubmitting} /><MailIcon className="absolute left-3 top-2.5 text-gray-400" size={18} /></div></div>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-[#62B6CB] text-[#FDFFFC] py-2 rounded-md hover:opacity-90 transition-colors flex items-center justify-center">{isSubmitting ? 'Enviando...' : 'Enviar Enlace'}</button>
+              <div>
+                <TextInput
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@empresa.com"
+                  disabled={isSubmitting}
+                  icon={MailIcon}
+                  color={error ? "failure" : "gray"}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                color="success"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? 'Enviando...' : 'Enviar Enlace'}
+              </Button>
             </form>
-            <div className="mt-4 text-center"><button onClick={() => setStep('ENTER_RECOVERY')} className="text-sm text-[#62B6CB] hover:text-[#1B4965]">¿Perdiste acceso a tu correo? Usa un código de recuperación</button></div>
-          </>
+            <div className="text-center">
+              <button
+                onClick={() => setStep('ENTER_RECOVERY')}
+                className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
+              >
+                ¿Perdiste acceso a tu correo? Usa un código de recuperación
+              </button>
+            </div>
+          </div>
         );
       case 'ENTER_RECOVERY':
         return (
-            <>
-            <div className="text-center mb-8"><h1 className="text-2xl font-bold text-[#1B4965] mb-2">Usar Código de Recuperación</h1><p className="text-gray-600">Ingresa uno de tus códigos de recuperación para continuar.</p></div>
+          <div className="space-y-6">
             <form onSubmit={handleRecoverySubmit} className="space-y-6">
-              <div><label className="block text-sm font-medium text-[#101828] mb-2">Código de Recuperación</label><div className="relative"><input type="text" required value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" placeholder="abc-123-xyz" disabled={isSubmitting} /><KeyRoundIcon className="absolute left-3 top-2.5 text-gray-400" size={18} /></div></div>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-[#62B6CB] text-[#FDFFFC] py-2 rounded-md hover:opacity-90 transition-colors flex items-center justify-center">{isSubmitting ? 'Validando...' : 'Validar Código'}</button>
+              <div>
+                <TextInput
+                  type="text"
+                  required
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value)}
+                  placeholder="abc-123-xyz"
+                  disabled={isSubmitting}
+                  icon={KeyRoundIcon}
+                  color={error ? "failure" : "gray"}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                color="success"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? 'Validando...' : 'Validar Código'}
+              </Button>
             </form>
-            <div className="mt-4 text-center"><button onClick={() => setStep('ENTER_EMAIL')} className="text-sm text-[#62B6CB] hover:text-[#1B4965]">Volver a usar correo electrónico</button></div>
-          </>
+            <div className="text-center">
+              <button
+                onClick={() => setStep('ENTER_EMAIL')}
+                className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
+              >
+                Volver a usar correo electrónico
+              </button>
+            </div>
+          </div>
         )
       case 'SET_NEW_PASSWORD':
         return (
-            <>
-            <div className="text-center mb-8"><h1 className="text-2xl font-bold text-[#1B4965] mb-2">Establecer Nueva Contraseña</h1><p className="text-gray-600">Código validado. Ahora puedes crear una nueva contraseña.</p></div>
+          <div className="space-y-6">
             <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div><label className="block text-sm font-medium text-[#101828] mb-1">Nueva Contraseña</label><div className="relative"><input type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg" disabled={isSubmitting} /><LockKeyholeIcon className="absolute left-3 top-2.5 text-gray-400" size={18} /></div><p className="text-xs text-gray-500 mt-1">Mínimo 8 caracteres.</p></div>
-              <div><label className="block text-sm font-medium text-[#101828] mb-1">Confirmar Nueva Contraseña</label><div className="relative"><input type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg" disabled={isSubmitting} /><LockKeyholeIcon className="absolute left-3 top-2.5 text-gray-400" size={18} /></div></div>
-              <button type="submit" disabled={isSubmitting} className="w-full bg-[#5CA4B8] text-[#FDFFFC] py-2 rounded-md hover:opacity-90 transition-colors flex items-center justify-center">{isSubmitting ? 'Guardando...' : 'Guardar Contraseña'}</button>
+              <div>
+                <TextInput
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nueva contraseña"
+                  disabled={isSubmitting}
+                  icon={LockKeyholeIcon}
+                  color={error ? "failure" : "gray"}
+                  helperText="Mínimo 8 caracteres."
+                />
+              </div>
+              <div>
+                <TextInput
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirmar nueva contraseña"
+                  disabled={isSubmitting}
+                  icon={LockKeyholeIcon}
+                  color={error ? "failure" : "gray"}
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                color="success"
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                {isSubmitting ? 'Guardando...' : 'Guardar Contraseña'}
+              </Button>
             </form>
-          </>
+          </div>
         )
       case 'SUCCESS':
-          return (
-            <div className="text-center">
-                <CheckCircleIcon className="mx-auto h-12 w-12 text-green-500" />
-                <h2 className="mt-4 text-xl font-semibold text-[#1B4965]">¡Listo!</h2>
-                <div className="bg-green-50 text-green-800 p-4 rounded-lg my-6">
-                    {successMessage}
-                </div>
+        return (
+          <div className="text-center space-y-6">
+            <CheckCircleIcon className="mx-auto h-12 w-12 text-green-600 dark:text-green-400" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">¡Listo!</h2>
+            <div className="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-400 p-4 rounded-lg">
+              {successMessage}
             </div>
-          )
+          </div>
+        )
     }
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-b from-[#BEE9E8] to-[#FDFFFC] py-16">
-      <div className="max-w-md mx-auto px-4">
-        <div className="bg-[#FDFFFC] p-8 rounded-lg shadow-sm border border-gray-100">
-          {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-              <span className="block sm:inline">{error}</span>
-            </div>
-          )}
-          {renderContent()}
-          <div className="mt-6 text-center">
-            <a href="/login" className="text-sm text-[#62B6CB] hover:text-[#1B4965] flex items-center justify-center">
-              <ArrowLeftIcon size={14} className="mr-2" /> Volver al inicio de sesión
-            </a>
+    <PublicLayout>
+      <AuthCard
+        title={step === 'ENTER_EMAIL' ? 'Recuperar Contraseña' : step === 'ENTER_RECOVERY' ? 'Usar Código de Recuperación' : step === 'SET_NEW_PASSWORD' ? 'Establecer Nueva Contraseña' : '¡Listo!'}
+        subtitle={step === 'ENTER_EMAIL' ? 'Te enviaremos un enlace para restablecer tu contraseña.' : step === 'ENTER_RECOVERY' ? 'Ingresa uno de tus códigos de recuperación para continuar.' : step === 'SET_NEW_PASSWORD' ? 'Código validado. Ahora puedes crear una nueva contraseña.' : ''}
+        icon={<Shield className="w-8 h-8 text-green-600 dark:text-green-400" />}
+      >
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6" role="alert">
+            <span>{error}</span>
           </div>
+        )}
+        {renderContent()}
+        <div className="text-center mt-6">
+          <a href="/login" className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 flex items-center justify-center">
+            <ArrowLeftIcon size={14} className="mr-2" /> Volver al inicio de sesión
+          </a>
         </div>
-      </div>
-    </div>
+      </AuthCard>
+    </PublicLayout>
   );
 }
