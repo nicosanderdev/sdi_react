@@ -1,5 +1,13 @@
 // src/services/profileService.ts
-import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up for JWT auth
+import apiClient from './AxiosClient'; // Keep for auth-related HTTP calls
+import { supabase } from '../config/supabase';
+import {
+  getMemberByUserId,
+  mapDbToProfile,
+  getCurrentUserId,
+  handleSupabaseError,
+  mapRoleStringToNumber
+} from './SupabaseHelpers';
 
 export interface RequestPasswordChangeResponse {
   is2FaRequired: boolean;
@@ -56,13 +64,10 @@ export interface ChangeRoleResponse {
   affectedCompanies: UserCompany[];
 }
 
-// API Endpoints
+// API Endpoints (keep for auth-related operations)
 const ENDPOINTS = {
-  CURRENT_PROFILE: '/profile/me',
   CHANGE_PASSWORD: '/profile/me/change-password',
-  UPLOAD_AVATAR: '/profile/avatar',
   RESET_PASSWORD_INIT: '/auth/reset-password-init',
-  CHANGE_ROLE: '/users/change-role',
 };
 
 /**
@@ -70,7 +75,56 @@ const ENDPOINTS = {
  */
 const getCurrentUserProfile = async (): Promise<ProfileData> => {
   try {
-    return await apiClient.get<ProfileData>(ENDPOINTS.CURRENT_PROFILE);
+    const userId = await getCurrentUserId();
+
+    // Get auth user for email
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+
+    // Query Members table with UserCompanies and Companies joins
+    const { data: memberData, error } = await supabase
+      .from('Members')
+      .select(`
+        *,
+        UserCompanies!MemberId (
+          *,
+          Companies (*)
+        )
+      `)
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .eq('UserCompanies.IsDeleted', false);
+
+    if (error) {
+      // If no member record exists, this might be a new user - handle gracefully
+      if (error.code === 'PGRST116') {
+        // Create a basic profile from auth user
+        return {
+          id: '',
+          firstName: '',
+          lastName: '',
+          email: user?.email || '',
+          phone: '',
+          title: '',
+          address: {
+            street: '',
+            street2: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: ''
+          },
+          roles: [],
+          companies: []
+        };
+      }
+      throw error;
+    }
+
+    // Map the joined data to ProfileData
+    const member = memberData[0]; // Should be single due to UserId unique constraint
+    return mapDbToProfile(member, user?.email || '', member.UserCompanies);
+
   } catch (error: any) {
     console.error('Error fetching current user profile:', error.message);
     throw error;
@@ -83,7 +137,48 @@ const getCurrentUserProfile = async (): Promise<ProfileData> => {
  */
 const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promise<UpdateProfilePayload> => {
   try {
-    return await apiClient.put<UpdateProfilePayload>(ENDPOINTS.CURRENT_PROFILE, profileUpdateData);
+    const userId = await getCurrentUserId();
+
+    if (!profileUpdateData.updateProfileDto) {
+      throw new Error('No profile data provided for update');
+    }
+
+    const { updateProfileDto } = profileUpdateData;
+
+    // Map ProfileData fields to Members table columns
+    const updateData: any = {};
+
+    if (updateProfileDto.firstName !== undefined) updateData.FirstName = updateProfileDto.firstName;
+    if (updateProfileDto.lastName !== undefined) updateData.LastName = updateProfileDto.lastName;
+    if (updateProfileDto.title !== undefined) updateData.Title = updateProfileDto.title;
+    if (updateProfileDto.avatarUrl !== undefined) updateData.AvatarUrl = updateProfileDto.avatarUrl;
+    if (updateProfileDto.phone !== undefined) updateData.Phone = updateProfileDto.phone;
+    if (updateProfileDto.roles !== undefined) updateData.Roles = updateProfileDto.roles;
+
+    // Address fields
+    if (updateProfileDto.address) {
+      if (updateProfileDto.address.street !== undefined) updateData.Street = updateProfileDto.address.street;
+      if (updateProfileDto.address.street2 !== undefined) updateData.Street2 = updateProfileDto.address.street2;
+      if (updateProfileDto.address.city !== undefined) updateData.City = updateProfileDto.address.city;
+      if (updateProfileDto.address.state !== undefined) updateData.State = updateProfileDto.address.state;
+      if (updateProfileDto.address.postalCode !== undefined) updateData.PostalCode = updateProfileDto.address.postalCode;
+      if (updateProfileDto.address.country !== undefined) updateData.Country = updateProfileDto.address.country;
+    }
+
+    updateData.LastModified = new Date().toISOString();
+    updateData.LastModifiedBy = userId;
+
+    const { data, error } = await supabase
+      .from('Members')
+      .update(updateData)
+      .eq('UserId', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { id: data.Id, updateProfileDto };
+
   } catch (error: any) {
     console.error('Error updating user profile:', error.message);
     throw error;
@@ -95,14 +190,50 @@ const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promi
  * @param {FormData} formData - The FormData object containing the image file.
  *                              Typically, the file is appended with a key like 'avatar'.
  */
-const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => { // Or Promise<ProfileData> if backend returns full profile
+const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => {
   try {
-    const response = await apiClient.post<{ avatarUrl: string }>(ENDPOINTS.UPLOAD_AVATAR, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response;
+    const userId = await getCurrentUserId();
+    const file = formData.get('avatar') as File;
+
+    if (!file) {
+      throw new Error('No file provided for upload');
+    }
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('avatars') // Assuming you have an 'avatars' bucket
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    const avatarUrl = urlData.publicUrl;
+
+    // Update the member record with the new avatar URL
+    const { error: updateError } = await supabase
+      .from('Members')
+      .update({
+        AvatarUrl: avatarUrl,
+        LastModified: new Date().toISOString(),
+        LastModifiedBy: userId
+      })
+      .eq('UserId', userId);
+
+    if (updateError) throw updateError;
+
+    return { avatarUrl };
+
   } catch (error: any) {
     console.error('Error uploading profile picture:', error.message);
     throw error;
@@ -125,9 +256,68 @@ const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> =>
  */
 const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleResponse> => {
   try {
-    return await apiClient.post<ChangeRoleResponse>(ENDPOINTS.CHANGE_ROLE, request);
+    const currentUserId = await getCurrentUserId();
+    const roleNumber = mapRoleStringToNumber(request.newRole);
+
+    // If companyId is specified, update only that specific UserCompany record
+    if (request.companyId) {
+      const { data, error } = await supabase
+        .from('UserCompanies')
+        .update({ Role: roleNumber })
+        .eq('MemberId', request.userId)
+        .eq('CompanyId', request.companyId)
+        .eq('IsDeleted', false)
+        .select(`
+          *,
+          Companies (*)
+        `);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('User is not a member of the specified company');
+      }
+
+      const affectedCompanies = data.map(uc => ({
+        id: uc.Companies.Id,
+        name: uc.Companies.Name
+      }));
+
+      return {
+        success: true,
+        message: 'Role updated successfully',
+        newRole: request.newRole,
+        affectedCompanies
+      };
+    }
+
+    // If no companyId specified, update all UserCompany records for this user
+    const { data, error } = await supabase
+      .from('UserCompanies')
+      .update({ Role: roleNumber })
+      .eq('MemberId', request.userId)
+      .eq('IsDeleted', false)
+      .select(`
+        *,
+        Companies (*)
+      `);
+
+    if (error) throw error;
+
+    const affectedCompanies = data?.map(uc => ({
+      id: uc.Companies.Id,
+      name: uc.Companies.Name
+    })) || [];
+
+    return {
+      success: true,
+      message: `Role updated for ${affectedCompanies.length} companies`,
+      newRole: request.newRole,
+      affectedCompanies
+    };
+
   } catch (error: any) {
-    console.error('Change role error:', error?.response?.data || error?.message);
+    console.error('Change role error:', error.message);
     throw error;
   }
 }

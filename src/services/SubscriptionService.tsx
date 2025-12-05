@@ -2,7 +2,9 @@ import { BillingHistoryData, BillingHistoryList } from '../models/subscriptions/
 import { CancelSubscriptionRequest } from '../models/subscriptions/CancelSubscriptionRequest';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
-import apiClient from './AxiosClient';
+import apiClient from './AxiosClient'; // Keep for Stripe operations
+import { supabase } from '../config/supabase';
+import { mapDbToSubscription, getCurrentUserId, handleSupabaseError } from './SupabaseHelpers';
 
 const ENDPOINTS = {
     CURRENT_SUBSCRIPTION: '/subscriptions/current',
@@ -22,9 +24,58 @@ const ENDPOINTS = {
 /**
  * @returns The current subscription
  */
-const getCurrentSubscription = async () => {
-    const response = await apiClient.get<SubscriptionData>(ENDPOINTS.CURRENT_SUBSCRIPTION);
-    return response;
+const getCurrentSubscription = async (): Promise<SubscriptionData> => {
+    try {
+        const userId = await getCurrentUserId();
+
+        // First try to find subscription by user ownership
+        let { data: subscriptionData, error } = await supabase
+            .from('Subscriptions')
+            .select(`
+                *,
+                Plans (*)
+            `)
+            .eq('OwnerId', userId)
+            .eq('IsDeleted', false)
+            .order('CreatedAt', { ascending: false })
+            .limit(1);
+
+        if (error) throw error;
+
+        // If no user-owned subscription, try company-owned subscriptions where user is a member
+        if (!subscriptionData || subscriptionData.length === 0) {
+            const { data: companySubs, error: companyError } = await supabase
+                .from('Subscriptions')
+                .select(`
+                    *,
+                    Plans (*)
+                `)
+                .eq('OwnerType', 1) // Assuming 1 = company ownership
+                .in('OwnerId',
+                    supabase
+                        .from('UserCompanies')
+                        .select('CompanyId')
+                        .eq('MemberId', userId)
+                        .eq('IsDeleted', false)
+                )
+                .eq('IsDeleted', false)
+                .order('CreatedAt', { ascending: false })
+                .limit(1);
+
+            if (companyError) throw companyError;
+            subscriptionData = companySubs;
+        }
+
+        if (!subscriptionData || subscriptionData.length === 0) {
+            throw new Error('No active subscription found');
+        }
+
+        return mapDbToSubscription(subscriptionData[0]);
+
+    } catch (error: any) {
+        console.error('Error fetching current subscription:', error.message);
+        throw error;
+    }
 }
 
 /**
@@ -71,9 +122,34 @@ const getBillingHistory = async () => {
  * Gets all available plans
  * @returns List of available plans
  */
-const getPlans = async () => {
-    const response = await apiClient.get<PlanData[]>(ENDPOINTS.PLANS);
-    return response;
+const getPlans = async (): Promise<PlanData[]> => {
+    try {
+        const { data, error } = await supabase
+            .from('Plans')
+            .select('*')
+            .eq('IsActive', true)
+            .eq('IsDeleted', false)
+            .order('MonthlyPrice', { ascending: true });
+
+        if (error) throw error;
+
+        return data?.map(plan => ({
+            id: plan.Id,
+            key: plan.Key,
+            name: plan.Name,
+            monthlyPrice: plan.MonthlyPrice,
+            currency: plan.Currency,
+            maxProperties: plan.MaxProperties || 0,
+            maxUsers: plan.MaxUsers || 0,
+            maxStorageMb: plan.MaxStorageMb || 0,
+            billingCycle: plan.BillingCycle.toString(),
+            isActive: plan.IsActive
+        })) || [];
+
+    } catch (error: any) {
+        console.error('Error fetching plans:', error.message);
+        throw error;
+    }
 }
 
 /**
@@ -148,12 +224,72 @@ const downloadInvoice = async (invoiceId: string) => {
  * Gets the current subscription status including user access permissions
  * @returns The subscription status with user access information
  */
-const getSubscriptionStatus = async () => {
-    const response = await apiClient.get<{
-        subscription: SubscriptionData;
-        userAccess: { hasCompanyAccess: boolean; companyIds: string[] }
-    }>(ENDPOINTS.SUBSCRIPTION_STATUS);
-    return response;
+const getSubscriptionStatus = async (): Promise<{
+    subscription: SubscriptionData;
+    userAccess: { hasCompanyAccess: boolean; companyIds: string[] }
+}> => {
+    try {
+        const userId = await getCurrentUserId();
+
+        // Get user companies
+        const { data: userCompanies, error: companiesError } = await supabase
+            .from('UserCompanies')
+            .select('CompanyId')
+            .eq('MemberId', userId)
+            .eq('IsDeleted', false);
+
+        if (companiesError) throw companiesError;
+
+        const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+        const hasCompanyAccess = companyIds.length > 0;
+
+        // Get subscription (same logic as getCurrentSubscription)
+        let subscription: SubscriptionData;
+
+        try {
+            subscription = await getCurrentSubscription();
+        } catch (subError) {
+            // If no subscription found, create a default one
+            subscription = {
+                id: '',
+                ownerType: '0',
+                ownerId: userId,
+                providerCustomerId: '',
+                providerSubscriptionId: '',
+                planId: '',
+                plan: {
+                    id: '',
+                    key: 0,
+                    name: 'Free',
+                    monthlyPrice: 0,
+                    currency: 'USD',
+                    maxProperties: 0,
+                    maxUsers: 1,
+                    maxStorageMb: 0,
+                    billingCycle: '1',
+                    isActive: true
+                },
+                status: '0', // Assuming 0 = inactive/cancelled
+                currentPeriodStart: new Date(),
+                currentPeriodEnd: new Date(),
+                cancelAtPeriodEnd: false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
+        }
+
+        return {
+            subscription,
+            userAccess: {
+                hasCompanyAccess,
+                companyIds
+            }
+        };
+
+    } catch (error: any) {
+        console.error('Error fetching subscription status:', error.message);
+        throw error;
+    }
 }
 
 const subscriptionService = {

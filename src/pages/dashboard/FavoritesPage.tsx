@@ -28,14 +28,14 @@ export default function FavoritesPage() {
   // Fetch property details when favorite IDs change
   useEffect(() => {
     const fetchPropertyDetails = async () => {
-      if (favoritePropertyIds.size === 0) {
+      if (favoritePropertyIds.length === 0) {
         setFavoriteProperties([]);
         return;
       }
 
       setLoadingProperties(true);
       try {
-        const propertyPromises = Array.from(favoritePropertyIds).map(async (propertyId) => {
+        const propertyPromises = favoritePropertyIds.map(async (propertyId) => {
           try {
             return await propertyService.getPropertyById(propertyId, {
               filter: {
@@ -121,11 +121,11 @@ export default function FavoritesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Favorites</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            {favoritePropertyIds.size} {favoritePropertyIds.size === 1 ? 'property' : 'properties'} saved
+            {favoritePropertyIds.length} {favoritePropertyIds.length === 1 ? 'property' : 'properties'} saved
           </p>
         </div>
         <Badge color="red" icon={Heart} size="lg">
-          {favoritePropertyIds.size} Favorites
+          {favoritePropertyIds.length} Favorites
         </Badge>
       </div>
 

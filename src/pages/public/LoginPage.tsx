@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import authService from '../../services/AuthService';
-import { EyeIcon, EyeOffIcon, Shield } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, LockIcon, MailIcon, Shield } from 'lucide-react';
 import { TwoFactorInput } from '../../components/public/TwoFactorInput';
 import { AuthCard } from '../../components/public/AuthCard';
 import { PublicLayout } from '../../components/layout/PublicLayout';
@@ -9,6 +9,7 @@ import { getRedirectPath } from '../../utils/RoleUtils';
 import { useAppDispatch } from '../../hooks/reduxHooks';
 import { fetchUserProfile } from '../../store/slices/userSlice';
 import { Button, TextInput, Checkbox } from 'flowbite-react';
+import { supabase } from '../../config/supabase';
 
 export function LoginPage() {
 
@@ -36,7 +37,7 @@ export function LoginPage() {
       setIsVerifying(true);
       const user = await authService.verifyAuth();
       if (user && user.isAuthenticated) {
-        dispatch(fetchUserProfile());
+        // dispatch(fetchUserProfile());
         const redirectPath = getRedirectPath(user);
         navigate(redirectPath);
       } else {
@@ -62,6 +63,29 @@ export function LoginPage() {
     }, 100);
   };
 
+  const handleGoogleLogin = async () => {
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        setError(error.message);
+      }
+      // Note: The redirect will happen automatically if successful
+    } catch (err: any) {
+      setError(err.message || 'Google login failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -74,10 +98,10 @@ export function LoginPage() {
         const redirectPath = getRedirectPath(response.user);
         navigate(redirectPath);
       } else if (response.requires2FA) {
-          setLoginStep('2fa');
+        // For Supabase MFA, we need to initiate the challenge
+        setLoginStep('2fa');
       } else {
-        setError('Invalid login attempt. Please check your username and password.');
-        console.log('Login error:', response.errorMessage);
+        setError(response.errorMessage || 'Invalid login attempt. Please check your username and password.');
       }
     } catch (err: any) {
       setError(err.message || 'Invalid credentials or server error.');
@@ -96,6 +120,8 @@ export function LoginPage() {
     setError(null);
 
     try {
+      // For Supabase, we need to handle MFA verification differently
+      // Since MFA challenge happens during initial login, we use verifyOtp
       const response = await authService.login(formData.email, undefined, formData.twoFactorCode);
       if (response.succeeded && response.user) {
         // Fetch user profile data and load it into the Redux store
@@ -229,6 +255,7 @@ export function LoginPage() {
         )}
 
         <Button
+          onClick={handleGoogleLogin}
           color="light"
           className="w-full flex items-center justify-center gap-3 my-6"
           disabled={isSubmitting}

@@ -4,14 +4,14 @@ import { RootState } from '../store';
 import { PublicProperty } from '../../models/properties';
 
 interface FavoritesState {
-  favoritePropertyIds: Set<string>;
+  favoritePropertyIds: string[];
   favoriteProperties: PublicProperty[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
 }
 
 const initialState: FavoritesState = {
-  favoritePropertyIds: new Set(),
+  favoritePropertyIds: [],
   favoriteProperties: [],
   status: 'idle',
   error: null,
@@ -45,11 +45,11 @@ const favoritesSlice = createSlice({
   reducers: {
     // Initialize favorites from localStorage or API
     initializeFavorites: (state, action: PayloadAction<string[]>) => {
-      state.favoritePropertyIds = new Set(action.payload);
+      state.favoritePropertyIds = [...new Set(action.payload)]; // Ensure uniqueness
     },
     // Clear all favorites
     clearFavorites: (state) => {
-      state.favoritePropertyIds.clear();
+      state.favoritePropertyIds = [];
     },
   },
   extraReducers: (builder) => {
@@ -62,7 +62,7 @@ const favoritesSlice = createSlice({
       .addCase(fetchFavoriteProperties.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.favoriteProperties = action.payload;
-        state.favoritePropertyIds = new Set(action.payload.map(prop => prop.id));
+        state.favoritePropertyIds = action.payload.map(prop => prop.id);
       })
       .addCase(fetchFavoriteProperties.rejected, (state, action) => {
         state.status = 'failed';
@@ -76,9 +76,13 @@ const favoritesSlice = createSlice({
         state.status = 'succeeded';
         const { propertyId, isFavorite } = action.payload;
         if (isFavorite) {
-          state.favoritePropertyIds.add(propertyId);
+          // Add propertyId if not already present
+          if (!state.favoritePropertyIds.includes(propertyId)) {
+            state.favoritePropertyIds = [...state.favoritePropertyIds, propertyId];
+          }
         } else {
-          state.favoritePropertyIds.delete(propertyId);
+          // Remove propertyId
+          state.favoritePropertyIds = state.favoritePropertyIds.filter(id => id !== propertyId);
         }
       })
       .addCase(updatePropertyFavorite.rejected, (state, action) => {
@@ -91,8 +95,8 @@ const favoritesSlice = createSlice({
 // Selectors
 export const selectFavoritePropertyIds = (state: RootState) => state.favorites.favoritePropertyIds;
 export const selectFavoriteProperties = (state: RootState) => state.favorites.favoriteProperties;
-export const selectIsPropertyFavorite = (propertyId: string) => (state: RootState) => 
-  state.favorites.favoritePropertyIds.has(propertyId);
+export const selectIsPropertyFavorite = (propertyId: string) => (state: RootState) =>
+  state.favorites.favoritePropertyIds.includes(propertyId);
 export const selectFavoritesStatus = (state: RootState) => state.favorites.status;
 export const selectFavoritesError = (state: RootState) => state.favorites.error;
 

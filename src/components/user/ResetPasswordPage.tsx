@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom'; // Assuming you use React Router
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { LockKeyholeIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 import AuthService, { ResetPasswordPayload } from '../../services/AuthService';
+import { supabase } from '../../config/supabase';
 
 type TokenStatus = 'VALIDATING' | 'VALID' | 'INVALID';
 
@@ -19,23 +20,28 @@ export function ResetPasswordPage() {
     const token = searchParams.get('token');
 
     useEffect(() => {
-        if (!token) {
-            setTokenStatus('INVALID');
-            setError('No se proporcionó un token de restablecimiento.');
-            return;
-        }
+        // With Supabase, the session is automatically restored from the URL fragment
+        // when the user clicks the reset password link
+        const checkSession = async () => {
+            const { data: { session }, error } = await supabase.auth.getSession();
 
-        const validateToken = async () => {
-            try {
-                await AuthService.validateRecoveryPasswordChange({recoveryCode: token});
-                setTokenStatus('VALID');
-            } catch (err: any) {
+            if (error) {
+                console.error('Session error:', error);
                 setTokenStatus('INVALID');
-                setError(err.message || 'El enlace de restablecimiento es inválido o ha expirado.');
+                setError('El enlace de restablecimiento es inválido o ha expirado.');
+                return;
+            }
+
+            if (session) {
+                setTokenStatus('VALID');
+            } else {
+                setTokenStatus('INVALID');
+                setError('El enlace de restablecimiento es inválido o ha expirado.');
             }
         };
-        validateToken();
-    }, [token]);
+
+        checkSession();
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -43,15 +49,18 @@ export function ResetPasswordPage() {
             setError('Las contraseñas no coinciden.');
             return;
         }
-        if (!token) {
-            setError("Sesión inválida. Por favor, solicita un nuevo enlace.");
-            return;
-        }
+
         setIsSubmitting(true);
         setError(null);
         try {
-            const resetPasswordDto: ResetPasswordPayload = { token: token, newPassword: newPassword, email: '', resetEmail: false };
-            await AuthService.resetPassword(resetPasswordDto);
+            const { error } = await supabase.auth.updateUser({
+                password: newPassword
+            });
+
+            if (error) {
+                throw error;
+            }
+
             setIsSuccess(true);
         } catch (err: any) {
             setError(err.message || "No se pudo restablecer la contraseña.");

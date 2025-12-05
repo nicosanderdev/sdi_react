@@ -78,126 +78,61 @@ export function PropertyEditPage() {
         mutationFn: async ({ id, payload }): Promise<PropertyData> => {
             setApiError(null);
             console.log("Payload received for update:", payload);
-            const formData = new FormData();
 
-            formData.append('Id', payload.id);
-            formData.append('Title', payload.title);
-            formData.append('Description', payload.description || '');
-            formData.append('Type', payload.type);
-            formData.append('AreaValue', String(payload.areaValue));
-            formData.append('AreaUnit', String(areaUnitMap[payload.areaUnit as keyof typeof areaUnitMap] ?? 0));
-            formData.append('Bedrooms', String(payload.bedrooms));
-            formData.append('Bathrooms', String(payload.bathrooms));
-            formData.append('HasGarage', String(payload.hasGarage));
-            formData.append('GarageSpaces', String(payload.garageSpaces || 0));
-            formData.append('Capacity', String(payload.capacity));
-            formData.append('AvailableFrom', new Date(payload.availableFromText || '').toISOString());
-            formData.append('OwnerId', String(payload.ownerId));
+            // Convert PropertyData to PropertyFormData structure
+            const formData: PropertyFormData = {
+                streetName: payload.streetName,
+                houseNumber: payload.houseNumber,
+                neighborhood: payload.neighborhood,
+                city: payload.city,
+                state: payload.state,
+                zipCode: payload.zipCode,
+                country: payload.country,
+                location: payload.location,
+                title: payload.title,
+                type: payload.type as 'house' | 'apartment' | 'commercial' | 'land' | 'other',
+                areaValue: payload.areaValue,
+                areaUnit: payload.areaUnit as 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi',
+                bedrooms: payload.bedrooms,
+                bathrooms: payload.bathrooms,
+                hasGarage: payload.hasGarage,
+                garageSpaces: payload.garageSpaces,
+                description: payload.description,
+                availableFrom: payload.availableFrom.toISOString().split('T')[0], // Convert to date string
+                arePetsAllowed: payload.arePetsAllowed,
+                capacity: payload.capacity,
+                currency: payload.currency as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
+                salePrice: payload.salePrice,
+                rentPrice: payload.rentPrice,
+                hasCommonExpenses: payload.hasCommonExpenses,
+                commonExpensesValue: payload.commonExpensesValue,
+                isElectricityIncluded: payload.isElectricityIncluded,
+                isWaterIncluded: payload.isWaterIncluded,
+                isPriceVisible: payload.isPriceVisible,
+                status: payload.status as 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable',
+                isActive: payload.isActive,
+                isPropertyVisible: payload.isPropertyVisible,
+                amenities: payload.amenities.map(a => a.id)
+            };
 
-            // Address
-            formData.append('StreetName', payload.streetName);
-            formData.append('HouseNumber', payload.houseNumber);
-            formData.append('Neighborhood', payload.neighborhood || '');
-            formData.append('City', payload.city);
-            formData.append('State', payload.state);
-            formData.append('ZipCode', payload.zipCode);
-            formData.append('Country', payload.country);
-            if (payload.location) formData.append('Location', JSON.stringify(payload.location));
+            // Convert property images/documents to DisplayImage/DisplayDocument format
+            const displayImages: DisplayImage[] = payload.propertyImages.map(img => ({
+                id: img.id,
+                source: 'existing' as const,
+                previewUrl: img.url,
+                alt: img.altText,
+                isMain: img.isMain
+            }));
 
-            // Images
-            if (payload.propertyImages && payload.propertyImages.length > 0) {
-                payload.propertyImages.forEach((imgData: PropertyImage, index: number) => {
-                    var imageId = imgData.id || crypto.randomUUID();
-                    
-                    if (imgData.id?.startsWith('temp-'))
-                        imageId = crypto.randomUUID();
+            const displayDocuments: DisplayDocument[] = (payload.propertyDocuments || []).map(doc => ({
+                id: doc.id,
+                source: 'existing' as const,
+                url: doc.url,
+                name: doc.name,
+                fileName: doc.fileName
+            }));
 
-                    formData.append(`PropertyImages[${index}].Id`, imageId);
-                    formData.append(`PropertyImages[${index}].AltText`, imgData.altText || '');
-                    formData.append(`PropertyImages[${index}].IsMain`, imgData.isMain ? 'true' : 'false');
-                    formData.append(`PropertyImages[${index}].EstatePropertyId`, payload.id);
-                    formData.append(`PropertyImages[${index}].IsPublic`, 'true');
-                    formData.append(`PropertyImages[${index}].FileName`, imgData.fileName! || imgData.altText! || '');
-    
-                    if (imgData.url)
-                        formData.append(`PropertyImages[${index}].Url`, imgData.url);
-    
-                    if (imgData.file)
-                        formData.append(`PropertyImages[${index}].File`, imgData.file);
-    
-                    if (imgData.isMain)
-                        payload.mainImageId = imageId;
-                });
-            }
-            if (payload.mainImageId !== undefined || payload.mainImageId !== null) {
-                formData.append('MainImageId', payload.mainImageId!);
-            } else {
-                formData.append('MainImageId', '');
-            }
-
-            // Documents
-            if (payload.propertyDocuments && payload.propertyDocuments.length > 0) {
-                payload.propertyDocuments.forEach((docData: PropertyDocument, index: number) => {
-                    var docId = docData.id || crypto.randomUUID();
-                    
-                    if (docData.id?.startsWith('temp-'))
-                        docId = crypto.randomUUID();
-
-                    formData.append(`PropertyDocuments[${index}].Id`, docId);
-                    formData.append(`PropertyDocuments[${index}].Name`, docData.name || '');
-                    formData.append(`PropertyDocuments[${index}].EstatePropertyId`, payload.id);
-                    formData.append(`PropertyDocuments[${index}].FileName`, docData.fileName! || docData.name! || '');
-                    formData.append(`PropertyDocuments[${index}].IsPublic`, 'true');
-    
-                    if (docData.url)
-                        formData.append(`PropertyDocuments[${index}].Url`, docData.url);
-    
-                    if (docData.file)
-                        formData.append(`PropertyDocuments[${index}].File`, docData.file);
-                });
-            }
-
-            // Videos
-            if (payload.propertyVideos && payload.propertyVideos.length > 0) {
-                payload.propertyVideos.forEach((videoData: PropertyVideo, index: number) => {
-                    var videoId = videoData.id || crypto.randomUUID();
-                    
-                    if (videoData.id?.startsWith('temp-'))
-                        videoId = crypto.randomUUID();
-
-                    formData.append(`PropertyVideos[${index}].Id`, videoId);
-                    formData.append(`PropertyVideos[${index}].Title`, videoData.title || '');
-                    formData.append(`PropertyVideos[${index}].Description`, videoData.description || '');
-                    formData.append(`PropertyVideos[${index}].Url`, videoData.url || '');
-                    formData.append(`PropertyVideos[${index}].EstatePropertyId`, payload.id);
-                    formData.append(`PropertyVideos[${index}].IsPublic`, 'true');
-                });
-            }
-
-            // Amenities
-            if (payload.amenities && payload.amenities.length > 0) {
-                payload.amenities.forEach((amenity, index: number) => {
-                    formData.append(`Amenities[${index}].Id`, amenity.id);
-                    formData.append(`Amenities[${index}].Name`, amenity.name);
-                    if (amenity.iconId) {
-                        formData.append(`Amenities[${index}].IconId`, amenity.iconId);
-                    }
-                });
-            }
-            
-            // Financials & Status
-            formData.append('SalePrice', String(payload.salePrice) || '');
-            formData.append('RentPrice', String(payload.rentPrice) || '');
-            formData.append('Currency', String(currencyMap[payload.currency as keyof typeof currencyMap] ?? 0));
-            formData.append('HasCommonExpenses', String(payload.hasCommonExpenses));
-            formData.append('CommonExpensesValue', payload.commonExpensesValue || '');
-            formData.append('IsWaterIncluded', String(payload.isWaterIncluded));
-            formData.append('IsElectricityIncluded', String(payload.isElectricityIncluded));
-            formData.append('IsPriceVisible', String(payload.isPriceVisible));
-            formData.append('Status', String(propertyStatusMap[payload.status as keyof typeof propertyStatusMap] ?? 0));
-            formData.append('IsActive', String(payload.isActive));
-            formData.append('IsPropertyVisible', String(payload.isPropertyVisible));
-            return propertyService.updateProperty(id, formData);
+            return propertyService.updateProperty(id, formData, displayImages, displayDocuments);
         },
         onSuccess: (updatedProperty) => {
             console.log("Property updated successfully:", updatedProperty);

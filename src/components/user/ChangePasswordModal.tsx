@@ -3,6 +3,7 @@ import { XIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, KeyRoundIcon, LockKeyholeI
 import profileService from '../../services/ProfileService';
 import authService, { TwoFaPayload, ValidateRecoveryPayload, ResetPasswordPayload } from '../../services/AuthService';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
+import { supabase } from '../../config/supabase';
 
 // Steps of the modal flow
 type ModalStep = 'INITIAL_LOADING' | 'REQUIRE_2FA' | 'REQUIRE_RECOVERY' | 'SET_NEW_PASSWORD' | 'FINAL_ERROR';
@@ -141,10 +142,16 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
 
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
-      const payload: ResetPasswordPayload = { newPassword: newPassword, token: changeToken, email: '', resetEmail: false };
-      await authService.resetPassword(payload);
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        throw error;
+      }
+
       onSuccess();
       onClose();
     } catch (err: any) {

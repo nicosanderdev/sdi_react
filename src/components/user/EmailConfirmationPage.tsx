@@ -1,39 +1,58 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import AuthService from '../../services/AuthService';
 import { AuthCard } from '../public/AuthCard';
 import { PublicLayout } from '../layout/PublicLayout';
 import { Button } from 'flowbite-react';
 import { CheckCircleIcon, XCircleIcon, LoaderIcon } from 'lucide-react';
+import { supabase } from '../../config/supabase';
 
 export function EmailConfirmationPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token');
-
-  const { mutate, isPending, isError, error, isSuccess } = useMutation({
-    mutationFn: AuthService.confirmEmail,
-    onSuccess: () => {
-      // On success, redirect to the dashboard after a short delay
-      setTimeout(() => navigate('/dashboard'), 3000);
-    },
-    onError: (err) => {
-      // Log the error for debugging
-      console.error('Email confirmation failed:', err);
-    },
-  });
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    if (token) {
-      mutate(token);
-    } else {
-      // If no token is found, redirect to the login page
-      navigate('/login');
-    }
-  }, [token, mutate, navigate]);
+    // Supabase automatically handles email confirmation from URL fragments
+    // when users click the confirmation link
+    const handleEmailConfirmation = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-  if (isPending) {
+        if (error) {
+          console.error('Email confirmation error:', error);
+          setErrorMessage(error.message);
+          setStatus('error');
+          return;
+        }
+
+        if (data.session) {
+          setStatus('success');
+          // Redirect to dashboard after showing success message
+          setTimeout(() => navigate('/dashboard'), 3000);
+        } else {
+          // Check if there are any URL fragments that indicate email confirmation
+          const hash = window.location.hash;
+          if (hash && hash.includes('access_token')) {
+            // Email was confirmed, user should be logged in
+            setStatus('success');
+            setTimeout(() => navigate('/dashboard'), 3000);
+          } else {
+            setErrorMessage('No se pudo confirmar el email. El enlace puede ser inválido o expirado.');
+            setStatus('error');
+          }
+        }
+      } catch (err: any) {
+        console.error('Email confirmation failed:', err);
+        setErrorMessage('Ocurrió un error durante la confirmación.');
+        setStatus('error');
+      }
+    };
+
+    handleEmailConfirmation();
+  }, [navigate]);
+
+  if (status === 'loading') {
     return (
       <PublicLayout>
         <AuthCard
@@ -49,10 +68,7 @@ export function EmailConfirmationPage() {
     );
   }
 
-  if (isError) {
-    const errorMessage =
-      (error as any)?.response?.data?.message ||
-      'El enlace de confirmación no es válido o ha expirado.';
+  if (status === 'error') {
     return (
       <PublicLayout>
         <AuthCard
@@ -72,12 +88,12 @@ export function EmailConfirmationPage() {
     );
   }
 
-  if (isSuccess) {
+  if (status === 'success') {
     return (
       <PublicLayout>
         <AuthCard
           title="¡Email Confirmado!"
-          subtitle="¡Gracias! Serás redirigido al panel de control en breve."
+          subtitle="¡Gracias! Tu cuenta ha sido verificada. Serás redirigido al panel de control en breve."
           icon={<CheckCircleIcon className="w-8 h-8 text-green-600 dark:text-green-400" />}
         >
           <div className="text-center">

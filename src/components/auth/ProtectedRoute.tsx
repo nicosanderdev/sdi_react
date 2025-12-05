@@ -4,36 +4,42 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { getRedirectPath, isManager } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: (Roles.Manager | Roles.PublicUser)[];
+  allowedRoles?: (Roles.Manager | Roles.PublicUser | Roles.Admin)[];
   requireAuth?: boolean;
 }
 
-export function ProtectedRoute({ 
+export function ProtectedRoute({
   children,
-  allowedRoles = [Roles.Manager, Roles.PublicUser, Roles.Admin], 
-  requireAuth = true 
+  allowedRoles = [Roles.Manager, Roles.PublicUser, Roles.Admin],
+  requireAuth = true
 }: ProtectedRouteProps) {
+  const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
 
-  if (userStatus === 'loading' || userStatus === 'idle') {
+  // Show loading if either auth or user profile is loading
+  if (authLoading || userStatus === 'loading' || userStatus === 'idle') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
       </div>
     );
   }
-  
-  if (requireAuth && !user) {
+
+  // Check Supabase session first
+  if (requireAuth && !supabaseUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (user) {
+  // If we have a Supabase user but no profile loaded yet, let it pass through
+  // The profile will be loaded by the AuthContext
+  if (supabaseUser && user) {
     const userRole = isManager(user) ? Roles.Manager : Roles.PublicUser;
-    
+
     if (!allowedRoles.includes(userRole)) {
       return <Navigate to={getRedirectPath(user)} replace />;
     }

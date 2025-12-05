@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeInit } from '../.flowbite-react/init';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -84,9 +85,10 @@ export function App() {
   }, [dispatch, user]);
 
   return (
-    <ThemeProvider>
-      <ThemeInit />
-      <Router>
+    <AuthProvider>
+      <ThemeProvider>
+        <ThemeInit />
+        <Router>
         <RouteChangeTracker />
         <NotificationManager />
         <Routes>
@@ -146,7 +148,8 @@ export function App() {
           <Route path="*" element={<Navigate to="/notfound" />} />
           
         </Routes>
-      </Router>
-    </ThemeProvider>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
