@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 Dockerfile
+
+.env.prod
+
+sql/
+
+supabase/.env
