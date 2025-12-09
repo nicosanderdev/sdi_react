@@ -29,23 +29,76 @@ export function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const [errors, setErrors] = useState({ birthday: '', repeatPassword: '' });
+  const [errors, setErrors] = useState({
+    birthday: '',
+    repeatPassword: '',
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: ''
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const validateForm = () => {
     // Clear previous errors
-    setErrors({ birthday: '', repeatPassword: '' });
+    setErrors({
+      birthday: '',
+      repeatPassword: '',
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: ''
+    });
     setApiError(null);
-    
+
     let isValid = true;
-    const newErrors = { birthday: '', repeatPassword: '' };
+    const newErrors = {
+      birthday: '',
+      repeatPassword: '',
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: ''
+    };
+
+    // First name validation
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'El nombre es obligatorio.';
+      isValid = false;
+    }
+
+    // Last name validation
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Los apellidos son obligatorios.';
+      isValid = false;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email.trim()) {
+      newErrors.email = 'El correo electrónico es obligatorio.';
+      isValid = false;
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = 'Por favor, ingresa un correo electrónico válido.';
+      isValid = false;
+    }
+
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'La contraseña es obligatoria.';
+      isValid = false;
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'La contraseña debe tener al menos 8 caracteres.';
+      isValid = false;
+    }
 
     if (formData.password !== formData.repeatPassword) {
       newErrors.repeatPassword = 'Las contraseñas no coinciden.';
       isValid = false;
     }
 
+    // Age validation
     if (formData.birthday) {
       const birthDate = new Date(formData.birthday);
       const today = new Date();
@@ -65,6 +118,12 @@ export function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent duplicate submissions
+    if (isLoading) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -73,26 +132,46 @@ export function RegisterPage() {
     setApiError(null);
 
     const payload: RegisterUserPayload = {
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      email: formData.email,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
       password: formData.password,
     };
 
     try {
       const response = await AuthService.registerUser(payload);
       if (response.success) {
-        console.log('Registration successful:');
+        console.log('Registration successful');
         dispatch(fetchUserProfile());
         setView('success');
       } else {
         setView('error');
-        setApiError(response.errorMessage || 'Ocurrió un error durante el registro. Por favor, inténtalo de nuevo.');
+        setApiError(response.message || 'Ocurrió un error durante el registro. Por favor, inténtalo de nuevo.');
       }
     } catch (error: any) {
-        setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-        console.error('Registration API error:', error);
-        setView('error');
+      console.error('Registration API error:', error);
+
+      // Differentiate error types for better UX
+      let errorMessage = 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
+
+      if (error.message) {
+        const errorMsg = error.message.toLowerCase();
+
+        if (errorMsg.includes('email') && errorMsg.includes('already')) {
+          errorMessage = 'Esta dirección de correo electrónico ya está registrada. Por favor, intenta iniciar sesión o utiliza una dirección diferente.';
+        } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
+          errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
+        } else if (errorMsg.includes('validation') || errorMsg.includes('invalid')) {
+          errorMessage = 'Los datos proporcionados no son válidos. Por favor, revisa la información e inténtalo de nuevo.';
+        } else if (errorMsg.includes('server') || errorMsg.includes('internal')) {
+          errorMessage = 'Error del servidor. Por favor, inténtalo de nuevo en unos momentos.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+
+      setApiError(errorMessage);
+      setView('error');
     } finally {
       setIsLoading(false);
     }
@@ -182,6 +261,12 @@ export function RegisterPage() {
                     placeholder="John"
                     icon={UserIcon}
                     color={errors.firstName ? "failure" : "gray"}
+                    helperText={errors.firstName ? (
+                      <span className="flex items-center gap-1 text-red-600 text-xs">
+                        <AlertCircleIcon size={14} />
+                        {errors.firstName}
+                      </span>
+                    ) : undefined}
                   />
                 </div>
                 <div>
@@ -194,6 +279,12 @@ export function RegisterPage() {
                     placeholder="Doe"
                     icon={UserIcon}
                     color={errors.lastName ? "failure" : "gray"}
+                    helperText={errors.lastName ? (
+                      <span className="flex items-center gap-1 text-red-600 text-xs">
+                        <AlertCircleIcon size={14} />
+                        {errors.lastName}
+                      </span>
+                    ) : undefined}
                   />
                 </div>
               </div>
@@ -207,6 +298,12 @@ export function RegisterPage() {
                   placeholder="tu@correo.com"
                   icon={MailIcon}
                   color={errors.email ? "failure" : "gray"}
+                  helperText={errors.email ? (
+                    <span className="flex items-center gap-1 text-red-600 text-xs">
+                      <AlertCircleIcon size={14} />
+                      {errors.email}
+                    </span>
+                  ) : undefined}
                 />
               </div>
               <div>
@@ -236,6 +333,12 @@ export function RegisterPage() {
                   placeholder="••••••••"
                   icon={LockIcon}
                   color={errors.password ? "failure" : "gray"}
+                  helperText={errors.password ? (
+                    <span className="flex items-center gap-1 text-red-600 text-xs">
+                      <AlertCircleIcon size={14} />
+                      {errors.password}
+                    </span>
+                  ) : undefined}
                   rightIcon={() => (
                     <button
                       type="button"

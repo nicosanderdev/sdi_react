@@ -5,7 +5,15 @@ import { CompanyUser } from '../models/companies/CompanyUser';
 import { CompanyInfo } from '../models/companies/CompanyInfo';
 import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyRequest';
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
-import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, mapRoleStringToNumber } from './SupabaseHelpers';
+import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId } from './SupabaseHelpers';
+
+// Company role constants based on Supabase company_roles enum
+// Assuming enum values: 'Admin', 'Manager', 'Member'
+const COMPANY_ROLES = {
+  MEMBER: 'Member',
+  MANAGER: 'Manager',
+  ADMIN: 'Admin'
+} as const;
 
 export type { CompanyUser, CompanyInfo, AddUserToCompanyRequest, UpdateCompanyProfilePayload };
 
@@ -17,6 +25,7 @@ const ENDPOINTS = {
   UPDATE_PROFILE: '/company/me/profile',
   UPLOAD_LOGO: '/company/me/logo',
   UPLOAD_BANNER: '/company/me/banner',
+  CREATE_COMPANY: '/companies',
 };
 
 /**
@@ -47,7 +56,7 @@ const getCompanyInfo = async (): Promise<CompanyInfo> => {
     }
 
     if (ucError) {
-      if (ucError.code === 'PGRST116') {
+      if ((ucError as any).code === 'PGRST116') {
         throw new Error('User is not a member of any company');
       }
       throw ucError;
@@ -57,6 +66,74 @@ const getCompanyInfo = async (): Promise<CompanyInfo> => {
 
   } catch (error: any) {
     console.error('Error fetching company info:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new company and adds the current user as admin
+ */
+const createCompany = async (companyData: {
+  name: string;
+  description?: string;
+  billingEmail?: string;
+}): Promise<CompanyInfo> => {
+  try {
+    const userId = await getCurrentUserId();
+
+    // Get current user profile for billing email
+    const { data: userProfile, error: profileError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (profileError) throw profileError;
+
+    // Create company
+    const { data: newCompany, error: companyError } = await supabase
+      .from('Companies')
+      .insert({
+        Name: companyData.name,
+        Description: companyData.description || '',
+        BillingContactUserId: userId,
+        BillingEmail: companyData.billingEmail || '', // Will be updated after user provides it
+        CreatedAt: new Date().toISOString(),
+        LogoUrl: '',
+        BannerUrl: '',
+        Street: '',
+        Street2: '',
+        City: '',
+        State: '',
+        PostalCode: '',
+        Country: '',
+        Phone: '',
+        IsDeleted: false
+      })
+      .select()
+      .single();
+
+    if (companyError) throw companyError;
+
+    // Add user as Admin to UserCompanies
+    const { error: membershipError } = await supabase
+      .from('UserCompanies')
+      .insert({
+        MemberId: userProfile.Id,
+        CompanyId: newCompany.Id,
+        Role: COMPANY_ROLES.ADMIN, // Admin role from company_roles enum
+        AddedBy: userId,
+        JoinedAt: new Date().toISOString(),
+        IsDeleted: false
+      });
+
+    if (membershipError) throw membershipError;
+
+    return mapDbToCompany(newCompany);
+
+  } catch (error: any) {
+    console.error('Error creating company:', error.message);
     throw error;
   }
 };
@@ -109,7 +186,7 @@ const getCompanyUsers = async (): Promise<CompanyUser[]> => {
 /**
  * Adds a user to the company by email
  */
-const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<CompanyUser> => {
+const addUserToCompany = async (_request: AddUserToCompanyRequest): Promise<CompanyUser> => {
   try {
     const currentUserId = await getCurrentUserId();
 
@@ -125,53 +202,16 @@ const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<Compa
 
     if (ucError) throw ucError;
 
-    // Check if current user has permission (basic check - role > 0 means admin/manager)
-    if (userCompany.Role <= 0) {
+    // Check if current user has permission (Admin or Manager can add users)
+    if (userCompany.Role === COMPANY_ROLES.MEMBER) {
       throw new Error('Insufficient permissions to add users to company');
     }
 
-    // For now, this is a simplified implementation
-    // In a real app, you'd need to:
-    // 1. Find or create a member record for the email
-    // 2. Send an invitation
-    // 3. Handle the acceptance flow
+    // For now, we'll directly add users if they exist in the system
+    // In a proper implementation, this would create an invite that users accept
 
-    // For this migration, we'll assume the member already exists
-    // and just add them to the UserCompanies table
-    const { data: existingMember, error: memberError } = await supabase
-      .from('Members')
-      .select('Id')
-      .eq('UserId', request.userId) // Assuming request.userId is actually the target user's auth ID
-      .eq('IsDeleted', false)
-      .single();
-
-    if (memberError) {
-      if (memberError.code === 'PGRST116') {
-        throw new Error('User not found in system');
-      }
-      throw memberError;
-    }
-
-    // Add user to company
-    const { data: newUserCompany, error: insertError } = await supabase
-      .from('UserCompanies')
-      .insert({
-        MemberId: existingMember.Id,
-        CompanyId: userCompany.CompanyId,
-        Role: 0, // Default role
-        AddedBy: currentUserId,
-        JoinedAt: new Date().toISOString(),
-        IsDeleted: false
-      })
-      .select(`
-        *,
-        Members (*)
-      `)
-      .single();
-
-    if (insertError) throw insertError;
-
-    return mapDbToCompanyUser(newUserCompany);
+    // Note: Invite system not yet implemented - this is a placeholder
+    throw new Error('Invite system not yet implemented. Please contact support to add users.');
 
   } catch (error: any) {
     console.error('Error adding user to company:', error.message);
@@ -210,8 +250,8 @@ const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promi
 
     if (ucError) throw ucError;
 
-    // Check permissions
-    if (userCompany.Role <= 0) {
+    // Check permissions (Admin or Manager can update)
+    if (userCompany.Role === COMPANY_ROLES.MEMBER) {
       throw new Error('Insufficient permissions to update company profile');
     }
 
@@ -220,8 +260,6 @@ const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promi
 
     if (payload.name !== undefined) updateData.Name = payload.name;
     if (payload.description !== undefined) updateData.Description = payload.description;
-    if (payload.logoUrl !== undefined) updateData.LogoUrl = payload.logoUrl;
-    if (payload.bannerUrl !== undefined) updateData.BannerUrl = payload.bannerUrl;
 
     // Address fields
     if (payload.address) {
@@ -233,7 +271,8 @@ const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promi
       if (payload.address.country !== undefined) updateData.Country = payload.address.country;
     }
 
-    if (payload.phone !== undefined) updateData.Phone = payload.phone;
+    // Note: logoUrl, bannerUrl, and phone are not in the current payload interface
+    // These would need to be added to UpdateCompanyProfilePayload if needed
 
     updateData.LastModified = new Date().toISOString();
     updateData.LastModifiedBy = userId;
@@ -284,7 +323,7 @@ const uploadCompanyLogo = async (formData: FormData): Promise<{ logoUrl: string 
     const fileName = `companies/${userCompany.CompanyId}/logo-${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('company-assets') // Assuming you have a 'company-assets' bucket
       .upload(fileName, file, {
         cacheControl: '3600',
@@ -349,7 +388,7 @@ const uploadCompanyBanner = async (formData: FormData): Promise<{ bannerUrl: str
     const fileName = `companies/${userCompany.CompanyId}/banner-${Date.now()}.${fileExt}`;
 
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabase.storage
       .from('company-assets') // Assuming you have a 'company-assets' bucket
       .upload(fileName, file, {
         cacheControl: '3600',
@@ -388,6 +427,7 @@ const uploadCompanyBanner = async (formData: FormData): Promise<{ bannerUrl: str
 const companyService = {
   getCompanyInfo,
   getCompanyUsers,
+  createCompany,
   addUserToCompany,
   removeUserFromCompany,
   updateCompanyProfile,

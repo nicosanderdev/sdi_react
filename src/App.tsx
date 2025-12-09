@@ -36,6 +36,7 @@ import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerS
 // Subscription pages
 import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSubscriptionPage';
 import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
+import { PlansSelectionPage } from './pages/dashboard/subscription/PlansSelectionPage';
 import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
 import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistoryPage';
 import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStripeCheckoutPage';
@@ -50,7 +51,7 @@ import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 
 // Auth components
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
-import { ManagerOnlyRoute, PublicRoute, AdminOnlyRoute } from './components/auth/ProtectedRoute';
+import { PublicRoute, AdminOnlyRoute, ProtectedRoute } from './components/auth/ProtectedRoute';
 
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile } from './store/slices/userSlice';
@@ -116,8 +117,8 @@ export function App() {
           {/* <Route path="/favorites" element={<PublicUserOnlyRoute><PublicUserFavoritesPage /></PublicUserOnlyRoute>} /> */}
           {/* <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} /> */}
 
-          {/* Manager Dashboard Routes (Authentication Required, Managers Only) */}
-          <Route path="/dashboard" element={<ManagerOnlyRoute><DashboardLayout /></ManagerOnlyRoute>} > 
+          {/* Dashboard Routes (Authentication Required, All Users) */}
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} > 
             <Route index element={<DashboardOverview />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
@@ -126,6 +127,7 @@ export function App() {
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<ManagerSubscriptionPage />} />
+            <Route path="subscription/plans" element={<PlansSelectionPage />} />
             <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
@@ -142,7 +144,7 @@ export function App() {
           </Route>
 
           {/* Company Routes */}
-          <Route path="/company/:id/subscription" element={<ManagerOnlyRoute><CompanySubscriptionPage /></ManagerOnlyRoute>} />
+          <Route path="/company/:id/subscription" element={<ProtectedRoute><CompanySubscriptionPage /></ProtectedRoute>} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/notfound" />} />

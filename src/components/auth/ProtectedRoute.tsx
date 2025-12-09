@@ -2,19 +2,19 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { getRedirectPath, isManager } from '../../utils/RoleUtils';
+import { getRedirectPath, hasRole } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: (Roles.Manager | Roles.PublicUser | Roles.Admin)[];
+  allowedRoles?: (Roles.Admin | Roles.User)[];
   requireAuth?: boolean;
 }
 
 export function ProtectedRoute({
   children,
-  allowedRoles = [Roles.Manager, Roles.PublicUser, Roles.Admin],
+  allowedRoles = [Roles.Admin, Roles.User],
   requireAuth = true
 }: ProtectedRouteProps) {
   const { user: supabaseUser, loading: authLoading } = useAuth();
@@ -38,7 +38,7 @@ export function ProtectedRoute({
   // If we have a Supabase user but no profile loaded yet, let it pass through
   // The profile will be loaded by the AuthContext
   if (supabaseUser && user) {
-    const userRole = isManager(user) ? Roles.Manager : Roles.PublicUser;
+    const userRole = hasRole(user, Roles.Admin) ? Roles.Admin : Roles.User;
 
     if (!allowedRoles.includes(userRole)) {
       return <Navigate to={getRedirectPath(user)} replace />;
@@ -48,14 +48,6 @@ export function ProtectedRoute({
   return <>{children}</>;
 }
 
-export function ManagerOnlyRoute({ children }: { children: React.ReactNode }) {
-  
-    return (
-    <ProtectedRoute allowedRoles={[Roles.Manager]}>
-      {children}
-    </ProtectedRoute>
-  );
-}
 
 // COMMENTED OUT: for reuse in new project managing public view - dashboard only system
 // export function PublicUserOnlyRoute({ children }: { children: React.ReactNode }) {

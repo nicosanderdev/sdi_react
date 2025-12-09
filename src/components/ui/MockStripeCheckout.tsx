@@ -95,26 +95,51 @@ export function MockStripeCheckout({
 
     setStep('processing');
 
-    // Simulate processing delay
-    setTimeout(() => {
-      // Mock success - in real implementation, this would be handled by Stripe
-      const mockPaymentData = {
-        id: `mock_pi_${Date.now()}`,
-        status: 'succeeded',
-        amount: planPrice * 100, // Convert to cents
-        currency: currency.toLowerCase(),
-        planName,
-        cardLast4: formData.cardNumber.slice(-4),
-        timestamp: new Date().toISOString()
-      };
+    try {
+      // In a real implementation, this would call your payment API
+      // For now, simulate different outcomes based on card number
+      const cardNumber = formData.cardNumber.replace(/\s/g, '');
 
-      setStep('success');
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Call success callback after a brief delay
-      setTimeout(() => {
-        onSuccess(mockPaymentData);
-      }, 1500);
-    }, 2000);
+      // Mock different payment outcomes for testing
+      let paymentResult: 'success' | 'decline' | 'error' = 'success';
+
+      if (cardNumber.startsWith('4000')) {
+        paymentResult = 'decline'; // Declined card
+      } else if (cardNumber.startsWith('5000')) {
+        paymentResult = 'error'; // Network/server error
+      }
+
+      if (paymentResult === 'success') {
+        const mockPaymentData = {
+          id: `pi_${Date.now()}`,
+          status: 'succeeded',
+          amount: planPrice * 100, // Convert to cents
+          currency: currency.toLowerCase(),
+          planName,
+          cardLast4: formData.cardNumber.slice(-4),
+          timestamp: new Date().toISOString()
+        };
+
+        setStep('success');
+
+        // Call success callback after a brief delay
+        setTimeout(() => {
+          onSuccess(mockPaymentData);
+        }, 1500);
+      } else if (paymentResult === 'decline') {
+        setStep('error');
+        // Show decline error - user can retry
+      } else {
+        throw new Error('Payment processing failed due to network error');
+      }
+    } catch (error: any) {
+      console.error('Payment error:', error);
+      setStep('error');
+      // For network errors, we stay in error state allowing retry
+    }
   };
 
   const handleInputChange = (field: keyof PaymentFormData, value: string) => {
@@ -174,11 +199,25 @@ export function MockStripeCheckout({
               Payment Failed
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              There was an error processing your payment. Please try again.
+              {formData.cardNumber.replace(/\s/g, '').startsWith('4000')
+                ? 'Your card was declined. Please check your card details or try a different payment method.'
+                : formData.cardNumber.replace(/\s/g, '').startsWith('5000')
+                ? 'A network error occurred while processing your payment. Please check your connection and try again.'
+                : 'There was an error processing your payment. Please check your information and try again.'
+              }
             </p>
-            <Button onClick={() => setStep('form')}>
-              Try Again
-            </Button>
+            <div className="space-y-3">
+              <Button onClick={() => setStep('form')} className="w-full">
+                Try Again
+              </Button>
+              <Button
+                onClick={onCancel}
+                color="light"
+                className="w-full"
+              >
+                Cancel Payment
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

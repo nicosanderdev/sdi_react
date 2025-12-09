@@ -25,17 +25,24 @@ export const hasRole = (user: UserData, role: UserRole): boolean => {
 };
 
 /**
- * Checks if the user is a manager or admin
+ * Checks if the user is an admin
  */
-export const isManager = (user: UserData): boolean => {
-  return hasRole(user, Roles.Manager) || hasRole(user, Roles.Admin);
+export const isAdmin = (user: UserData): boolean => {
+  return hasRole(user, Roles.Admin);
 };
 
 /**
- * Checks if the user is a public user (not manager or admin)
+ * Checks if the user is a regular user (not admin)
  */
-export const isPublicUser = (user: UserData): boolean => {
-  return !isManager(user);
+export const isUser = (user: UserData): boolean => {
+  return hasRole(user, Roles.User) || (!isAdmin(user) && hasRole(user, Roles.User));
+};
+
+/**
+ * Checks if the user has elevated privileges (admin)
+ */
+export const hasElevatedAccess = (user: UserData): boolean => {
+  return isAdmin(user);
 };
 
 /**
@@ -43,11 +50,10 @@ export const isPublicUser = (user: UserData): boolean => {
  */
 export const getPrimaryRole = (user: UserData): UserRole | null => {
   if (!user || !user.roles || user.roles.length === 0) return null;
-  
+
   if (hasRole(user, Roles.Admin)) return Roles.Admin;
-  if (hasRole(user, Roles.Manager)) return Roles.Manager;
-  if (hasRole(user, Roles.PublicUser)) return Roles.PublicUser;
-  
+  if (hasRole(user, Roles.User)) return Roles.User;
+
   return null;
 };
 
@@ -57,10 +63,6 @@ export const getPrimaryRole = (user: UserData): UserRole | null => {
 export const getRedirectPath = (user: UserData): string => {
   if (!user) return '/login';
 
-  if (isManager(user)) {
-    return '/dashboard';
-  } else {
-    // Dashboard-only system: redirect non-managers to login
-    return '/login';
-  }
+  // All authenticated users (admin or user) can access dashboard
+  return '/dashboard';
 };

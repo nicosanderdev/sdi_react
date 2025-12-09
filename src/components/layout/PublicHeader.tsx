@@ -2,7 +2,6 @@ import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "f
 import { CustomDarkThemeToggle } from "../ui/CustomDarkThemeToggle";
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store/store';
-import { isManager } from '../../utils/RoleUtils';
 import { User, LogOut } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
@@ -26,20 +25,18 @@ export function PublicHeader() {
       );
     }
 
-    if (isManager(user)) {
-      return (
-        <>
-          <NavbarLink href="/dashboard" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Dashboard</NavbarLink>
-          <NavbarLink href="/dashboard/properties" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Propiedades</NavbarLink>
-          <NavbarLink href="/dashboard/messages" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mensajes</NavbarLink>
-          <NavbarLink href="/dashboard/profile" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mi Perfil</NavbarLink>
-          <NavbarLink href="#" onClick={handleLogout} className="flex items-center space-x-1 text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
-          </NavbarLink>
-        </>
-      );
-    }
+    return (
+    <>
+        <NavbarLink href="/dashboard" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Dashboard</NavbarLink>
+        <NavbarLink href="/dashboard/properties" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Propiedades</NavbarLink>
+        <NavbarLink href="/dashboard/messages" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mensajes</NavbarLink>
+        <NavbarLink href="/dashboard/profile" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mi Perfil</NavbarLink>
+        <NavbarLink href="#" onClick={handleLogout} className="flex items-center space-x-1 text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">
+        <LogOut className="w-4 h-4" />
+        <span>Cerrar Sesión</span>
+        </NavbarLink>
+    </>
+    );
 
     // Public user navigation removed - dashboard only system
 

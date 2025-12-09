@@ -423,7 +423,18 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<{ suc
     })
 
     if (error) {
-      throw error
+      // Differentiate error types for better user experience
+      const errorMessage = error.message?.toLowerCase() || '';
+
+      if (errorMessage.includes('email') && errorMessage.includes('already')) {
+        throw new Error('This email address is already registered. Please try logging in or use a different email address.');
+      } else if (errorMessage.includes('password') && errorMessage.includes('weak')) {
+        throw new Error('Password is too weak. Please choose a stronger password.');
+      } else if (errorMessage.includes('invalid') && errorMessage.includes('email')) {
+        throw new Error('Please enter a valid email address.');
+      } else {
+        throw error;
+      }
     }
 
     return {

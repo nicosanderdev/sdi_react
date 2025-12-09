@@ -9,6 +9,7 @@ import { mapDbToSubscription, getCurrentUserId, handleSupabaseError } from './Su
 const ENDPOINTS = {
     CURRENT_SUBSCRIPTION: '/subscriptions/current',
     CHECKOUT: '/subscriptions/checkout',
+    CREATE_PAYMENT_SESSION: '/payments/create-session',
     CHANGE: '/subscriptions/change',
     CANCEL: '/subscriptions/cancel',
     BILLING_HISTORY: '/subscriptions/billing-history',
@@ -29,7 +30,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         const userId = await getCurrentUserId();
 
         // First try to find subscription by user ownership
-        let { data: subscriptionData, error } = await supabase
+        const { data: subscriptionData, error } = await supabase
             .from('Subscriptions')
             .select(`
                 *,
@@ -87,6 +88,28 @@ const getCheckout = async (planId?: string) => {
     const url = planId ? `${ENDPOINTS.CHECKOUT}?planId=${planId}` : ENDPOINTS.CHECKOUT;
     const response = await apiClient.get<string>(url);
     return response;
+}
+
+/**
+ * Creates a payment session for subscription purchase
+ * @param params - Payment session parameters
+ * @returns Payment session data with checkout URL
+ */
+const createPaymentSession = async (params: {
+    planId: string;
+    entityType: 'personal' | 'company';
+    entityId: string;
+}) => {
+    try {
+        const response = await apiClient.post<{
+            checkoutUrl: string;
+            sessionId: string;
+        }>(ENDPOINTS.CREATE_PAYMENT_SESSION, params);
+        return response;
+    } catch (error: any) {
+        console.error('Error creating payment session:', error.message);
+        throw error;
+    }
 }
 
 /**
@@ -295,6 +318,7 @@ const getSubscriptionStatus = async (): Promise<{
 const subscriptionService = {
     getCurrentSubscription,
     getCheckout,
+    createPaymentSession,
     getCheckoutChange,
     cancelSubscription,
     getBillingHistory,
