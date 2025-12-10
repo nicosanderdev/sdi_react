@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
@@ -12,11 +12,11 @@ interface ProtectedRouteProps {
   requireAuth?: boolean;
 }
 
-export function ProtectedRoute({
+const ProtectedRouteComponent = ({
   children,
   allowedRoles = [Roles.Admin, Roles.User],
   requireAuth = true
-}: ProtectedRouteProps) {
+}: ProtectedRouteProps) => {
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
@@ -46,7 +46,9 @@ export function ProtectedRoute({
   }
 
   return <>{children}</>;
-}
+};
+
+export const ProtectedRoute = memo(ProtectedRouteComponent);
 
 
 // COMMENTED OUT: for reuse in new project managing public view - dashboard only system
@@ -58,18 +60,14 @@ export function ProtectedRoute({
 //   );
 // }
 
-export function PublicRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <ProtectedRoute requireAuth={false}>
-      {children}
-    </ProtectedRoute>
-  );
-}
+export const PublicRoute = memo(({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute requireAuth={false}>
+    {children}
+  </ProtectedRoute>
+));
 
-export function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
-  return (
-    <ProtectedRoute allowedRoles={[Roles.Admin]}>
-      {children}
-    </ProtectedRoute>
-  );
-}
+export const AdminOnlyRoute = memo(({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute allowedRoles={[Roles.Admin]}>
+    {children}
+  </ProtectedRoute>
+));

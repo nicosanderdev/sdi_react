@@ -43,7 +43,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           // If we have a session, fetch user profile
           if (session?.user) {
-            dispatch(fetchUserProfile())
+            dispatch(fetchUserProfile(session.user))
           }
         }
       } catch (error) {
@@ -66,7 +66,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         // Handle auth state changes
         if (event === 'SIGNED_IN' && session?.user) {
-          dispatch(fetchUserProfile())
+          dispatch(fetchUserProfile(session.user))
         } else if (event === 'SIGNED_OUT') {
           // Clear user profile from Redux store
           // This will be handled by the userSlice reducer

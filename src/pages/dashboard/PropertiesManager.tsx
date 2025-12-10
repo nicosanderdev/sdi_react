@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
@@ -7,6 +7,8 @@ import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { Button, Card, Dropdown, DropdownItem, Modal, ModalBody, ModalHeader } from 'flowbite-react';
 import { PropertyData } from '../../models/properties';
 import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
+import { usePropertyQuota } from '../../hooks/usePropertyQuota';
+import { useAuth } from '../../contexts/AuthContext';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
@@ -18,7 +20,8 @@ const TABS = [
 
 const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
 
-export function PropertiesManager() {
+const PropertiesManagerComponent = () => {
+  const { user } = useAuth();
   const [allProperties, setAllProperties] = useState<PropertyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +32,19 @@ export function PropertiesManager() {
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+
+  // Property quota information
+  const {
+    ownedCount,
+    publishedCount,
+    totalLimit,
+    publishedLimit,
+    remainingTotal,
+    remainingPublished,
+    isAtTotalLimit,
+    isAtPublishedLimit,
+    isLoading: isQuotaLoading
+  } = usePropertyQuota();
 
   // Helper function to get company filter for API calls
   const getCompanyFilter = () => {
@@ -50,8 +66,8 @@ export function PropertiesManager() {
       if (company === COMPANY_SELECTOR_OPTIONS.ALL_PROPERTIES) {
         // Fetch both personal properties and company properties, then combine
         const [personalData, companyData] = await Promise.all([
-          propertyService.getOwnersProperties({}), // Personal properties
-          propertyService.getOwnersProperties({ companyId: 'all-companies' }) // Company properties
+          propertyService.getOwnersProperties({ user }), // Personal properties
+          propertyService.getOwnersProperties({ companyId: 'all-companies', user }) // Company properties
         ]);
 
         // Combine and deduplicate properties (in case some properties appear in both)
@@ -62,7 +78,7 @@ export function PropertiesManager() {
 
         data = { ...personalData, items: uniqueItems };
       } else {
-        data = await propertyService.getOwnersProperties(getCompanyFilter());
+        data = await propertyService.getOwnersProperties({ ...getCompanyFilter(), user });
       }
 
       setAllProperties(data.items || []);
@@ -145,12 +161,46 @@ export function PropertiesManager() {
                 className="mr-4"
             />
             <Button
-                onClick={() => setShowAddProperty(true)} >
+                onClick={() => setShowAddProperty(true)}
+                disabled={isAtTotalLimit || isQuotaLoading} >
                 <PlusIcon size={18} className="mr-2" />
                 <span>Nueva Propiedad</span>
             </Button>
         </div>
       </div>
+
+      {/* Property Quota Display */}
+      {!isQuotaLoading && (
+        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+            <div className="flex space-x-6">
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
+                <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                  {ownedCount}/{totalLimit}
+                </span>
+                {isAtTotalLimit && (
+                  <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
+                )}
+              </div>
+              <div className="text-sm">
+                <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
+                <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                  {publishedCount}/{publishedLimit}
+                </span>
+                {isAtPublishedLimit && (
+                  <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
+                )}
+              </div>
+            </div>
+            {isAtTotalLimit && (
+              <div className="text-sm text-red-600 font-medium">
+                No puedes crear más propiedades
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && !isDeleting && ( 
             <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
@@ -243,4 +293,6 @@ export function PropertiesManager() {
       </Modal>}
     </div>
   );
-}
+};
+
+export const PropertiesManager = memo(PropertiesManagerComponent);

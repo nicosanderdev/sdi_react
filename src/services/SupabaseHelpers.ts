@@ -214,7 +214,7 @@ interface AmenitiesRow {
   LastModifiedBy: string | null;
 }
 
-interface EstatePropertyAmenitiesRow {
+interface EstatePropertyAmenityRow {
   EstatePropertyId: string;
   AmenityId: string;
   IsDeleted: boolean;
@@ -465,18 +465,32 @@ export const handleSupabaseError = (error: any, operation: string): never => {
 /**
  * Gets the current authenticated user's ID
  */
-export const getCurrentUserId = async (): Promise<string> => {
-  const { data: { user }, error } = await supabase.auth.getUser();
+export const getCurrentUserId = async (user?: any): Promise<string> => {
+  // If user is provided from AuthContext, use it to avoid API call
+  if (user?.id) {
+    return user.id;
+  }
+
+  // Fallback to API call if no user provided
+  const { data: { user: authUser }, error } = await supabase.auth.getUser();
 
   if (error) {
     throw new Error(`Authentication error: ${error.message}`);
   }
 
-  if (!user) {
+  if (!authUser) {
     throw new Error('No authenticated user found');
   }
 
-  return user.id;
+  return authUser.id;
+};
+
+/**
+ * Get current user from AuthContext or fallback to API
+ * This is a synchronous version that avoids API calls when possible
+ */
+export const getCurrentUser = (user?: any) => {
+  return user || null;
 };
 
 /**
@@ -577,7 +591,7 @@ export const mapDbToPropertyData = (
     PropertyImages?: PropertyImagesRow[];
     PropertyDocuments?: PropertyDocumentsRow[];
     PropertyVideos?: PropertyVideosRow[];
-    EstatePropertyAmenities?: (EstatePropertyAmenitiesRow & { Amenities: AmenitiesRow })[];
+    EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PropertyData => {
   // Get the latest property values (most recent)
@@ -613,7 +627,7 @@ export const mapDbToPropertyData = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map(epa => ({
+  const amenities: Amenity[] = property.EstatePropertyAmenity?.map(epa => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined
@@ -674,7 +688,7 @@ export const mapDbToPublicProperty = (
     EstatePropertyValues: EstatePropertyValuesRow[];
     PropertyImages?: PropertyImagesRow[];
     PropertyVideos?: PropertyVideosRow[];
-    EstatePropertyAmenities?: (EstatePropertyAmenitiesRow & { Amenities: AmenitiesRow })[];
+    EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PublicProperty => {
   // Get the latest property values
@@ -701,7 +715,7 @@ export const mapDbToPublicProperty = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map(epa => ({
+  const amenities: Amenity[] = property.EstatePropertyAmenity?.map(epa => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined

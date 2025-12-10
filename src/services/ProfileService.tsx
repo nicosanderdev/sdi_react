@@ -71,13 +71,13 @@ const ENDPOINTS = {
 /**
  * Fetches the profile of the currently authenticated user.
  */
-const getCurrentUserProfile = async (): Promise<ProfileData> => {
+const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getCurrentUserId(user);
 
-    // Get auth user for email
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) throw authError;
+    // Use provided user or get from auth if not provided
+    const authUser = user || (await supabase.auth.getUser()).data.user;
+    if (!authUser) throw new Error('No authenticated user found');
 
     const { data: memberData, error } = await supabase
       .from('Members')

@@ -20,9 +20,9 @@ const initialState: UserState = {
 // Create an async thunk to fetch the user profile
 export const fetchUserProfile = createAsyncThunk(
   'user/fetchProfile',
-  async () => {
+  async (user?: any) => {
     // Use the migrated Supabase-based profile service
-    return await profileService.getCurrentUserProfile();
+    return await profileService.getCurrentUserProfile(user);
   }
 );
 

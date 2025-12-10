@@ -76,9 +76,7 @@ export function App() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.user.profile);
 
-  useEffect(() => {
-    dispatch(fetchUserProfile());
-  }, [dispatch]);
+  // Removed duplicate fetchUserProfile call - AuthContext handles this
 
   useEffect(() => {
     if (user && user.id) {
@@ -123,7 +121,7 @@ export function App() {
             <Route index element={<DashboardOverview />} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
-            <Route path="favorites" element={<FavoritesPage />} />
+            {/* <Route path="favorites" element={<FavoritesPage />} /> */}
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import subscriptionService from '../services/SubscriptionService';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -27,12 +28,14 @@ export function useSubscriptionGate(): SubscriptionGateState {
     error: null,
   });
 
+  const { user } = useAuth();
+
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
       try {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-        const { subscription, userAccess } = await subscriptionService.getSubscriptionStatus();
+        const { subscription, userAccess } = await subscriptionService.getSubscriptionStatus(user);
 
         // Check if personal subscription is active (status === 1 indicates active)
         const hasPersonalSubscription = subscription.status === '1';

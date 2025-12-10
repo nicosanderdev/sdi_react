@@ -49,7 +49,7 @@ export function DashboardSidebar() {
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
     { id: 'properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/properties' },
-    { id: 'favorites', label: 'Favoritos', icon: HeartIcon, path: '/dashboard/favorites' },
+    // { id: 'favorites', label: 'Favoritos', icon: HeartIcon, path: '/dashboard/favorites' },
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.unread ?? 3 },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },

@@ -49,7 +49,7 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
         EstatePropertyValues!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
-        EstatePropertyAmenities(Amenities(*))
+        EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
       .eq('IsDeleted', false)
       .eq('EstatePropertyValues.IsDeleted', false)
@@ -125,7 +125,7 @@ const getPropertiesInBounds = async (
         EstatePropertyValues!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
-        EstatePropertyAmenities(Amenities(*))
+        EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
       .eq('IsDeleted', false)
       .eq('EstatePropertyValues.IsDeleted', false)
@@ -201,7 +201,7 @@ const getPropertyById = async (id: string, params?: PropertyParams): Promise<Pub
       includes.push('PropertyVideos(*)');
     }
     if (params?.filter?.includeAmenities) {
-      includes.push('EstatePropertyAmenities(Amenities(*))');
+      includes.push('EstatePropertyAmenity(Amenities(*))');
     }
 
     if (includes.length > 0) {
@@ -259,7 +259,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
-        EstatePropertyAmenities(Amenities(*))
+        EstatePropertyAmenity(Amenities(*))
       `)
       .eq('Id', id)
       .eq('OwnerId', member.Id)
@@ -281,9 +281,9 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 };
 
 // Fetch a list of properties owned by the user
-const getOwnersProperties = async (params?: PropertyParams & { companyId?: string }): Promise<PropertyDataList> => {
+const getOwnersProperties = async (params?: PropertyParams & { companyId?: string; user?: any }): Promise<PropertyDataList> => {
   try {
-    const userId = await getCurrentUserId();
+    const userId = await getCurrentUserId(params?.user);
 
     // Get the member ID for this user
     const { data: member, error: memberError } = await supabase
@@ -306,7 +306,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
-        EstatePropertyAmenities(Amenities(*))
+        EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
       .eq('OwnerId', member.Id)
       .eq('IsDeleted', false);
@@ -999,7 +999,7 @@ const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
         EstatePropertyValues!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
-        EstatePropertyAmenities(Amenities(*))
+        EstatePropertyAmenity(Amenities(*))
       `)
       .in('Id', propertyIds)
       .eq('IsDeleted', false)
@@ -1012,6 +1012,76 @@ const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
     return data?.map(property => mapDbToPublicProperty(property)) || [];
   } catch (error: any) {
     console.error('Error fetching favorite properties:', error.message);
+    throw error;
+  }
+};
+
+// Get count of all owned properties (active, non-deleted)
+const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
+  try {
+    const userId = await getCurrentUserId(user);
+
+    // Get the member ID for this user
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .maybeSingle();
+
+    if (memberError) throw memberError;
+    if (!member) {
+      return 0;
+    }
+
+    // Count all active, non-deleted properties owned by this member
+    const { count, error } = await supabase
+      .from('EstateProperties')
+      .select('*', { count: 'exact', head: true })
+      .eq('OwnerId', member.Id)
+      .eq('IsDeleted', false);
+
+    if (error) throw error;
+
+    return count || 0;
+  } catch (error: any) {
+    console.error('Error fetching owned properties count:', error.message);
+    throw error;
+  }
+};
+
+// Get count of published properties (visible/active)
+const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
+  try {
+    const userId = await getCurrentUserId(user);
+
+    // Get the member ID for this user
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .maybeSingle();
+
+    if (memberError) throw memberError;
+    if (!member) {
+      return 0;
+    }
+
+    // Count all visible, active properties owned by this member
+    const { count, error } = await supabase
+      .from('EstateProperties')
+      .select('*', { count: 'exact', head: true })
+      .eq('OwnerId', member.Id)
+      .eq('IsDeleted', false)
+      .eq('IsPropertyVisible', true)
+      .eq('IsActive', true);
+
+    if (error) throw error;
+
+    return count || 0;
+  } catch (error: any) {
+    console.error('Error fetching published properties count:', error.message);
     throw error;
   }
 };
@@ -1030,7 +1100,9 @@ const propertyService = {
   getAmenities,
   updatePropertyFavorite,
   getPropertiesAsFavorite,
-  getFavoriteProperties
+  getFavoriteProperties,
+  getOwnedPropertiesCount,
+  getPublishedPropertiesCount
 };
 
 export default propertyService;

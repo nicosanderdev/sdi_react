@@ -260,12 +260,12 @@ const downloadInvoice = async (invoiceId: string) => {
  * Gets the current subscription status including user access permissions
  * @returns The subscription status with user access information
  */
-const getSubscriptionStatus = async (): Promise<{
+const getSubscriptionStatus = async (user?: any): Promise<{
     subscription: SubscriptionData;
     userAccess: { hasCompanyAccess: boolean; companyIds: string[] }
 }> => {
     try {
-        const userId = await getCurrentUserId();
+        const userId = await getCurrentUserId(user);
 
         // Get user companies
         const { data: userCompanies, error: companiesError } = await supabase

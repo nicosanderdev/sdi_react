@@ -16,6 +16,8 @@ import { Card } from 'flowbite-react';
 import { DisplayImage } from '../../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../../components/dashboard/properties/DocumentManager';
 import { DisplayVideo } from '../../components/dashboard/properties/VideoManager';
+import { usePropertyQuota } from '../../hooks/usePropertyQuota';
+import { useSubscriptionNotifications } from '../../hooks/useSubscriptionNotifications';
 
 
 const propertyStatusMap: { [key: string]: number } = {
@@ -99,7 +101,23 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const [apiError, setApiError] = useState<string | null>(null);
   const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('form');
   const [currentStep, setCurrentStep] = useState(1);
+  const [wasAutoDowngraded, setWasAutoDowngraded] = useState(false);
   const queryClient = useQueryClient();
+
+  // Property quota management
+  const {
+    canCreateProperty,
+    canPublishProperty,
+    isAtPublishedLimit,
+    totalLimit,
+    publishedLimit,
+    ownedCount,
+    publishedCount,
+    isLoading: isQuotaLoading
+  } = usePropertyQuota();
+
+  // Subscription notifications
+  const { showWarningNotification } = useSubscriptionNotifications();
 
   // --- State Management for Images, Videos, and Documents ---
   const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
@@ -155,60 +173,75 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const mutation = useMutation<PropertyData, Error, PropertyFormData>({
     mutationFn: async (data: PropertyFormData): Promise<PropertyData> => {
       setApiError(null);
+      setWasAutoDowngraded(false);
       console.log("Form data received for submission:", data);
+
+      // Check hard cap (10 total properties)
+      if (!canCreateProperty) {
+        throw new Error(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+      }
+
+      // Check if user wants to publish but is at published limit
+      let modifiedData = { ...data };
+      if (data.isPropertyVisible && isAtPublishedLimit) {
+        // Auto-downgrade to private/draft
+        modifiedData.isPropertyVisible = false;
+        setWasAutoDowngraded(true);
+        console.log("Auto-downgraded property to private due to published limit");
+      }
 
       const formData = new FormData();
 
       // Address
-      formData.append('StreetName', data.streetName);
-      formData.append('HouseNumber', data.houseNumber);
-      if (data.neighborhood) {
-        formData.append('Neighborhood', data.neighborhood);
+      formData.append('StreetName', modifiedData.streetName);
+      formData.append('HouseNumber', modifiedData.houseNumber);
+      if (modifiedData.neighborhood) {
+        formData.append('Neighborhood', modifiedData.neighborhood);
       }
-      formData.append('City', data.city);
-      formData.append('State', data.state);
-      formData.append('ZipCode', data.zipCode);
-      formData.append('Country', data.country);
+      formData.append('City', modifiedData.city);
+      formData.append('State', modifiedData.state);
+      formData.append('ZipCode', modifiedData.zipCode);
+      formData.append('Country', modifiedData.country);
       // For complex objects, send as a JSON string. The backend model binder
       // will need to be configured to deserialize this string.
-      formData.append('Location', JSON.stringify(data.location));
+      formData.append('Location', JSON.stringify(modifiedData.location));
 
       // Description
-      formData.append('Title', data.title);
-      formData.append('Type', data.type);
-      formData.append('AreaValue', String(data.areaValue));
-      formData.append('AreaUnit', String(areaUnitMap[data.areaUnit]));
-      formData.append('Bedrooms', String(data.bedrooms));
-      formData.append('Bathrooms', String(data.bathrooms));
-      formData.append('HasGarage', String(data.hasGarage));
-      formData.append('GarageSpaces', String(data.garageSpaces));
+      formData.append('Title', modifiedData.title);
+      formData.append('Type', modifiedData.type);
+      formData.append('AreaValue', String(modifiedData.areaValue));
+      formData.append('AreaUnit', String(areaUnitMap[modifiedData.areaUnit]));
+      formData.append('Bedrooms', String(modifiedData.bedrooms));
+      formData.append('Bathrooms', String(modifiedData.bathrooms));
+      formData.append('HasGarage', String(modifiedData.hasGarage));
+      formData.append('GarageSpaces', String(modifiedData.garageSpaces));
 
       // Values
-      if (data.description) {
-        formData.append('Description', data.description);
+      if (modifiedData.description) {
+        formData.append('Description', modifiedData.description);
       }
-      formData.append('AvailableFrom', data.availableFrom); // ISO string is perfect for DateTime
-      formData.append('ArePetsAllowed', String(data.arePetsAllowed));
-      formData.append('Capacity', String(data.capacity));
+      formData.append('AvailableFrom', modifiedData.availableFrom); // ISO string is perfect for DateTime
+      formData.append('ArePetsAllowed', String(modifiedData.arePetsAllowed));
+      formData.append('Capacity', String(modifiedData.capacity));
 
       // Price and status
-      formData.append('Currency', String(currencyMap[data.currency]));
-      if (data.salePrice) {
-        formData.append('SalePrice', data.salePrice);
+      formData.append('Currency', String(currencyMap[modifiedData.currency]));
+      if (modifiedData.salePrice) {
+        formData.append('SalePrice', modifiedData.salePrice);
       }
-      if (data.rentPrice) {
-        formData.append('RentPrice', data.rentPrice);
+      if (modifiedData.rentPrice) {
+        formData.append('RentPrice', modifiedData.rentPrice);
       }
-      formData.append('HasCommonExpenses', String(data.hasCommonExpenses));
-      if (data.commonExpensesValue) {
-        formData.append('commonExpensesValue', data.commonExpensesValue);
+      formData.append('HasCommonExpenses', String(modifiedData.hasCommonExpenses));
+      if (modifiedData.commonExpensesValue) {
+        formData.append('commonExpensesValue', modifiedData.commonExpensesValue);
       }
-      formData.append('IsElectricityIncluded', String(data.isElectricityIncluded));
-      formData.append('IsWaterIncluded', String(data.isWaterIncluded));
-      formData.append('IsPriceVisible', String(data.isPriceVisible));
-      formData.append('Status', String(propertyStatusMap[data.status]));
-      formData.append('IsActive', String(data.isActive));
-      formData.append('IsPropertyVisible', String(data.isPropertyVisible));
+      formData.append('IsElectricityIncluded', String(modifiedData.isElectricityIncluded));
+      formData.append('IsWaterIncluded', String(modifiedData.isWaterIncluded));
+      formData.append('IsPriceVisible', String(modifiedData.isPriceVisible));
+      formData.append('Status', String(propertyStatusMap[modifiedData.status]));
+      formData.append('IsActive', String(modifiedData.isActive));
+      formData.append('IsPropertyVisible', String(modifiedData.isPropertyVisible));
       
       // Images
       if (displayImages && displayImages.length > 0) {
@@ -292,6 +325,15 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       console.log("Property created successfully:", data);
       setApiError(null);
       queryClient.invalidateQueries({ queryKey: ['properties'] });
+
+      // Show warning if property was auto-downgraded
+      if (wasAutoDowngraded) {
+        showWarningNotification(
+          'Propiedad creada como privada',
+          `La propiedad "${data.title}" fue creada exitosamente pero se configuró como privada porque has alcanzado el límite de ${publishedLimit} propiedades publicadas de tu plan.`
+        );
+      }
+
       setView('success');
     },
     onError: (error: Error) => {
@@ -313,6 +355,13 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
   const onSubmit = (formData: PropertyFormData) => {
+    // Additional validation for quota limits
+    if (!canCreateProperty) {
+      setApiError(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+      setView('error');
+      return;
+    }
+
     addProperty(formData);
   };
   const handleRetry = () => {
