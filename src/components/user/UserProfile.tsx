@@ -107,21 +107,33 @@ export function UserProfile() {
   const handleAvatarFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setAvatarPreview(URL.createObjectURL(file));
+      const objectUrl = URL.createObjectURL(file);
+      setAvatarPreview(objectUrl);
 
       const fd = new FormData();
       fd.append('avatar', file);
       setIsAvatarUploading(true);
       setError(null);
       try {
-        const response = await profileService.uploadProfilePicture(fd);  
+        const response = await profileService.uploadProfilePicture(fd);
         setProfileData(prev => prev ? { ...prev, avatarUrl: response.avatarUrl } : null);
         setFormData(prev => ({ ...prev, avatarUrl: response.avatarUrl }));
+        setAvatarPreview(null); // Clear preview since we now have the uploaded URL
       } catch (err: any) {
-        setError(err.response?.data?.message || err.message || 'Failed to upload avatar.');
+        let errorMessage = 'Failed to upload avatar.';
+        if (err.message?.includes('bucket not found')) {
+          errorMessage = 'Avatar storage is not configured. Please contact an administrator.';
+        } else if (err.message?.includes('Storage service unavailable')) {
+          errorMessage = 'Storage service is temporarily unavailable. Please try again later.';
+        } else if (err.message) {
+          errorMessage = err.message;
+        }
+        setError(errorMessage);
         setAvatarPreview(profileData?.avatarUrl || null);
         console.error(err);
       } finally {
+        // Clean up object URL to prevent memory leaks
+        URL.revokeObjectURL(objectUrl);
         setIsAvatarUploading(false);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";

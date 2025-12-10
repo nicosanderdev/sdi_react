@@ -2,10 +2,8 @@
 import apiClient from './AxiosClient'; // Keep for auth-related HTTP calls
 import { supabase } from '../config/supabase';
 import {
-  getMemberByUserId,
   mapDbToProfile,
   getCurrentUserId,
-  handleSupabaseError,
   mapRoleStringToNumber
 } from './SupabaseHelpers';
 
@@ -81,19 +79,13 @@ const getCurrentUserProfile = async (): Promise<ProfileData> => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError) throw authError;
 
-    // Query Members table with UserCompanies and Companies joins
     const { data: memberData, error } = await supabase
       .from('Members')
       .select(`
-        *,
-        UserCompanies!MemberId (
-          *,
-          Companies (*)
-        )
+        *
       `)
       .eq('UserId', userId)
-      .eq('IsDeleted', false)
-      .eq('UserCompanies.IsDeleted', false);
+      .eq('IsDeleted', false);
 
     if (error) {
       // If no member record exists, this might be a new user - handle gracefully
@@ -203,15 +195,31 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
 
+    // Check if avatars bucket exists
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    if (bucketError) {
+      console.warn('Could not verify bucket existence, proceeding with upload:', bucketError.message);
+    } else {
+      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars');
+      if (!avatarsBucket) {
+        console.warn('Avatars bucket not found in list, but proceeding with upload attempt');
+      }
+    }
+
     // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('avatars') // Assuming you have an 'avatars' bucket
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: true
       });
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      if (uploadError.message?.includes('Bucket not found')) {
+        throw new Error('Avatar storage bucket not found. Please contact an administrator to create the "avatars" bucket.');
+      }
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
 
     // Get public URL
     const { data: urlData } = supabase.storage
@@ -220,17 +228,29 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
 
     const avatarUrl = urlData.publicUrl;
 
-    // Update the member record with the new avatar URL
-    const { error: updateError } = await supabase
-      .from('Members')
-      .update({
-        AvatarUrl: avatarUrl,
-        LastModified: new Date().toISOString(),
-        LastModifiedBy: userId
-      })
-      .eq('UserId', userId);
+    // Update the member record with the new avatar URL using RPC function
+    // This bypasses RLS policies that might be blocking the direct update
+    const { data: updateResult, error: updateError } = await supabase
+      .rpc('update_member_avatar', {
+        avatar_url: avatarUrl
+      });
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('RPC update error:', updateError);
+      // Fallback to direct update if RPC fails
+      const { error: directUpdateError } = await supabase
+        .from('Members')
+        .update({
+          AvatarUrl: avatarUrl,
+          LastModified: new Date().toISOString(),
+          LastModifiedBy: userId
+        })
+        .eq('UserId', userId);
+
+      if (directUpdateError) throw directUpdateError;
+    } else if (!updateResult) {
+      throw new Error('Failed to update avatar URL');
+    }
 
     return { avatarUrl };
 
@@ -256,7 +276,6 @@ const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> =>
  */
 const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleResponse> => {
   try {
-    const currentUserId = await getCurrentUserId();
     const roleNumber = mapRoleStringToNumber(request.newRole);
 
     // If companyId is specified, update only that specific UserCompany record
