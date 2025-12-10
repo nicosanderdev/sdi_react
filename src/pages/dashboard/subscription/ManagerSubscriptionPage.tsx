@@ -1,37 +1,185 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { RootState } from '../../../store/store';
 import {
     Crown,
-    Calendar,
     CreditCard,
     Download,
-    Settings,
     AlertCircle,
     CheckCircle,
     Clock,
-    Zap,
     BarChart3,
     Users,
     Building2,
-    MessageSquare,
-    Eye,
-    Shield
+    MessageSquare
 } from 'lucide-react';
 import subscriptionService from '../../../services/SubscriptionService';
 import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
-import { Button, Card } from 'flowbite-react';
+import { Button, Card, Spinner, Alert } from 'flowbite-react';
+import { useSubscriptionGate } from '../../../hooks/useSubscriptionGate';
+import { PlanKey } from '../../../models/subscriptions/PlanKey';
 
+// Component for personal plans selection only
+function PersonalPlansSelection() {
+    const user = useSelector((state: RootState) => state.user.profile);
+    const [plans, setPlans] = useState<any[]>([]);
+    const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
+    useEffect(() => {
+        const fetchPlans = async () => {
+            try {
+                setIsLoading(true);
+                const plansData = await subscriptionService.getPlans();
+                // Filter to personal plans only (manager and manager_pro plans)
+                const personalPlans = plansData.filter(plan => (plan.key === PlanKey.MANAGER || plan.key === PlanKey.MANAGER_PRO) && plan.isActive);
+                setPlans(personalPlans);
+            } catch (err: any) {
+                setError(err.message || 'Error al cargar los planes');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchPlans();
+    }, []);
+
+    const handleSelectPlan = (planId: string) => {
+        setSelectedPlanId(planId);
+    };
+
+    const handleProceedToPayment = async () => {
+        if (!selectedPlanId) {
+            setError('Por favor selecciona un plan');
+            return;
+        }
+
+        try {
+            setIsProcessing(true);
+            setError(null);
+
+            const paymentSession = await subscriptionService.createPaymentSession({
+                planId: selectedPlanId,
+                entityType: 'personal',
+                entityId: user?.id || ''
+            });
+
+            if (paymentSession.checkoutUrl) {
+                window.location.href = paymentSession.checkoutUrl;
+            } else {
+                throw new Error('No checkout URL received from payment service');
+            }
+
+        } catch (err: any) {
+            console.error('Payment session creation error:', err);
+            setError(err.message || 'Error al iniciar el proceso de pago. Por favor, inténtalo de nuevo.');
+            setIsProcessing(false);
+        }
+    };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-12">
+                <Spinner size="xl" />
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {error && (
+                <Alert color="failure" icon={AlertCircle} className="mb-6">
+                    {error}
+                </Alert>
+            )}
+
+            {/* Plans Display - Personal Only */}
+            <Card>
+                <h2 className="text-xl font-semibold mb-4">Planes Personales Disponibles</h2>
+
+                {plans.length === 0 ? (
+                    <div className="text-center py-8">
+                        <Crown className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-600">No hay planes personales disponibles.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {plans.map((plan) => (
+                            <div
+                                key={plan.id}
+                                className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 cursor-pointer transition-all border-2 ${
+                                    selectedPlanId === plan.id
+                                        ? 'ring-2 ring-blue-600 border-blue-600 shadow-lg'
+                                        : 'border-gray-200 dark:border-gray-700 hover:shadow-md'
+                                }`}
+                                onClick={() => handleSelectPlan(plan.id)}
+                            >
+                                <div className="text-center mb-4">
+                                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                                    <div className="mb-4">
+                                        <span className="text-3xl font-bold">€{plan.monthlyPrice}</span>
+                                        <span className="text-gray-600">/{plan.billingCycle}</span>
+                                    </div>
+                                </div>
+
+                                <ul className="space-y-2 mb-6">
+                                    <li className="flex items-center space-x-2">
+                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm">Hasta {plan.maxProperties} propiedades</span>
+                                    </li>
+                                    <li className="flex items-center space-x-2">
+                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm">Hasta {plan.maxUsers} usuarios</span>
+                                    </li>
+                                    <li className="flex items-center space-x-2">
+                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm">{plan.maxStorageMb} MB de almacenamiento</span>
+                                    </li>
+                                </ul>
+
+                                <button
+                                    className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                                        selectedPlanId === plan.id
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                    }`}
+                                >
+                                    {selectedPlanId === plan.id ? 'Seleccionado' : 'Seleccionar'}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </Card>
+
+            {/* Proceed Button */}
+            {selectedPlanId && (
+                <div className="flex justify-center">
+                    <Button
+                        onClick={handleProceedToPayment}
+                        disabled={isProcessing}
+                        className="bg-[#1B4965] text-white px-8 py-3 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2"
+                    >
+                        <CreditCard className="w-5 h-5" />
+                        <span>{isProcessing ? 'Procesando...' : 'Proceder al Pago'}</span>
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
+}
 
 export function ManagerSubscriptionPage() {
     const user = useSelector((state: RootState) => state.user.profile);
     const navigate = useNavigate();
-    const [isUpdating, setIsUpdating] = useState(false);
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
+
+    // Use the subscription gate hook to determine access
+    const { hasPersonalSubscription, isLoading: isGatingLoading, error: gatingError } = useSubscriptionGate();
 
     useEffect(() => {
         const fetchSubscription = async () => {
@@ -48,6 +196,45 @@ export function ManagerSubscriptionPage() {
         };
         fetchBillingHistory();
     }, []);
+
+    // Show loading state while determining subscription status
+    if (isGatingLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <Spinner size="xl" />
+            </div>
+        );
+    }
+
+    // Show error state if gating failed
+    if (gatingError) {
+        return (
+            <div className="max-w-6xl mx-auto p-6">
+                <Card>
+                    <div className="text-center py-8">
+                        <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold mb-2">Error</h3>
+                        <p className="text-gray-600 mb-4">{gatingError}</p>
+                        <Button onClick={() => window.location.reload()}>Reintentar</Button>
+                    </div>
+                </Card>
+            </div>
+        );
+    }
+
+    // If no personal subscription, show plan selection for personal plans only
+    if (!hasPersonalSubscription) {
+        return (
+            <div className="max-w-6xl mx-auto p-6">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold mb-2">Suscripción Requerida</h1>
+                    <p className="text-gray-600">Para acceder a las funciones de Manager, necesitas una suscripción activa. Selecciona un plan personal a continuación.</p>
+                </div>
+                {/* Render PlansSelectionPage but restrict to personal plans */}
+                <PersonalPlansSelection />
+            </div>
+        );
+    }
 
 
     const formatDate = (dateStr : string) => {
@@ -139,11 +326,10 @@ export function ManagerSubscriptionPage() {
                                 <div className="flex flex-col space-y-2">
                                     <Button
                                         onClick={handleUpdatePlan}
-                                        disabled={isUpdating}
                                         className="bg-[#1B4965] text-white px-4 py-2 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2"
                                     >
                                         <Crown className="w-4 h-4" />
-                                        <span>{isUpdating ? 'Procesando...' : 'Cambiar Plan'}</span>
+                                        <span>Cambiar Plan</span>
                                     </Button>
                                 </div>
                             </div>

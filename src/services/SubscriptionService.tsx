@@ -4,7 +4,8 @@ import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import apiClient from './AxiosClient'; // Keep for Stripe operations
 import { supabase } from '../config/supabase';
-import { mapDbToSubscription, getCurrentUserId, handleSupabaseError } from './SupabaseHelpers';
+import { mapDbToSubscription, getCurrentUserId } from './SupabaseHelpers';
+import { PlanKey } from '../models/subscriptions/PlanKey';
 
 const ENDPOINTS = {
     CURRENT_SUBSCRIPTION: '/subscriptions/current',
@@ -30,41 +31,53 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         const userId = await getCurrentUserId();
 
         // First try to find subscription by user ownership
-        const { data: subscriptionData, error } = await supabase
+        const { data: userSubscriptionData, error } = await supabase
             .from('Subscriptions')
             .select(`
                 *,
                 Plans (*)
             `)
             .eq('OwnerId', userId)
+            .eq('Status', 1) // Only active subscriptions
             .eq('IsDeleted', false)
             .order('CreatedAt', { ascending: false })
             .limit(1);
 
         if (error) throw error;
 
-        // If no user-owned subscription, try company-owned subscriptions where user is a member
-        if (!subscriptionData || subscriptionData.length === 0) {
-            const { data: companySubs, error: companyError } = await supabase
-                .from('Subscriptions')
-                .select(`
-                    *,
-                    Plans (*)
-                `)
-                .eq('OwnerType', 1) // Assuming 1 = company ownership
-                .in('OwnerId',
-                    supabase
-                        .from('UserCompanies')
-                        .select('CompanyId')
-                        .eq('MemberId', userId)
-                        .eq('IsDeleted', false)
-                )
-                .eq('IsDeleted', false)
-                .order('CreatedAt', { ascending: false })
-                .limit(1);
+        let subscriptionData = userSubscriptionData ?? [];
 
-            if (companyError) throw companyError;
-            subscriptionData = companySubs;
+        // If no user-owned subscription, try company-owned subscriptions where user is a member
+        if (subscriptionData.length === 0) {
+            const { data: userCompanies, error: companiesError } = await supabase
+                .from('UserCompanies')
+                .select('CompanyId')
+                .eq('MemberId', userId)
+                .eq('IsDeleted', false);
+
+            if (companiesError) throw companiesError;
+
+            const companyIds = (userCompanies ?? [])
+                .map(uc => uc.CompanyId)
+                .filter(Boolean);
+
+            if (companyIds.length > 0) {
+                const { data: companySubs, error: companyError } = await supabase
+                    .from('Subscriptions')
+                    .select(`
+                        *,
+                        Plans (*)
+                    `)
+                    .eq('OwnerType', 1) // Assuming 1 = company ownership
+                    .in('OwnerId', companyIds)
+                    .eq('Status', 1) // Only active subscriptions
+                    .eq('IsDeleted', false)
+                    .order('CreatedAt', { ascending: false })
+                    .limit(1);
+
+                if (companyError) throw companyError;
+                subscriptionData = companySubs ?? [];
+            }
         }
 
         if (!subscriptionData || subscriptionData.length === 0) {
@@ -282,7 +295,7 @@ const getSubscriptionStatus = async (): Promise<{
                 planId: '',
                 plan: {
                     id: '',
-                    key: 0,
+                    key: PlanKey.FREE,
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',

@@ -171,7 +171,7 @@ export function ChangeSubscriptionPage() {
                         .map((plan) => {
                             const isSelected = selectedPlanId === plan.id;
                             const isUpgrade = (plan.monthlyPrice || 0) > (currentPlan?.monthlyPrice || 0);
-                            const isPopular = plan.key === PlanKey.MANAGER || plan.key === PlanKey.COMPANY_SMALL;
+                            const isPopular = plan.key === PlanKey.MANAGER || plan.key === PlanKey.MANAGER_PRO || plan.key === PlanKey.COMPANY_SMALL;
 
                             return (
                                 <Card

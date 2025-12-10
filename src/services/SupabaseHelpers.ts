@@ -89,7 +89,7 @@ interface SubscriptionsRow {
 
 interface PlansRow {
   Id: string;
-  Key: number;
+  Key: string;
   Name: string;
   MonthlyPrice: number;
   Currency: string;

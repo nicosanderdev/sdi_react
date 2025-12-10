@@ -44,6 +44,7 @@ import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStrip
 // Company pages
 import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
 import { CompanyManagementPage } from './pages/dashboard/company/CompanyManagementPage';
+import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySubscriptionFlowPage';
 
 // Admin pages
 import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
@@ -134,6 +135,7 @@ export function App() {
             <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
             <Route path="subscription/checkout" element={<MockStripeCheckoutPage />} />
             <Route path="company" element={<CompanyManagementPage />} />
+            <Route path="company/subscription" element={<CompanySubscriptionFlowPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />

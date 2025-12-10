@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import subscriptionService from '../../../services/SubscriptionService';
 import { PlanData } from '../../../models/subscriptions/PlanData';
+import { PlanKey } from '../../../models/subscriptions/PlanKey';
 
 type SubscriptionType = 'personal' | 'company';
 
@@ -45,10 +46,10 @@ export function PlansSelectionPage() {
     fetchPlans();
   }, []);
 
-  // Separate plans into personal and company based on maxUsers
-  // Personal plans: maxUsers = 1, Company plans: maxUsers > 1
-  const personalPlans = plans.filter(plan => plan.maxUsers === 1);
-  const companyPlans = plans.filter(plan => plan.maxUsers > 1);
+  // Separate plans into personal and company based on PlanKey
+  // Personal plans: manager and manager_pro, Company plans: company_small and company_unlimited
+  const personalPlans = plans.filter(plan => plan.key === PlanKey.MANAGER || plan.key === PlanKey.MANAGER_PRO);
+  const companyPlans = plans.filter(plan => plan.key === PlanKey.COMPANY_SMALL || plan.key === PlanKey.COMPANY_UNLIMITED);
 
   const currentPlans = subscriptionType === 'personal' ? personalPlans : companyPlans;
 
