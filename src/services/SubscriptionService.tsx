@@ -6,6 +6,7 @@ import apiClient from './AxiosClient'; // Keep for Stripe operations
 import { supabase } from '../config/supabase';
 import { mapDbToSubscription, getCurrentUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
+import { log } from 'console';
 
 const ENDPOINTS = {
     CURRENT_SUBSCRIPTION: '/subscriptions/current',
@@ -87,7 +88,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         return mapDbToSubscription(subscriptionData[0]);
 
     } catch (error: any) {
-        console.error('Error fetching current subscription:', error.message);
+        console.log('No active subscription found:', error.message);
         throw error;
     }
 }

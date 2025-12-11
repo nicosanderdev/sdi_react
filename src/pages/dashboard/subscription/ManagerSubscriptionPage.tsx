@@ -189,13 +189,13 @@ export function ManagerSubscriptionPage() {
         fetchSubscription();
     }, []);
 
-    useEffect(() => {
+    /* useEffect(() => {
         const fetchBillingHistory = async () => {
             const response = await subscriptionService.getBillingHistory();
             setBillingHistory(response);
         };
         fetchBillingHistory();
-    }, []);
+    }, []);*/
 
     // Show loading state while determining subscription status
     if (isGatingLoading) {

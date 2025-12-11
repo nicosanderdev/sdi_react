@@ -4,6 +4,9 @@ import { useSubscriptionGate } from './useSubscriptionGate';
 import propertyService from '../services/PropertyService';
 
 export interface PropertyQuotaState {
+  // Subscription status
+  hasPersonalSubscription: boolean;
+
   // Counts
   ownedCount: number;
   publishedCount: number;
@@ -33,12 +36,13 @@ export interface PropertyQuotaState {
 
 export function usePropertyQuota(): PropertyQuotaState {
   const [state, setState] = useState<PropertyQuotaState>({
+    hasPersonalSubscription: false,
     ownedCount: 0,
     publishedCount: 0,
     totalLimit: 10, // Hard cap
-    publishedLimit: 0,
+    publishedLimit: 2,
     remainingTotal: 10,
-    remainingPublished: 0,
+    remainingPublished: 2,
     isAtTotalLimit: false,
     isAtPublishedLimit: false,
     isOverTotalLimit: false,
@@ -63,10 +67,10 @@ export function usePropertyQuota(): PropertyQuotaState {
           propertyService.getPublishedPropertiesCount(user)
         ]);
 
-        // Get published limit from subscription
+        // Get published limit from subscription (free users get 2 published properties)
         const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.maxProperties
           ? personalSubscription.plan.maxProperties
-          : 0;
+          : 2;
 
         // Calculate derived values
         const remainingTotal = Math.max(0, state.totalLimit - ownedCount);
@@ -78,6 +82,7 @@ export function usePropertyQuota(): PropertyQuotaState {
         const isOverPublishedLimit = publishedCount > publishedLimit;
 
         setState({
+          hasPersonalSubscription,
           ownedCount,
           publishedCount,
           totalLimit: state.totalLimit,
@@ -97,6 +102,7 @@ export function usePropertyQuota(): PropertyQuotaState {
         console.error('Error fetching property quota data:', error);
         setState(prev => ({
           ...prev,
+          hasPersonalSubscription: false,
           isLoading: false,
           error: error.message || 'Failed to fetch property quota information'
         }));

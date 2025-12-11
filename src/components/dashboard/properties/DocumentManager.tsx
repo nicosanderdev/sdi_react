@@ -54,8 +54,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     };
 
     const handleDocumentTitleChange = (key: string, newTitle: string) => {
-        onDocumentsChange(displayDocuments.map(doc => 
-            doc.key === key ? { ...doc, title: newTitle } : doc
+        onDocumentsChange(displayDocuments.map(doc =>
+            doc.key === key ? { ...doc, name: newTitle } : doc
         ));
     };
 

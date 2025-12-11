@@ -891,130 +891,8 @@ const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> 
   }
 };
 
-// Update favorite status for a property
-const updatePropertyFavorite = async (estatePropertyId: string, isFavorite: boolean): Promise<void> => {
-  try {
-    const userId = await getCurrentUserId();
 
-    // Get the member ID for this user
-    const { data: member, error: memberError } = await supabase
-      .from('Members')
-      .select('Id')
-      .eq('UserId', userId)
-      .eq('IsDeleted', false)
-      .single();
 
-    if (memberError) throw memberError;
-
-    console.log(`Updating favorite status for property ${estatePropertyId} to ${isFavorite}`);
-
-    if (isFavorite) {
-      // Add to favorites
-      const { error } = await supabase
-        .from('Favorites')
-        .upsert({
-          MemberId: member.Id,
-          EstatePropertyId: estatePropertyId,
-          FavoritedAt: new Date().toISOString()
-        }, {
-          onConflict: 'MemberId,EstatePropertyId'
-        });
-
-      if (error) throw error;
-    } else {
-      // Remove from favorites
-      const { error } = await supabase
-        .from('Favorites')
-        .delete()
-        .eq('MemberId', member.Id)
-        .eq('EstatePropertyId', estatePropertyId);
-
-      if (error) throw error;
-    }
-
-    console.log(`Successfully updated favorite status for property ${estatePropertyId}`);
-
-  } catch (error: any) {
-    console.error(`Error updating favorite status for property ${estatePropertyId}:`, error.message);
-    throw error;
-  }
-};
-
-// Get user's favorite property IDs
-const getPropertiesAsFavorite = async (): Promise<string[]> => {
-  try {
-    const userId = await getCurrentUserId();
-
-    // First get the member ID for this user
-    const { data: member, error: memberError } = await supabase
-      .from('Members')
-      .select('Id')
-      .eq('UserId', userId)
-      .eq('IsDeleted', false)
-      .single();
-
-    if (memberError) {
-      if (memberError.code === 'PGRST116') {
-        // No member record found
-        return [];
-      }
-      throw memberError;
-    }
-
-    // Get favorite property IDs
-    const { data: favorites, error: favError } = await supabase
-      .from('Favorites')
-      .select('EstatePropertyId')
-      .eq('MemberId', member.Id);
-
-    if (favError) throw favError;
-
-    const propertyIds = favorites?.map(fav => fav.EstatePropertyId) || [];
-    console.log('Favorite property IDs from Supabase:', propertyIds);
-    return propertyIds;
-
-  } catch (error: any) {
-    console.error('Error fetching favorite properties:', error.message);
-    throw error;
-  }
-};
-
-// Get user's favorite properties as full objects
-const getFavoriteProperties = async (): Promise<PublicProperty[]> => {
-  try {
-    console.log('Fetching favorite properties...');
-    // Use our Supabase-based method to get favorite IDs
-    const propertyIds = await getPropertiesAsFavorite();
-    console.log('Favorite property IDs:', propertyIds);
-
-    if (!propertyIds || propertyIds.length === 0) {
-      return [];
-    }
-
-    // Fetch the full property objects using the IDs from Supabase
-    const { data, error } = await supabase
-      .from('EstateProperties')
-      .select(`
-        *,
-        EstatePropertyValues!inner(*),
-        PropertyImages(*),
-        PropertyVideos(*),
-        EstatePropertyAmenity(Amenities(*))
-      `)
-      .in('Id', propertyIds)
-      .eq('IsDeleted', false)
-      .eq('EstatePropertyValues.IsDeleted', false)
-      .order('EstatePropertyValues.Created', { ascending: false });
-
-    if (error) throw error;
-
-    console.log('Favorite properties fetched:', data);
-    return data?.map(property => mapDbToPublicProperty(property)) || [];
-  } catch (error: any) {
-    console.error('Error fetching favorite properties:', error.message);
-    throw error;
-  }
-};
 
 // Get count of all owned properties (active, non-deleted)
 const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
@@ -1045,7 +923,7 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
 
     return count || 0;
   } catch (error: any) {
-    console.error('Error fetching owned properties count:', error.message);
+    console.log('Error fetching owned properties count:', error.message);
     throw error;
   }
 };
@@ -1071,17 +949,18 @@ const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
     // Count all visible, active properties owned by this member
     const { count, error } = await supabase
       .from('EstateProperties')
-      .select('*', { count: 'exact', head: true })
+      .select('*, EstatePropertyValues!inner(*)', { count: 'exact', head: true })
       .eq('OwnerId', member.Id)
       .eq('IsDeleted', false)
-      .eq('IsPropertyVisible', true)
-      .eq('IsActive', true);
+      .eq('EstatePropertyValues.IsDeleted', false)
+      .eq('EstatePropertyValues.IsPropertyVisible', true)
+      .eq('EstatePropertyValues.IsActive', true);
 
     if (error) throw error;
 
     return count || 0;
   } catch (error: any) {
-    console.error('Error fetching published properties count:', error.message);
+    console.log('Error fetching published properties count:', error.message);
     throw error;
   }
 };
@@ -1098,9 +977,6 @@ const propertyService = {
   deleteProperty,
   duplicateProperty,
   getAmenities,
-  updatePropertyFavorite,
-  getPropertiesAsFavorite,
-  getFavoriteProperties,
   getOwnedPropertiesCount,
   getPublishedPropertiesCount
 };

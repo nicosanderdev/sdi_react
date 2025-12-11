@@ -7,6 +7,7 @@ import { CompanyInfo, CompanyUser } from './CompanyService';
 import { PropertyData, PublicProperty } from '../models/properties';
 import { PropertyImage, PropertyDocument, PropertyVideo, Amenity } from '../models/properties';
 import { Message, MessageDetail, TabCounts } from './MessageService';
+import { PlanKey } from '../models/subscriptions/PlanKey';
 
 /**
  * Database row types for type-safe mapping
@@ -364,7 +365,7 @@ export const mapDbToProfile = (
 export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: PlansRow }): SubscriptionData => {
   const plan: PlanData = {
     id: subscription.Plans.Id,
-    key: subscription.Plans.Key,
+    key: subscription.Plans.Key as PlanKey,
     name: subscription.Plans.Name,
     monthlyPrice: subscription.Plans.MonthlyPrice,
     currency: subscription.Plans.Currency,

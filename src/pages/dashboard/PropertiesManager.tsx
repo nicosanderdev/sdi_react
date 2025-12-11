@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, memo } from 'react';
+import { Link } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
@@ -35,6 +36,7 @@ const PropertiesManagerComponent = () => {
 
   // Property quota information
   const {
+    hasPersonalSubscription,
     ownedCount,
     publishedCount,
     totalLimit,
@@ -171,35 +173,51 @@ const PropertiesManagerComponent = () => {
 
       {/* Property Quota Display */}
       {!isQuotaLoading && (
-        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-            <div className="flex space-x-6">
-              <div className="text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
-                <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                  {ownedCount}/{totalLimit}
-                </span>
+        <>
+          {hasPersonalSubscription ? (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+                <div className="flex space-x-6">
+                  <div className="text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
+                    <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                      {ownedCount}/{totalLimit}
+                    </span>
+                    {isAtTotalLimit && (
+                      <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
+                    <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                      {publishedCount}/{publishedLimit}
+                    </span>
+                    {isAtPublishedLimit && (
+                      <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
+                    )}
+                  </div>
+                </div>
                 {isAtTotalLimit && (
-                  <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
-                )}
-              </div>
-              <div className="text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
-                <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                  {publishedCount}/{publishedLimit}
-                </span>
-                {isAtPublishedLimit && (
-                  <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
+                  <div className="text-sm text-red-600 font-medium">
+                    No puedes crear más propiedades
+                  </div>
                 )}
               </div>
             </div>
-            {isAtTotalLimit && (
-              <div className="text-sm text-red-600 font-medium">
-                No puedes crear más propiedades
+          ) : (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-medium">Sin suscripción activa.</span> Puedes crear hasta 2 propiedades.
+                <Link
+                  to="/dashboard/subscription/plans"
+                  className="ml-2 text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
+                >
+                  Ver planes de suscripción
+                </Link>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </>
       )}
 
       {error && !isDeleting && ( 

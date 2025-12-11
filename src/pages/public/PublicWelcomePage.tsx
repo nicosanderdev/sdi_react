@@ -32,13 +32,6 @@ export function PublicWelcomePage() {
       link: '/messages',
       color: 'bg-green-500'
     },
-    {
-      title: 'Propiedades Favoritas',
-      description: 'Tus propiedades guardadas',
-      icon: <Heart className="w-8 h-8" />,
-      link: '/favorites',
-      color: 'bg-red-500'
-    },
     // COMMENTED OUT: for reuse in new project managing public view
     // {
     //   title: 'Buscar Propiedades',

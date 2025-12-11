@@ -1,14 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import notificationsReducer from './slices/notificationsSlice';
 import userReducer from './slices/userSlice';
-import favoritesReducer from './slices/favoritesSlice';
 import subscriptionReducer from './slices/subscriptionSlice';
 
 export const store = configureStore({
   reducer: {
     notifications: notificationsReducer,
     user: userReducer,
-    favorites: favoritesReducer,
     subscription: subscriptionReducer,
   },
 });

@@ -54,10 +54,8 @@ import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
 import { PublicRoute, AdminOnlyRoute, ProtectedRoute } from './components/auth/ProtectedRoute';
 
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchUserProfile } from './store/slices/userSlice';
-import { fetchFavoriteProperties } from './store/slices/favoritesSlice';
-import { AppDispatch, RootState } from './store/store';
+import { useSelector } from 'react-redux';
+import { RootState } from './store/store';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -67,22 +65,14 @@ import { NotFoundPage } from './pages/public/NotFoundPage';
 // import PropertiesResultsPage from './pages/public/PropertiesResultsPage';
 // import SearchPage from './components/public/SearchPage';
 // import PublicPropertyViewPage from './pages/public/PublicPropertyViewPage';
-import FavoritesPage from './pages/dashboard/FavoritesPage';
 import { NotificationManager } from './components/ui/NotificationManager';
 // import MapSearchPage from './pages/public/MapSearchPage';
 
 
 export function App() {
-  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.user.profile);
 
   // Removed duplicate fetchUserProfile call - AuthContext handles this
-
-  useEffect(() => {
-    if (user && user.id) {
-      dispatch(fetchFavoriteProperties());
-    }
-  }, [dispatch, user]);
 
   return (
     <AuthProvider>

@@ -15,7 +15,7 @@ export function PropertyFormStep1({
     const { register, formState: { errors }, watch, setValue, trigger } = useFormContext<PropertyFormData>();
     const location = watch('location');
     const addressParts = watch(['streetName', 'houseNumber', 'city', 'state', 'country']);
-    const [userEditedAddress, setUserEditedAddress] = useState(false);
+    const [locationManuallySet, setLocationManuallySet] = useState(false);
 
     const geocodeAddress = useCallback(
         debounce(async (addressQuery: string) => {
@@ -35,15 +35,15 @@ export function PropertyFormStep1({
         []);
 
     useEffect(() => {
-        if (!userEditedAddress) return;
-
         const [streetName, houseNumber, city, state, country] = addressParts;
         if (streetName && houseNumber && city && state && country) {
-            const fullAddress = [streetName + ' ' + houseNumber, city, state, country].join(', ');
-            geocodeAddress(fullAddress);
-            setUserEditedAddress(false);
+            // Only auto-geocode if location hasn't been manually set by user
+            if (!locationManuallySet) {
+                const fullAddress = [streetName + ' ' + houseNumber, city, state, country].join(', ');
+                geocodeAddress(fullAddress);
+            }
         }
-    }, [addressParts, geocodeAddress, userEditedAddress]);
+    }, [addressParts, geocodeAddress, locationManuallySet]);
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -65,7 +65,7 @@ export function PropertyFormStep1({
                     </div>
                     <TextInput id="streetName"
                         {...register('streetName')}
-                        onChange={() => { setUserEditedAddress(true); }}
+                        onChange={() => setLocationManuallySet(false)}
                         placeholder="Nombre de calle" />
                     {errors.streetName && <p className="text-red-500 text-sm mt-1">{errors.streetName.message}</p>}
                 </div>
@@ -77,7 +77,7 @@ export function PropertyFormStep1({
                     </div>
                     <TextInput id="houseNumber"
                         {...register('houseNumber')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        onChange={() => setLocationManuallySet(false)} />
                     {errors.houseNumber && <p className="text-red-500 text-sm mt-1">{errors.houseNumber.message}</p>}
                 </div>
             </div>
@@ -101,7 +101,7 @@ export function PropertyFormStep1({
                     </div>
                     <TextInput id="city"
                         {...register('city')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        onChange={() => setLocationManuallySet(false)} />
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>}
                 </div>
                 <div>
@@ -112,7 +112,7 @@ export function PropertyFormStep1({
                     </div>
                     <TextInput id="state"
                         {...register('state')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        onChange={() => setLocationManuallySet(false)} />
                     {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>}
                 </div>
             </div>
@@ -147,7 +147,10 @@ export function PropertyFormStep1({
                 <div id="location" className="h-[300px] border border-gray-300 rounded-lg overflow-hidden">
                     <PropertyFormMap
                         location={location}
-                        onLocationChange={newLocation => setValue('location', newLocation, { shouldValidate: true })} />
+                        onLocationChange={newLocation => {
+                            setValue('location', newLocation, { shouldValidate: true });
+                            setLocationManuallySet(true);
+                        }} />
                 </div>
                 {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location.message}</p>}
             </div>

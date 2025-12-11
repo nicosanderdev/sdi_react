@@ -17,6 +17,7 @@ export function PropertyFormStep2({
 }: PropertyFormStep2Props) {
   const { register, formState: { errors }, watch, trigger, setValue } = useFormContext<PropertyFormData>();
   const currency = watch('currency');
+  const status = watch('status');
   const hasCommonExpenses = watch('hasCommonExpenses');
   const hasGarage = watch('hasGarage');
   const selectedAmenities = watch('amenities') || [];
@@ -36,7 +37,7 @@ export function PropertyFormStep2({
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fieldsToValidate: (keyof PropertyFormData)[] = [
+    const baseFieldsToValidate: (keyof PropertyFormData)[] = [
       'title',
       'type',
       'areaValue',
@@ -47,11 +48,17 @@ export function PropertyFormStep2({
       'bathrooms',
       'garageSpaces',
       'availableFrom',
-      'salePrice',
-      'rentPrice',
       'commonExpensesValue'
     ];
-    const isValid = await trigger(fieldsToValidate);
+
+    // Add price validation based on status
+    if (status === 'sale') {
+      baseFieldsToValidate.push('salePrice');
+    } else if (status === 'rent') {
+      baseFieldsToValidate.push('rentPrice');
+    }
+
+    const isValid = await trigger(baseFieldsToValidate);
     if (isValid) {
       onNext();
     }
@@ -214,31 +221,35 @@ export function PropertyFormStep2({
               <option value="GBP">GBP - Libra esterlina</option>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div>
-              <div className="mb-2 block">
-                <Label htmlFor="salePrice">
-                  Precio de venta (opcional)
-                </Label>
+          <div className="mt-4">
+            {status === 'sale' && (
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="salePrice">
+                    Precio de venta*
+                  </Label>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-gray-500">{currency}</span>
+                  <TextInput id="salePrice" type="number" min="0" {...register('salePrice')} className="pl-16" />
+                </div>
+                {errors.salePrice && <p className="text-red-500 text-sm mt-1">{errors.salePrice.message}</p>}
               </div>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-500">{currency}</span>
-                <TextInput id="salePrice" type="number" min="0" {...register('salePrice')} className="pl-16" />
+            )}
+            {status === 'rent' && (
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="rentPrice">
+                    Precio de alquiler*
+                  </Label>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-gray-500">{currency}</span>
+                  <TextInput id="rentPrice" type="number" min="0" {...register('rentPrice')} className="pl-16" />
+                </div>
+                {errors.rentPrice && <p className="text-red-500 text-sm mt-1">{errors.rentPrice.message}</p>}
               </div>
-              {errors.salePrice && <p className="text-red-500 text-sm mt-1">{errors.salePrice.message}</p>}
-            </div>
-            <div>
-              <div className="mb-2 block">
-                <Label htmlFor="rentPrice">
-                  Precio de alquiler (opcional)
-                </Label>
-              </div>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-gray-500">{currency}</span>
-                <TextInput id="rentPrice" type="number" min="0" {...register('rentPrice')} className="pl-16" />
-              </div>
-              {errors.rentPrice && <p className="text-red-500 text-sm mt-1">{errors.rentPrice.message}</p>}
-            </div>
+            )}
           </div>
           <div className="mt-4">
             <div className="mb-2 block">

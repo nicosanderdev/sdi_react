@@ -9,7 +9,6 @@ import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
 import { PropertyParams, PublicProperty } from '../../models/properties';
-import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
 
 
@@ -93,7 +92,6 @@ function PublicPropertyViewPage() {
                       For {property.salePrice ? 'Sale' : 'Rent'}
                     </Badge>
                   </div>
-                  <FavoriteButton propertyId={property.id} size="lg" />
                 </div>
                 <h1 className="text-3xl font-bold">{property.title}</h1>
                 <p className="mt-1">{`${property.streetName} ${property.houseNumber}, ${property.city}, ${property.state}`}</p>

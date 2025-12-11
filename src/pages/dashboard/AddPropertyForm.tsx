@@ -190,136 +190,21 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
         console.log("Auto-downgraded property to private due to published limit");
       }
 
-      const formData = new FormData();
+      // Convert display images/videos to the format expected by PropertyService
+      const processedImages = displayImages.map(img => ({
+        ...img,
+        altText: img.alt || '',
+        isPublic: true
+      }));
 
-      // Address
-      formData.append('StreetName', modifiedData.streetName);
-      formData.append('HouseNumber', modifiedData.houseNumber);
-      if (modifiedData.neighborhood) {
-        formData.append('Neighborhood', modifiedData.neighborhood);
-      }
-      formData.append('City', modifiedData.city);
-      formData.append('State', modifiedData.state);
-      formData.append('ZipCode', modifiedData.zipCode);
-      formData.append('Country', modifiedData.country);
-      // For complex objects, send as a JSON string. The backend model binder
-      // will need to be configured to deserialize this string.
-      formData.append('Location', JSON.stringify(modifiedData.location));
+      const processedDocuments = displayDocuments.map(doc => ({
+        ...doc,
+        name: doc.name || '',
+        fileName: doc.fileName || doc.name || '',
+        isPublic: true
+      }));
 
-      // Description
-      formData.append('Title', modifiedData.title);
-      formData.append('Type', modifiedData.type);
-      formData.append('AreaValue', String(modifiedData.areaValue));
-      formData.append('AreaUnit', String(areaUnitMap[modifiedData.areaUnit]));
-      formData.append('Bedrooms', String(modifiedData.bedrooms));
-      formData.append('Bathrooms', String(modifiedData.bathrooms));
-      formData.append('HasGarage', String(modifiedData.hasGarage));
-      formData.append('GarageSpaces', String(modifiedData.garageSpaces));
-
-      // Values
-      if (modifiedData.description) {
-        formData.append('Description', modifiedData.description);
-      }
-      formData.append('AvailableFrom', modifiedData.availableFrom); // ISO string is perfect for DateTime
-      formData.append('ArePetsAllowed', String(modifiedData.arePetsAllowed));
-      formData.append('Capacity', String(modifiedData.capacity));
-
-      // Price and status
-      formData.append('Currency', String(currencyMap[modifiedData.currency]));
-      if (modifiedData.salePrice) {
-        formData.append('SalePrice', modifiedData.salePrice);
-      }
-      if (modifiedData.rentPrice) {
-        formData.append('RentPrice', modifiedData.rentPrice);
-      }
-      formData.append('HasCommonExpenses', String(modifiedData.hasCommonExpenses));
-      if (modifiedData.commonExpensesValue) {
-        formData.append('commonExpensesValue', modifiedData.commonExpensesValue);
-      }
-      formData.append('IsElectricityIncluded', String(modifiedData.isElectricityIncluded));
-      formData.append('IsWaterIncluded', String(modifiedData.isWaterIncluded));
-      formData.append('IsPriceVisible', String(modifiedData.isPriceVisible));
-      formData.append('Status', String(propertyStatusMap[modifiedData.status]));
-      formData.append('IsActive', String(modifiedData.isActive));
-      formData.append('IsPropertyVisible', String(modifiedData.isPropertyVisible));
-      
-      // Images
-      if (displayImages && displayImages.length > 0) {
-        displayImages.forEach((imgData: DisplayImage, index: number) => {
-          let imageId = imgData.id || crypto.randomUUID();
-          
-          if (imgData.id?.startsWith('temp-'))
-            imageId = crypto.randomUUID();
-
-          formData.append(`PropertyImages[${index}].Id`, imageId);
-          formData.append(`PropertyImages[${index}].AltText`, imgData.alt || '');
-          formData.append(`PropertyImages[${index}].IsMain`, imgData.isMain ? 'true' : 'false');
-          formData.append(`PropertyImages[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
-          formData.append(`PropertyImages[${index}].IsPublic`, 'true');
-          formData.append(`PropertyImages[${index}].FileName`, imgData.alt || '');
-
-          if (imgData.source === 'existing' && imgData.previewUrl)
-            formData.append(`PropertyImages[${index}].Url`, imgData.previewUrl);
-
-          if (imgData.file)
-            formData.append(`PropertyImages[${index}].File`, imgData.file);
-
-          if (imgData.isMain)
-            formData.append('MainImageId', imageId);
-        });
-      }
-
-      // Documents
-      if (displayDocuments && displayDocuments.length > 0) {
-        displayDocuments.forEach((docData: DisplayDocument, index: number) => {
-          let docId = docData.id || crypto.randomUUID();
-          
-          if (docData.id?.startsWith('temp-'))
-            docId = crypto.randomUUID();
-
-          formData.append(`PropertyDocuments[${index}].Id`, docId);
-          formData.append(`PropertyDocuments[${index}].Name`, docData.name || '');
-          formData.append(`PropertyDocuments[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
-          formData.append(`PropertyDocuments[${index}].FileName`, docData.fileName || docData.name || '');
-          formData.append(`PropertyDocuments[${index}].IsPublic`, 'true');
-
-          if (docData.url)
-            formData.append(`PropertyDocuments[${index}].Url`, docData.url);
-
-          if (docData.file)
-            formData.append(`PropertyDocuments[${index}].File`, docData.file);
-        });
-      }
-
-      // Videos
-      if (displayVideos && displayVideos.length > 0) {
-        displayVideos.forEach((videoData: DisplayVideo, index: number) => {
-          let videoId = videoData.id || crypto.randomUUID();
-          
-          if (videoData.id?.startsWith('temp-'))
-            videoId = crypto.randomUUID();
-
-          formData.append(`PropertyVideos[${index}].Id`, videoId);
-          formData.append(`PropertyVideos[${index}].Title`, videoData.title || '');
-          formData.append(`PropertyVideos[${index}].Description`, videoData.description || '');
-          formData.append(`PropertyVideos[${index}].Url`, videoData.url || '');
-          formData.append(`PropertyVideos[${index}].EstatePropertyId`, 'temp-property-id'); // Will be set by backend
-          formData.append(`PropertyVideos[${index}].IsPublic`, 'true');
-        });
-      }
-
-      // Amenities
-      if (data.amenities && data.amenities.length > 0) {
-        data.amenities.forEach((amenityId, index) => {
-          formData.append(`Amenities[${index}].Id`, amenityId);
-        });
-      }
-
-      for (let [key, value] of formData.entries()) {
-        console.log(`FormData -> ${key}:`, value);
-      }
-
-      return PropertyService.createProperty(formData);
+      return PropertyService.createProperty(modifiedData, processedImages, processedDocuments);
     },
     onSuccess: (data) => {
       console.log("Property created successfully:", data);

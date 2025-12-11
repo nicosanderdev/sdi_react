@@ -1,13 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 import propertyService from './../../services/PropertyService'; // Adjust path
 
 
 export function PropertyMap() {
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
+  const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
 
   const { data: properties, isLoading, isError, error } = useQuery({
     queryKey: ['mapProperties'],
@@ -19,55 +19,62 @@ export function PropertyMap() {
 
     // Initialize map if it doesn't exist
     if (!mapInstanceRef.current) {
-      const montevideo: L.LatLngExpression = [-30.9025, -55.5505];
-      mapInstanceRef.current = L.map(mapRef.current).setView(montevideo, 12);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
-      }).addTo(mapInstanceRef.current);
+      // Set the access token - replace with your actual token from environment variable
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      mapboxgl.accessToken = mapboxToken;
+
+      mapInstanceRef.current = new mapboxgl.Map({
+        container: mapRef.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [-55.5505, -30.9025],
+        zoom: 12
+      });
     }
 
     const map = mapInstanceRef.current;
-    // Clear existing markers before adding new ones (important for updates)
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        map.removeLayer(layer);
-      }
-    });
+    const markers: mapboxgl.Marker[] = [];
 
     if (properties.items.length > 0) {
-      const propertyMarkers: L.Marker[] = [];
       properties.items.forEach(property => {
-          if (property.location && property.location.lat && property.location.lng) {
-              const position: L.LatLngExpression = [property.location.lat, property.location.lng];
-              const iconHtml = `
-                    <div class="relative flex items-center justify-center">
-                    <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
-                    <div class="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs bg-[var(--color-primary-600)]">
-                        ${property.status === 'sale' ? 'S' : 'R'}
-                    </div>
-                    </div>
-                `;
+        if (property.location && property.location.lat && property.location.lng) {
+          const iconHtml = `
+            <div class="relative flex items-center justify-center">
+              <div class="absolute w-6 h-6 rounded-full bg-[var(--color-primary-500)] animate-ping opacity-75"></div>
+              <div class="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md text-xs bg-[var(--color-primary-600)]">
+                ${property.status === 'sale' ? 'S' : 'R'}
+              </div>
+            </div>
+          `;
 
-              const customIcon = L.divIcon({
-                  html: iconHtml,
-                  className: '',
-                  iconSize: [24, 24],
-                  iconAnchor: [12, 24],
-                  popupAnchor: [0, -24]
-              });
+          // Create a DOM element for the marker
+          const el = document.createElement('div');
+          el.innerHTML = iconHtml;
+          el.style.width = '24px';
+          el.style.height = '24px';
 
-          const marker = L.marker(position, { icon: customIcon })
-            .addTo(map)
-            .bindPopup(`<b>${property.title}</b><br>${property.status === 'sale' ? 'En venta' : 'En alquiler'}`);
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat([property.location.lng, property.location.lat])
+            .addTo(map);
 
-          propertyMarkers.push(marker);
+          // Add popup
+          const popup = new mapboxgl.Popup({ offset: 25 })
+            .setHTML(`<b>${property.title}</b><br>${property.status === 'sale' ? 'En venta' : 'En alquiler'}`);
+
+          marker.setPopup(popup);
+          markers.push(marker);
         }
       });
 
+      // Fit bounds to markers if any exist
+      if (markers.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
 
-      if (propertyMarkers.length > 0) {
-        const group = L.featureGroup(propertyMarkers);
-        map.fitBounds(group.getBounds().pad(0.3));
+        markers.forEach(marker => {
+          const lngLat = marker.getLngLat();
+          bounds.extend(lngLat);
+        });
+
+        map.fitBounds(bounds, { padding: 50 }); // Add some padding
       }
     }
 
