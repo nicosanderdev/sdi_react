@@ -1,77 +1,50 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Spinner, Badge } from 'flowbite-react';
-import { 
+import { Card, Button } from 'flowbite-react';
+import {
     ArrowLeft,
-    Download,
-    Calendar,
-    CreditCard,
     FileText,
-    AlertCircle
+    AlertCircle,
+    RefreshCw
 } from 'lucide-react';
-import subscriptionService from '../../../services/SubscriptionService';
+import { useBillingHistory } from '../../../hooks/useBillingHistory';
+import { BillingFilters } from '../../../components/subscription/BillingFilters';
+import { BillingHistoryTable } from '../../../components/subscription/BillingHistoryTable';
+import { InvoiceModal } from '../../../components/subscription/InvoiceModal';
 import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
 
 export function BillingHistoryPage() {
     const navigate = useNavigate();
-    const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const {
+        billingHistory,
+        isLoading,
+        error,
+        filters,
+        setFilters,
+        refresh,
+        totalAmount,
+        filteredCount
+    } = useBillingHistory();
 
-    useEffect(() => {
-        const fetchBillingHistory = async () => {
-            try {
-                setIsLoading(true);
-                const data = await subscriptionService.getBillingHistory();
-                setBillingHistory(data);
-            } catch (err: any) {
-                setError(err.message || 'Error al cargar el historial de facturación');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchBillingHistory();
-    }, []);
+    const [selectedInvoice, setSelectedInvoice] = useState<BillingHistoryData | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const handleDownloadInvoice = async (invoiceId: string) => {
-        try {
-            const blob = await subscriptionService.downloadInvoice(invoiceId);
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `invoice-${invoiceId}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        } catch (err: any) {
-            alert('Error al descargar la factura: ' + (err.message || 'Error desconocido'));
-        }
+    const handleViewInvoice = (invoice: BillingHistoryData) => {
+        setSelectedInvoice(invoice);
+        setIsModalOpen(true);
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case '0':
-                return <Badge color="success">Pagada</Badge>;
-            case '1':
-                return <Badge color="warning">Pendiente</Badge>;
-            case '2':
-                return <Badge color="failure">Fallida</Badge>;
-            default:
-                return <Badge color="gray">{status}</Badge>;
-        }
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedInvoice(null);
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <Spinner size="xl" />
-            </div>
-        );
-    }
+    const handleClearFilters = () => {
+        setFilters({});
+    };
 
     return (
-        <div className="max-w-6xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-6">
             {/* Header */}
             <div className="mb-8">
                 <button
@@ -81,14 +54,26 @@ export function BillingHistoryPage() {
                     <ArrowLeft className="w-5 h-5" />
                     <span>Volver a Suscripción</span>
                 </button>
-                <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                        <FileText className="w-6 h-6 text-white" />
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold">Historial de Facturación</h1>
+                            <p>Gestiona y descarga tus facturas</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-bold">Historial de Facturación</h1>
-                        <p>Gestiona y descarga tus facturas</p>
-                    </div>
+                    <Button
+                        onClick={refresh}
+                        disabled={isLoading}
+                        size="sm"
+                        color="light"
+                        className="flex items-center space-x-2"
+                    >
+                        <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                        <span>Actualizar</span>
+                    </Button>
                 </div>
             </div>
 
@@ -99,93 +84,48 @@ export function BillingHistoryPage() {
                 </div>
             )}
 
-            {/* Billing History List */}
-            {billingHistory.length === 0 ? (
-                <Card>
-                    <div className="text-center py-12">
-                        <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold mb-2">No hay facturas disponibles</h3>
-                        <p className="text-gray-600 dark:text-gray-400 mb-4">
-                            Aún no tienes facturas en tu historial.
-                        </p>
-                    </div>
-                </Card>
-            ) : (
-                <Card>
-                    <div className="space-y-4">
-                        {billingHistory.map((invoice) => (
-                            <div
-                                key={invoice.id}
-                                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
-                            >
-                                <div className="flex items-center space-x-4 flex-1">
-                                    <div className="w-12 h-12 bg-primary-500 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                                        <CreditCard className="w-6 h-6 text-white" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3 mb-1">
-                                            <h3 className="font-semibold text-gray-900 dark:text-white">
-                                                Factura #{invoice.providerInvoiceId || invoice.id.slice(0, 8)}
-                                            </h3>
-                                            {getStatusBadge(invoice.status)}
-                                        </div>
-                                        <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                                            <div className="flex items-center space-x-1">
-                                                <Calendar className="w-4 h-4" />
-                                                <span>
-                                                    {new Date(invoice.paidAt).toLocaleDateString('es-ES', {
-                                                        year: 'numeric',
-                                                        month: 'long',
-                                                        day: 'numeric'
-                                                    })}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center space-x-1">
-                                                <span className="font-semibold text-gray-900 dark:text-white">
-                                                    €{invoice.amount.toFixed(2)}
-                                                </span>
-                                                <span className="text-gray-500">{invoice.currency}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Button
-                                        onClick={() => handleDownloadInvoice(invoice.id)}
-                                        size="sm"
-                                        color="alternative"
-                                        className="flex items-center space-x-2"
-                                    >
-                                        <Download className="w-4 h-4" />
-                                        <span>Descargar</span>
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-            )}
+            {/* Filters */}
+            <BillingFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearFilters={handleClearFilters}
+            />
+
+            {/* Billing History Table */}
+            <BillingHistoryTable
+                billingHistory={billingHistory}
+                isLoading={isLoading}
+                onViewInvoice={handleViewInvoice}
+            />
 
             {/* Summary */}
             {billingHistory.length > 0 && (
                 <Card className="mt-6">
-                    <div className="flex items-center justify-between">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <p className="text-sm text-gray-600 dark:text-gray-400">Total de Facturas</p>
-                            <p className="text-2xl font-bold">{billingHistory.length}</p>
+                            <p className="text-2xl font-bold">{filteredCount}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">Facturas Pagadas</p>
+                            <p className="text-2xl font-bold">
+                                {billingHistory.filter(inv => inv.status === '0').length}
+                            </p>
                         </div>
                         <div className="text-right">
                             <p className="text-sm text-gray-600 dark:text-gray-400">Total Facturado</p>
-                            <p className="text-2xl font-bold">
-                                €{billingHistory
-                                    .filter(inv => inv.status === '0' )
-                                    .reduce((sum, inv) => sum + inv.amount, 0)
-                                    .toFixed(2)}
-                            </p>
+                            <p className="text-2xl font-bold">€{totalAmount.toFixed(2)}</p>
                         </div>
                     </div>
                 </Card>
             )}
+
+            {/* Invoice Modal */}
+            <InvoiceModal
+                invoice={selectedInvoice}
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+            />
         </div>
     );
 }

@@ -59,6 +59,7 @@ export function DashboardSidebar() {
   ];
 
   const adminNavItems: NavItem[] = [
+    { id: 'admin-dashboard', label: 'Global Dashboard', icon: BarChartIcon, path: '/dashboard/admin/dashboard' },
     { id: 'admin-subscriptions', label: 'Suscripciones', icon: Shield, path: '/dashboard/admin/subscriptions' },
     { id: 'admin-invoices', label: 'Facturas', icon: FileText, path: '/dashboard/admin/invoices' },
   ];

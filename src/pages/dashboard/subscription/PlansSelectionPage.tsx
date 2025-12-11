@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../store/store';
@@ -14,12 +14,15 @@ import {
 import subscriptionService from '../../../services/SubscriptionService';
 import { PlanData } from '../../../models/subscriptions/PlanData';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
+import { usePayment } from '../../../contexts/PaymentContext';
+import { CreatePaymentRequest } from '../../../models/payments/PaymentData';
 
 type SubscriptionType = 'personal' | 'company';
 
 export function PlansSelectionPage() {
   const user = useSelector((state: RootState) => state.user.profile);
   const navigate = useNavigate();
+  const { createPayment } = usePayment();
   const [plans, setPlans] = useState<PlanData[]>([]);
   const [subscriptionType, setSubscriptionType] = useState<SubscriptionType>('personal');
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -68,31 +71,58 @@ export function PlansSelectionPage() {
       return;
     }
 
+    if (!user) {
+      setError('Usuario no encontrado. Por favor inicia sesión nuevamente.');
+      return;
+    }
+
     try {
       setIsProcessing(true);
       setError(null);
 
+      // Find the selected plan details
+      const selectedPlan = plans.find(plan => plan.id === selectedPlanId);
+      if (!selectedPlan) {
+        throw new Error('Plan seleccionado no encontrado');
+      }
+
       const entityType = subscriptionType;
       const entityId = subscriptionType === 'personal'
-        ? user?.id || ''
+        ? user.id
         : selectedCompanyId || '';
 
-      // Call the payment session creation API
-      const paymentSession = await subscriptionService.createPaymentSession({
-        planId: selectedPlanId,
-        entityType,
-        entityId
-      });
+      // Create order ID for subscription payment
+      const orderId = `sub_${entityType}_${entityId}_${selectedPlanId}_${Date.now()}`;
 
-      if (paymentSession.checkoutUrl) {
-        // Redirect to Stripe checkout
-        window.location.href = paymentSession.checkoutUrl;
+      // Create payment request for DLocal
+      const paymentRequest: CreatePaymentRequest = {
+        amount: selectedPlan.monthlyPrice,
+        currency: selectedPlan.currency,
+        paymentMethod: 'card', // Default to card payment, can be expanded later
+        orderId,
+        description: `Subscription to ${selectedPlan.name} plan`,
+        customerInfo: {
+          name: user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user.email?.split('@')[0] || 'User',
+          email: user.email || '',
+          phone: user.phone || ''
+        },
+        callbackUrl: `${window.location.origin}/dashboard/payments/callback`
+      };
+
+      // Create payment using DLocal
+      const paymentResponse = await createPayment(paymentRequest);
+
+      if (paymentResponse.redirectUrl) {
+        // Redirect to DLocal payment page
+        window.location.href = paymentResponse.redirectUrl;
       } else {
-        throw new Error('No checkout URL received from payment service');
+        throw new Error('No redirect URL received from payment service');
       }
 
     } catch (err: any) {
-      console.error('Payment session creation error:', err);
+      console.error('Payment creation error:', err);
       setError(err.message || 'Error al iniciar el proceso de pago. Por favor, inténtalo de nuevo.');
       setIsProcessing(false);
     }
@@ -190,8 +220,8 @@ export function PlansSelectionPage() {
               <Select
                 value={selectedCompanyId || ''}
                 onChange={(e) => setSelectedCompanyId(e.target.value)}
-                placeholder="Selecciona una compañía"
               >
+                <option value="" disabled>Selecciona una compañía</option>
                 {userCompanies.map((company) => (
                   <option key={company.id} value={company.id}>
                     {company.name}
@@ -270,11 +300,19 @@ export function PlansSelectionPage() {
           <Button
             onClick={handleProceedToPayment}
             disabled={isProcessing}
-            isProcessing={isProcessing}
             className="bg-[#1B4965] text-white px-8 py-3 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2"
           >
-            <CreditCard className="w-5 h-5" />
-            <span>{isProcessing ? 'Procesando...' : 'Proceder al Pago'}</span>
+            {isProcessing ? (
+              <>
+                <Spinner size="sm" />
+                <span>Procesando...</span>
+              </>
+            ) : (
+              <>
+                <CreditCard className="w-5 h-5" />
+                <span>Proceder al Pago</span>
+              </>
+            )}
           </Button>
         </div>
       )}

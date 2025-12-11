@@ -19,6 +19,8 @@ import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData
 import { CompanyInfo } from '../../../models/companies/CompanyInfo';
 import { CreateCompanyModal } from '../../../components/company/CreateCompanyModal';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
+import { usePayment } from '../../../contexts/PaymentContext';
+import { CreatePaymentRequest } from '../../../models/payments/PaymentData';
 
 export function CompanySubscriptionFlowPage() {
     const user = useSelector((state: RootState) => state.user.profile);
@@ -198,6 +200,8 @@ export function CompanySubscriptionFlowPage() {
 
 // Component for company plan selection
 function CompanyPlanSelection({ companyId, companyName }: { companyId: string; companyName: string }) {
+    const { createPayment } = usePayment();
+    const user = useSelector((state: RootState) => state.user.profile);
     const [plans, setPlans] = useState<any[]>([]);
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -231,24 +235,53 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
             return;
         }
 
+        if (!user) {
+            setError('Usuario no encontrado. Por favor inicia sesión nuevamente.');
+            return;
+        }
+
         try {
             setIsProcessing(true);
             setError(null);
 
-            const paymentSession = await subscriptionService.createPaymentSession({
-                planId: selectedPlanId,
-                entityType: 'company',
-                entityId: companyId
-            });
+            // Find the selected plan details
+            const selectedPlan = plans.find(plan => plan.id === selectedPlanId);
+            if (!selectedPlan) {
+                throw new Error('Plan seleccionado no encontrado');
+            }
 
-            if (paymentSession.checkoutUrl) {
-                window.location.href = paymentSession.checkoutUrl;
+            // Create order ID for subscription payment
+            const orderId = `sub_company_${companyId}_${selectedPlanId}_${Date.now()}`;
+
+            // Create payment request for DLocal
+            const paymentRequest: CreatePaymentRequest = {
+                amount: selectedPlan.monthlyPrice,
+                currency: selectedPlan.currency,
+                paymentMethod: 'card', // Default to card payment, can be expanded later
+                orderId,
+                description: `Subscription to ${selectedPlan.name} plan for ${companyName}`,
+                customerInfo: {
+                    name: user.firstName && user.lastName
+                        ? `${user.firstName} ${user.lastName}`
+                        : user.email?.split('@')[0] || 'User',
+                    email: user.email || '',
+                    phone: user.phone || ''
+                },
+                callbackUrl: `${window.location.origin}/dashboard/payments/callback`
+            };
+
+            // Create payment using DLocal
+            const paymentResponse = await createPayment(paymentRequest);
+
+            if (paymentResponse.redirectUrl) {
+                // Redirect to DLocal payment page
+                window.location.href = paymentResponse.redirectUrl;
             } else {
-                throw new Error('No checkout URL received from payment service');
+                throw new Error('No redirect URL received from payment service');
             }
 
         } catch (err: any) {
-            console.error('Payment session creation error:', err);
+            console.error('Payment creation error:', err);
             setError(err.message || 'Error al iniciar el proceso de pago. Por favor, inténtalo de nuevo.');
             setIsProcessing(false);
         }
@@ -341,11 +374,19 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
                     <Button
                         onClick={handleProceedToPayment}
                         disabled={isProcessing}
-                        isProcessing={isProcessing}
                         className="bg-[#1B4965] text-white px-8 py-3 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2"
                     >
-                        <CreditCard className="w-5 h-5" />
-                        <span>{isProcessing ? 'Procesando...' : 'Proceder al Pago'}</span>
+                        {isProcessing ? (
+                            <>
+                                <Spinner size="sm" />
+                                <span>Procesando...</span>
+                            </>
+                        ) : (
+                            <>
+                                <CreditCard className="w-5 h-5" />
+                                <span>Proceder al Pago</span>
+                            </>
+                        )}
                     </Button>
                 </div>
             )}

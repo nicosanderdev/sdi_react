@@ -131,10 +131,10 @@ const getPropertiesInBounds = async (
       .eq('EstatePropertyValues.IsDeleted', false)
       .eq('EstatePropertyValues.IsPropertyVisible', true)
       .eq('EstatePropertyValues.IsActive', true)
-      .gte('LocationLat', swLat)
-      .lte('LocationLat', neLat)
-      .gte('LocationLng', swLng)
-      .lte('LocationLng', neLng);
+      .gte('LocationLatitude', swLat)
+      .lte('LocationLatitude', neLat)
+      .gte('LocationLongitude', swLng)
+      .lte('LocationLongitude', neLng);
 
     // Apply additional filters
     if (additionalParams?.filter?.ownerId) {

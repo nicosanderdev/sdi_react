@@ -147,12 +147,100 @@ const cancelSubscription = async (request: CancelSubscriptionRequest) => {
 }
 
 /**
- * Gets the billing history for the current subscription
+ * Gets the billing history for the current subscription using Supabase SDK
+ * @param filters - Optional filters for date range and status
  * @returns The billing history
  */
-const getBillingHistory = async () => {
-    const response = await apiClient.get<BillingHistoryList>(ENDPOINTS.BILLING_HISTORY);
-    return response.items;
+const getBillingHistory = async (filters?: {
+    dateFrom?: Date;
+    dateTo?: Date;
+    status?: string;
+}): Promise<BillingHistoryData[]> => {
+    try {
+        const userId = await getCurrentUserId();
+
+        // First get the user's subscription(s)
+        const { data: userSubscriptionData, error: subError } = await supabase
+            .from('Subscriptions')
+            .select('Id')
+            .eq('OwnerId', userId)
+            .eq('Status', 1) // Only active subscriptions
+            .eq('IsDeleted', false);
+
+        if (subError) throw subError;
+
+        let subscriptionIds: string[] = (userSubscriptionData ?? []).map(sub => sub.Id);
+
+        // If no user-owned subscription, try company-owned subscriptions
+        if (subscriptionIds.length === 0) {
+            const { data: userCompanies, error: companiesError } = await supabase
+                .from('UserCompanies')
+                .select('CompanyId')
+                .eq('MemberId', userId)
+                .eq('IsDeleted', false);
+
+            if (companiesError) throw companiesError;
+
+            const companyIds = (userCompanies ?? [])
+                .map(uc => uc.CompanyId)
+                .filter(Boolean);
+
+            if (companyIds.length > 0) {
+                const { data: companySubs, error: companyError } = await supabase
+                    .from('Subscriptions')
+                    .select('Id')
+                    .eq('OwnerType', 1) // Assuming 1 = company ownership
+                    .in('OwnerId', companyIds)
+                    .eq('Status', 1) // Only active subscriptions
+                    .eq('IsDeleted', false);
+
+                if (companyError) throw companyError;
+                subscriptionIds = (companySubs ?? []).map(sub => sub.Id);
+            }
+        }
+
+        if (subscriptionIds.length === 0) {
+            return [];
+        }
+
+        // Now query billing history for these subscriptions
+        let query = supabase
+            .from('BillingHistories')
+            .select('*')
+            .in('SubscriptionId', subscriptionIds)
+            .eq('IsDeleted', false)
+            .order('Created', { ascending: false });
+
+        // Apply filters
+        if (filters?.dateFrom) {
+            query = query.gte('Created', filters.dateFrom.toISOString());
+        }
+        if (filters?.dateTo) {
+            query = query.lte('Created', filters.dateTo.toISOString());
+        }
+        if (filters?.status !== undefined) {
+            query = query.eq('Status', parseInt(filters.status));
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        return (data ?? []).map(item => ({
+            id: item.Id,
+            subscriptionId: item.SubscriptionId,
+            providerInvoiceId: item.ProviderInvoiceId,
+            amount: parseFloat(item.Amount),
+            currency: item.Currency,
+            status: item.Status.toString(),
+            paidAt: new Date(item.PaidAt || item.Created),
+            createdAt: new Date(item.Created)
+        }));
+
+    } catch (error: any) {
+        console.error('Error fetching billing history:', error.message);
+        throw error;
+    }
 }
 
 /**

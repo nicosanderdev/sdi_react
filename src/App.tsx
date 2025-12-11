@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeInit } from '../.flowbite-react/init';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { PaymentProvider } from './contexts/PaymentContext';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -49,6 +50,12 @@ import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySu
 // Admin pages
 import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
 import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
+import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
+
+// Payment pages
+import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
+import { PaymentCallbackPage } from './pages/dashboard/payments/PaymentCallbackPage';
+import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 
 // Auth components
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
@@ -77,8 +84,9 @@ export function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <ThemeInit />
-        <Router>
+        <PaymentProvider>
+          <ThemeInit />
+          <Router>
         <RouteChangeTracker />
         <NotificationManager />
         <Routes>
@@ -127,8 +135,15 @@ export function App() {
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
-            
+
+            {/* Payment Routes */}
+            <Route path="checkout/:propertyId" element={<CheckoutPage />} />
+            <Route path="payments/success/:paymentId" element={<PaymentConfirmationPage />} />
+            <Route path="payments/callback" element={<PaymentCallbackPage />} />
+            <Route path="payments/test" element={<PaymentTestPage />} />
+
             {/* Admin Routes */}
+            <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
             <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
             <Route path="admin/invoices" element={<AdminOnlyRoute><AdminInvoicesPage /></AdminOnlyRoute>} />
           </Route>
@@ -139,8 +154,9 @@ export function App() {
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/notfound" />} />
           
-        </Routes>
-        </Router>
+          </Routes>
+          </Router>
+        </PaymentProvider>
       </ThemeProvider>
     </AuthProvider>
   );

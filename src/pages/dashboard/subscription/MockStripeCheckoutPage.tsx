@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../../../store/store';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { CheckCircle, AlertTriangle, ArrowLeft } from 'lucide-react';
 import subscriptionService from '../../../services/SubscriptionService';
 import { useSubscriptionNotifications } from '../../../hooks/useSubscriptionNotifications';
+import { usePayment } from '../../../contexts/PaymentContext';
+import { CreatePaymentRequest } from '../../../models/payments/PaymentData';
 
 export function MockStripeCheckoutPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const user = useSelector((state: RootState) => state.user.profile);
+  const { createPayment } = usePayment();
   const { showSubscriptionSuccess, showPaymentError } = useSubscriptionNotifications();
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'redirecting'>('loading');
@@ -18,26 +24,49 @@ export function MockStripeCheckoutPage() {
       try {
         // Get parameters from URL
         const planId = searchParams.get('planId');
-        const entityType = searchParams.get('entityType') as 'personal' | 'company';
-        const entityId = searchParams.get('entityId');
+        const entityType = (searchParams.get('entityType') as 'personal' | 'company') || 'personal';
+        const entityId = searchParams.get('entityId') || user?.id;
 
-        if (!planId || !entityType || !entityId) {
+        if (!planId || !user) {
           throw new Error('Missing required payment parameters');
         }
 
-        // Create payment session
-        const paymentSession = await subscriptionService.createPaymentSession({
-          planId,
-          entityType,
-          entityId
-        });
+        // Get plan details
+        const plans = await subscriptionService.getPlans();
+        const selectedPlan = plans.find(plan => plan.id === planId);
+        if (!selectedPlan) {
+          throw new Error('Plan not found');
+        }
 
-        if (paymentSession.checkoutUrl) {
-          // Redirect to Stripe checkout
+        // Create order ID for subscription payment
+        const orderId = `sub_${entityType}_${entityId}_${planId}_${Date.now()}`;
+
+        // Create payment request for DLocal
+        const paymentRequest: CreatePaymentRequest = {
+          amount: selectedPlan.monthlyPrice,
+          currency: selectedPlan.currency,
+          paymentMethod: 'card',
+          orderId,
+          description: `Subscription to ${selectedPlan.name} plan`,
+          customerInfo: {
+            name: user.firstName && user.lastName
+              ? `${user.firstName} ${user.lastName}`
+              : user.email?.split('@')[0] || 'User',
+            email: user.email || '',
+            phone: user.phone || ''
+          },
+          callbackUrl: `${window.location.origin}/dashboard/payments/callback`
+        };
+
+        // Create payment using DLocal
+        const paymentResponse = await createPayment(paymentRequest);
+
+        if (paymentResponse.redirectUrl) {
+          // Redirect to DLocal payment page
           setStatus('redirecting');
-          window.location.href = paymentSession.checkoutUrl;
+          window.location.href = paymentResponse.redirectUrl;
         } else {
-          throw new Error('No checkout URL received');
+          throw new Error('No redirect URL received from payment service');
         }
 
       } catch (error: any) {
@@ -48,7 +77,7 @@ export function MockStripeCheckoutPage() {
     };
 
     handlePayment();
-  }, [searchParams]);
+  }, [searchParams, user, createPayment]);
 
   const handleRetry = () => {
     navigate('/dashboard/subscription');

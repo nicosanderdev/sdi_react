@@ -26,7 +26,7 @@ interface MembersRow {
   PostalCode: string | null;
   Country: string | null;
   Phone: string | null;
-  Roles: string[] | null;
+  Role: string | null;
   IsDeleted: boolean;
   Created: string;
   CreatedBy: string | null;
@@ -115,8 +115,8 @@ interface EstatePropertiesRow {
   State: string;
   ZipCode: string;
   Country: string;
-  LocationLat: number;
-  LocationLng: number;
+  LocationLatitude: number;
+  LocationLongitude: number;
   Title: string;
   PropertyType: number;
   AreaValue: number;
@@ -225,21 +225,6 @@ interface EstatePropertyAmenityRow {
   LastModifiedBy: string | null;
 }
 
-interface PropertyVisitLogsRow {
-  Id: string;
-  PropertyId: string;
-  VisitedOnUtc: string;
-  Source: string | null;
-  UserId: string | null;
-  IpAddress: string | null;
-  UserAgent: string | null;
-  IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
-}
-
 interface MessageThreadsRow {
   Id: string;
   Subject: string;
@@ -277,20 +262,6 @@ interface MessageRecipientsRow {
   HasBeenRepliedToByRecipient: boolean;
   IsStarred: boolean;
   IsArchived: boolean;
-  IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
-}
-
-interface PropertyMessageLogsRow {
-  Id: string;
-  PropertyId: string;
-  SentOnUtc: string;
-  MessageContent: string | null;
-  SenderId: string | null;
-  ReceiverId: string | null;
   IsDeleted: boolean;
   Created: string;
   LastModified: string;
@@ -354,7 +325,7 @@ export const mapDbToProfile = (
       postalCode: member.PostalCode || '',
       country: member.Country || ''
     },
-    roles: member.Roles || [],
+    roles: member.Role ? [member.Role] : [],
     companies
   };
 };
@@ -628,7 +599,7 @@ export const mapDbToPropertyData = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenity?.map(epa => ({
+  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined
@@ -644,13 +615,13 @@ export const mapDbToPropertyData = (
     zipCode: property.ZipCode,
     country: property.Country,
     location: {
-      lat: property.LocationLat,
-      lng: property.LocationLng
+      lat: property.LocationLatitude,
+      lng: property.LocationLongitude
     },
     title: property.Title,
-    type: propertyTypeMapReverse[property.PropertyType] || 'other',
+    type: (propertyTypeMapReverse[property.PropertyType] || 'other') as 'house' | 'apartment' | 'commercial' | 'land' | 'other',
     areaValue: property.AreaValue,
-    areaUnit: areaUnitMapReverse[property.AreaUnit] || 'm²',
+    areaUnit: (areaUnitMapReverse[property.AreaUnit] || 'm²') as 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi',
     bedrooms: property.Bedrooms,
     bathrooms: property.Bathrooms,
     hasGarage: property.HasGarage,
@@ -666,7 +637,7 @@ export const mapDbToPropertyData = (
     arePetsAllowed: property.ArePetsAllowed,
     capacity: property.Capacity,
     ownerId: property.OwnerId,
-    currency: currencyMapReverse[latestValues?.Currency || 0] || 'USD',
+    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
     salePrice: latestValues?.SalePrice?.toString(),
     rentPrice: latestValues?.RentPrice?.toString(),
     hasCommonExpenses: latestValues?.HasCommonExpenses || false,
@@ -674,7 +645,7 @@ export const mapDbToPropertyData = (
     isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
     isWaterIncluded: latestValues?.IsWaterIncluded || false,
     isPriceVisible: latestValues?.IsPriceVisible || true,
-    status: statusMapReverse[latestValues?.Status || 0] || 'sale',
+    status: (statusMapReverse[latestValues?.Status || 0] || 'sale') as 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable',
     isActive: latestValues?.IsActive || true,
     isPropertyVisible: latestValues?.IsPropertyVisible || true,
     created: new Date(property.Created)
@@ -716,7 +687,7 @@ export const mapDbToPublicProperty = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenity?.map(epa => ({
+  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined
@@ -732,8 +703,8 @@ export const mapDbToPublicProperty = (
     zipCode: property.ZipCode,
     country: property.Country,
     location: {
-      lat: property.LocationLat,
-      lng: property.LocationLng
+      lat: property.LocationLatitude,
+      lng: property.LocationLongitude
     },
     title: property.Title,
     type: propertyTypeMapReverse[property.PropertyType] || 'other',
@@ -751,7 +722,7 @@ export const mapDbToPublicProperty = (
     arePetsAllowed: property.ArePetsAllowed,
     salePrice: latestValues?.SalePrice || undefined,
     rentPrice: latestValues?.RentPrice || undefined,
-    currency: currencyMapReverse[latestValues?.Currency || 0] || 'USD',
+    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
     isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
     isWaterIncluded: latestValues?.IsWaterIncluded || false,
     ownerId: property.OwnerId
