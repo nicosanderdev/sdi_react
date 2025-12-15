@@ -63,6 +63,11 @@ export const getPrimaryRole = (user: UserData): UserRole | null => {
 export const getRedirectPath = (user: UserData): string => {
   if (!user) return '/login';
 
-  // All authenticated users (admin or user) can access dashboard
+  // Admin users should go to admin dashboard
+  if (isAdmin(user)) {
+    return '/dashboard/admin/dashboard';
+  }
+
+  // Regular users go to standard dashboard
   return '/dashboard';
 };

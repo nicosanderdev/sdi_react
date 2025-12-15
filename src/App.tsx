@@ -60,6 +60,7 @@ import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 // Auth components
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
 import { PublicRoute, AdminOnlyRoute, ProtectedRoute } from './components/auth/ProtectedRoute';
+import { AdminRedirectWrapper } from './components/auth/AdminRedirectWrapper';
 
 import { useSelector } from 'react-redux';
 import { RootState } from './store/store';
@@ -115,22 +116,22 @@ export function App() {
           {/* <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} /> */}
 
           {/* Dashboard Routes (Authentication Required, All Users) */}
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} > 
-            <Route index element={<DashboardOverview />} />
+          <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} >
+            <Route index element={<AdminRedirectWrapper><DashboardOverview /></AdminRedirectWrapper>} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
             {/* <Route path="favorites" element={<FavoritesPage />} /> */}
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
-            <Route path="subscription" element={<ManagerSubscriptionPage />} />
+            <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
             <Route path="subscription/plans" element={<PlansSelectionPage />} />
             <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
             <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
             <Route path="subscription/checkout" element={<MockStripeCheckoutPage />} />
-            <Route path="company" element={<CompanyManagementPage />} />
+            <Route path="company" element={<AdminRedirectWrapper><CompanyManagementPage /></AdminRedirectWrapper>} />
             <Route path="company/subscription" element={<CompanySubscriptionFlowPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
@@ -144,7 +145,14 @@ export function App() {
 
             {/* Admin Routes */}
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
+            <Route path="admin/users" element={<AdminOnlyRoute><div>User Management Page</div></AdminOnlyRoute>} />
             <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
+            <Route path="admin/properties" element={<AdminOnlyRoute><div>Property Management Page</div></AdminOnlyRoute>} />
+            <Route path="admin/config" element={<AdminOnlyRoute><div>Platform Configuration Page</div></AdminOnlyRoute>} />
+            <Route path="admin/logs" element={<AdminOnlyRoute><div>Logs & Audit Page</div></AdminOnlyRoute>} />
+            <Route path="admin/support" element={<AdminOnlyRoute><div>Support & Operations Page</div></AdminOnlyRoute>} />
+            <Route path="admin/tools" element={<AdminOnlyRoute><div>Technical Tools Page</div></AdminOnlyRoute>} />
+            <Route path="admin/security" element={<AdminOnlyRoute><div>Security Dashboard Page</div></AdminOnlyRoute>} />
             <Route path="admin/invoices" element={<AdminOnlyRoute><AdminInvoicesPage /></AdminOnlyRoute>} />
           </Route>
 

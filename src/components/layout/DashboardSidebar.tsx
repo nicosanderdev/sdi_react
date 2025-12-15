@@ -15,6 +15,7 @@ import {
   BoxesIcon,
   type LucideIcon
 } from 'lucide-react';
+import { AdminNavigation } from '../admin/AdminNavigation';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -58,11 +59,6 @@ export function DashboardSidebar() {
     
   ];
 
-  const adminNavItems: NavItem[] = [
-    { id: 'admin-dashboard', label: 'Global Dashboard', icon: BarChartIcon, path: '/dashboard/admin/dashboard' },
-    { id: 'admin-subscriptions', label: 'Suscripciones', icon: Shield, path: '/dashboard/admin/subscriptions' },
-    { id: 'admin-invoices', label: 'Facturas', icon: FileText, path: '/dashboard/admin/invoices' },
-  ];
 
   const handleLogout = async () => {
     await authService.logout();
@@ -84,42 +80,30 @@ export function DashboardSidebar() {
           SGI
         </SidebarLogo>
         <SidebarItems>
-          <SidebarItemGroup>
-            <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Menú
-            </div>
-            {navItems.map(item => (
-              <SidebarItem
-                key={item.id}
-                onClick={() => navigate(item.path)}
-                icon={item.icon}
-                label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
-                active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
-                className="hover:bg-green-50 dark:hover:bg-green-900/20"
-                style={{
-                  backgroundColor: (item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path)))
-                    ? 'rgb(240 253 244)'
-                    : undefined
-                }}
-              >
-                {item.label}
-              </SidebarItem>
-            ))}
-          </SidebarItemGroup>
-          {isAdmin && (
+          {isAdmin ? (
+            // Admin navigation only
             <SidebarItemGroup>
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Administración
               </div>
-              {adminNavItems.map(item => (
+              <AdminNavigation />
+            </SidebarItemGroup>
+          ) : (
+            // Regular user navigation only
+            <SidebarItemGroup>
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Menú
+              </div>
+              {navItems.map(item => (
                 <SidebarItem
                   key={item.id}
                   onClick={() => navigate(item.path)}
                   icon={item.icon}
-                  active={location.pathname === item.path || location.pathname.startsWith(item.path)}
+                  label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
+                  active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
                   className="hover:bg-green-50 dark:hover:bg-green-900/20"
                   style={{
-                    backgroundColor: (location.pathname === item.path || location.pathname.startsWith(item.path))
+                    backgroundColor: (item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path)))
                       ? 'rgb(240 253 244)'
                       : undefined
                   }}

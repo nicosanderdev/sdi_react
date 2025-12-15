@@ -32,6 +32,20 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     );
   }
 
+  // Handle null or empty data
+  if (!data || data.length === 0) {
+    return (
+      <DashboardChartCard title="User & Property Trends" className={className}>
+        <div className="h-80 flex items-center justify-center">
+          <div className="text-center text-gray-500 dark:text-gray-400">
+            <div className="text-lg font-medium mb-2">No data available</div>
+            <div className="text-sm">Chart data will appear once metrics are collected</div>
+          </div>
+        </div>
+      </DashboardChartCard>
+    );
+  }
+
   // Process data for chart display
   const chartData = data.map(item => ({
     ...item,

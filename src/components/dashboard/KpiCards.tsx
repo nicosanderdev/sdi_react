@@ -44,6 +44,25 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   loading = false,
   className = ''
 }) => {
+  // Handle null data case
+  if (!data) {
+    return (
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${className}`}>
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2"></div>
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+              </div>
+              <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${className}`}>
