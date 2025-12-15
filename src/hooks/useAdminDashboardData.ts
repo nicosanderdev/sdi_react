@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import adminService, {
   TimeRange,
   AdminMetricsSummary,
   AdminMetricsTimeseries,
   AdminActivityData,
   AdminMetricsParams,
-  AdminActivityParams
+  AdminActivityParams,
+  AdminDashboardStats
 } from '../services/AdminService';
 
 interface UseAdminDashboardDataReturn {
@@ -23,6 +24,11 @@ interface UseAdminDashboardDataReturn {
   activity: AdminActivityData | null;
   activityLoading: boolean;
   activityError: string | null;
+
+  // Dashboard stats (Task 2)
+  dashboardStats: AdminDashboardStats | null;
+  dashboardStatsLoading: boolean;
+  dashboardStatsError: string | null;
 
   // General state
   isLoading: boolean;
@@ -58,10 +64,15 @@ export const useAdminDashboardData = (
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
 
-  const baseParams: AdminMetricsParams = {
+  // Dashboard stats state (Task 2)
+  const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
+  const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
+  const [dashboardStatsError, setDashboardStatsError] = useState<string | null>(null);
+
+  const baseParams: AdminMetricsParams = useMemo(() => ({
     range: timeRange,
     ...(timeRange === 'custom' && startDate && endDate && { startDate, endDate })
-  };
+  }), [timeRange, startDate, endDate]);
 
   const activityParams: AdminActivityParams = {
     ...baseParams,
@@ -110,12 +121,27 @@ export const useAdminDashboardData = (
     }
   }, [activityParams.range, activityParams.startDate, activityParams.endDate, activityParams.limit]);
 
+  // Fetch dashboard stats data (Task 2)
+  const fetchDashboardStats = useCallback(async () => {
+    setDashboardStatsLoading(true);
+    setDashboardStatsError(null);
+    try {
+      const data = await adminService.getDashboardStats();
+      setDashboardStats(data);
+    } catch (error: any) {
+      setDashboardStatsError(error.message || 'Failed to fetch dashboard stats');
+    } finally {
+      setDashboardStatsLoading(false);
+    }
+  }, []);
+
   // Fetch all data
   const fetchAll = useCallback(() => {
     fetchSummary();
     fetchTimeseries();
     fetchActivity();
-  }, [fetchSummary, fetchTimeseries, fetchActivity]);
+    fetchDashboardStats();
+  }, [fetchSummary, fetchTimeseries, fetchActivity, fetchDashboardStats]);
 
   // Set time range and update data
   const setTimeRange = useCallback((range: TimeRange, start?: string, end?: string) => {
@@ -129,8 +155,8 @@ export const useAdminDashboardData = (
     fetchAll();
   }, [fetchAll]);
 
-  const isLoading = summaryLoading || timeseriesLoading || activityLoading;
-  const hasError = !!(summaryError || timeseriesError || activityError);
+  const isLoading = summaryLoading || timeseriesLoading || activityLoading || dashboardStatsLoading;
+  const hasError = !!(summaryError || timeseriesError || activityError || dashboardStatsError);
 
   return {
     // Summary data
@@ -147,6 +173,11 @@ export const useAdminDashboardData = (
     activity,
     activityLoading,
     activityError,
+
+    // Dashboard stats (Task 2)
+    dashboardStats,
+    dashboardStatsLoading,
+    dashboardStatsError,
 
     // General state
     isLoading,

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeInit } from '../.flowbite-react/init';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -51,6 +50,7 @@ import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySu
 import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
 import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
+import UserManagementPage from './pages/dashboard/admin/UserManagementPage';
 
 // Payment pages
 import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
@@ -62,8 +62,6 @@ import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 import { PublicRoute, AdminOnlyRoute, ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminRedirectWrapper } from './components/auth/AdminRedirectWrapper';
 
-import { useSelector } from 'react-redux';
-import { RootState } from './store/store';
 
 import './config/leafletSetup';
 import RouteChangeTracker from './components/reports/RouteChangeTracker';
@@ -78,7 +76,6 @@ import { NotificationManager } from './components/ui/NotificationManager';
 
 
 export function App() {
-  const user = useSelector((state: RootState) => state.user.profile);
 
   // Removed duplicate fetchUserProfile call - AuthContext handles this
 
@@ -145,7 +142,7 @@ export function App() {
 
             {/* Admin Routes */}
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
-            <Route path="admin/users" element={<AdminOnlyRoute><div>User Management Page</div></AdminOnlyRoute>} />
+            <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
             <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
             <Route path="admin/properties" element={<AdminOnlyRoute><div>Property Management Page</div></AdminOnlyRoute>} />
             <Route path="admin/config" element={<AdminOnlyRoute><div>Platform Configuration Page</div></AdminOnlyRoute>} />

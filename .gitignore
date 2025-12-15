@@ -30,3 +30,5 @@ Dockerfile
 sql/
 
 supabase/.env
+
+supabase/functions/.env

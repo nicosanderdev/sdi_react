@@ -15,7 +15,7 @@ import {
   BoxesIcon,
   type LucideIcon
 } from 'lucide-react';
-import { AdminNavigation } from '../admin/AdminNavigation';
+import { AdminNavigation } from './AdminNavigation';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';

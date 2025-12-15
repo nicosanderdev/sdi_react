@@ -8,13 +8,13 @@ import {
   UserPlus,
   Plus,
   AlertTriangle,
-  Flag,
-  AlertCircle
+  Archive,
+  BarChart3
 } from 'lucide-react';
-import { AdminMetricsSummary } from '../../services/AdminService';
+import { AdminDashboardStats } from '../../services/AdminService';
 
 interface KpiCardsProps {
-  data: AdminMetricsSummary;
+  data: AdminDashboardStats | null | undefined;
   loading?: boolean;
   className?: string;
 }
@@ -30,14 +30,6 @@ const formatNumber = (num: number): string => {
   return num.toString();
 };
 
-// Helper to get trend direction based on comparison
-const getTrendDirection = (current: number, previous?: number): 'increase' | 'decrease' | 'neutral' => {
-  if (!previous || previous === 0) return 'neutral';
-  const change = ((current - previous) / previous) * 100;
-  if (change > 5) return 'increase';
-  if (change < -5) return 'decrease';
-  return 'neutral';
-};
 
 export const KpiCards: React.FC<KpiCardsProps> = ({
   data,
@@ -82,104 +74,77 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
 
   const kpiCards = [
     {
-      title: 'Total Users',
-      value: formatNumber(data.totalUsers),
-      icon: Users,
-      // For now, showing neutral trend - in real implementation, would compare with previous period
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs last period'
-      }
-    },
-    {
       title: 'Total Properties',
-      value: formatNumber(data.totalProperties),
+      value: formatNumber(data.propertiesCount),
       icon: Building,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs last period'
-      }
+      trend: undefined
     },
     {
-      title: 'Active Users (7d)',
-      value: formatNumber(data.activeUsers7d),
-      icon: UserCheck,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs prev 7d'
-      }
+      title: 'Total Users',
+      value: formatNumber(data.usersCount),
+      icon: Users,
+      trend: undefined
     },
     {
       title: 'Active Users (30d)',
-      value: formatNumber(data.activeUsers30d),
+      value: formatNumber(data.activeUsers),
       icon: UserCheck,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs prev 30d'
-      }
+      trend: undefined
     },
     {
-      title: 'Active Properties (7d)',
-      value: formatNumber(data.activeProperties7d),
+      title: 'Inactive Users',
+      value: formatNumber(data.inactiveUsers),
+      icon: UserCheck,
+      trend: undefined
+    },
+    {
+      title: 'Active Properties',
+      value: formatNumber(data.activeProperties),
       icon: Building2,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs prev 7d'
-      }
+      trend: undefined
     },
     {
-      title: 'Active Properties (30d)',
-      value: formatNumber(data.activeProperties30d),
-      icon: Building2,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'vs prev 30d'
-      }
+      title: 'Archived Properties',
+      value: formatNumber(data.archivedProperties),
+      icon: Archive,
+      trend: undefined
     },
     {
-      title: 'New Users',
-      value: formatNumber(data.newUsers),
+      title: 'New Users (7d)',
+      value: formatNumber(data.growth.newUsers7d),
       icon: UserPlus,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'this period'
-      }
+      trend: undefined
     },
     {
-      title: 'New Properties',
-      value: formatNumber(data.newProperties),
+      title: 'New Users (30d)',
+      value: formatNumber(data.growth.newUsers30d),
+      icon: UserPlus,
+      trend: undefined
+    },
+    {
+      title: 'New Properties (7d)',
+      value: formatNumber(data.growth.newProperties7d),
       icon: Plus,
-      trend: {
-        value: 0,
-        direction: 'neutral' as const,
-        label: 'this period'
-      }
+      trend: undefined
     },
     {
-      title: 'Pending Approvals',
-      value: formatNumber(data.pendingApprovals),
+      title: 'New Properties (30d)',
+      value: formatNumber(data.growth.newProperties30d),
+      icon: Plus,
+      trend: undefined
+    },
+    {
+      title: 'Avg Properties/User',
+      value: data.usageStats.avgPropertiesPerUser.toFixed(1),
+      icon: BarChart3,
+      trend: undefined
+    },
+    {
+      title: 'Users Without Properties',
+      value: formatNumber(data.usageStats.usersWithoutProperties),
       icon: AlertTriangle,
-      trend: undefined // Operational metrics might not have trends
-    },
-    {
-      title: 'Open Flags',
-      value: formatNumber(data.flagsOpen),
-      icon: Flag,
       trend: undefined
-    },
-    ...(data.failedJobs !== undefined ? [{
-      title: 'Failed Jobs',
-      value: formatNumber(data.failedJobs),
-      icon: AlertCircle,
-      trend: undefined
-    }] : [])
+    }
   ];
 
   return (

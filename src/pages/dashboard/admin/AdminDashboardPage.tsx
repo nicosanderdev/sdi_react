@@ -1,17 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import AccessGuard from '../../../components/auth/AccessGuard';
 import { KpiCards } from '../../../components/dashboard/KpiCards';
 import { TrendChart } from '../../../components/dashboard/TrendChart';
 import { AdminActivityTable } from '../../../components/dashboard/AdminActivityTable';
+import { SubscriptionBreakdownCard } from '../../../components/admin/dashboard/SubscriptionBreakdownCard';
+import { MrrCard } from '../../../components/admin/dashboard/MrrCard';
 import { useAdminDashboardData } from '../../../hooks/useAdminDashboardData';
-import { TimeRange } from '../../../services/AdminService';
-import { Download, Calendar, AlertCircle } from 'lucide-react';
+import { Download, AlertCircle } from 'lucide-react';
 
 const AdminDashboardPage: React.FC = () => {
-  const [timeRange, setTimeRange] = useState<TimeRange>('30d');
-  const [customStartDate, setCustomStartDate] = useState<string>('');
-  const [customEndDate, setCustomEndDate] = useState<string>('');
-
   const {
     summary,
     summaryLoading,
@@ -22,41 +19,22 @@ const AdminDashboardPage: React.FC = () => {
     activity,
     activityLoading,
     activityError,
+    dashboardStats,
+    dashboardStatsLoading,
+    dashboardStatsError,
     isLoading,
     hasError,
-    refetch,
-    setTimeRange: updateTimeRange
-  } = useAdminDashboardData(timeRange);
+    refetch
+  } = useAdminDashboardData();
 
-  const timeRangeOptions: { value: TimeRange; label: string }[] = [
-    { value: '7d', label: 'Last 7 days' },
-    { value: '30d', label: 'Last 30 days' },
-    { value: '90d', label: 'Last 90 days' },
-    { value: 'custom', label: 'Custom range' }
-  ];
-
-  const handleTimeRangeChange = (newRange: TimeRange) => {
-    setTimeRange(newRange);
-    if (newRange === 'custom' && customStartDate && customEndDate) {
-      updateTimeRange(newRange, customStartDate, customEndDate);
-    } else {
-      updateTimeRange(newRange);
-    }
-  };
-
-  const handleCustomDateChange = () => {
-    if (timeRange === 'custom' && customStartDate && customEndDate) {
-      updateTimeRange(timeRange, customStartDate, customEndDate);
-    }
-  };
 
   const handleExport = () => {
     // Basic export functionality - in a real implementation, this would generate CSV/PDF
     const data = {
+      dashboardStats,
       summary,
       timeseries,
-      exportedAt: new Date().toISOString(),
-      timeRange
+      exportedAt: new Date().toISOString()
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], {
@@ -66,7 +44,7 @@ const AdminDashboardPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `admin-dashboard-${timeRange}-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `admin-dashboard-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -114,49 +92,6 @@ const AdminDashboardPage: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Time Range Selector */}
-            <div className="flex items-center space-x-2">
-              <Calendar className="w-4 h-4 text-gray-500" />
-              <select
-                value={timeRange}
-                onChange={(e) => handleTimeRangeChange(e.target.value as TimeRange)}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#1B4965] focus:border-transparent"
-              >
-                {timeRangeOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Custom Date Inputs */}
-            {timeRange === 'custom' && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  placeholder="Start date"
-                />
-                <span className="text-gray-500">to</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  placeholder="End date"
-                />
-                <button
-                  onClick={handleCustomDateChange}
-                  className="px-3 py-2 bg-[#1B4965] text-white rounded-md text-sm hover:bg-[#2c5f75] transition-colors"
-                >
-                  Apply
-                </button>
-              </div>
-            )}
-
             {/* Export Button */}
             <button
               onClick={handleExport}
@@ -173,11 +108,27 @@ const AdminDashboardPage: React.FC = () => {
         {summaryError && <ErrorAlert error={summaryError} onRetry={refetch} />}
         {timeseriesError && <ErrorAlert error={timeseriesError} onRetry={refetch} />}
         {activityError && <ErrorAlert error={activityError} onRetry={refetch} />}
+        {dashboardStatsError && <ErrorAlert error={dashboardStatsError} onRetry={refetch} />}
+
+        {/* Task 2: Executive Overview Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <MrrCard
+            mrr={dashboardStats?.mrr || 0}
+            currency="USD"
+          />
+          <SubscriptionBreakdownCard
+            subscriptionStats={dashboardStats?.subscriptionStats || {
+              withoutSubscription: 0,
+              active: 0,
+              expired: 0
+            }}
+          />
+        </div>
 
         {/* KPI Cards */}
         <KpiCards
-          data={summary}
-          loading={summaryLoading}
+          data={dashboardStats || undefined}
+          loading={dashboardStatsLoading}
           className="mb-8"
         />
 
