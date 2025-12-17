@@ -56,8 +56,11 @@ export function DashboardSidebar() {
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
     { id: 'company', label: 'Empresa', icon: BoxesIcon, path: '/dashboard/company' },
     { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' }
-    
+
   ];
+
+  // Admin gets profile and messages items in addition to admin navigation
+  const adminPersonalItems = navItems.filter(item => item.id === 'profile' || item.id === 'messages');
 
 
   const handleLogout = async () => {
@@ -81,11 +84,28 @@ export function DashboardSidebar() {
         </SidebarLogo>
         <SidebarItems>
           {isAdmin ? (
-            // Admin navigation only
+            // Admin navigation with personal items
             <SidebarItemGroup>
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Administración
               </div>
+              {adminPersonalItems.map(item => (
+                <SidebarItem
+                  key={item.id}
+                  onClick={() => navigate(item.path)}
+                  icon={item.icon}
+                  label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
+                  active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
+                  className="hover:bg-green-50 dark:hover:bg-green-900/20"
+                  style={{
+                    backgroundColor: (item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path)))
+                      ? 'rgb(240 253 244)'
+                      : undefined
+                  }}
+                >
+                  {item.label}
+                </SidebarItem>
+              ))}
               <AdminNavigation />
             </SidebarItemGroup>
           ) : (
