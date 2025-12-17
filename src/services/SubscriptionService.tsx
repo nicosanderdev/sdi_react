@@ -1,4 +1,4 @@
-import { BillingHistoryData, BillingHistoryList } from '../models/subscriptions/BillingHistoryData';
+import { BillingHistoryData } from '../models/subscriptions/BillingHistoryData';
 import { CancelSubscriptionRequest } from '../models/subscriptions/CancelSubscriptionRequest';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
@@ -6,7 +6,43 @@ import apiClient from './AxiosClient'; // Keep for Stripe operations
 import { supabase } from '../config/supabase';
 import { mapDbToSubscription, getCurrentUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
-import { log } from 'console';
+
+// Type for the RPC response from get_admin_subscriptions
+interface AdminSubscriptionRpcResponse {
+  Id: string;
+  OwnerType: number;
+  OwnerId: string;
+  ProviderCustomerId: string | null;
+  ProviderSubscriptionId: string | null;
+  PlanId: string;
+  Status: number;
+  CurrentPeriodStart: string;
+  CurrentPeriodEnd: string;
+  CancelAtPeriodEnd: boolean;
+  CreatedAt: string;
+  UpdatedAt: string;
+  CompanyId: string | null;
+  IsDeleted: boolean;
+  Created: string;
+  CreatedBy: string | null;
+  LastModified: string;
+  LastModifiedBy: string | null;
+  Plans_Id: string;
+  Plans_Key: string;
+  Plans_Name: string;
+  Plans_MonthlyPrice: number;
+  Plans_Currency: string;
+  Plans_MaxProperties: number | null;
+  Plans_MaxUsers: number | null;
+  Plans_MaxStorageMb: number | null;
+  Plans_BillingCycle: number;
+  Plans_IsActive: boolean;
+  Plans_IsDeleted: boolean;
+  Plans_Created: string;
+  Plans_CreatedBy: string | null;
+  Plans_LastModified: string;
+  Plans_LastModifiedBy: string | null;
+}
 
 const ENDPOINTS = {
     CURRENT_SUBSCRIPTION: '/subscriptions/current',
@@ -293,17 +329,64 @@ const getCompanySubscription = async (companyId: string) => {
  * @param filters - Optional filters (active, canceled, overdue)
  * @returns List of subscriptions
  */
-const getAdminSubscriptions = async (filters?: { status?: string; overdue?: boolean }) => {
-    const params = new URLSearchParams();
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.overdue !== undefined) params.append('overdue', String(filters.overdue));
-    
-    const url = params.toString() 
-        ? `${ENDPOINTS.ADMIN_SUBSCRIPTIONS}?${params.toString()}`
-        : ENDPOINTS.ADMIN_SUBSCRIPTIONS;
-    
-    const response = await apiClient.get<SubscriptionData[]>(url);
-    return response;
+const getAdminSubscriptions = async (filters?: { status?: string; overdue?: boolean }): Promise<SubscriptionData[]> => {
+    try {
+        const { data, error } = await supabase
+            .rpc('get_admin_subscriptions', {
+                status_filter: filters?.status || null,
+                overdue_filter: filters?.overdue || null
+            });
+
+        if (error) throw error;
+
+        // Transform the flat result into the expected nested format for mapDbToSubscription
+        return (data as AdminSubscriptionRpcResponse[] || []).map((item: AdminSubscriptionRpcResponse) => {
+            // Transform flat columns back to nested structure expected by mapDbToSubscription
+            const subscriptionRow = {
+                Id: item.Id,
+                OwnerType: item.OwnerType,
+                OwnerId: item.OwnerId,
+                ProviderCustomerId: item.ProviderCustomerId,
+                ProviderSubscriptionId: item.ProviderSubscriptionId,
+                PlanId: item.PlanId,
+                Status: item.Status,
+                CurrentPeriodStart: item.CurrentPeriodStart,
+                CurrentPeriodEnd: item.CurrentPeriodEnd,
+                CancelAtPeriodEnd: item.CancelAtPeriodEnd,
+                CreatedAt: item.CreatedAt,
+                UpdatedAt: item.UpdatedAt,
+                CompanyId: item.CompanyId,
+                IsDeleted: item.IsDeleted,
+                Created: item.Created,
+                CreatedBy: item.CreatedBy,
+                LastModified: item.LastModified,
+                LastModifiedBy: item.LastModifiedBy,
+                Plans: {
+                    Id: item.Plans_Id,
+                    Key: item.Plans_Key,
+                    Name: item.Plans_Name,
+                    MonthlyPrice: item.Plans_MonthlyPrice,
+                    Currency: item.Plans_Currency,
+                    MaxProperties: item.Plans_MaxProperties,
+                    MaxUsers: item.Plans_MaxUsers,
+                    MaxStorageMb: item.Plans_MaxStorageMb,
+                    BillingCycle: item.Plans_BillingCycle,
+                    IsActive: item.Plans_IsActive,
+                    IsDeleted: item.Plans_IsDeleted,
+                    Created: item.Plans_Created,
+                    CreatedBy: item.Plans_CreatedBy,
+                    LastModified: item.Plans_LastModified,
+                    LastModifiedBy: item.Plans_LastModifiedBy
+                }
+            };
+
+            return mapDbToSubscription(subscriptionRow);
+        });
+
+    } catch (error: any) {
+        console.error('Error fetching admin subscriptions:', error.message);
+        throw error;
+    }
 }
 
 /**
