@@ -17,6 +17,7 @@ interface MembersRow {
   UserId: string;
   FirstName: string | null;
   LastName: string | null;
+  Email: string | null;
   Title: string | null;
   AvatarUrl: string | null;
   Street: string | null;
@@ -301,7 +302,6 @@ export const getMemberByUserId = async (userId: string): Promise<MembersRow | nu
  */
 export const mapDbToProfile = (
   member: MembersRow,
-  email: string,
   userCompanies?: (UserCompaniesRow & { Companies: CompaniesRow })[]
 ): ProfileData => {
   const companies: UserCompany[] = userCompanies?.map(uc => ({
@@ -313,7 +313,7 @@ export const mapDbToProfile = (
     id: member.Id,
     firstName: member.FirstName || '',
     lastName: member.LastName || '',
-    email,
+    email: member.Email || '',
     phone: member.Phone || '',
     title: member.Title || '',
     avatarUrl: member.AvatarUrl || undefined,
@@ -394,7 +394,7 @@ export const mapDbToCompanyUser = (userCompany: UserCompaniesRow & { Members: Me
     id: userCompany.Members.Id,
     firstName: userCompany.Members.FirstName || '',
     lastName: userCompany.Members.LastName || '',
-    email: '', // This would need to be fetched from auth.users or stored in Members
+    email: userCompany.Members.Email || '',
     role: mapRoleNumberToString(userCompany.Role),
     joinDate: userCompany.JoinedAt,
     avatarUrl: userCompany.Members.AvatarUrl || undefined
@@ -748,7 +748,7 @@ export const mapDbToMessage = (
     threadId: messageRow.ThreadId,
     senderId: messageRow.SenderId,
     senderName: sender ? `${sender.FirstName || ''} ${sender.LastName || ''}`.trim() || sender.FirstName || '' : '',
-    senderEmail: undefined, // Not stored in Members table
+    senderEmail: sender?.Email || undefined,
     recipientId: recipient?.RecipientId,
     propertyId: thread?.PropertyId || undefined,
     propertyTitle: undefined, // Would need to join with EstateProperties

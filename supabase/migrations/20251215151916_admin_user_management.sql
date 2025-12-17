@@ -272,7 +272,7 @@ BEGIN
         m."UserId" as user_id,
         m."FirstName" as first_name,
         m."LastName" as last_name,
-        au.email::character varying as email,
+        m."Email" as email,
         m."AvatarUrl" as avatar_url,
         ARRAY[m."Role"::text] as roles,
         CASE
@@ -284,7 +284,7 @@ BEGIN
         ms."ExpiresAtUtc" as subscription_expires_at,
         COALESCE(ms_current."Status", 'active') as account_status,
         m."Created" as registration_date,
-        au.last_sign_in_at as last_login,
+        NULL as last_login,
         COALESCE(prop_count.count, 0)::bigint as properties_count,
         CASE
             WHEN bh_latest."SubscriptionId" IS NOT NULL THEN
@@ -299,7 +299,6 @@ BEGIN
         END as payment_status,
         v_total_count as total_count
     FROM "Members" m
-    LEFT JOIN auth.users au ON au.id = m."UserId"
     LEFT JOIN "MemberSubscriptions" ms ON ms."MemberId" = m."Id" AND ms."IsDeleted" = false
     LEFT JOIN "MemberStatus" ms_current ON ms_current."MemberId" = m."Id"
         AND ms_current."Id" = (
@@ -325,7 +324,7 @@ BEGIN
     WHERE m."IsDeleted" = false
     AND (p_search IS NULL OR
          LOWER(COALESCE(m."FirstName", '') || ' ' || COALESCE(m."LastName", '')) LIKE '%' || LOWER(p_search) || '%' OR
-         LOWER(au.email) LIKE '%' || LOWER(p_search) || '%')
+         LOWER(m."Email") LIKE '%' || LOWER(p_search) || '%')
     AND (p_subscription_status IS NULL OR
          CASE
              WHEN ms."isActive" = true AND (ms."ExpiresAtUtc" IS NULL OR ms."ExpiresAtUtc" > now()) THEN 'active'
@@ -381,7 +380,7 @@ BEGIN
         m."UserId" as user_id,
         m."FirstName" as first_name,
         m."LastName" as last_name,
-        au.email::character varying as email,
+        m."Email" as email,
         m."AvatarUrl" as avatar_url,
         m."Phone" as phone,
         m."Street" as street,
@@ -400,7 +399,7 @@ BEGIN
         ms."ExpiresAtUtc" as subscription_expires_at,
         COALESCE(ms_current."Status", 'active') as account_status,
         m."Created" as registration_date,
-        au.last_sign_in_at as last_login,
+        NULL as last_login,
         COALESCE(prop_count.count, 0)::bigint as properties_count,
         CASE
             WHEN bh_latest."SubscriptionId" IS NOT NULL THEN
@@ -417,7 +416,6 @@ BEGIN
         COALESCE(mo."IsComplete", false) as onboarding_complete,
         COALESCE(action_history.history, '[]'::json) as action_history
     FROM "Members" m
-    LEFT JOIN auth.users au ON au.id = m."UserId"
     LEFT JOIN "MemberSubscriptions" ms ON ms."MemberId" = m."Id" AND ms."IsDeleted" = false
     LEFT JOIN "MemberStatus" ms_current ON ms_current."MemberId" = m."Id"
         AND ms_current."Id" = (

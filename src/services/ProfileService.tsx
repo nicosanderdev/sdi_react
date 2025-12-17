@@ -75,10 +75,6 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
   try {
     const userId = await getCurrentUserId(user);
 
-    // Use provided user or get from auth if not provided
-    const authUser = user || (await supabase.auth.getUser()).data.user;
-    if (!authUser) throw new Error('No authenticated user found');
-
     const { data: memberData, error } = await supabase
       .from('Members')
       .select(`
@@ -90,12 +86,12 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
     if (error) {
       // If no member record exists, this might be a new user - handle gracefully
       if (error.code === 'PGRST116') {
-        // Create a basic profile from auth user
+        // Create a basic profile from available data
         return {
           id: '',
           firstName: '',
           lastName: '',
-          email: user?.email || '',
+          email: '',
           phone: '',
           title: '',
           address: {
@@ -115,7 +111,7 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
 
     // Map the joined data to ProfileData
     const member = memberData[0]; // Should be single due to UserId unique constraint
-    return mapDbToProfile(member, user?.email || '', member.UserCompanies);
+    return mapDbToProfile(member, member.UserCompanies);
 
   } catch (error: any) {
     console.error('Error fetching current user profile:', error.message);

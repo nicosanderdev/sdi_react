@@ -51,6 +51,7 @@ import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptio
 import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
 import UserManagementPage from './pages/dashboard/admin/UserManagementPage';
+import PropertyManagementPage from './pages/dashboard/admin/PropertyManagementPage';
 
 // Payment pages
 import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
@@ -144,7 +145,7 @@ export function App() {
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
             <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
             <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
-            <Route path="admin/properties" element={<AdminOnlyRoute><div>Property Management Page</div></AdminOnlyRoute>} />
+            <Route path="admin/properties" element={<AdminOnlyRoute><PropertyManagementPage /></AdminOnlyRoute>} />
             <Route path="admin/config" element={<AdminOnlyRoute><div>Platform Configuration Page</div></AdminOnlyRoute>} />
             <Route path="admin/logs" element={<AdminOnlyRoute><div>Logs & Audit Page</div></AdminOnlyRoute>} />
             <Route path="admin/support" element={<AdminOnlyRoute><div>Support & Operations Page</div></AdminOnlyRoute>} />
