@@ -8,7 +8,6 @@ import {
     DollarSign,
     FileText,
     Calendar,
-    Dog,
     Users,
     Building,
     CheckCircle,
@@ -414,8 +413,7 @@ export function PropertyViewPage() {
                     <InfoField icon={<BedDouble size={20} className={iconStyle} />} label="Dormitorios" value={getCurrentPropertyData()?.bedrooms || property.bedrooms} />
                     <InfoField icon={<Bath size={20} className={iconStyle} />} label="Baños" value={getCurrentPropertyData()?.bathrooms || property.bathrooms} />
                     <InfoField icon={<Car size={20} className={iconStyle} />} label="Espacios de Garage" value={(getCurrentPropertyData()?.hasGarage || property.hasGarage) ? (getCurrentPropertyData()?.garageSpaces || property.garageSpaces) : 'No tiene'} />
-                    <InfoField icon={<Users size={20} className={iconStyle} />} label="Capacidad" value={`${getCurrentPropertyData()?.capacity || property.capacity} persona(s)`} />
-                    <InfoField icon={<Dog size={20} className={iconStyle} />} label="Mascotas Permitidas" value={(getCurrentPropertyData()?.arePetsAllowed || property.arePetsAllowed) ? 'Sí' : 'No'} />
+                    <InfoField icon={<Users size={20} className={iconStyle} />} label="Capacidad" value={`${property.estatePropertyValues?.[0]?.capacity || 1} persona(s)`} />
                     <InfoField icon={<Calendar size={20} className={iconStyle} />} label="Disponible Desde" value={new Date(getCurrentPropertyData()?.availableFrom || property.availableFrom).toLocaleDateString('es-UY')} />
                 </div>
 

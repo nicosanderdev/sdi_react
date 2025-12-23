@@ -1,0 +1,2 @@
+# This file ensures the .auth directory is committed to git
+# Authentication state files (*.json) are ignored via .gitignore

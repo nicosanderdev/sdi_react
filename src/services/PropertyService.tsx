@@ -262,7 +262,6 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         EstatePropertyAmenity(Amenities(*))
       `)
       .eq('Id', id)
-      .eq('OwnerId', member.Id)
       .eq('IsDeleted', false)
       .single();
 
@@ -302,14 +301,48 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
       .from('EstateProperties')
       .select(`
         *,
+        Owners!inner(OwnerType, MemberId, CompanyId),
         EstatePropertyValues(*),
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
         EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
-      .eq('OwnerId', member.Id)
-      .eq('IsDeleted', false);
+      .eq('IsDeleted', false)
+      .eq('Owners.IsDeleted', false);
+
+    // Filter by ownership through the Owners table join
+    // We need to check both direct member ownership and company ownership
+    if (params?.companyId === 'all-companies') {
+      // For all companies, get all company IDs for this member
+      const { data: userCompanies, error: companiesError } = await supabase
+        .from('UserCompanies')
+        .select('CompanyId')
+        .eq('MemberId', member.Id)
+        .eq('IsDeleted', false);
+
+      if (companiesError) throw companiesError;
+
+      const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+
+      if (companyIds.length > 0) {
+        query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
+          .eq('Owners.MemberId', member.Id)
+          .in('Owners.CompanyId', companyIds);
+      } else {
+        query = query.eq('Owners.OwnerType', 'member')
+          .eq('Owners.MemberId', member.Id);
+      }
+    } else if (params?.companyId) {
+      // Specific company ID
+      query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
+        .eq('Owners.MemberId', member.Id)
+        .eq('Owners.CompanyId', params.companyId);
+    } else {
+      // Personal properties only
+      query = query.eq('Owners.OwnerType', 'member')
+        .eq('Owners.MemberId', member.Id);
+    }
 
     // Apply filters
     if (params?.filter?.status) {
@@ -491,8 +524,6 @@ const createProperty = async (
       p_garage_spaces: formData.garageSpaces,
       p_description: formData.description || null,
       p_available_from: new Date(formData.availableFrom).toISOString(),
-      p_are_pets_allowed: formData.arePetsAllowed,
-      p_capacity: formData.capacity,
       p_owner_user_id: userId,
       p_currency: currencyMap[formData.currency],
       p_sale_price: formData.salePrice ? parseFloat(formData.salePrice) : null,
@@ -505,10 +536,10 @@ const createProperty = async (
       p_status: propertyStatusMap[formData.status],
       p_is_active: formData.isActive,
       p_is_property_visible: formData.isPropertyVisible,
-      p_property_images: JSON.stringify(allImages),
-      p_property_documents: JSON.stringify(allDocuments),
-      p_property_videos: JSON.stringify(videos),
-      p_amenity_ids: JSON.stringify(formData.amenities || [])
+      p_property_images: allImages,
+      p_property_documents: allDocuments,
+      p_property_videos: videos,
+      p_amenity_ids: formData.amenities || []
     });
 
     if (error) throw error;
@@ -536,8 +567,6 @@ const createProperty = async (
       description: result.description,
       availableFrom: new Date(result.availableFrom),
       availableFromText: new Date(result.availableFrom).toLocaleDateString(),
-      arePetsAllowed: result.arePetsAllowed,
-      capacity: result.capacity,
       ownerId: result.ownerId,
       currency: result.currency,
       salePrice: result.salePrice?.toString(),
@@ -577,11 +606,18 @@ const createProperty = async (
         isPublic: video.isPublic
       })),
       amenities: [], // Would need to fetch these separately
-      mainImageId: allImages.find(img => img.isMain)?.id
+      mainImageId: allImages.find(img => img.isMain)?.id,
+      estatePropertyValues: result.estatePropertyValues || []
     };
 
   } catch (error: any) {
     console.error('Error creating property with Supabase:', error.message);
+
+    // Handle quota limit errors specifically
+    if (error.message && error.message.includes('Property limit exceeded')) {
+      throw new Error(error.message);
+    }
+
     throw new Error(error.message || 'Failed to create property with Supabase');
   }
 };
@@ -719,8 +755,6 @@ const updateProperty = async (
       p_garage_spaces: formData.garageSpaces,
       p_description: formData.description || null,
       p_available_from: new Date(formData.availableFrom).toISOString(),
-      p_are_pets_allowed: formData.arePetsAllowed,
-      p_capacity: formData.capacity,
       p_currency: currencyMap[formData.currency],
       p_sale_price: formData.salePrice ? parseFloat(formData.salePrice) : null,
       p_rent_price: formData.rentPrice ? parseFloat(formData.rentPrice) : null,
@@ -732,10 +766,10 @@ const updateProperty = async (
       p_status: propertyStatusMap[formData.status],
       p_is_active: formData.isActive,
       p_is_property_visible: formData.isPropertyVisible,
-      p_property_images: JSON.stringify(allImages),
-      p_property_documents: JSON.stringify(allDocuments),
-      p_property_videos: JSON.stringify(videos),
-      p_amenity_ids: JSON.stringify(formData.amenities || []),
+      p_property_images: allImages,
+      p_property_documents: allDocuments,
+      p_property_videos: videos,
+      p_amenity_ids: formData.amenities || [],
       p_user_id: userId
     });
 
@@ -764,8 +798,6 @@ const updateProperty = async (
       description: result.description,
       availableFrom: new Date(result.availableFrom),
       availableFromText: new Date(result.availableFrom).toLocaleDateString(),
-      arePetsAllowed: result.arePetsAllowed,
-      capacity: result.capacity,
       ownerId: result.ownerId,
       currency: result.currency,
       salePrice: result.salePrice?.toString(),
@@ -805,7 +837,8 @@ const updateProperty = async (
         isPublic: video.isPublic
       })),
       amenities: [], // Would need to fetch these separately
-      mainImageId: allImages.find(img => img.isMain)?.id
+      mainImageId: allImages.find(img => img.isMain)?.id,
+      estatePropertyValues: result.estatePropertyValues || []
     };
 
   } catch (error: any) {
@@ -912,12 +945,23 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
       return 0;
     }
 
-    // Count all active, non-deleted properties owned by this member
+    // Get company IDs that this user belongs to
+    const { data: userCompanies, error: companiesError } = await supabase
+      .from('UserCompanies')
+      .select('CompanyId')
+      .eq('MemberId', member.Id)
+      .eq('IsDeleted', false);
+
+    if (companiesError) throw companiesError;
+
+    const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+
+    // Count all active, non-deleted properties owned by this member or their companies
     const { count, error } = await supabase
       .from('EstateProperties')
-      .select('*', { count: 'exact', head: true })
-      .eq('OwnerId', member.Id)
-      .eq('IsDeleted', false);
+      .select('*, Owners!inner(OwnerType, MemberId, CompanyId)', { count: 'exact', head: true })
+      .eq('IsDeleted', false)
+      .or(`and(Owners.OwnerType.eq.member,Owners.MemberId.eq.${member.Id}),and(Owners.OwnerType.eq.company,Owners.CompanyId.in.(${companyIds.length > 0 ? companyIds.join(',') : 'null'}))`);
 
     if (error) throw error;
 

@@ -43,7 +43,6 @@ export function PropertyFormStep2({
       'areaValue',
       'areaUnit',
       'status',
-      'capacity',
       'bedrooms',
       'bathrooms',
       'garageSpaces',
@@ -162,15 +161,6 @@ export function PropertyFormStep2({
         <div className="border-t border-gray-200 pt-6">
           <h3 className="text-lg font-semibold mb-2">Detalles y Características</h3>
           <div className="grid grid-cols-3 gap-4">
-            <div>
-              <div className="mb-2 block">
-                <Label htmlFor="capacity">
-                  Capacidad*
-                </Label>
-              </div>
-              <TextInput id="capacity" type="number" min="1" {...register('capacity')} />
-              {errors.capacity && <p className="text-red-500 text-sm mt-1">{errors.capacity.message}</p>}
-            </div>
             <div>
               <div className="mb-2 block">
                 <Label htmlFor="bedrooms">
@@ -334,7 +324,7 @@ export function PropertyFormStep2({
           <Button color="alternative" onClick={onBack}>
             Atrás
           </Button>
-          <Button type="submit">
+          <Button id="next-step-button" type="submit">
             Siguiente
           </Button>
         </div>

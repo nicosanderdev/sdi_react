@@ -107,6 +107,18 @@ interface PlansRow {
   LastModifiedBy: string | null;
 }
 
+interface OwnersRow {
+  Id: string;
+  OwnerType: 'member' | 'company';
+  MemberId: string | null;
+  CompanyId: string | null;
+  IsDeleted: boolean;
+  Created: string;
+  CreatedBy: string | null;
+  LastModified: string;
+  LastModifiedBy: string | null;
+}
+
 interface EstatePropertiesRow {
   Id: string;
   StreetName: string;
@@ -126,8 +138,7 @@ interface EstatePropertiesRow {
   Bathrooms: number;
   HasGarage: boolean;
   GarageSpaces: number;
-  ArePetsAllowed: boolean;
-  Capacity: number;
+  /** References Owners.Id - unified ownership for members and companies */
   OwnerId: string;
   MainImageId: string | null;
   IsDeleted: boolean;
@@ -634,8 +645,6 @@ export const mapDbToPropertyData = (
     description: latestValues?.Description || undefined,
     availableFrom: latestValues ? new Date(latestValues.AvailableFrom) : new Date(),
     availableFromText: latestValues ? new Date(latestValues.AvailableFrom).toLocaleDateString() : '',
-    arePetsAllowed: property.ArePetsAllowed,
-    capacity: property.Capacity,
     ownerId: property.OwnerId,
     currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
     salePrice: latestValues?.SalePrice?.toString(),
@@ -719,7 +728,6 @@ export const mapDbToPublicProperty = (
     amenities,
     mainImageId: property.MainImageId || '',
     description: latestValues?.Description || '',
-    arePetsAllowed: property.ArePetsAllowed,
     salePrice: latestValues?.SalePrice || undefined,
     rentPrice: latestValues?.RentPrice || undefined,
     currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',

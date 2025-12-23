@@ -135,11 +135,15 @@ const getMonthlySummary = async (params: MonthlySummaryParams): Promise<MonthlyS
       .from('PropertyVisitLogs')
       .select(`
         VisitedOnUtc,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `)
       .gte('VisitedOnUtc', startDate.toISOString())
       .lte('VisitedOnUtc', endDate.toISOString())
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (visitsError) throw visitsError;
 
@@ -148,11 +152,15 @@ const getMonthlySummary = async (params: MonthlySummaryParams): Promise<MonthlyS
       .from('PropertyMessageLogs')
       .select(`
         SentOnUtc,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `)
       .gte('SentOnUtc', startDate.toISOString())
       .lte('SentOnUtc', endDate.toISOString())
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (messagesError) throw messagesError;
 
@@ -213,8 +221,9 @@ const getGeneralTotals = async (): Promise<GeneralTotalsData> => {
     // Get total properties
     const { count: totalProperties, error: propertiesError } = await supabase
       .from('EstateProperties')
-      .select('*', { count: 'exact', head: true })
-      .in('OwnerId', companyIds);
+      .select('*, Owners!inner(OwnerType, CompanyId)', { count: 'exact', head: true })
+      .eq('Owners.OwnerType', 'company')
+      .in('Owners.CompanyId', companyIds);
 
     if (propertiesError) throw propertiesError;
 
@@ -223,9 +232,13 @@ const getGeneralTotals = async (): Promise<GeneralTotalsData> => {
       .from('PropertyVisitLogs')
       .select(`
         *,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `, { count: 'exact', head: true })
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (visitsError) throw visitsError;
 
@@ -234,9 +247,13 @@ const getGeneralTotals = async (): Promise<GeneralTotalsData> => {
       .from('PropertyMessageLogs')
       .select(`
         *,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `, { count: 'exact', head: true })
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (messagesError) throw messagesError;
 
@@ -245,13 +262,17 @@ const getGeneralTotals = async (): Promise<GeneralTotalsData> => {
       .from('EstatePropertyValues')
       .select(`
         *,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `, { count: 'exact', head: true })
       .eq('IsPropertyVisible', true)
       .eq('IsDeleted', false)
       .eq('IsFeatured', true)
       .in('Status', [0, 1]) // Sale or Rent
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (activeError) throw activeError;
 
@@ -464,11 +485,15 @@ const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }
       .from('PropertyVisitLogs')
       .select(`
         VisitedOnUtc,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `)
       .gte('VisitedOnUtc', startDate.toISOString())
       .lte('VisitedOnUtc', endDate.toISOString())
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (error) throw error;
 
@@ -536,12 +561,16 @@ const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: st
       .from('PropertyVisitLogs')
       .select(`
         Source,
-        EstateProperties!inner(OwnerId)
+        EstateProperties!inner(
+          OwnerId,
+          Owners!inner(OwnerType, CompanyId)
+        )
       `)
       .gte('VisitedOnUtc', startDate.toISOString())
       .lte('VisitedOnUtc', endDate.toISOString())
       .not('Source', 'is', null)
-      .in('EstateProperties.OwnerId', companyIds);
+      .eq('EstateProperties.Owners.OwnerType', 'company')
+      .in('EstateProperties.Owners.CompanyId', companyIds);
 
     if (error) throw error;
 

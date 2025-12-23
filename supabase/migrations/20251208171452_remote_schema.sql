@@ -125,29 +125,42 @@ $$;
 ALTER FUNCTION "public"."calculate_stat"("current_val" bigint, "previous_val" bigint) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_owner_user_id" "text", "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb") RETURNS "jsonb"
+CREATE OR REPLACE FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb", "p_owner_member_id" "uuid" DEFAULT NULL, "p_owner_company_id" "uuid" DEFAULT NULL, "p_owner_user_id" "uuid" DEFAULT NULL) RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     AS $$
 DECLARE
     v_property_id UUID;
-    v_member_id TEXT;
+    v_owner_id UUID;
+    v_member_id UUID;
     v_main_image_id UUID;
     v_image_record JSONB;
     v_document_record JSONB;
     v_video_record JSONB;
-    v_amenity_id TEXT;
+    v_amenity_id UUID;
     v_result JSONB;
 BEGIN
     -- Start transaction
     BEGIN
-        -- Validate owner exists and is not deleted
-        SELECT "Id" INTO v_member_id
-        FROM "Members"
-        WHERE "UserId" = p_owner_user_id AND "IsDeleted" = false;
+        -- Handle backward compatibility for deprecated p_owner_user_id parameter
+        IF p_owner_user_id IS NOT NULL THEN
+            -- DEPRECATED: Always treat as user_id and find corresponding member
+            SELECT "Id" INTO v_member_id
+            FROM "Members"
+            WHERE "UserId" = p_owner_user_id AND "IsDeleted" = false;
 
-        IF v_member_id IS NULL THEN
-            RAISE EXCEPTION 'Owner member not found or is deleted';
+            -- Validate that member exists
+            IF v_member_id IS NULL THEN
+                RAISE EXCEPTION 'No member record found for user ID: %. Please ensure you are properly registered.', p_owner_user_id;
+            END IF;
         END IF;
+
+        -- Get or create owner record using helper function (if available)
+        BEGIN
+            v_owner_id := get_or_create_owner(v_member_id, NULL, 'member');
+        EXCEPTION WHEN undefined_function THEN
+            -- Fallback for older schema without Owners table
+            v_owner_id := v_member_id;
+        END;
 
         -- Generate new property ID
         v_property_id := gen_random_uuid();
@@ -162,10 +175,10 @@ BEGIN
             "State",
             "ZipCode",
             "Country",
-            "LocationLat",
-            "LocationLng",
+            "LocationLatitude",
+            "LocationLongitude",
             "Title",
-            "PropertyType",
+            "Type",
             "AreaValue",
             "AreaUnit",
             "Bedrooms",
@@ -198,7 +211,7 @@ BEGIN
             p_garage_spaces,
             p_are_pets_allowed,
             p_capacity,
-            v_member_id,
+            v_owner_id,
             NOW(),
             NOW()
         );
@@ -297,7 +310,7 @@ BEGIN
 
         -- Link amenities
         IF p_amenity_ids IS NOT NULL AND jsonb_array_length(p_amenity_ids) > 0 THEN
-            FOR v_amenity_id IN SELECT * FROM jsonb_array_elements_text(p_amenity_ids)
+            FOR v_amenity_id IN SELECT value::UUID FROM jsonb_array_elements_text(p_amenity_ids)
             LOOP
                 INSERT INTO "EstatePropertyAmenities" (
                     "EstatePropertyId",
@@ -306,7 +319,7 @@ BEGIN
                     "LastModified"
                 ) VALUES (
                     v_property_id,
-                    v_amenity_id::UUID,
+                    v_amenity_id,
                     NOW(),
                     NOW()
                 );
@@ -416,7 +429,7 @@ BEGIN
             END,
             'isActive', p_is_active,
             'isPropertyVisible', p_is_property_visible,
-            'ownerId', v_member_id,
+            'ownerId', v_owner_id,
             'created', NOW()
         );
 
@@ -431,7 +444,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_owner_user_id" "text", "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb") OWNER TO "postgres";
+ALTER FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb", "p_owner_member_id" "uuid", "p_owner_company_id" "uuid", "p_owner_user_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."duplicate_estate_property"("p_original_property_id" "text", "p_user_id" "text", "p_new_title" "text" DEFAULT NULL::"text") RETURNS "jsonb"
@@ -484,7 +497,7 @@ BEGIN
             "LocationLat",
             "LocationLng",
             "Title",
-            "PropertyType",
+            "Type",
             "AreaValue",
             "AreaUnit",
             "Bedrooms",
@@ -508,7 +521,7 @@ BEGIN
             v_original_property."LocationLat",
             v_original_property."LocationLng",
             COALESCE(p_new_title, v_original_property."Title" || ' (Copy)'),
-            v_original_property."PropertyType",
+            v_original_property."Type",
             v_original_property."AreaValue",
             v_original_property."AreaUnit",
             v_original_property."Bedrooms",
@@ -1655,7 +1668,7 @@ BEGIN
             "LocationLat" = COALESCE(p_location_lat, "LocationLat"),
             "LocationLng" = COALESCE(p_location_lng, "LocationLng"),
             "Title" = COALESCE(p_title, "Title"),
-            "PropertyType" = COALESCE(p_property_type, "PropertyType"),
+            "Type" = COALESCE(p_property_type, "Type"),
             "AreaValue" = COALESCE(p_area_value, "AreaValue"),
             "AreaUnit" = COALESCE(p_area_unit, "AreaUnit"),
             "Bedrooms" = COALESCE(p_bedrooms, "Bedrooms"),
@@ -1872,7 +1885,7 @@ BEGIN
             'country', ep."Country",
             'location', jsonb_build_object('lat', ep."LocationLat", 'lng', ep."LocationLng"),
             'title', ep."Title",
-            'type', CASE ep."PropertyType"
+            'type', CASE ep."Type"
                 WHEN 0 THEN 'house'
                 WHEN 1 THEN 'apartment'
                 WHEN 2 THEN 'commercial'
@@ -2961,9 +2974,9 @@ GRANT ALL ON FUNCTION "public"."calculate_stat"("current_val" bigint, "previous_
 
 
 
-GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_owner_user_id" "text", "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb") TO "anon";
-GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_owner_user_id" "text", "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_owner_user_id" "text", "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb") TO "service_role";
+GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb", "p_owner_member_id" "uuid", "p_owner_company_id" "uuid", "p_owner_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb", "p_owner_member_id" "uuid", "p_owner_company_id" "uuid", "p_owner_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."create_estate_property"("p_street_name" "text", "p_house_number" "text", "p_neighborhood" "text", "p_city" "text", "p_state" "text", "p_zip_code" "text", "p_country" "text", "p_location_lat" double precision, "p_location_lng" double precision, "p_title" "text", "p_property_type" integer, "p_area_value" double precision, "p_area_unit" integer, "p_bedrooms" integer, "p_bathrooms" integer, "p_has_garage" boolean, "p_garage_spaces" integer, "p_description" "text", "p_available_from" timestamp with time zone, "p_are_pets_allowed" boolean, "p_capacity" integer, "p_currency" integer, "p_sale_price" double precision, "p_rent_price" double precision, "p_has_common_expenses" boolean, "p_common_expenses_value" double precision, "p_is_electricity_included" boolean, "p_is_water_included" boolean, "p_is_price_visible" boolean, "p_status" integer, "p_is_active" boolean, "p_is_property_visible" boolean, "p_property_images" "jsonb", "p_property_documents" "jsonb", "p_property_videos" "jsonb", "p_amenity_ids" "jsonb", "p_owner_member_id" "uuid", "p_owner_company_id" "uuid", "p_owner_user_id" "uuid") TO "service_role";
 
 
 

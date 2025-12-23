@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -33,7 +33,7 @@ const currencyMap: { [key: string]: number } = {
 
 const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
 const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
-const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'arePetsAllowed', 'capacity', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
+const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'capacity', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
 
 export const propertyFormSchema = z.object({
   // ESTATE PROPERTY
@@ -65,8 +65,6 @@ export const propertyFormSchema = z.object({
   // --- Values (Step 3) ---
   description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
   availableFrom: z.string().min(1, 'La fecha de disponibilidad es requerida.'),
-  arePetsAllowed: z.boolean(),
-  capacity: z.coerce.number().int().min(1, 'La capacidad debe ser al menos 1.'),
   // price and status
   currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']),
   salePrice: z.string().optional(),
@@ -119,6 +117,14 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   // Subscription notifications
   const { showWarningNotification } = useSubscriptionNotifications();
 
+  // Check quota limits when component mounts
+  useEffect(() => {
+    if (!isQuotaLoading && !canCreateProperty) {
+      setApiError(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+      setView('error');
+    }
+  }, [isQuotaLoading, canCreateProperty, totalLimit]);
+
   // --- State Management for Images, Videos, and Documents ---
   const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
   const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
@@ -150,8 +156,6 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       // --- Values (Step 3) ---
       description: '',
       availableFrom: new Date().toISOString().split('T')[0],
-      arePetsAllowed: false,
-      capacity: 1,
       currency: 'USD',
       salePrice: '',
       rentPrice: '',
@@ -240,7 +244,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
     setCurrentStep(prev => Math.max(prev - 1, 1));
   };
   const onSubmit = (formData: PropertyFormData) => {
-    // Additional validation for quota limits
+    // Additional validation for quota limits (double-check before submission)
     if (!canCreateProperty) {
       setApiError(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
       setView('error');

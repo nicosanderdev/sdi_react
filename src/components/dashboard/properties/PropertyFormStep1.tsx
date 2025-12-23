@@ -155,7 +155,9 @@ export function PropertyFormStep1({
                 {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location.message}</p>}
             </div>
             <div className="flex justify-end">
-                <Button type="submit">
+                <Button 
+                id="next-step-button"
+                type="submit">
                     Siguiente
                 </Button>
             </div>

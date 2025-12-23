@@ -30,6 +30,7 @@ const PropertiesManagerComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
@@ -163,8 +164,15 @@ const PropertiesManagerComponent = () => {
                 className="mr-4"
             />
             <Button
-                onClick={() => setShowAddProperty(true)}
-                disabled={isAtTotalLimit || isQuotaLoading} >
+                id="add-property-button"
+                onClick={() => {
+                  if (isAtTotalLimit) {
+                    setShowLimitModal(true);
+                  } else {
+                    setShowAddProperty(true);
+                  }
+                }}
+                disabled={isQuotaLoading} >
                 <PlusIcon size={18} className="mr-2" />
                 <span>Nueva Propiedad</span>
             </Button>
@@ -265,6 +273,75 @@ const PropertiesManagerComponent = () => {
           />
         )}
       </Card>
+
+      {/* Property Limit Reached Modal */}
+      <Modal show={showLimitModal} onClose={() => setShowLimitModal(false)} className='text-gray-800 dark:text-gray-50'>
+        <ModalHeader>
+          <h3 className="text-xl font-semibold mb-2">Límite de Propiedades Alcanzado</h3>
+        </ModalHeader>
+        <ModalBody>
+          <div className="text-center">
+            <div className="mb-4">
+              <div className="text-4xl mb-2">🏠</div>
+              <p className="text-lg mb-2">
+                {hasPersonalSubscription
+                  ? "Has alcanzado el límite máximo de propiedades de tu plan."
+                  : "Como usuario sin suscripción activa, puedes crear hasta 2 propiedades."
+                }
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Propiedades actuales:</span>
+                <span className="font-semibold">{ownedCount}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Límite máximo:</span>
+                <span className="font-semibold">{totalLimit}</span>
+              </div>
+            </div>
+
+            {!hasPersonalSubscription && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  <span className="font-medium">¿Quieres crear más propiedades?</span>
+                  <br />
+                  <Link
+                    to="/dashboard/subscription/plans"
+                    className="text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
+                    onClick={() => setShowLimitModal(false)}
+                  >
+                    Ver planes de suscripción
+                  </Link>
+                  <span className="ml-1">para aumentar tu límite.</span>
+                </p>
+              </div>
+            )}
+
+            <div className='flex justify-center gap-2 w-100'>
+              <Button
+                color="alternative"
+                onClick={() => setShowLimitModal(false)}
+              >
+                Entendido
+              </Button>
+              {!hasPersonalSubscription && (
+                <Button
+                  color="primary"
+                  onClick={() => {
+                    setShowLimitModal(false);
+                    // Navigate to subscription plans
+                    window.location.href = '/dashboard/subscription/plans';
+                  }}
+                >
+                  Ver Planes
+                </Button>
+              )}
+            </div>
+          </div>
+        </ModalBody>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       {propertyToDelete &&

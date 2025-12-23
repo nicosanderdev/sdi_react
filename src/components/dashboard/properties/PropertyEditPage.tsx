@@ -99,8 +99,6 @@ export function PropertyEditPage() {
                 garageSpaces: payload.garageSpaces,
                 description: payload.description,
                 availableFrom: payload.availableFrom.toISOString().split('T')[0], // Convert to date string
-                arePetsAllowed: payload.arePetsAllowed,
-                capacity: payload.capacity,
                 currency: payload.currency as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
                 salePrice: payload.salePrice,
                 rentPrice: payload.rentPrice,

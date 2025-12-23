@@ -38,8 +38,6 @@ export interface PropertyData {
   description?: string;
   availableFrom: Date;
   availableFromText: string;
-  arePetsAllowed: boolean;
-  capacity: number;
   ownerId?: string;
   // price and status
   currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';

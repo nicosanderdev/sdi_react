@@ -25,7 +25,6 @@ export interface PublicProperty {
   amenities: Amenity[];
   mainImageId: string;
   description: string;
-  arePetsAllowed: boolean;
   salePrice?: number;
   rentPrice?: number;
   currency: 'USD' | 'EUR' | 'GBP';

@@ -45,8 +45,16 @@ BEGIN
         SELECT
             ep."Id",
             ep."Title",
-            CONCAT(m."FirstName", ' ', m."LastName") as owner_name,
-            m."Email" as owner_email,
+            CASE
+                WHEN o."OwnerType" = 'member' THEN CONCAT(m."FirstName", ' ', m."LastName")
+                WHEN o."OwnerType" = 'company' THEN c."Name"
+                ELSE 'Unknown Owner'
+            END as owner_name,
+            CASE
+                WHEN o."OwnerType" = 'member' THEN m."Email"
+                WHEN o."OwnerType" = 'company' THEN c."BillingEmail"
+                ELSE NULL
+            END as owner_email,
             ep."City",
             ep."State",
             epv."Status",
@@ -56,9 +64,19 @@ BEGIN
             ep."LastModified"
         FROM "EstateProperties" ep
         JOIN "EstatePropertyValues" epv ON ep."Id" = epv."EstatePropertyId" AND epv."IsDeleted" = false
-        JOIN "Members" m ON ep."OwnerId" = m."Id" AND m."IsDeleted" = false
+        JOIN "Owners" o ON ep."OwnerId" = o."Id" AND o."IsDeleted" = false
+        LEFT JOIN "Members" m ON o."OwnerType" = 'member' AND o."MemberId" = m."Id" AND m."IsDeleted" = false
+        LEFT JOIN "Companies" c ON o."OwnerType" = 'company' AND o."CompanyId" = c."Id" AND c."IsDeleted" = false
         WHERE ep."IsDeleted" = false
-        AND (p_user_id IS NULL OR ep."OwnerId" = p_user_id)
+        AND (p_user_id IS NULL OR (
+            (o."OwnerType" = 'member' AND o."MemberId" = p_user_id) OR
+            (o."OwnerType" = 'company' AND EXISTS (
+                SELECT 1 FROM "UserCompanies" uc
+                WHERE uc."CompanyId" = o."CompanyId"
+                AND uc."MemberId" = p_user_id
+                AND uc."IsDeleted" = false
+            ))
+        ))
         AND (p_status IS NULL OR epv."Status" = CASE
             WHEN p_status = 'sale' THEN 0
             WHEN p_status = 'rent' THEN 1
@@ -73,7 +91,11 @@ BEGIN
              CONCAT(ep."City", ', ', ep."State") ILIKE '%' || p_location || '%')
         AND (p_search IS NULL OR
              ep."Title" ILIKE '%' || p_search || '%' OR
-             CONCAT(m."FirstName", ' ', m."LastName") ILIKE '%' || p_search || '%' OR
+             CASE
+                 WHEN o."OwnerType" = 'member' THEN CONCAT(m."FirstName", ' ', m."LastName")
+                 WHEN o."OwnerType" = 'company' THEN c."Name"
+                 ELSE ''
+             END ILIKE '%' || p_search || '%' OR
              ep."City" ILIKE '%' || p_search || '%' OR
              ep."State" ILIKE '%' || p_search || '%')
         ORDER BY ep."Created" DESC
@@ -223,13 +245,23 @@ BEGIN
         epv."IsPropertyVisible",
         epv."IsFeatured",
         ep."OwnerId",
-        CONCAT(m."FirstName", ' ', m."LastName") as owner_name,
-        m."Email" as owner_email,
+        CASE
+            WHEN o."OwnerType" = 'member' THEN CONCAT(m."FirstName", ' ', m."LastName")
+            WHEN o."OwnerType" = 'company' THEN c."Name"
+            ELSE 'Unknown Owner'
+        END as owner_name,
+        CASE
+            WHEN o."OwnerType" = 'member' THEN m."Email"
+            WHEN o."OwnerType" = 'company' THEN c."BillingEmail"
+            ELSE NULL
+        END as owner_email,
         ep."Created",
         ep."LastModified"
     FROM "EstateProperties" ep
     JOIN "EstatePropertyValues" epv ON ep."Id" = epv."EstatePropertyId" AND epv."IsDeleted" = false
-    JOIN "Members" m ON ep."OwnerId" = m."Id" AND m."IsDeleted" = false
+    JOIN "Owners" o ON ep."OwnerId" = o."Id" AND o."IsDeleted" = false
+    LEFT JOIN "Members" m ON o."OwnerType" = 'member' AND o."MemberId" = m."Id" AND m."IsDeleted" = false
+    LEFT JOIN "Companies" c ON o."OwnerType" = 'company' AND o."CompanyId" = c."Id" AND c."IsDeleted" = false
     WHERE ep."Id" = p_property_id AND ep."IsDeleted" = false;
 END;
 $$;

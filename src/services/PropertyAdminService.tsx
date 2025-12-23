@@ -71,7 +71,6 @@ export interface AdminPropertyDetail {
   garageSpaces: number;
   description: string;
   availableFrom: string;
-  capacity: number;
   currency: number;
   salePrice: number | null;
   rentPrice: number | null;
@@ -185,7 +184,6 @@ class PropertyAdminService {
       garageSpaces: property.garage_spaces,
       description: property.description,
       availableFrom: property.available_from,
-      capacity: property.capacity,
       currency: property.currency,
       salePrice: property.sale_price,
       rentPrice: property.rent_price,
