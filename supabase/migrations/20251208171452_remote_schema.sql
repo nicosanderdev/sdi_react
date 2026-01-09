@@ -1571,19 +1571,19 @@ BEGIN
 
     ELSE
         -- Create new thread
-        INSERT INTO "MessageThreads" ("Id", "Subject", "PropertyId", "CreatedAtUtc", "LastMessageAtUtc")
-        VALUES (gen_random_uuid(), p_subject, p_property_id, NOW(), NOW())
+        INSERT INTO "MessageThreads" ("Id", "Subject", "PropertyId", "CreatedAtUtc", "LastMessageAtUtc", "IsDeleted", "Created", "CreatedBy", "LastModified", "LastModifiedBy")
+        VALUES (gen_random_uuid(), p_subject, p_property_id, NOW(), NOW(), false, NOW(), NULL, NOW(), NULL)
         RETURNING "Id" INTO v_thread_id;
     END IF;
 
     -- Create message
-    INSERT INTO "Messages" ("Id", "ThreadId", "SenderId", "Body", "Snippet", "CreatedAtUtc", "InReplyToMessageId")
-    VALUES (gen_random_uuid(), v_thread_id, v_sender_member_id, p_body, generate_message_snippet(p_body), NOW(), p_in_reply_to_message_id)
+    INSERT INTO "Messages" ("Id", "ThreadId", "SenderId", "Body", "Snippet", "CreatedAtUtc", "InReplyToMessageId", "IsDeleted", "Created", "CreatedBy", "LastModified", "LastModifiedBy")
+    VALUES (gen_random_uuid(), v_thread_id, v_sender_member_id, p_body, generate_message_snippet(p_body), NOW(), p_in_reply_to_message_id, false, NOW(), NULL, NOW(), NULL)
     RETURNING "Id" INTO v_message_id;
 
     -- Create message recipient entry
-    INSERT INTO "MessageRecipients" ("Id", "MessageId", "RecipientId", "ReceivedAtUtc", "IsRead", "HasBeenRepliedToByRecipient", "IsStarred", "IsArchived", "IsDeleted")
-    VALUES (gen_random_uuid(), v_message_id, v_recipient_id, NOW(), false, false, false, false, false)
+    INSERT INTO "MessageRecipients" ("Id", "MessageId", "RecipientId", "ReceivedAtUtc", "IsRead", "HasBeenRepliedToByRecipient", "IsStarred", "IsArchived", "IsDeleted", "Created", "CreatedBy", "LastModified", "LastModifiedBy")
+    VALUES (gen_random_uuid(), v_message_id, v_recipient_id, NOW(), false, false, false, false, false, NOW(), NULL, NOW(), NULL)
     RETURNING "Id" INTO v_recipient_entry_id;
 
     -- Update thread last message time

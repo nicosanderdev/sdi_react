@@ -8,14 +8,12 @@ import { formatRelativeTime } from '../../utils/TimeUtils';
 import DashboardPageTitle from './DashboardPageTitle';
 import { Card } from 'flowbite-react';
 import { IconWrapper } from '../ui/IconWrapper';
-import { useNavigate } from 'react-router-dom';
 
 const ITEMS_PER_PAGE = 15; // Or get from config/props
 
 const TABS_CONFIG = [
   { id: 'inbox', label: 'Bandeja de entrada', icon: <InboxIcon size={18} /> },
   { id: 'starred', label: 'Destacados', icon: <StarIcon size={18} /> },
-  { id: 'replied', label: 'Respondidos', icon: <CheckCircleIcon size={18} /> },
   { id: 'archived', label: 'Archivados', icon: <ArchiveIcon size={18} /> },
   { id: 'sent', label: 'Enviados', icon: <SendIcon size={18} /> },
   { id: 'trash', label: 'Papelera', icon: <TrashIcon size={18} /> },
@@ -23,7 +21,6 @@ const TABS_CONFIG = [
 
 
 export function MessageCenter() {
-  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<MessageDetail | null>(null);
   const [threadMessages, setThreadMessages] = useState<MessageDetail[]>([]);
@@ -333,7 +330,7 @@ export function MessageCenter() {
                   placeholder="Buscar mensajes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-primary-200 dark:border-primary-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  className="pl-10 pr-4 py-2 w-full border border-primary-200 dark:border-primary-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                 />
                 <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2" size={18} />
               </div>
@@ -352,10 +349,10 @@ export function MessageCenter() {
                       {tab.label}
                     </span>
                   </div>
-                  {tabCounts[tab.id] !== undefined && tabCounts[tab.id]! > 0 && (
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-[#62B6CB] text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
+                      {tab.id === 'inbox' && tabCounts.inbox !== undefined && tabCounts.inbox > 0 && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-green-600 text-white' : 'bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                       }`}>
-                      {tabCounts[tab.id]}
+                      {tabCounts.inbox}
                     </span>
                   )}
                 </button>
@@ -363,26 +360,26 @@ export function MessageCenter() {
             </nav>
           </div>
 
-          {/* Messages list and detail */}
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            {/* Messages list and detail */}
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
 
-            {/* Messages list */}
-            <div className={`w-full ${selectedMessage !== null ? 'hidden md:flex' : 'flex'} md:w-1/2 lg:w-2/5 border-r border-gray-200 dark:border-gray-700 flex-col max-h-full`}>
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
-                <h2 className="font-semibold text-primary-800 dark:text-white text-lg">{currentTabLabel}</h2>
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  {totalMessages > 0 ? `${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalMessages)} de ${totalMessages}` : '0 mensajes'}
+              {/* Messages list */}
+              <div className={`w-full ${selectedMessage !== null ? 'hidden md:flex' : 'flex'} md:w-1/2 lg:w-2/5 border-r border-gray-200 dark:border-gray-700 flex-col max-h-full`}>
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+                  <h2 className="font-semibold text-primary-800 dark:text-white text-lg">{currentTabLabel}</h2>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    {totalMessages > 0 ? `${(currentPage - 1) * ITEMS_PER_PAGE + 1}-${Math.min(currentPage * ITEMS_PER_PAGE, totalMessages)} de ${totalMessages}` : '0 mensajes'}
+                  </div>
                 </div>
-              </div>
 
-              {listError && <div className="p-4 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center">{listError}</div>}
-              {actionError && <div className="p-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center sticky top-0 z-10">{actionError}</div>}
+                {listError && <div className="p-4 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center">{listError}</div>}
+                {actionError && <div className="p-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 text-center sticky top-0 z-10">{actionError}</div>}
 
-              {/* Message detail */}
-              {isLoadingList ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <Loader2Icon size={32} className="text-[#62B6CB] animate-spin" />
-                </div>
+                {/* Message detail */}
+                {isLoadingList ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <Loader2Icon size={32} className="text-green-500 animate-spin" />
+                  </div>
               ) : messages.length === 0 && !listError ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-4">
                   <InboxIcon size={48} className="mb-3 text-gray-400 dark:text-gray-500" />
@@ -400,11 +397,11 @@ export function MessageCenter() {
                     <div
                       key={message.id}
                       onClick={() => handleSelectMessage(message)}
-                      className={`p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer relative group transition-colors duration-150 ${!message.isRead ? 'bg-[#E0F7FA]/60 dark:bg-blue-900/20' : '' // Light cyan for unread
-                        } ${selectedMessage?.id === message.id ? 'bg-[#CAE9FF] dark:bg-blue-800/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                      className={`p-4 border-b border-gray-200 dark:border-gray-700 cursor-pointer relative group transition-colors duration-150 ${!message.isRead ? 'bg-green-50 dark:bg-green-900/20' : '' // Light cyan for unread
+                        } ${selectedMessage?.id === message.id ? 'bg-green-100 dark:bg-green-900/30' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                     >
                       {!message.isRead && (
-                        <span className="absolute top-3 left-2 w-2 h-2 bg-[#62B6CB] rounded-full" title="No leído"></span>
+                        <span className="absolute top-3 left-2 w-2 h-2 bg-green-600 rounded-full" title="No leído"></span>
                       )}
                       <div className="flex items-start">
                         <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center mr-3 ${!message.isRead ? '' : ''}`}>
@@ -459,7 +456,7 @@ export function MessageCenter() {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 text-gray-500 hover:text-[#1B4965] disabled:opacity-50 rounded-md hover:bg-gray-100"
+                    className="p-2 text-gray-500 hover:text-green-800 disabled:opacity-50 rounded-md hover:bg-gray-100"
                   >
                     <ChevronLeftIcon size={20} />
                   </button>
@@ -467,7 +464,7 @@ export function MessageCenter() {
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="p-2 text-gray-500 hover:text-[#1B4965] disabled:opacity-50 rounded-md hover:bg-gray-100"
+                    className="p-2 text-gray-500 hover:text-green-800 disabled:opacity-50 rounded-md hover:bg-gray-100"
                   >
                     <ChevronRightIcon size={20} />
                   </button>
@@ -479,7 +476,7 @@ export function MessageCenter() {
             <div className="flex-1 flex flex-col max-h-full">
               {isLoadingDetail ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <Loader2Icon size={32} className="text-[#62B6CB] animate-spin" />
+                  <Loader2Icon size={32} className="text-green-500 animate-spin" />
                 </div>
               ) : selectedMessage ? (
                 <>
@@ -493,11 +490,11 @@ export function MessageCenter() {
                           {selectedMessage.isStarred ? <StarIcon size={20} fill="currentColor" /> : <StarIcon size={20} />}
                         </button>
                         {selectedMessage.isRead && (
-                          <button onClick={(e) => handleMarkAsUnread(e, selectedMessage)} title="Marcar como no leído" className="p-2 text-gray-500 hover:text-[#1B4965] rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                          <button onClick={(e) => handleMarkAsUnread(e, selectedMessage)} title="Marcar como no leído" className="p-2 text-gray-500 hover:text-green-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                             <InboxIcon size={20} />
                           </button>
                         )}
-                        <button onClick={(e) => handleToggleArchive(e, selectedMessage)} title={selectedMessage.isArchived ? "Desarchivar" : "Archivar"} className="p-2 text-gray-500 hover:text-[#1B4965] rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <button onClick={(e) => handleToggleArchive(e, selectedMessage)} title={selectedMessage.isArchived ? "Desarchivar" : "Archivar"} className="p-2 text-gray-500 hover:text-green-800 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                           <ArchiveIcon size={20} />
                         </button>
                         <button onClick={(e) => handleDeleteMessage(e, selectedMessage)} title="Eliminar" className="p-2 text-gray-500 hover:text-red-500 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -505,17 +502,17 @@ export function MessageCenter() {
                         </button>
                       </div>
                     </div>
-                    <h1 className="text-xl font-semibold text-[#1B4965] dark:text-white mb-2">
+                    <h1 className="text-xl font-semibold text-primary-800 dark:text-white mb-2">
                       {selectedMessage.subject}
                     </h1>
                     {selectedMessage.propertyTitle && selectedMessage.propertyId && (
                       <div className="flex items-center justify-between mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
                         <div className="text-sm text-gray-600 dark:text-gray-300">
-                          Relacionado con la propiedad: <span className="font-medium text-[#1B4965] dark:text-white">{selectedMessage.propertyTitle}</span>
+                          Relacionado con la propiedad: <span className="font-medium text-primary-800 dark:text-white">{selectedMessage.propertyTitle}</span>
                         </div>
                         <button
-                          onClick={() => navigate(`/dashboard/property/${selectedMessage.propertyId}`)}
-                          className="ml-4 bg-[#62B6CB] text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center space-x-2 text-sm font-medium"
+                          onClick={() => window.open(`/dashboard/property/${selectedMessage.propertyId}`, '_blank')}
+                          className="ml-4 bg-green-600 text-white px-4 py-2 rounded-md hover:opacity-90 transition-opacity flex items-center space-x-2 text-sm font-medium"
                         >
                           <ExternalLinkIcon size={16} />
                           <span>Ver Propiedad</span>
@@ -532,11 +529,11 @@ export function MessageCenter() {
                     {threadMessages.map((msg, index) => (
                       <div key={msg.id} className={`mb-6 ${index < threadMessages.length - 1 ? 'border-b border-gray-200 dark:border-gray-700 pb-6' : ''}`}>
                         <div className="flex items-center mb-3">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-[#CAE9FF] dark:bg-gray-700 flex items-center justify-center text-[#1B4965] dark:text-white mr-3">
+                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 dark:bg-gray-700 flex items-center justify-center text-green-800 dark:text-white mr-3">
                             <UserIcon size={20} />
                           </div>
                           <div className="flex-1">
-                            <div className="font-medium text-[#1B4965] dark:text-white">{msg.senderName}</div>
+                            <div className="font-medium text-primary-800 dark:text-white">{msg.senderName}</div>
                             {msg.senderEmail && <div className="text-sm text-gray-500 dark:text-gray-400">&lt;{msg.senderEmail}&gt;</div>}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">{formatRelativeTime(msg.createdAt)}</div>
@@ -558,7 +555,7 @@ export function MessageCenter() {
                       placeholder="Escribe tu respuesta aquí..."
                       value={replyText}
                       onChange={(e) => setReplyText(e.target.value)}
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-[#62B6CB]"
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-1 focus:ring-green-500"
                       rows={4}
                       disabled={isSendingReply}
                     ></textarea>
@@ -566,7 +563,7 @@ export function MessageCenter() {
                       <button
                         onClick={handleSendReply}
                         disabled={isSendingReply || !replyText.trim()}
-                        className="bg-[#62B6CB] text-[#FDFFFC] px-5 py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center font-medium"
+                        className="bg-green-600 text-white px-5 py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center font-medium"
                       >
                         {isSendingReply ? <Loader2Icon size={18} className="animate-spin mr-2" /> : <SendIcon size={16} className="mr-2" />}
                         Enviar Respuesta

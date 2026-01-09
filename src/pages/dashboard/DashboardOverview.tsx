@@ -17,6 +17,7 @@ import propertyService from './../../services/PropertyService';
 import { Dropdown, DropdownItem } from 'flowbite-react';
 import { useNavigate } from 'react-router-dom';
 import { COMPANY_SELECTOR_OPTIONS, CompanySelector } from '../../components/dashboard/CompanySelector';
+import { PropertyImage } from '../../models/properties';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
@@ -245,7 +246,7 @@ export function DashboardOverview() {
             </div>
 
             {/* --- Stats Cards Row --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <DashboardStatCard
                     title="Visitas"
                     icon={EyeIcon}
@@ -276,15 +277,6 @@ export function DashboardOverview() {
                     }}
                 />
 
-                <DashboardStatCard
-                    title="Completadas"
-                    icon={CheckCircleIcon}
-                    value="24"
-                    trend={{
-                        value: 12.5,
-                        direction: 'increase'
-                    }}
-                />
             </div>
 
             {/* --- Main Dashboard Grid --- */}
@@ -296,7 +288,7 @@ export function DashboardOverview() {
                         <PropertyStats />
                     </DashboardChartCard>
 
-                    {/* Progress Circle */}
+                    {/* Progress Circle 
                     <DashboardChartCard title="Progreso del Mes">
                         <div className="flex items-center justify-center py-8">
                             <ProgressCircle
@@ -306,7 +298,7 @@ export function DashboardOverview() {
                                 subtitle="Meta mensual: 85%"
                             />
                         </div>
-                    </DashboardChartCard>
+                    </DashboardChartCard>*/}
 
                     {/* Recent Messages */}
                     <RecentMessages />
@@ -319,16 +311,16 @@ export function DashboardOverview() {
                         properties={mockProperties}
                     />
 
-                    {/* Activity Tracker */}
+                    {/* Activity Tracker
                     <ActivityTrackerCard
                         activities={mockActivities}
                         totalToday={165}
-                    />
+                    /> */}
 
-                    {/* Reminders */}
+                    {/* Reminders 
                     <ReminderCard
                         reminders={mockReminders}
-                    />
+                    />*/}
                 </div>
             </div>
 
