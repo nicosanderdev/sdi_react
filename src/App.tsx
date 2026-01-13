@@ -31,6 +31,7 @@ import { LogoutPage } from './components/user/LogoutPage';
 import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './pages/dashboard/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
+import PropertyBookingsPage from './pages/dashboard/PropertyBookingsPage';
 import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 
 // Subscription pages
@@ -134,6 +135,7 @@ export function App() {
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
+            <Route path="property/:propertyId/bookings" element={<PropertyBookingsPage />} />
 
             {/* Payment Routes */}
             <Route path="checkout/:propertyId" element={<CheckoutPage />} />

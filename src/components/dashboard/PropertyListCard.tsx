@@ -60,7 +60,7 @@ export function PropertyListCard({
       <div className="space-y-4">
         {properties.length === 0 ? (
           <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-            No hay propiedades para mostrar
+            El usuario no tiene propiedades creadas todavía
           </p>
         ) : (
           properties.map((property) => (

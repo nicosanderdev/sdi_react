@@ -1,17 +1,17 @@
-import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, FileTextIcon, AlertTriangleIcon } from 'lucide-react';
+import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, CalendarIcon, AlertTriangleIcon } from 'lucide-react';
 import { PropertyData } from '../../../models/properties';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useNavigate } from 'react-router-dom';
 
 interface PropertyTableProps {
   properties: PropertyData[];
-  onPrintProperty: (id: string) => void;
+  onViewBookings: (property: PropertyData) => void;
   onDeleteProperty: (property: PropertyData) => void;
 }
 
 export function PropertyTable({
   properties,
-  onPrintProperty,
+  onViewBookings,
   onDeleteProperty,
 }: PropertyTableProps) {
   const navigate = useNavigate();
@@ -142,12 +142,12 @@ export function PropertyTable({
                   >
                     <EditIcon size={18} />
                   </button>
-                  <button 
-                    onClick={() => onPrintProperty(property.id)} // Does nothing for now
+                  <button
+                    onClick={() => onViewBookings(property)}
                     className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
-                    title="Imprimir Ficha (Próximamente)"
+                    title="Ver Reservas"
                   >
-                    <FileTextIcon size={18} />
+                    <CalendarIcon size={18} />
                   </button>
                   <button 
                     onClick={() => onDeleteProperty(property)}

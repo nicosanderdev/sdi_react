@@ -34,8 +34,7 @@ export interface ProfileData {
   phone: string;
   title: string;
   avatarUrl?: string;
-  address: AddressData;
-  roles?: string[];
+  address: AddressData; 
   companies?: UserCompany[];
 }
 
@@ -102,7 +101,6 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
             postalCode: '',
             country: ''
           },
-          roles: [],
           companies: []
         };
       }
@@ -141,7 +139,6 @@ const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promi
     if (updateProfileDto.title !== undefined) updateData.Title = updateProfileDto.title;
     if (updateProfileDto.avatarUrl !== undefined) updateData.AvatarUrl = updateProfileDto.avatarUrl;
     if (updateProfileDto.phone !== undefined) updateData.Phone = updateProfileDto.phone;
-    if (updateProfileDto.roles !== undefined) updateData.Roles = updateProfileDto.roles;
 
     // Address fields
     if (updateProfileDto.address) {

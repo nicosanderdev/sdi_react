@@ -430,9 +430,4 @@ export class CalendarSyncService {
   }
 }
 
-// Export all services
-export {
-  GoogleCalendarOAuthService,
-  ICalSyncService,
-  SyncOrchestratorService
-}
+// Services are exported individually above

@@ -43,3 +43,5 @@ tasks/
 /playwright/.auth/
 e2e/.auth/*.json
 !e2e/.auth/.gitkeep
+
+supabase/snippets/

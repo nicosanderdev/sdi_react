@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
@@ -116,8 +116,10 @@ const PropertiesManagerComponent = () => {
     return properties;
   }, [allProperties, activeTab, searchTerm]);
 
-  const handlePrintProperty = (id: string) => {
-    console.log(`Placeholder: Print property with ID: ${id}`);
+  const navigate = useNavigate();
+
+  const handleViewBookings = (property: PropertyData) => {
+    navigate(`/dashboard/property/${property.id}/bookings`);
   };
 
   const handleDeleteRequest = (property: PropertyData) => {
@@ -266,9 +268,9 @@ const PropertiesManagerComponent = () => {
             <p className="text-gray-500">Cargando propiedades...</p>
           </div>
         ) : (
-          <PropertyTable 
+          <PropertyTable
             properties={filteredProperties}
-            onPrintProperty={handlePrintProperty}
+            onViewBookings={handleViewBookings}
             onDeleteProperty={handleDeleteRequest}
           />
         )}

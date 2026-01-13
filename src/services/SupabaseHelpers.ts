@@ -336,7 +336,6 @@ export const mapDbToProfile = (
       postalCode: member.PostalCode || '',
       country: member.Country || ''
     },
-    roles: member.Role ? [member.Role] : [],
     companies
   };
 };

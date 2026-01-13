@@ -105,8 +105,8 @@ BEGIN
             INNER JOIN "Owners" o ON ep."OwnerId" = o."Id" AND o."IsDeleted" = false
             WHERE ep."IsDeleted" = false
             AND (
-                (o."OwnerType" = 0 AND o."MemberId" = v_member_id) OR  -- Direct member ownership
-                (o."OwnerType" = 1 AND o."MemberId" = v_member_id AND o."CompanyId" IN (
+                (o."OwnerType" = 'member' AND o."MemberId" = v_member_id) OR  -- Direct member ownership
+                (o."OwnerType" = 'company' AND o."CompanyId" IN (
                     -- Get all company IDs where this member is active
                     SELECT uc."CompanyId"
                     FROM "UserCompanies" uc
@@ -164,9 +164,8 @@ BEGIN
             "Bathrooms",
             "HasGarage",
             "GarageSpaces",
-            "ArePetsAllowed",
-            "Capacity",
             "OwnerId",
+            "IsDeleted",
             "Created",
             "LastModified"
         ) VALUES (
@@ -188,9 +187,8 @@ BEGIN
             p_bathrooms,
             p_has_garage,
             p_garage_spaces,
-            false, -- Default: pets not allowed
-            1,     -- Default: capacity of 1
             v_owner_id,
+            false,
             NOW(),
             NOW()
         );
@@ -311,6 +309,7 @@ BEGIN
             "EstatePropertyId",
             "Description",
             "AvailableFrom",
+            "Capacity",
             "Currency",
             "SalePrice",
             "RentPrice",
@@ -331,6 +330,7 @@ BEGIN
             v_property_id,
             p_description,
             p_available_from,
+            COALESCE(p_bedrooms, 1), -- Default capacity based on bedrooms, minimum 1
             p_currency,
             p_sale_price,
             p_rent_price,
@@ -381,8 +381,6 @@ BEGIN
             'bathrooms', p_bathrooms,
             'hasGarage', p_has_garage,
             'garageSpaces', p_garage_spaces,
-            'arePetsAllowed', false,  -- Default value
-            'capacity', 1,            -- Default value
             'description', p_description,
             'availableFrom', p_available_from,
             'currency', CASE p_currency

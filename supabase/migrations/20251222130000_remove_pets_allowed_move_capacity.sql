@@ -3,13 +3,29 @@
 -- Description: Removes arePetsAllowed completely and migrates capacity from EstateProperties to EstatePropertyValues
 
 -- Step 1: Migrate existing capacity data to EstatePropertyValues (data preservation)
--- Ensure all EstatePropertyValues have capacity populated from the main property if not already set
-UPDATE "EstatePropertyValues" epv
-SET "Capacity" = ep."Capacity"
-FROM "EstateProperties" ep
-WHERE epv."EstatePropertyId" = ep."Id"
-  AND (epv."Capacity" IS NULL OR epv."Capacity" = 0)
-  AND ep."Capacity" > 0;
+-- Only migrate if Capacity column exists on EstateProperties (defensive check)
+DO $$
+BEGIN
+    -- Check if Capacity column exists on EstateProperties
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'EstateProperties'
+          AND column_name = 'Capacity'
+    ) THEN
+        -- Ensure all EstatePropertyValues have capacity populated from the main property if not already set
+        UPDATE "EstatePropertyValues" epv
+        SET "Capacity" = ep."Capacity"
+        FROM "EstateProperties" ep
+        WHERE epv."EstatePropertyId" = ep."Id"
+          AND (epv."Capacity" IS NULL OR epv."Capacity" = 0)
+          AND ep."Capacity" > 0;
+    ELSE
+        -- Capacity column doesn't exist on EstateProperties, skip migration
+        RAISE NOTICE 'Capacity column does not exist on EstateProperties table, skipping data migration';
+    END IF;
+END $$;
 
 -- Step 2: Drop the columns from EstateProperties
 ALTER TABLE "EstateProperties" DROP COLUMN IF EXISTS "ArePetsAllowed";
@@ -62,6 +78,10 @@ DECLARE
     v_owner_id UUID;
     v_values_id UUID;
     v_result JSONB;
+    v_image_record JSONB;
+    v_document_record JSONB;
+    v_video_record JSONB;
+    v_amenity_record JSONB;
 BEGIN
     -- Get user information
     SELECT id, company_id INTO v_member_id, v_company_id
@@ -178,7 +198,7 @@ BEGIN
 
     -- Handle property images
     IF p_property_images IS NOT NULL AND jsonb_array_length(p_property_images) > 0 THEN
-        FOR v_image_record IN SELECT * FROM jsonb_array_elements(p_property_images)
+        FOR v_image_record IN SELECT value FROM jsonb_array_elements(p_property_images)
         LOOP
             INSERT INTO "PropertyImages" (
                 "Id",
@@ -200,7 +220,7 @@ BEGIN
 
     -- Handle property documents
     IF p_property_documents IS NOT NULL AND jsonb_array_length(p_property_documents) > 0 THEN
-        FOR v_document_record IN SELECT * FROM jsonb_array_elements(p_property_documents)
+        FOR v_document_record IN SELECT value FROM jsonb_array_elements(p_property_documents)
         LOOP
             INSERT INTO "PropertyDocuments" (
                 "Id",
@@ -220,7 +240,7 @@ BEGIN
 
     -- Handle property videos
     IF p_property_videos IS NOT NULL AND jsonb_array_length(p_property_videos) > 0 THEN
-        FOR v_video_record IN SELECT * FROM jsonb_array_elements(p_property_videos)
+        FOR v_video_record IN SELECT value FROM jsonb_array_elements(p_property_videos)
         LOOP
             INSERT INTO "PropertyVideos" (
                 "Id",
@@ -242,7 +262,7 @@ BEGIN
 
     -- Handle property amenities
     IF p_property_amenities IS NOT NULL AND jsonb_array_length(p_property_amenities) > 0 THEN
-        FOR v_amenity_record IN SELECT * FROM jsonb_array_elements(p_property_amenities)
+        FOR v_amenity_record IN SELECT value FROM jsonb_array_elements(p_property_amenities)
         LOOP
             INSERT INTO "EstatePropertyAmenity" (
                 "EstatePropertyId",
@@ -377,6 +397,10 @@ CREATE OR REPLACE FUNCTION update_estate_property(
     AS $$
 DECLARE
     v_result JSONB;
+    v_image_record JSONB;
+    v_document_record JSONB;
+    v_video_record JSONB;
+    v_amenity_record JSONB;
 BEGIN
     -- Update main property record (without ArePetsAllowed and Capacity)
     UPDATE "EstateProperties"
@@ -475,7 +499,7 @@ BEGIN
 
         -- Insert new images
         IF jsonb_array_length(p_property_images) > 0 THEN
-            FOR v_image_record IN SELECT * FROM jsonb_array_elements(p_property_images)
+            FOR v_image_record IN SELECT value FROM jsonb_array_elements(p_property_images)
             LOOP
                 INSERT INTO "PropertyImages" (
                     "Id",
@@ -503,7 +527,7 @@ BEGIN
 
         -- Insert new documents
         IF jsonb_array_length(p_property_documents) > 0 THEN
-            FOR v_document_record IN SELECT * FROM jsonb_array_elements(p_property_documents)
+            FOR v_document_record IN SELECT value FROM jsonb_array_elements(p_property_documents)
             LOOP
                 INSERT INTO "PropertyDocuments" (
                     "Id",
@@ -529,7 +553,7 @@ BEGIN
 
         -- Insert new videos
         IF jsonb_array_length(p_property_videos) > 0 THEN
-            FOR v_video_record IN SELECT * FROM jsonb_array_elements(p_property_videos)
+            FOR v_video_record IN SELECT value FROM jsonb_array_elements(p_property_videos)
             LOOP
                 INSERT INTO "PropertyVideos" (
                     "Id",
@@ -557,7 +581,7 @@ BEGIN
 
         -- Insert new amenities
         IF jsonb_array_length(p_property_amenities) > 0 THEN
-            FOR v_amenity_record IN SELECT * FROM jsonb_array_elements(p_property_amenities)
+            FOR v_amenity_record IN SELECT value FROM jsonb_array_elements(p_property_amenities)
             LOOP
                 INSERT INTO "EstatePropertyAmenity" (
                     "EstatePropertyId",
