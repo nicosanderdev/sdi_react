@@ -11,7 +11,9 @@ import {
   addDays,
   isSameMonth,
   addMonths,
-  subMonths
+  subMonths,
+  isBefore,
+  startOfDay
 } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -35,6 +37,11 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onSelect
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Helper functions for date comparisons
+  const today = startOfDay(new Date());
+  const isPastDate = (date: Date) => isBefore(date, today);
+  const isTodayDate = (date: Date) => isSameDay(date, new Date());
 
   // Calculate tile content and styling for each date
   const tileData = useMemo(() => {
@@ -150,11 +157,16 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     if (!dayData) return [];
 
     const indicators = [];
-    const { hasConflicts, blocks } = dayData;
+    const { hasConflicts, blocks, bookings } = dayData;
 
     // Conflicts get highest priority (red)
     if (hasConflicts) {
       indicators.push('red');
+    }
+
+    // Check for bookings from the bookings array
+    if (bookings.length > 0) {
+      indicators.push('emerald');
     }
 
     // Check all block types for indicators (not just unavailable dates)
@@ -232,6 +244,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           const isCurrentMonth = isSameMonth(date, currentMonth);
           const isSelected = selectedDate && isSameDay(date, selectedDate);
           const indicators = getStatusIndicators(dateKey);
+          const isPast = isPastDate(date);
+          const isToday = isTodayDate(date);
 
           return (
             <button
@@ -245,6 +259,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
                   : `bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 ${indicators.length > 0 ? getBackgroundTint(indicators) : ''}`
                 }
                 ${!isCurrentMonth ? 'opacity-40' : ''}
+                ${isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}
+                ${isPast ? 'relative after:absolute after:inset-0 after:bg-gray-500/20 after:rounded-lg after:pointer-events-none' : ''}
               `}
             >
               <span className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-none">
@@ -289,6 +305,14 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           <div className="w-4 h-4 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-600 rounded mr-2"></div>
           <span>Disponible</span>
         </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-white border-2 border-blue-500 dark:border-blue-400 rounded mr-2"></div>
+          <span>Hoy</span>
+        </div>
+        <div className="flex items-center">
+          <div className="w-4 h-4 bg-gray-500/20 border border-gray-200 dark:bg-gray-800 dark:border-gray-600 rounded mr-2"></div>
+          <span>Fechas pasadas</span>
+        </div>
       </div>
 
       {/* Selected booking info */}
@@ -298,6 +322,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           <p className="text-sm text-emerald-700 dark:text-emerald-300">
             {selectedBooking.Guest?.FirstName} {selectedBooking.Guest?.LastName} - {selectedBooking.GuestCount} persona(s)
           </p>
+          <p className="text-sm text-emerald-700 dark:text-emerald-300">{selectedBooking.Notes}</p>
           <p className="text-xs text-emerald-600 dark:text-emerald-400">
             {format(parseISO(selectedBooking.CheckInDate), 'dd/MM/yyyy')} - {format(parseISO(selectedBooking.CheckOutDate), 'dd/MM/yyyy')}
           </p>

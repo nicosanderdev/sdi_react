@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
 import {
   User,
   Mail,
@@ -8,12 +7,10 @@ import {
   DollarSign,
   Calendar as CalendarIcon,
   Users,
-  FileText,
   Edit3,
   Trash2,
   Save,
   X,
-  Plus,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -37,7 +34,7 @@ interface BookingDetailsPanelProps {
 interface BookingFormState {
   checkInDate: string;
   checkOutDate: string;
-  guestId: string;
+  guestId: string | null;
   guestCount: number;
   totalAmount: number;
   currency: Currency;
@@ -257,9 +254,9 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
     return (
       <Card>
         <div className="text-center py-8">
-          <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Seleccionar Fecha</h3>
-          <p className="text-gray-600">
+          <CalendarIcon className="mx-auto h-12 w-12 text-gray-800 dark:text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Seleccionar Fecha</h3>
+          <p className="text-gray-600 dark:text-gray-300">
             Haz clic en una fecha del calendario para ver reservas o crear una nueva.
           </p>
         </div>
@@ -310,7 +307,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                 <StatusIcon className={`h-5 w-5 ${getStatusDisplay(selectedBooking.Status).color}`} />
               </div>
               <div>
-                <p className="font-medium">{BookingStatusNames[selectedBooking.Status]}</p>
+                <p className="font-medium">{BOOKING_STATUS_NAMES[selectedBooking.Status]}</p>
                 {!isEditing && (
                   <Select
                     value={selectedBooking.Status.toString()}
@@ -410,7 +407,6 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 disabled={!isEditing}
                 rows={3}
-                sizing="sm"
               />
             </div>
           </div>
@@ -452,11 +448,11 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                 disabled={isSaving}
                 className="flex-1"
               >
-                <X className="h-4 w-4 mr-2" />
+                <X className="h-6 w-6 mr-2" />
                 Cancelar
               </Button>
               <Button
-                color="primary"
+                color="green"
                 onClick={handleSave}
                 disabled={isSaving}
                 className="flex-1"
@@ -468,7 +464,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                   </>
                 ) : (
                   <>
-                    <Save className="h-4 w-4 mr-2" />
+                    <Save className="h-6 w-6 mr-2" />
                     {isCreating ? 'Crear Reserva' : 'Guardar'}
                   </>
                 )}

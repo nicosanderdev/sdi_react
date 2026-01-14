@@ -18,7 +18,7 @@ export interface BookingWithMember extends Booking {
 // Booking creation/update form data
 export interface BookingFormData {
   estatePropertyId: string;
-  guestId: string;
+  guestId: string | null | undefined;
   checkInDate: string;
   checkOutDate: string;
   guestCount: number;
@@ -146,7 +146,7 @@ class BookingService {
 
       const bookingPayload = {
         EstatePropertyId: bookingData.estatePropertyId,
-        GuestId: bookingData.guestId,
+        GuestId: bookingData.guestId && bookingData.guestId.trim() !== '' ? bookingData.guestId : null,
         CheckInDate: bookingData.checkInDate,
         CheckOutDate: bookingData.checkOutDate,
         GuestCount: bookingData.guestCount,
@@ -216,7 +216,7 @@ class BookingService {
 
       // Map form field names to database field names
       if (updates.estatePropertyId) updatePayload.EstatePropertyId = updates.estatePropertyId;
-      if (updates.guestId) updatePayload.GuestId = updates.guestId;
+      if (updates.guestId !== undefined) updatePayload.GuestId = updates.guestId && updates.guestId.trim() !== '' ? updates.guestId : null;
       if (updates.checkInDate) updatePayload.CheckInDate = updates.checkInDate;
       if (updates.checkOutDate) updatePayload.CheckOutDate = updates.checkOutDate;
       if (updates.guestCount !== undefined) updatePayload.GuestCount = updates.guestCount;

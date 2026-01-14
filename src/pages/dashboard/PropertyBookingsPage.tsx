@@ -60,8 +60,8 @@ const PropertyBookingsPage: React.FC = () => {
       // Load property details
       const property = await propertyService.getOwnersPropertyById(propertyId);
 
-      // Load bookings for the property (next 12 months)
-      const startDate = new Date().toISOString().split('T')[0];
+      // Load bookings for the property (last 3 months + next 12 months)
+      const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const bookingsResponse = await BookingService.getPropertyBookings(propertyId, startDate, endDate);
 
@@ -290,11 +290,11 @@ const PropertyBookingsPage: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">Calendario de Reservas</h3>
               <Button
-                color={state.isAvailabilityMode ? "primary" : "alternative"}
+                color={state.isAvailabilityMode ? "green" : "alternative"}
                 size="sm"
                 onClick={toggleAvailabilityMode}
               >
-                {state.isAvailabilityMode ? "Modo Reserva" : "Modo Disponibilidad"}
+                {state.isAvailabilityMode ? "Ver reservas" : "Ver disponibilidad"}
               </Button>
             </div>
 

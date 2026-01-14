@@ -166,7 +166,7 @@ export enum Currency {
 export interface Booking {
   Id: string
   EstatePropertyId: string
-  GuestId: string
+  GuestId: string | null
   CheckInDate: string
   CheckOutDate: string
   Status: BookingStatus
@@ -295,7 +295,7 @@ export interface AvailabilityBlockForm {
 
 export interface BookingForm {
   estatePropertyId: string
-  guestId: string
+  guestId: string | null | undefined
   checkInDate: string
   checkOutDate: string
   guestCount: number
