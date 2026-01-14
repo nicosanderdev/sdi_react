@@ -251,10 +251,23 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
     if (memberError) throw memberError;
 
-    const { data, error } = await supabase
+    // Get all company IDs for this member
+    const { data: userCompanies, error: companiesError } = await supabase
+      .from('UserCompanies')
+      .select('CompanyId')
+      .eq('MemberId', member.Id)
+      .eq('IsDeleted', false);
+
+    if (companiesError) throw companiesError;
+
+    const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+
+    // Build unified query that checks both member and company ownership
+    let query = supabase
       .from('EstateProperties')
       .select(`
         *,
+        Owners!inner(OwnerType, MemberId, CompanyId),
         EstatePropertyValues(*),
         PropertyImages(*),
         PropertyDocuments(*),
@@ -263,11 +276,66 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
       `)
       .eq('Id', id)
       .eq('IsDeleted', false)
-      .single();
+      .eq('Owners.IsDeleted', false);
+
+    // Check both member ownership and company ownership in a single query
+    if (companyIds.length > 0) {
+      query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
+        .eq('Owners.MemberId', member.Id)
+        .in('Owners.CompanyId', companyIds);
+    } else {
+      // Only check member ownership if no companies
+      query = query.eq('Owners.OwnerType', 'member')
+        .eq('Owners.MemberId', member.Id);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new Error('Property not found');
+        // Property not found or access denied - let's get more details
+        console.warn(`Property ${id} not accessible for user ${userId}. Member ID: ${member.Id}, Company IDs: [${companyIds.join(', ')}]`);
+
+        // Check if property exists at all
+        const { data: existsData, error: existsError } = await supabase
+          .from('EstateProperties')
+          .select('Id, OwnerId')
+          .eq('Id', id)
+          .eq('IsDeleted', false)
+          .single();
+
+        if (existsError && existsError.code === 'PGRST116') {
+          console.error(`Property ${id} does not exist in database`);
+          throw new Error('Property not found');
+        } else if (existsData) {
+          // Property exists, check owner details
+          const { data: ownerData } = await supabase
+            .from('Owners')
+            .select('Id, OwnerType, MemberId, CompanyId')
+            .eq('Id', existsData.OwnerId)
+            .single();
+
+          if (ownerData) {
+            console.error(`Property ${id} exists but access denied. Property owner details:`, {
+              ownerType: ownerData.OwnerType,
+              ownerMemberId: ownerData.MemberId,
+              ownerCompanyId: ownerData.CompanyId,
+              userMemberId: member.Id,
+              userCompanyIds: companyIds
+            });
+
+            const accessReason = ownerData.OwnerType === 'member'
+              ? `Property owned by member ${ownerData.MemberId}, user is member ${member.Id}`
+              : `Property owned by company ${ownerData.CompanyId}, user has access to companies: [${companyIds.join(', ')}]`;
+
+            throw new Error(`Access denied to property ${id}: ${accessReason}`);
+          } else {
+            console.error(`Property ${id} exists but owner record not found. OwnerId: ${existsData.OwnerId}`);
+            throw new Error('Property owner information missing');
+          }
+        } else {
+          throw new Error('Property not found or access denied');
+        }
       }
       throw error;
     }

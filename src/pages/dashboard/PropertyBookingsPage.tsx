@@ -6,15 +6,14 @@ import {
   Save,
   X,
   RefreshCw,
-  AlertCircle,
-  CheckCircle
+  AlertCircle
 } from 'lucide-react';
 import { Button, Card } from 'flowbite-react';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { PropertyData } from '../../models/properties';
 import BookingService, { BookingWithMember } from '../../services/BookingService';
 import { AvailabilityBlock } from '../../models/calendar/CalendarSync';
-import { CalendarSyncService, SyncStatus, SyncStatusResponse } from '../../services/CalendarSyncService';
+import { CalendarSyncService, SyncOrchestratorService } from '../../services/CalendarSyncService';
 import BookingCalendar from '../../components/dashboard/bookings/BookingCalendar';
 import BookingDetailsPanel from '../../components/dashboard/bookings/BookingDetailsPanel';
 import SyncStatusBar from '../../components/dashboard/bookings/SyncStatusBar';
@@ -25,7 +24,6 @@ interface PropertyBookingsPageState {
   property: PropertyData | null;
   bookings: BookingWithMember[];
   availabilityBlocks: AvailabilityBlock[];
-  syncStatus: SyncStatusResponse | null;
   selectedBooking: BookingWithMember | null;
   selectedDate: Date | null;
   isLoading: boolean;
@@ -43,7 +41,6 @@ const PropertyBookingsPage: React.FC = () => {
     property: null,
     bookings: [],
     availabilityBlocks: [],
-    syncStatus: null,
     selectedBooking: null,
     selectedDate: null,
     isLoading: true,
@@ -71,15 +68,11 @@ const PropertyBookingsPage: React.FC = () => {
       // Load availability blocks
       const availabilityResponse = await CalendarSyncService.getAvailabilityBlocks(propertyId, startDate, endDate);
 
-      // Load sync status
-      const syncStatusResponse = await CalendarSyncService.getSyncStatus(propertyId);
-
       setState(prev => ({
         ...prev,
         property: property,
         bookings: bookingsResponse.succeeded ? bookingsResponse.data! : [],
         availabilityBlocks: availabilityResponse.succeeded ? availabilityResponse.data! : [],
-        syncStatus: syncStatusResponse.succeeded ? syncStatusResponse.data! : null,
         isLoading: false
       }));
     } catch (error: any) {
@@ -153,17 +146,9 @@ const PropertyBookingsPage: React.FC = () => {
     setState(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
-      const syncResponse = await CalendarSyncService.triggerBulkSync(propertyId);
-
-      if (syncResponse.succeeded) {
-        // Refresh data after sync
-        await loadData();
-      } else {
-        setState(prev => ({
-          ...prev,
-          error: syncResponse.errorMessage || 'Sync failed'
-        }));
-      }
+      await SyncOrchestratorService.triggerBulkSync(propertyId);
+      // Refresh data after sync
+      await loadData();
     } catch (error: any) {
       setState(prev => ({
         ...prev,
@@ -211,15 +196,48 @@ const PropertyBookingsPage: React.FC = () => {
   }
 
   if (!state.property) {
+    const isAccessError = state.error && (
+      state.error.includes('Access denied') ||
+      state.error.includes('access denied')
+    );
+
     return (
       <div className="flex flex-col items-center justify-center min-h-96">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Propiedad no encontrada</h3>
-        <p className="text-gray-600 mb-4">La propiedad solicitada no existe o no tienes acceso.</p>
-        <Button onClick={() => navigate('/dashboard/properties')}>
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Volver a Propiedades
-        </Button>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {isAccessError ? 'Acceso Denegado' : 'Propiedad no encontrada'}
+        </h3>
+        <p className="text-gray-600 mb-4 text-center max-w-md">
+          {isAccessError
+            ? 'No tienes permisos para acceder a esta propiedad. Esto puede suceder si la propiedad pertenece a una empresa y no eres miembro de esa empresa.'
+            : 'La propiedad solicitada no existe en el sistema.'
+          }
+        </p>
+        <div className="flex space-x-3">
+          <Button onClick={() => navigate('/dashboard/properties')}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Ver Mis Propiedades
+          </Button>
+          {isAccessError && (
+            <Button
+              color="alternative"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reintentar
+            </Button>
+          )}
+        </div>
+        {state.error && (
+          <details className="mt-4 text-xs text-gray-500 max-w-md">
+            <summary className="cursor-pointer hover:text-gray-700">
+              Detalles técnicos (para soporte)
+            </summary>
+            <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+              {state.error}
+            </pre>
+          </details>
+        )}
       </div>
     );
   }
@@ -243,17 +261,23 @@ const PropertyBookingsPage: React.FC = () => {
 
       {/* Error Display */}
       {state.error && (
-        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 mr-2" />
-            {state.error}
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700 p-4">
+          <div className="flex">
+            <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Error loading booking data</p>
+              <p className="text-sm mt-1">{state.error}</p>
+              <p className="text-sm mt-2 text-red-600 dark:text-red-400">
+                If this persists, please contact support or try refreshing the page.
+              </p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Sync Status Bar */}
       <SyncStatusBar
-        syncStatus={state.syncStatus}
+        propertyId={propertyId!}
         onSync={handleSync}
         isSyncing={state.isSyncing}
       />
@@ -310,7 +334,7 @@ const PropertyBookingsPage: React.FC = () => {
 
       {/* Action Buttons */}
       {state.hasUnsavedChanges && (
-        <div className="fixed bottom-6 right-6 flex space-x-4 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+        <div className="fixed bottom-6 right-6 flex space-x-4 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-600 rounded-lg shadow-lg p-4">
           <Button
             color="alternative"
             onClick={handleCancelChanges}

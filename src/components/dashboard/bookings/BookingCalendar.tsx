@@ -1,7 +1,20 @@
-import React, { useMemo } from 'react';
-import Calendar from 'react-calendar';
-import { format, isSameDay, isWithinInterval, parseISO } from 'date-fns';
+import React, { useMemo, useState } from 'react';
+import {
+  format,
+  isSameDay,
+  isWithinInterval,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  addDays,
+  isSameMonth,
+  addMonths,
+  subMonths
+} from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { BookingWithMember } from '../../../services/BookingService';
 import { AvailabilityBlock, BlockType, SourceType } from '../../../models/calendar/CalendarSync';
 import { AvailabilityUtils } from '../../../models/calendar/AvailabilityBlock';
@@ -21,6 +34,8 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   selectedBooking,
   onSelect
 }) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
   // Calculate tile content and styling for each date
   const tileData = useMemo(() => {
     const data: { [key: string]: {
@@ -92,79 +107,31 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     return data;
   }, [bookings, availabilityBlocks]);
 
-  // Custom tile content
-  const tileContent = ({ date, view }: { date: Date; view: string }) => {
-    if (view !== 'month') return null;
+  // Generate calendar days for the current month
+  const calendarDays = useMemo(() => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Monday start
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const dayData = tileData[dateKey];
+    const days = [];
+    let day = calendarStart;
 
-    if (!dayData) return null;
+    while (day <= calendarEnd) {
+      days.push(new Date(day));
+      day = addDays(day, 1);
+    }
 
-    const { bookingCount, hasConflicts } = dayData;
+    return days;
+  }, [currentMonth]);
 
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        {bookingCount > 0 && (
-          <div className="text-xs font-semibold text-blue-600">
-            {bookingCount}
-          </div>
-        )}
-        {hasConflicts && (
-          <div className="w-1 h-1 bg-red-500 rounded-full mt-1"></div>
-        )}
-      </div>
-    );
+  // Navigation functions
+  const handlePreviousMonth = () => {
+    setCurrentMonth(subMonths(currentMonth, 1));
   };
 
-  // Custom tile class name for styling
-  const tileClassName = ({ date, view }: { date: Date; view: string }) => {
-    if (view !== 'month') return '';
-
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const dayData = tileData[dateKey];
-
-    const classes = ['relative'];
-
-    if (!dayData) {
-      classes.push('bg-white');
-      return classes.join(' ');
-    }
-
-    const { isAvailable, hasConflicts, blocks } = dayData;
-
-    // Selected date styling
-    if (selectedDate && isSameDay(date, selectedDate)) {
-      classes.push('ring-2 ring-blue-500 ring-inset');
-    }
-
-    // Conflict styling (highest priority)
-    if (hasConflicts) {
-      classes.push('bg-red-100 text-red-800');
-      return classes.join(' ');
-    }
-
-    // Availability/block styling
-    if (!isAvailable) {
-      // Check block types for specific colors
-      const hasBooking = blocks.some(b => b.BlockType === BlockType.Booking);
-      const hasOwnerBlock = blocks.some(b => b.BlockType === BlockType.OwnerBlock);
-      const hasExternalBlock = blocks.some(b => b.BlockType === BlockType.ExternalBlock);
-
-      if (hasBooking) {
-        classes.push('bg-blue-100 text-blue-800');
-      } else if (hasOwnerBlock) {
-        classes.push('bg-amber-100 text-amber-800');
-      } else if (hasExternalBlock) {
-        classes.push('bg-violet-100 text-violet-800');
-      } else {
-        classes.push('bg-gray-100 text-gray-800');
-      }
-    } else {
-      classes.push('bg-white hover:bg-gray-50');
-    }
-
-    return classes.join(' ');
+  const handleNextMonth = () => {
+    setCurrentMonth(addMonths(currentMonth, 1));
   };
 
   // Handle date click
@@ -177,54 +144,161 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     onSelect(date, booking);
   };
 
+  // Get status indicators for a day
+  const getStatusIndicators = (dateKey: string) => {
+    const dayData = tileData[dateKey];
+    if (!dayData) return [];
+
+    const indicators = [];
+    const { hasConflicts, blocks } = dayData;
+
+    // Conflicts get highest priority (red)
+    if (hasConflicts) {
+      indicators.push('red');
+    }
+
+    // Check all block types for indicators (not just unavailable dates)
+    const hasBooking = blocks.some(b => b.BlockType === BlockType.Booking);
+    const hasOwnerBlock = blocks.some(b => b.BlockType === BlockType.OwnerBlock);
+    const hasExternalBlock = blocks.some(b => b.BlockType === BlockType.ExternalBlock);
+
+    if (hasBooking) {
+      indicators.push('emerald');
+    }
+    if (hasOwnerBlock) {
+      indicators.push('amber');
+    }
+    if (hasExternalBlock) {
+      indicators.push('teal');
+    }
+
+    return indicators;
+  };
+
+  // Get color class for indicator
+  const getIndicatorColorClass = (color: string) => {
+    switch (color) {
+      case 'emerald': return 'bg-emerald-500';
+      case 'amber': return 'bg-amber-500';
+      case 'red': return 'bg-red-500';
+      case 'teal': return 'bg-teal-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  // Get subtle background tint for days with indicators
+  const getBackgroundTint = (indicators: string[]) => {
+    if (indicators.includes('red')) return 'bg-red-100/50 dark:bg-red-900/20 ring-2 ring-red-200 dark:ring-red-800';
+    if (indicators.includes('amber')) return 'bg-amber-100/50 dark:bg-amber-900/20 ring-2 ring-amber-200 dark:ring-amber-800';
+    if (indicators.includes('emerald')) return 'bg-emerald-100/50 dark:bg-emerald-900/20 ring-2 ring-emerald-200 dark:ring-emerald-800';
+    if (indicators.includes('teal')) return 'bg-teal-100/50 dark:bg-teal-900/20 ring-2 ring-teal-200 dark:ring-teal-800';
+    return '';
+  };
+
   return (
     <div className="booking-calendar">
-      <Calendar
-        onClickDay={handleDateClick}
-        tileContent={tileContent}
-        tileClassName={tileClassName}
-        value={selectedDate}
-        locale="es-ES"
-        className="w-full border-none"
-        showNeighboringMonth={false}
-        formatMonthYear={(locale, date) => format(date, 'MMMM yyyy', { locale: es })}
-        formatShortWeekday={(locale, date) => format(date, 'EEEEEE', { locale: es })}
-        prevLabel={<span>&lt;</span>}
-        nextLabel={<span>&gt;</span>}
-      />
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={handlePreviousMonth}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {format(currentMonth, 'MMMM yyyy', { locale: es })}
+        </h2>
+        <button
+          onClick={handleNextMonth}
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Weekday Headers */}
+      <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2">
+        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) => (
+          <div key={day} className="text-center text-xs font-semibold uppercase text-gray-600 dark:text-gray-400 py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1 md:gap-2">
+        {calendarDays.map((date) => {
+          const dateKey = format(date, 'yyyy-MM-dd');
+          const isCurrentMonth = isSameMonth(date, currentMonth);
+          const isSelected = selectedDate && isSameDay(date, selectedDate);
+          const indicators = getStatusIndicators(dateKey);
+
+          return (
+            <button
+              key={dateKey}
+              onClick={() => handleDateClick(date)}
+              className={`
+                w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-lg border border-transparent
+                flex flex-col items-center justify-between p-1 transition-all duration-150
+                ${isSelected
+                  ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 dark:ring-emerald-400'
+                  : `bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 ${indicators.length > 0 ? getBackgroundTint(indicators) : ''}`
+                }
+                ${!isCurrentMonth ? 'opacity-40' : ''}
+              `}
+            >
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100 leading-none">
+                {format(date, 'd')}
+              </span>
+
+              {/* Status indicators */}
+              {indicators.length > 0 && (
+                <div className="w-full mt-auto">
+                  {indicators.slice(0, 3).map((color, index) => (
+                    <div
+                      key={index}
+                      className={`h-1 w-full ${getIndicatorColorClass(color)} rounded-sm`}
+                    />
+                  ))}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-4 text-sm">
+      <div className="mt-6 flex flex-wrap gap-4 text-sm text-gray-700 dark:text-gray-300">
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-blue-100 border border-blue-200 rounded mr-2"></div>
+          <div className="w-4 h-0.5 bg-emerald-500 rounded mr-2"></div>
           <span>Reservas</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-amber-100 border border-amber-200 rounded mr-2"></div>
+          <div className="w-4 h-0.5 bg-amber-500 rounded mr-2"></div>
           <span>Bloqueo Propietario</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-violet-100 border border-violet-200 rounded mr-2"></div>
+          <div className="w-4 h-0.5 bg-teal-500 rounded mr-2"></div>
           <span>Calendario Externo</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-red-100 border border-red-200 rounded mr-2"></div>
+          <div className="w-4 h-0.5 bg-red-500 rounded mr-2"></div>
           <span>Conflictos</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-white border border-gray-200 rounded mr-2"></div>
+          <div className="w-4 h-4 bg-white border border-gray-200 dark:bg-gray-800 dark:border-gray-600 rounded mr-2"></div>
           <span>Disponible</span>
         </div>
       </div>
 
       {/* Selected booking info */}
       {selectedBooking && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <h4 className="font-medium text-blue-900">Reserva Seleccionada</h4>
-          <p className="text-sm text-blue-700">
+        <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 rounded-lg">
+          <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Reserva Seleccionada</h4>
+          <p className="text-sm text-emerald-700 dark:text-emerald-300">
             {selectedBooking.Guest?.FirstName} {selectedBooking.Guest?.LastName} - {selectedBooking.GuestCount} persona(s)
           </p>
-          <p className="text-xs text-blue-600">
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
             {format(parseISO(selectedBooking.CheckInDate), 'dd/MM/yyyy')} - {format(parseISO(selectedBooking.CheckOutDate), 'dd/MM/yyyy')}
           </p>
         </div>

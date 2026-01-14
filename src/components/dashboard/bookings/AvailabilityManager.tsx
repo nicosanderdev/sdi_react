@@ -172,13 +172,13 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   const getBlockTypeColor = (blockType: BlockType) => {
     switch (blockType) {
       case BlockType.OwnerBlock:
-        return 'bg-amber-100 text-amber-800';
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
       case BlockType.Booking:
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
       case BlockType.ExternalBlock:
-        return 'bg-violet-100 text-violet-800';
+        return 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
   };
 
@@ -249,12 +249,12 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
 
       {/* Instructions */}
       {isBlockingMode && (
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700">
           <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900">Modo de Gestión de Disponibilidad</h4>
-              <p className="text-sm text-blue-700 mt-1">
+              <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Modo de Gestión de Disponibilidad</h4>
+              <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
                 • Haz clic en fechas disponibles para bloquearlas<br />
                 • Haz clic en fechas bloqueadas para editarlas<br />
                 • Los bloques se aplicarán a todas las fechas del rango seleccionado
@@ -270,22 +270,22 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           <h4 className="font-medium mb-3">Bloqueos Actuales</h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {uniqueBlocks.map((block) => (
-              <div key={block.Id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div key={block.Id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <Badge className={getBlockTypeColor(block.BlockType)}>
                       {BLOCK_TYPE_NAMES[block.BlockType]}
                     </Badge>
-                    <span className="font-medium">{block.Title || 'Sin título'}</span>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{block.Title || 'Sin título'}</span>
                   </div>
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {format(parseISO(block.StartDate), 'dd/MM/yyyy')}
                     {block.StartDate !== block.EndDate &&
                       ` - ${format(parseISO(block.EndDate), 'dd/MM/yyyy')}`
                     }
                   </div>
                   {block.Description && (
-                    <div className="text-sm text-gray-500 mt-1">{block.Description}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">{block.Description}</div>
                   )}
                 </div>
                 <div className="flex space-x-2">

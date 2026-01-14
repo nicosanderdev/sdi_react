@@ -154,3 +154,28 @@
 .animate-pulse-slow {
 animation: pulse-slow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* React Calendar Dark Mode Support */
+.dark .react-calendar {
+  @apply bg-gray-800 border-gray-700 text-gray-200;
+}
+
+.dark .react-calendar__navigation button {
+  @apply text-gray-200 hover:bg-gray-700;
+}
+
+.dark .react-calendar__month-view__weekdays {
+  @apply text-gray-400;
+}
+
+.dark .react-calendar__tile {
+  @apply text-gray-200;
+}
+
+.dark .react-calendar__tile--now {
+  @apply bg-primary-900/20 text-primary-300;
+}
+
+.dark .react-calendar__month-view__days__day--neighboringMonth {
+  @apply text-gray-600;
+}

@@ -11,7 +11,7 @@ export interface BookingWithMember extends Booking {
     LastName?: string;
     Email?: string;
     Phone?: string;
-    ProfileImageUrl?: string;
+    AvatarUrl?: string;
   };
 }
 
@@ -50,14 +50,14 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!Bookings_GuestId_fkey(
+          Guest:Members!FK_Bookings_Members_GuestId(
             Id,
             UserId,
             FirstName,
             LastName,
             Email,
             Phone,
-            ProfileImageUrl
+            AvatarUrl
           )
         `)
         .eq('EstatePropertyId', propertyId)
@@ -97,14 +97,14 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!Bookings_GuestId_fkey(
+          Guest:Members!FK_Bookings_Members_GuestId(
             Id,
             UserId,
             FirstName,
             LastName,
             Email,
             Phone,
-            ProfileImageUrl
+            AvatarUrl
           )
         `)
         .eq('Id', bookingId)
@@ -169,14 +169,14 @@ class BookingService {
         .insert(bookingPayload)
         .select(`
           *,
-          Guest:Members!Bookings_GuestId_fkey(
+          Guest:Members!FK_Bookings_Members_GuestId(
             Id,
             UserId,
             FirstName,
             LastName,
             Email,
             Phone,
-            ProfileImageUrl
+            AvatarUrl
           )
         `)
         .single();
@@ -236,14 +236,14 @@ class BookingService {
         .eq('Id', bookingId)
         .select(`
           *,
-          Guest:Members!Bookings_GuestId_fkey(
+          Guest:Members!FK_Bookings_Members_GuestId(
             Id,
             UserId,
             FirstName,
             LastName,
             Email,
             Phone,
-            ProfileImageUrl
+            AvatarUrl
           )
         `)
         .single();
@@ -305,14 +305,14 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!Bookings_GuestId_fkey(
+          Guest:Members!FK_Bookings_Members_GuestId(
             Id,
             UserId,
             FirstName,
             LastName,
             Email,
             Phone,
-            ProfileImageUrl
+            AvatarUrl
           )
         `)
         .eq('EstatePropertyId', propertyId)
@@ -355,7 +355,7 @@ class BookingService {
     try {
       const { data, error } = await supabase
         .from('Members')
-        .select('Id, UserId, FirstName, LastName, Email, Phone, ProfileImageUrl')
+        .select('Id, UserId, FirstName, LastName, Email, Phone, AvatarUrl')
         .eq('IsDeleted', false)
         .or(`FirstName.ilike.%${searchTerm}%,LastName.ilike.%${searchTerm}%,Email.ilike.%${searchTerm}%`)
         .limit(limit);
