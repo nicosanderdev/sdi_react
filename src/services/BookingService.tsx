@@ -209,7 +209,6 @@ class BookingService {
   ): Promise<SdiApiResponse<BookingWithMember>> {
     try {
       const updatePayload: any = {
-        ...updates,
         LastModified: new Date().toISOString(),
         LastModifiedBy: (await supabase.auth.getUser()).data.user?.id
       };

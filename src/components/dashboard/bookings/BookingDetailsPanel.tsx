@@ -25,9 +25,11 @@ interface BookingDetailsPanelProps {
   propertyId: string;
   selectedBooking: BookingWithMember | null;
   selectedDate: Date | null;
+  availableBookings?: BookingWithMember[];
   onBookingChange: (booking: BookingWithMember) => void;
   onNewBooking: (booking: BookingWithMember) => void;
   onBookingDelete: (bookingId: string) => void;
+  onBookingSelect?: (booking: BookingWithMember) => void;
   onCancel: () => void;
 }
 
@@ -47,9 +49,11 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
   propertyId,
   selectedBooking,
   selectedDate,
+  availableBookings = [],
   onBookingChange,
   onNewBooking,
   onBookingDelete,
+  onBookingSelect,
   onCancel
 }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -249,6 +253,69 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
         return { icon: Clock, color: 'text-gray-600', bgColor: 'bg-gray-100' };
     }
   };
+
+  // Show booking selector when multiple bookings exist for the selected date
+  if (selectedDate && availableBookings.length > 1 && !selectedBooking) {
+    return (
+      <Card>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium">
+              Múltiples Reservas - {format(selectedDate, 'dd/MM/yyyy')}
+            </h3>
+          </div>
+
+          {/* Booking Selection */}
+          <div className="space-y-3">
+            {availableBookings.map((booking) => {
+              const isCheckIn = format(parseISO(booking.CheckInDate), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+              const isCheckOut = format(parseISO(booking.CheckOutDate), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+              const statusDisplay = getStatusDisplay(booking.Status);
+              const StatusIcon = statusDisplay.icon;
+
+              return (
+                <div
+                  key={booking.Id}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-colors hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={() => onBookingSelect && onBookingSelect(booking)}
+                >
+                  <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Reserva {isCheckIn ? '(Check-in)' : isCheckOut ? '(Check-out)' : ''}
+                        </span>
+                        <div className={`px-2 py-1 text-xs rounded-full flex items-center space-x-1 ${statusDisplay.bgColor}`}>
+                          <StatusIcon className={`h-3 w-3 ${statusDisplay.color}`} />
+                          <span className={statusDisplay.color}>{BOOKING_STATUS_NAMES[booking.Status]}</span>
+                        </div>
+                      </div>
+
+                      {booking.Guest && (
+                        <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                          {booking.Guest.FirstName} {booking.Guest.LastName}
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {format(parseISO(booking.CheckInDate), 'dd/MM/yyyy')} → {format(parseISO(booking.CheckOutDate), 'dd/MM/yyyy')}
+                        {booking.GuestCount && ` · ${booking.GuestCount} persona${booking.GuestCount > 1 ? 's' : ''}`}
+                      </div>
+
+                      {booking.Notes && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
+                          {booking.Notes}
+                        </div>
+                      )}
+                    </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   if (!selectedBooking && !selectedDate) {
     return (

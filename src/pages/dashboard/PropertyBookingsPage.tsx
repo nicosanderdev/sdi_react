@@ -26,6 +26,7 @@ interface PropertyBookingsPageState {
   availabilityBlocks: AvailabilityBlock[];
   selectedBooking: BookingWithMember | null;
   selectedDate: Date | null;
+  availableBookings: BookingWithMember[];
   isLoading: boolean;
   isSyncing: boolean;
   hasUnsavedChanges: boolean;
@@ -43,6 +44,7 @@ const PropertyBookingsPage: React.FC = () => {
     availabilityBlocks: [],
     selectedBooking: null,
     selectedDate: null,
+    availableBookings: [],
     isLoading: true,
     isSyncing: false,
     hasUnsavedChanges: false,
@@ -90,11 +92,12 @@ const PropertyBookingsPage: React.FC = () => {
   }, [loadData]);
 
   // Handle calendar date/booking selection
-  const handleCalendarSelect = useCallback((date: Date, booking?: BookingWithMember) => {
+  const handleCalendarSelect = useCallback((date: Date, bookings: BookingWithMember[]) => {
     setState(prev => ({
       ...prev,
       selectedDate: date,
-      selectedBooking: booking || null
+      availableBookings: bookings,
+      selectedBooking: bookings.length === 1 ? bookings[0] : null
     }));
   }, []);
 
@@ -122,12 +125,18 @@ const PropertyBookingsPage: React.FC = () => {
 
   // Handle booking deletion
   const handleBookingDelete = useCallback((bookingId: string) => {
-    setState(prev => ({
-      ...prev,
-      bookings: prev.bookings.filter(b => b.Id !== bookingId),
-      hasUnsavedChanges: true,
-      selectedBooking: prev.selectedBooking?.Id === bookingId ? null : prev.selectedBooking
-    }));
+    setState(prev => {
+      const updatedBookings = prev.bookings.filter(b => b.Id !== bookingId);
+      const remainingBookingsForDate = prev.availableBookings.filter(b => b.Id !== bookingId);
+
+      return {
+        ...prev,
+        bookings: updatedBookings,
+        hasUnsavedChanges: true,
+        selectedBooking: prev.selectedBooking?.Id === bookingId ? null : prev.selectedBooking,
+        availableBookings: remainingBookingsForDate
+      };
+    });
   }, []);
 
   // Handle availability changes
@@ -136,6 +145,14 @@ const PropertyBookingsPage: React.FC = () => {
       ...prev,
       availabilityBlocks: updatedBlocks,
       hasUnsavedChanges: true
+    }));
+  }, []);
+
+  // Handle booking selection from multiple bookings
+  const handleBookingSelection = useCallback((booking: BookingWithMember) => {
+    setState(prev => ({
+      ...prev,
+      selectedBooking: booking
     }));
   }, []);
 
@@ -324,10 +341,12 @@ const PropertyBookingsPage: React.FC = () => {
             propertyId={propertyId!}
             selectedBooking={state.selectedBooking}
             selectedDate={state.selectedDate}
+            availableBookings={state.availableBookings}
             onBookingChange={handleBookingChange}
             onNewBooking={handleNewBooking}
             onBookingDelete={handleBookingDelete}
-            onCancel={() => setState(prev => ({ ...prev, selectedBooking: null, selectedDate: null }))}
+            onBookingSelect={handleBookingSelection}
+            onCancel={() => setState(prev => ({ ...prev, selectedBooking: null, selectedDate: null, availableBookings: [] }))}
           />
         </div>
       </div>

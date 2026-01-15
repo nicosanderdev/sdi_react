@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   format,
   isSameDay,
@@ -26,7 +26,7 @@ interface BookingCalendarProps {
   availabilityBlocks: AvailabilityBlock[];
   selectedDate: Date | null;
   selectedBooking: BookingWithMember | null;
-  onSelect: (date: Date, booking?: BookingWithMember) => void;
+  onSelect: (date: Date, bookings: BookingWithMember[]) => void;
 }
 
 const BookingCalendar: React.FC<BookingCalendarProps> = ({
@@ -37,6 +37,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   onSelect
 }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [hoveredBookingIds, setHoveredBookingIds] = useState<Set<string>>(new Set());
 
   // Helper functions for date comparisons
   const today = startOfDay(new Date());
@@ -47,6 +48,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
   const tileData = useMemo(() => {
     const data: { [key: string]: {
       bookings: BookingWithMember[];
+      bookingIds: string[];
       blocks: AvailabilityBlock[];
       isAvailable: boolean;
       hasConflicts: boolean;
@@ -65,6 +67,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         if (!data[dateKey]) {
           data[dateKey] = {
             bookings: [],
+            bookingIds: [],
             blocks: [],
             isAvailable: true,
             hasConflicts: false,
@@ -72,6 +75,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           };
         }
         data[dateKey].bookings.push(booking);
+        data[dateKey].bookingIds.push(booking.Id);
         data[dateKey].bookingCount++;
         current.setDate(current.getDate() + 1);
       }
@@ -88,6 +92,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
         if (!data[dateKey]) {
           data[dateKey] = {
             bookings: [],
+            bookingIds: [],
             blocks: [],
             isAvailable: true,
             hasConflicts: false,
@@ -113,6 +118,18 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
 
     return data;
   }, [bookings, availabilityBlocks]);
+
+  // Hover handlers for group highlighting
+  const handleDayMouseEnter = useCallback((dateKey: string) => {
+    const dayData = tileData[dateKey];
+    if (dayData?.bookingIds && dayData.bookingIds.length > 0) {
+      setHoveredBookingIds(new Set(dayData.bookingIds));
+    }
+  }, [tileData]);
+
+  const handleDayMouseLeave = useCallback(() => {
+    setHoveredBookingIds(new Set());
+  }, []);
 
   // Generate calendar days for the current month
   const calendarDays = useMemo(() => {
@@ -146,9 +163,9 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = tileData[dateKey];
 
-    // If there are bookings on this date, select the first one
-    const booking = dayData?.bookings?.[0];
-    onSelect(date, booking);
+    // Pass all bookings for this date to the parent
+    const bookingsForDate = dayData?.bookings || [];
+    onSelect(date, bookingsForDate);
   };
 
   // Get status indicators for a day
@@ -241,22 +258,28 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
       <div className="grid grid-cols-7 gap-1 md:gap-2">
         {calendarDays.map((date) => {
           const dateKey = format(date, 'yyyy-MM-dd');
+          const dayData = tileData[dateKey];
           const isCurrentMonth = isSameMonth(date, currentMonth);
           const isSelected = selectedDate && isSameDay(date, selectedDate);
           const indicators = getStatusIndicators(dateKey);
           const isPast = isPastDate(date);
           const isToday = isTodayDate(date);
+          const isGroupHovered = dayData?.bookingIds?.some(id => hoveredBookingIds.has(id)) ?? false;
 
           return (
             <button
               key={dateKey}
               onClick={() => handleDateClick(date)}
+              onMouseEnter={() => handleDayMouseEnter(dateKey)}
+              onMouseLeave={handleDayMouseLeave}
               className={`
-                w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 rounded-lg border border-transparent
-                flex flex-col items-center justify-between p-1 transition-all duration-150
+                w-10 h-10 md:w-12 md:h-12 lg:w-full lg:h-14 rounded-lg border border-transparent
+                flex flex-col items-center justify-between p-1 transition-all duration-200
                 ${isSelected
-                  ? 'bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500 dark:ring-emerald-400'
-                  : `bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 ${indicators.length > 0 ? getBackgroundTint(indicators) : ''}`
+                  ? 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-800/30 ring-2 ring-blue-500 dark:ring-blue-400 hover:ring-4 hover:ring-blue-400 dark:hover:ring-blue-300 hover:shadow-lg'
+                  : isGroupHovered
+                    ? 'bg-emerald-200 dark:bg-emerald-800 ring-4 ring-emerald-400 dark:ring-emerald-500 shadow-lg'
+                    : `bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700 ${indicators.length > 0 ? getBackgroundTint(indicators) : ''}`
                 }
                 ${!isCurrentMonth ? 'opacity-40' : ''}
                 ${isToday ? 'ring-2 ring-blue-500 dark:ring-blue-400' : ''}
@@ -306,11 +329,7 @@ const BookingCalendar: React.FC<BookingCalendarProps> = ({
           <span>Disponible</span>
         </div>
         <div className="flex items-center">
-          <div className="w-4 h-4 bg-white border-2 border-blue-500 dark:border-blue-400 rounded mr-2"></div>
-          <span>Hoy</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-4 h-4 bg-gray-500/20 border border-gray-200 dark:bg-gray-800 dark:border-gray-600 rounded mr-2"></div>
+          <div className="w-4 h-4 bg-gray-500/20 border border-gray-200 dark:bg-gray-600 dark:border-gray-600 rounded mr-2"></div>
           <span>Fechas pasadas</span>
         </div>
       </div>
