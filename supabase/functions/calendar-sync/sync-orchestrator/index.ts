@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../../../_shared/cors.ts'
 import { authenticateUser, hasPropertyAccess } from '../../../_shared/auth.ts'
+import { createLogger } from '../../../_shared/logger.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -11,9 +12,19 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
+const logger = createLogger('sync-orchestrator')
+
 // Rate limiting: max 100 sync operations per hour per integration
 const RATE_LIMIT_MAX = 100
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
+
+// Rate limiting for manual syncs: max 1 per 5 minutes per property
+const MANUAL_SYNC_MAX = 1
+const MANUAL_SYNC_WINDOW = 5 * 60 * 1000 // 5 minutes in milliseconds
+
+// Rate limiting for automated syncs: max 1 per 15 minutes per integration
+const AUTO_SYNC_MAX = 1
+const AUTO_SYNC_WINDOW = 15 * 60 * 1000 // 15 minutes in milliseconds
 
 interface SyncRequest {
   integrationId: string
@@ -39,6 +50,75 @@ interface SyncJob {
 }
 
 /**
+ * Sync iCal integration (helper function for iCal-specific logic)
+ */
+async function syncICalIntegration(integrationId: string): Promise<string> {
+  // Get integration details
+  const { data: integration, error } = await supabase
+    .from('CalendarIntegrations')
+    .select('PlatformType, IsActive, SyncStatus, EstatePropertyId')
+    .eq('Id', integrationId)
+    .eq('IsDeleted', false)
+    .single()
+
+  if (error || !integration) {
+    throw new Error('Integration not found')
+  }
+
+  if (!integration.IsActive) {
+    throw new Error('Integration is not active')
+  }
+
+  if (integration.SyncStatus === 1) { // Already syncing
+    throw new Error('Sync already in progress')
+  }
+
+  // Check automated sync rate limiting
+  const withinAutoLimit = await checkAutoSyncRateLimit(integrationId)
+  if (!withinAutoLimit) {
+    throw new Error('Automated sync rate limit exceeded. Please try again later.')
+  }
+
+  // Create sync job (automated/scheduled type)
+  const jobId = await createSyncJob(integrationId, 1, 'inbound') // scheduled job
+
+  try {
+    // Call iCal import function
+    const response = await fetch(`${supabaseUrl}/functions/v1/ical-import`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        integrationId,
+        forceRefresh: false,
+        jobId
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      throw new Error(`iCal import service error: ${error}`)
+    }
+
+    return jobId
+  } catch (error) {
+    // Update job status to failed
+    await supabase
+      .from('SyncJobs')
+      .update({
+        Status: 3, // failed
+        CompletedAt: new Date().toISOString(),
+        Error: error.message
+      })
+      .eq('Id', jobId)
+
+    throw error
+  }
+}
+
+/**
  * Check rate limiting for an integration
  */
 async function checkRateLimit(integrationId: string): Promise<boolean> {
@@ -51,6 +131,44 @@ async function checkRateLimit(integrationId: string): Promise<boolean> {
     .gte('Created', oneHourAgo.toISOString())
 
   return (count || 0) < RATE_LIMIT_MAX
+}
+
+/**
+ * Check rate limiting for manual syncs per property
+ */
+async function checkManualSyncRateLimit(propertyId: string): Promise<boolean> {
+  const fiveMinutesAgo = new Date(Date.now() - MANUAL_SYNC_WINDOW)
+
+  const { count } = await supabase
+    .from('SyncJobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('JobType', 0) // Manual jobs only
+    .gte('Created', fiveMinutesAgo.toISOString())
+    .in('CalendarIntegrationId',
+      // Subquery to get integration IDs for this property
+      supabase.from('CalendarIntegrations')
+        .select('Id')
+        .eq('EstatePropertyId', propertyId)
+        .eq('IsDeleted', false)
+    )
+
+  return (count || 0) < MANUAL_SYNC_MAX
+}
+
+/**
+ * Check rate limiting for automated syncs per integration
+ */
+async function checkAutoSyncRateLimit(integrationId: string): Promise<boolean> {
+  const fifteenMinutesAgo = new Date(Date.now() - AUTO_SYNC_WINDOW)
+
+  const { count } = await supabase
+    .from('SyncJobs')
+    .select('*', { count: 'exact', head: true })
+    .eq('CalendarIntegrationId', integrationId)
+    .eq('JobType', 1) // Scheduled jobs only
+    .gte('Created', fifteenMinutesAgo.toISOString())
+
+  return (count || 0) < AUTO_SYNC_MAX
 }
 
 /**
@@ -75,10 +193,35 @@ async function createSyncJob(integrationId: string, jobType: number, syncType: s
 /**
  * Trigger sync for a specific integration
  */
-async function triggerSync(integrationId: string, syncType: string = 'bidirectional'): Promise<string> {
-  // Check rate limiting
-  const withinLimit = await checkRateLimit(integrationId)
-  if (!withinLimit) {
+async function triggerSync(integrationId: string, syncType: string = 'bidirectional', jobType: number = 0): Promise<string> {
+  // Get integration details to check property ID for manual sync rate limiting
+  const { data: integration } = await supabase
+    .from('CalendarIntegrations')
+    .select('EstatePropertyId')
+    .eq('Id', integrationId)
+    .eq('IsDeleted', false)
+    .single()
+
+  if (!integration) {
+    throw new Error('Integration not found')
+  }
+
+  // Check rate limiting based on job type
+  if (jobType === 0) { // Manual sync
+    const withinManualLimit = await checkManualSyncRateLimit(integration.EstatePropertyId)
+    if (!withinManualLimit) {
+      throw new Error('Manual sync rate limit exceeded. Please try again later.')
+    }
+  } else if (jobType === 1) { // Automated sync
+    const withinAutoLimit = await checkAutoSyncRateLimit(integrationId)
+    if (!withinAutoLimit) {
+      throw new Error('Automated sync rate limit exceeded. Please try again later.')
+    }
+  }
+
+  // Check general rate limiting
+  const withinGeneralLimit = await checkRateLimit(integrationId)
+  if (!withinGeneralLimit) {
     throw new Error('Rate limit exceeded. Please try again later.')
   }
 
@@ -103,12 +246,39 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
   }
 
   // Create sync job
-  const jobId = await createSyncJob(integrationId, 0, syncType) // manual job
+  const jobId = await createSyncJob(integrationId, jobType, syncType)
 
-  // Call appropriate sync service
-  const syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/${
-    integration.PlatformType === 0 ? 'google-sync' : 'ical-sync'
-  }`
+  // Call appropriate sync service based on platform type
+  let syncUrl: string
+  let requestBody: any
+
+  if (integration.PlatformType === 0) {
+    // Google Calendar (OAuth)
+    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/google-sync`
+    requestBody = {
+      integrationId,
+      syncType,
+      jobId
+    }
+  } else if (integration.PlatformType >= 2 && integration.PlatformType <= 4) {
+    // iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
+    syncUrl = `${supabaseUrl}/functions/v1/ical-import`
+    requestBody = {
+      integrationId,
+      forceRefresh: false,
+      jobId
+    }
+  } else if (integration.PlatformType === 1) {
+    // Apple Calendar (legacy iCal sync - keep for backward compatibility)
+    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync`
+    requestBody = {
+      integrationId,
+      action: 'import',
+      jobId
+    }
+  } else {
+    throw new Error(`Unsupported platform type: ${integration.PlatformType}`)
+  }
 
   try {
     const response = await fetch(syncUrl, {
@@ -117,11 +287,7 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
         'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        integrationId,
-        syncType,
-        jobId
-      })
+      body: JSON.stringify(requestBody)
     })
 
     if (!response.ok) {
@@ -163,10 +329,10 @@ async function triggerBulkSync(propertyId: string, syncType: string = 'bidirecti
 
   for (const integration of integrations || []) {
     try {
-      const jobId = await triggerSync(integration.Id, syncType)
+      const jobId = await triggerSync(integration.Id, syncType, 0) // manual job
       jobIds.push(jobId)
     } catch (error) {
-      console.error(`Failed to trigger sync for integration ${integration.Id}:`, error)
+      logger.error('trigger_sync_failed', error.message, { integrationId: integration.Id })
       // Continue with other integrations
     }
   }
@@ -277,7 +443,7 @@ async function retryFailedJobs(propertyId: string): Promise<string[]> {
       const newJobId = await triggerSync(job.CalendarIntegrationId, 'bidirectional')
       jobIds.push(newJobId)
     } catch (error) {
-      console.error(`Failed to retry job ${job.Id}:`, error)
+      logger.error('retry_job_failed', error.message, { jobId: job.Id })
     }
   }
 
@@ -339,7 +505,7 @@ Deno.serve(async (req) => {
           })
         }
 
-        const jobId = await triggerSync(integrationId, syncType)
+        const jobId = await triggerSync(integrationId, syncType, 0) // manual job
 
         return new Response(JSON.stringify({
           success: true,
@@ -461,7 +627,7 @@ Deno.serve(async (req) => {
         })
     }
   } catch (error) {
-    console.error('Sync orchestrator error:', error)
+    logger.error('function_error', error.message)
     return new Response(JSON.stringify({
       error: error.message || 'Internal server error'
     }), {

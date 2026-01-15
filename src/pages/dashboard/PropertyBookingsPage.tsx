@@ -18,6 +18,8 @@ import BookingCalendar from '../../components/dashboard/bookings/BookingCalendar
 import BookingDetailsPanel from '../../components/dashboard/bookings/BookingDetailsPanel';
 import SyncStatusBar from '../../components/dashboard/bookings/SyncStatusBar';
 import AvailabilityManager from '../../components/dashboard/bookings/AvailabilityManager';
+import ICalIntegrationManager from '../../components/dashboard/calendar/ICalIntegrationManager';
+import ICalExportPanel from '../../components/dashboard/calendar/ICalExportPanel';
 import propertyService from '../../services/PropertyService';
 
 interface PropertyBookingsPageState {
@@ -32,6 +34,7 @@ interface PropertyBookingsPageState {
   hasUnsavedChanges: boolean;
   error: string | null;
   isAvailabilityMode: boolean;
+  viewMode: 'bookings' | 'calendar-sync';
 }
 
 const PropertyBookingsPage: React.FC = () => {
@@ -49,7 +52,8 @@ const PropertyBookingsPage: React.FC = () => {
     isSyncing: false,
     hasUnsavedChanges: false,
     error: null,
-    isAvailabilityMode: false
+    isAvailabilityMode: false,
+    viewMode: 'bookings'
   });
 
   // Load property details, bookings, availability blocks, and sync status
@@ -98,6 +102,14 @@ const PropertyBookingsPage: React.FC = () => {
       selectedDate: date,
       availableBookings: bookings,
       selectedBooking: bookings.length === 1 ? bookings[0] : null
+    }));
+  }, []);
+
+  // Handle availability manager date selection
+  const handleAvailabilityDateSelect = useCallback((date: Date) => {
+    setState(prev => ({
+      ...prev,
+      selectedDate: date
     }));
   }, []);
 
@@ -203,6 +215,18 @@ const PropertyBookingsPage: React.FC = () => {
     }));
   }, []);
 
+  // Switch view mode
+  const switchViewMode = useCallback((mode: 'bookings' | 'calendar-sync') => {
+    setState(prev => ({
+      ...prev,
+      viewMode: mode,
+      selectedBooking: null,
+      selectedDate: null,
+      availableBookings: [],
+      isAvailabilityMode: false
+    }));
+  }, []);
+
   if (state.isLoading) {
     return (
       <div className="flex justify-center items-center min-h-96">
@@ -292,6 +316,30 @@ const PropertyBookingsPage: React.FC = () => {
         </div>
       )}
 
+      {/* View Mode Tabs */}
+      <div className="flex space-x-1 mb-6 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
+        <button
+          onClick={() => switchViewMode('bookings')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            state.viewMode === 'bookings'
+              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+          }`}
+        >
+          📅 Manage Bookings
+        </button>
+        <button
+          onClick={() => switchViewMode('calendar-sync')}
+          className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+            state.viewMode === 'calendar-sync'
+              ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+          }`}
+        >
+          🔄 Calendar Sync
+        </button>
+      </div>
+
       {/* Sync Status Bar */}
       <SyncStatusBar
         propertyId={propertyId!}
@@ -300,56 +348,76 @@ const PropertyBookingsPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar Section */}
-        <div className="lg:col-span-2">
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Calendario de Reservas</h3>
-              <Button
-                color={state.isAvailabilityMode ? "green" : "alternative"}
-                size="sm"
-                onClick={toggleAvailabilityMode}
-              >
-                {state.isAvailabilityMode ? "Ver reservas" : "Ver disponibilidad"}
-              </Button>
-            </div>
+      {state.viewMode === 'bookings' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Calendar Section */}
+          <div className="lg:col-span-2">
+            <Card>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium">Calendario de Reservas</h3>
+                <Button
+                  color={state.isAvailabilityMode ? "green" : "alternative"}
+                  size="sm"
+                  onClick={toggleAvailabilityMode}
+                >
+                  {state.isAvailabilityMode ? "Ver reservas" : "Ver disponibilidad"}
+                </Button>
+              </div>
 
-            {state.isAvailabilityMode ? (
-              <AvailabilityManager
-                propertyId={propertyId!}
-                availabilityBlocks={state.availabilityBlocks}
-                onAvailabilityChange={handleAvailabilityChange}
-                selectedDate={state.selectedDate}
-                onDateSelect={handleCalendarSelect}
-              />
-            ) : (
-              <BookingCalendar
-                bookings={state.bookings}
-                availabilityBlocks={state.availabilityBlocks}
-                selectedDate={state.selectedDate}
-                selectedBooking={state.selectedBooking}
-                onSelect={handleCalendarSelect}
-              />
-            )}
-          </Card>
-        </div>
+              {state.isAvailabilityMode ? (
+                <AvailabilityManager
+                  propertyId={propertyId!}
+                  availabilityBlocks={state.availabilityBlocks}
+                  onAvailabilityChange={handleAvailabilityChange}
+                  selectedDate={state.selectedDate}
+                  onDateSelect={handleAvailabilityDateSelect}
+                />
+              ) : (
+                <BookingCalendar
+                  bookings={state.bookings}
+                  availabilityBlocks={state.availabilityBlocks}
+                  selectedDate={state.selectedDate}
+                  selectedBooking={state.selectedBooking}
+                  onSelect={handleCalendarSelect}
+                />
+              )}
+            </Card>
+          </div>
 
-        {/* Details Panel */}
-        <div className="lg:col-span-1">
-          <BookingDetailsPanel
-            propertyId={propertyId!}
-            selectedBooking={state.selectedBooking}
-            selectedDate={state.selectedDate}
-            availableBookings={state.availableBookings}
-            onBookingChange={handleBookingChange}
-            onNewBooking={handleNewBooking}
-            onBookingDelete={handleBookingDelete}
-            onBookingSelect={handleBookingSelection}
-            onCancel={() => setState(prev => ({ ...prev, selectedBooking: null, selectedDate: null, availableBookings: [] }))}
-          />
+          {/* Details Panel */}
+          <div className="lg:col-span-1">
+            <BookingDetailsPanel
+              propertyId={propertyId!}
+              selectedBooking={state.selectedBooking}
+              selectedDate={state.selectedDate}
+              availableBookings={state.availableBookings}
+              onBookingChange={handleBookingChange}
+              onNewBooking={handleNewBooking}
+              onBookingDelete={handleBookingDelete}
+              onBookingSelect={handleBookingSelection}
+              onCancel={() => setState(prev => ({ ...prev, selectedBooking: null, selectedDate: null, availableBookings: [] }))}
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Calendar Sync View */
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Import Section */}
+          <div className="lg:col-span-1">
+            <ICalIntegrationManager
+              propertyId={propertyId!}
+              onSyncCompleted={loadData}
+            />
+          </div>
+
+          {/* Export Section */}
+          <div className="lg:col-span-1">
+            <ICalExportPanel
+              propertyId={propertyId!}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       {state.hasUnsavedChanges && (

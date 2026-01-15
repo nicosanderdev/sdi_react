@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../../../_shared/cors.ts'
 import { authenticateUser, hasPropertyAccess } from '../../../_shared/auth.ts'
+import { createLogger } from '../../../_shared/logger.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -10,6 +11,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
     persistSession: false
   }
 })
+
+const logger = createLogger('ical-sync')
 
 interface ICSSyncRequest {
   integrationId: string
@@ -241,12 +244,12 @@ async function importICSFeed(integrationId: string, icsUrl: string, jobId?: stri
           })
 
         if (upsertError) {
-          console.error('Error upserting availability block:', upsertError)
+          logger.error('upsert_block_failed', upsertError.message, { eventUid: event.uid })
         } else {
           processedCount++
         }
       } catch (error) {
-        console.error(`Error processing ICS event ${event.uid}:`, error)
+        logger.error('process_event_failed', error.message, { eventUid: event.uid })
       }
     }
 
@@ -527,7 +530,7 @@ Deno.serve(async (req) => {
         })
     }
   } catch (error) {
-    console.error('ICS sync function error:', error)
+    logger.error('function_error', error.message)
     return new Response(JSON.stringify({
       error: error.message || 'Internal server error'
     }), {

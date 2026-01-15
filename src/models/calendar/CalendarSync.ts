@@ -4,7 +4,10 @@
 
 export enum PlatformType {
   GoogleCalendar = 0,
-  AppleCalendar = 1
+  AppleCalendar = 1,
+  AirbnbICal = 2,
+  BookingComICal = 3,
+  OtherICal = 4
 }
 
 export enum SyncStatus {
@@ -40,6 +43,31 @@ export interface CalendarIntegration {
   CreatedBy?: string
   LastModified: string
   LastModifiedBy?: string
+  ICalUrl?: string
+  ICalSyncToken?: string
+}
+
+/**
+ * iCal Types
+ */
+
+export interface ICalFeedMetadata {
+  productId: string;
+  version: string;
+  calendarName: string;
+  timezone: string;
+  lastModified?: string;
+}
+
+export interface ICalEvent {
+  uid: string;
+  summary: string;
+  description?: string;
+  dtstart: string;
+  dtend: string;
+  created?: string;
+  lastModified?: string;
+  status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
 }
 
 /**
@@ -339,12 +367,18 @@ export interface SyncJobDisplay {
 
 export const PLATFORM_NAMES = {
   [PlatformType.GoogleCalendar]: 'Google Calendar',
-  [PlatformType.AppleCalendar]: 'Apple Calendar (ICS)'
+  [PlatformType.AppleCalendar]: 'Apple Calendar (ICS)',
+  [PlatformType.AirbnbICal]: 'Airbnb iCal',
+  [PlatformType.BookingComICal]: 'Booking.com iCal',
+  [PlatformType.OtherICal]: 'Other iCal'
 } as const
 
 export const PLATFORM_ICONS = {
   [PlatformType.GoogleCalendar]: '📅',
-  [PlatformType.AppleCalendar]: '📱'
+  [PlatformType.AppleCalendar]: '📱',
+  [PlatformType.AirbnbICal]: '🏠',
+  [PlatformType.BookingComICal]: '🛏️',
+  [PlatformType.OtherICal]: '📆'
 } as const
 
 export const SYNC_STATUS_NAMES = {
