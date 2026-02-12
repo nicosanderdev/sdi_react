@@ -4,20 +4,13 @@ import { PropertyStats } from '../../components/dashboard/PropertyStats';
 import { RecentMessages } from '../../components/dashboard/RecentMessages';
 import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
 import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
-import { ProgressCircle } from '../../components/dashboard/ProgressCircle';
-import { PropertyListCard } from '../../components/dashboard/PropertyListCard';
-import { ActivityTrackerCard } from '../../components/dashboard/ActivityTrackerCard';
-import { ReminderCard } from '../../components/dashboard/ReminderCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon, CheckCircleIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react';
 
 // Import services
 import reportService from './../../services/ReportService';
-import propertyService from './../../services/PropertyService';
 import { Dropdown, DropdownItem } from 'flowbite-react';
-import { useNavigate } from 'react-router-dom';
 import { COMPANY_SELECTOR_OPTIONS, CompanySelector } from '../../components/dashboard/CompanySelector';
-import { PropertyImage } from '../../models/properties';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
@@ -54,87 +47,15 @@ export function DashboardOverview() {
         { id: 'thisyear', label: 'Este año' },
     ];
 
-    const params = {
-        pageSize: 3,
-        filter: {
-            includeImages: true
-        }
-    };
-    //  --- Data Fetching for Featured Properties ---
-    const { data: propertiesData, isLoading: isLoadingProperties, isError: isErrorProperties, error: errorProperties } = useQuery({
-        queryKey: ['featuredProperties', company],
-        queryFn: () => propertyService.getOwnersProperties({ ...params, ...getCompanyFilter() }),
-        select: (data) => data.items
-    });
-    const featuredProperties = propertiesData || [];
 
 
-    const areaMap = (areaUnit: number) => {
-        if (areaUnit === 0) return `m²`;
-        if (areaUnit === 1) return `ft²`;
-        if (areaUnit === 2) return `yd²`;
-        if (areaUnit === 3) return `acres`;
-        if (areaUnit === 4) return `hectares`;
-        if (areaUnit === 5) return `sq_km`;
-        if (areaUnit === 6) return `sq_mi`;
-        return '-';
-    };
 
-    // Transform PropertyData to PropertyListCard format
-    const transformPropertiesForDisplay = (properties: any[]) => {
-        return properties.map(property => {
-            // Build address from street components
-            const addressParts = [
-                property.streetName,
-                property.houseNumber,
-                property.neighborhood,
-                property.city
-            ].filter(Boolean);
-            const address = addressParts.join(', ') || 'Dirección no especificada';
-
-            // Format price - prioritize salePrice, fallback to rentPrice
-            let price = '';
-            if (property.salePrice && property.salePrice > 0) {
-                price = `$${formatNumber(property.salePrice)}`;
-            } else if (property.rentPrice && property.rentPrice > 0) {
-                price = `$${formatNumber(property.rentPrice)}/mes`;
-            } else {
-                price = 'Precio no especificado';
-            }
-
-            // Map status - assume string status from database
-            let status: 'available' | 'rented' | 'sold' | 'pending' = 'available';
-            const statusStr = String(property.status || '').toLowerCase();
-            if (statusStr.includes('rented') || statusStr === '1') {
-                status = 'rented';
-            } else if (statusStr.includes('sold') || statusStr === '2') {
-                status = 'sold';
-            } else if (statusStr.includes('pending') || statusStr === '3') {
-                status = 'pending';
-            }
-
-            return {
-                id: property.id,
-                title: property.title || 'Propiedad sin título',
-                address,
-                price,
-                status,
-                visits: property.statistics?.visits || 0,
-                messages: property.statistics?.messages || 0
-            };
-        });
-    };
-
-    // Transform properties for PropertyListCard display
-    const transformedProperties = transformPropertiesForDisplay(featuredProperties);
 
     const renderCardValue = (value: any, isLoading: boolean, isError: boolean, unit = '') => {
         if (isLoading) return <span className="text-gray-400">Cargando...</span>;
         if (isError || typeof value === 'undefined' || value === null) return <span className="text-gray-400">No disponible</span>;
         return <>{formatNumber(value)}{unit}</>;
     };
-
-    const navigate = useNavigate();
 
     const renderPercentageChange = (
         percentage: number | undefined,
@@ -158,49 +79,6 @@ export function DashboardOverview() {
         );
     };
 
-    const mockActivities = [
-        {
-            id: '1',
-            title: 'Revisión de propiedades',
-            project: 'Portfolio Q1',
-            duration: 120,
-            status: 'active' as const,
-            startTime: new Date()
-        },
-        {
-            id: '2',
-            title: 'Respuesta a consultas',
-            duration: 45,
-            status: 'paused' as const
-        }
-    ];
-
-    const mockReminders = [
-        {
-            id: '1',
-            title: 'Llamar cliente - Propiedad Av. Libertador',
-            description: 'Cliente interesado en casa de 3 dormitorios',
-            priority: 'high' as const,
-            completed: false,
-            type: 'followup' as const,
-            dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
-        },
-        {
-            id: '2',
-            title: 'Actualizar fotos propiedad ID-456',
-            priority: 'medium' as const,
-            completed: false,
-            type: 'task' as const,
-            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-            id: '3',
-            title: 'Reunión con agente inmobiliario',
-            priority: 'high' as const,
-            completed: true,
-            type: 'meeting' as const
-        }
-    ];
 
     return (
         <div className="space-y-6">
@@ -281,39 +159,15 @@ export function DashboardOverview() {
                         <PropertyStats />
                     </DashboardChartCard>
 
-                    {/* Progress Circle 
-                    <DashboardChartCard title="Progreso del Mes">
-                        <div className="flex items-center justify-center py-8">
-                            <ProgressCircle
-                                progress={78}
-                                size={140}
-                                label="Objetivos"
-                                subtitle="Meta mensual: 85%"
-                            />
-                        </div>
-                    </DashboardChartCard>*/}
 
-                    {/* Recent Messages */}
-                    <RecentMessages />
                 </div>
 
-                {/* Right Column - Property List and Activity */}
+                {/* Right Column - Messages */}
                 <div className="space-y-6">
-                    {/* Property List */}
-                    <PropertyListCard
-                        properties={transformedProperties}
-                    />
+                    {/* Recent Messages */}
+                    <RecentMessages />
 
-                    {/* Activity Tracker
-                    <ActivityTrackerCard
-                        activities={mockActivities}
-                        totalToday={165}
-                    /> */}
 
-                    {/* Reminders 
-                    <ReminderCard
-                        reminders={mockReminders}
-                    />*/}
                 </div>
             </div>
 

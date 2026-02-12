@@ -732,7 +732,7 @@ DECLARE
     v_current_end_date TIMESTAMP WITH TIME ZONE;
     v_previous_start_date TIMESTAMP WITH TIME ZONE;
     v_previous_end_date TIMESTAMP WITH TIME ZONE;
-    v_user_companies TEXT[];
+    v_user_companies UUID[];
     v_current_visits BIGINT;
     v_previous_visits BIGINT;
     v_current_messages BIGINT;
@@ -759,15 +759,15 @@ BEGIN
         -- If specific company requested, validate user has access
         SELECT ARRAY[uc."CompanyId"]
         FROM "UserCompanies" uc
-        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id AND "IsDeleted" = false)
+        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id::UUID AND "IsDeleted" = false)
         AND uc."CompanyId" = p_company_id::UUID
         AND uc."IsDeleted" = false
         INTO v_user_companies;
     ELSE
         -- Get all accessible companies for the user
-        SELECT ARRAY_AGG(uc."CompanyId"::TEXT)
+        SELECT ARRAY_AGG(uc."CompanyId")
         FROM "UserCompanies" uc
-        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id AND "IsDeleted" = false)
+        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id::UUID AND "IsDeleted" = false)
         AND uc."IsDeleted" = false
         INTO v_user_companies;
     END IF;
@@ -778,7 +778,7 @@ BEGIN
     JOIN "EstateProperties" ep ON pvl."PropertyId" = ep."Id"
     WHERE pvl."VisitedOnUtc" >= v_current_start_date
     AND pvl."VisitedOnUtc" <= v_current_end_date
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Get previous period visit count
     SELECT COUNT(*) INTO v_previous_visits
@@ -786,7 +786,7 @@ BEGIN
     JOIN "EstateProperties" ep ON pvl."PropertyId" = ep."Id"
     WHERE pvl."VisitedOnUtc" >= v_previous_start_date
     AND pvl."VisitedOnUtc" <= v_previous_end_date
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Get current period message count
     SELECT COUNT(*) INTO v_current_messages
@@ -794,7 +794,7 @@ BEGIN
     JOIN "EstateProperties" ep ON pml."PropertyId" = ep."Id"
     WHERE pml."SentOnUtc" >= v_current_start_date
     AND pml."SentOnUtc" <= v_current_end_date
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Get previous period message count
     SELECT COUNT(*) INTO v_previous_messages
@@ -802,7 +802,7 @@ BEGIN
     JOIN "EstateProperties" ep ON pml."PropertyId" = ep."Id"
     WHERE pml."SentOnUtc" >= v_previous_start_date
     AND pml."SentOnUtc" <= v_previous_end_date
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Get total active properties
     SELECT COUNT(*) INTO v_total_active_properties
@@ -812,7 +812,7 @@ BEGIN
     AND epv."IsDeleted" = false
     AND epv."IsFeatured" = true
     AND epv."IsPropertyVisible" = true
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Calculate visits stat
     v_visits_stat := calculate_stat(v_current_visits, v_previous_visits);
@@ -831,7 +831,11 @@ BEGIN
     IF v_current_visits > 0 OR v_previous_visits > 0 THEN
         v_conversion_rate_stat := calculate_conversion_stat(v_current_messages, v_current_visits, v_previous_messages, v_previous_visits);
     ELSE
-        v_conversion_rate_stat := NULL;
+        v_conversion_rate_stat := jsonb_build_object(
+            'currentPeriod', 0,
+            'percentageChange', 0,
+            'changeDirection', 'neutral'
+        );
     END IF;
 
     RETURN jsonb_build_object(
@@ -1349,7 +1353,7 @@ CREATE OR REPLACE FUNCTION "public"."get_visits_by_property"("p_period" "text", 
 DECLARE
     v_start_date TIMESTAMP WITH TIME ZONE;
     v_end_date TIMESTAMP WITH TIME ZONE;
-    v_user_companies TEXT[];
+    v_user_companies UUID[];
     v_offset INTEGER;
     v_total_count BIGINT;
     v_result_data JSONB[];
@@ -1364,14 +1368,14 @@ BEGIN
     IF p_company_id IS NOT NULL THEN
         SELECT ARRAY[uc."CompanyId"]
         FROM "UserCompanies" uc
-        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id AND "IsDeleted" = false)
+        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id::UUID AND "IsDeleted" = false)
         AND uc."CompanyId" = p_company_id::UUID
         AND uc."IsDeleted" = false
         INTO v_user_companies;
     ELSE
-        SELECT ARRAY_AGG(uc."CompanyId"::TEXT)
+        SELECT ARRAY_AGG(uc."CompanyId")
         FROM "UserCompanies" uc
-        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id AND "IsDeleted" = false)
+        WHERE uc."MemberId" = (SELECT "Id" FROM "Members" WHERE "UserId" = p_user_id::UUID AND "IsDeleted" = false)
         AND uc."IsDeleted" = false
         INTO v_user_companies;
     END IF;
@@ -1386,7 +1390,7 @@ BEGIN
     JOIN "EstateProperties" ep ON pvl."PropertyId" = ep."Id"
     WHERE pvl."VisitedOnUtc" >= v_start_date
     AND pvl."VisitedOnUtc" <= v_end_date
-    AND ep."OwnerId" = ANY(v_user_companies::UUID[]);
+    AND ep."OwnerId" = ANY(v_user_companies);
 
     -- Get paginated results
     SELECT ARRAY_AGG(
@@ -1427,7 +1431,7 @@ BEGIN
         JOIN "EstateProperties" ep ON pvl."PropertyId" = ep."Id"
         WHERE pvl."VisitedOnUtc" >= v_start_date
         AND pvl."VisitedOnUtc" <= v_end_date
-        AND ep."OwnerId" = ANY(v_user_companies::UUID[])
+        AND ep."OwnerId" = ANY(v_user_companies)
         GROUP BY pvl."PropertyId"
         ORDER BY visit_count DESC
         LIMIT p_limit

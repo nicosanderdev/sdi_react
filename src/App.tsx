@@ -22,7 +22,7 @@ import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverview } from './pages/dashboard/DashboardOverview';
-import { UserProfile } from './components/user/UserProfile';
+import { UserProfile } from './pages/dashboard/UserProfile';
 import { PropertiesManager } from './pages/dashboard/PropertiesManager';
 import { MessageCenter } from './components/dashboard/MessageCenter';
 import { ReportsAndMetrics } from './pages/dashboard/ReportsAndMetrics';
@@ -101,19 +101,7 @@ export function App() {
           <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
-          {/* COMMENTED OUT: for reuse in new project managing public view */}
-          {/* <Route path="/search" element={<PublicRoute><SearchPage /></PublicRoute>} /> */}
-          {/* <Route path="/properties" element={<PublicRoute><PropertiesResultsPage /></PublicRoute>} /> */}
-          {/* <Route path="/properties/view/:propertyId" element={<PublicRoute><PublicPropertyViewPage /></PublicRoute>} /> */}
-          {/* <Route path="/map-search" element={<PublicRoute><MapSearchPage /></PublicRoute>} /> */}
-
-          {/* Public User Routes (Authentication Required, Public Users Only) - COMMENTED OUT: removing free registered user functionality */}
-          {/* <Route path="/welcome" element={<PublicUserOnlyRoute><PublicWelcomePage /></PublicUserOnlyRoute>} /> */}
-          {/* <Route path="/profile" element={<PublicUserOnlyRoute><PublicUserProfilePage /></PublicUserOnlyRoute>} /> */}
-          {/* <Route path="/messages" element={<PublicUserOnlyRoute><PublicUserMessagesPage /></PublicUserOnlyRoute>} /> */}
-          {/* <Route path="/favorites" element={<PublicUserOnlyRoute><PublicUserFavoritesPage /></PublicUserOnlyRoute>} /> */}
-          {/* <Route path="/upgrade" element={<PublicUserOnlyRoute><UpgradeToManagerPage /></PublicUserOnlyRoute>} /> */}
-
+          
           {/* Dashboard Routes (Authentication Required, All Users) */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} >
             <Route index element={<AdminRedirectWrapper><DashboardOverview /></AdminRedirectWrapper>} />

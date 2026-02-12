@@ -28,9 +28,6 @@ export function PublicHeader() {
     return (
     <>
         <NavbarLink href="/dashboard" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Dashboard</NavbarLink>
-        <NavbarLink href="/dashboard/properties" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Propiedades</NavbarLink>
-        <NavbarLink href="/dashboard/messages" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mensajes</NavbarLink>
-        <NavbarLink href="/dashboard/profile" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Mi Perfil</NavbarLink>
         <NavbarLink href="#" onClick={handleLogout} className="flex items-center space-x-1 text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">
         <LogOut className="w-4 h-4" />
         <span>Cerrar Sesión</span>
@@ -56,8 +53,6 @@ export function PublicHeader() {
           <CustomDarkThemeToggle className="mr-3" />
           <NavbarCollapse>
             <NavbarLink href="/" active className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Inicio</NavbarLink>
-            {/* COMMENTED OUT: for reuse in new project managing public view */}
-            {/* <NavbarLink href="/properties">Propiedades</NavbarLink> */}
             <NavbarLink href="/contact" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Contacto</NavbarLink>
             {getUserNavigation()}
           </NavbarCollapse>

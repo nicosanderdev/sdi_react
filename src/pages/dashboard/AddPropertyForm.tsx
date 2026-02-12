@@ -141,7 +141,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       state: '',
       zipCode: '',
       country: 'Uruguay',
-      location: { lat: -34.9011, lng: -56.1645 }, // Montevideo
+      location: { lat: -30.8994, lng: -55.5469 }, // Rivera
 
       // --- Description (Step 2) ---
       title: '',

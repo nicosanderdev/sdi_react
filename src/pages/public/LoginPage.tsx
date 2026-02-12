@@ -144,7 +144,7 @@ export function LoginPage() {
   if (isVerifying) {
     return (
       <PublicLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
           <div className="flex flex-col items-center">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-600"></div>
             <p className="mt-4 text-lg text-gray-900 dark:text-white font-semibold">Cargando...</p>

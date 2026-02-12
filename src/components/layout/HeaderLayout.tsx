@@ -7,16 +7,6 @@ import { Search } from 'lucide-react';
 export function HeaderLayout() {
   const userProfile = useSelector(selectUserProfile);
 
-  // You can show a loading state or a skeleton here
-  {/* if (userStatus === 'loading' || !userProfile) {
-    // Optional: Render a loading skeleton for a better UX
-    return <header className="bg-[#FDFFFC] h-16 border-b border-gray-200 flex items-center justify-end px-6 shadow-sm">
-      <div className="animate-pulse flex items-center">
-        <div className="h-10 w-10 rounded-full bg-gray-300 ml-3"></div>
-      </div>
-    </header>;
-  } */}
-
   const navbarTheme = {
     "root": {
       "base": "bg-gray-50 px-2 py-2.5 sm:px-4 dark:border-gray-700 dark:bg-gray-800",

@@ -176,11 +176,6 @@ export function DashboardSidebar() {
               icon={SettingsIcon}
               className="hover:bg-green-50 dark:hover:bg-green-900/20"
               active={location.pathname === '/dashboard/settings'}
-              style={{
-                backgroundColor: location.pathname === '/dashboard/settings'
-                  ? 'rgb(240 253 244)'
-                  : undefined
-              }}
             >
               Configuración
             </SidebarItem>

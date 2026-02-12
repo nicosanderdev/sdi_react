@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
 import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, BriefcaseIcon, Edit3Icon, SaveIcon, XIcon } from 'lucide-react';
 import profileService, { ProfileData, AddressData, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
-import { ChangePasswordModal } from './ChangePasswordModal';
-import { IconWrapper } from '../ui/IconWrapper';
+import { ChangePasswordModal } from '../../components/user/ChangePasswordModal';
+import { IconWrapper } from '../../components/ui/IconWrapper';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
 
 const initialProfileState: ProfileData = {

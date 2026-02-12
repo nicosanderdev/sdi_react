@@ -20,6 +20,7 @@ export function PropertyFormMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<mapboxgl.Map | null>(null);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const isInternalUpdateRef = useRef(false);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -65,10 +66,13 @@ export function PropertyFormMap({
         const marker = markerRef.current;
         if (marker) {
           const lngLat = marker.getLngLat();
+          isInternalUpdateRef.current = true;
           onLocationChange({
             lat: lngLat.lat,
             lng: lngLat.lng
           });
+          // Reset after a short delay to allow the useEffect to see it
+          setTimeout(() => { isInternalUpdateRef.current = false; }, 100);
         }
       });
 
@@ -77,10 +81,13 @@ export function PropertyFormMap({
         const marker = markerRef.current;
         if (marker) {
           marker.setLngLat(e.lngLat);
+          isInternalUpdateRef.current = true;
           onLocationChange({
             lat: e.lngLat.lat,
             lng: e.lngLat.lng
           });
+          // Reset after a short delay to allow the useEffect to see it
+          setTimeout(() => { isInternalUpdateRef.current = false; }, 100);
         }
       });
     }
@@ -95,18 +102,21 @@ export function PropertyFormMap({
   }, []);
 
   useEffect(() => {
-    if (mapInstanceRef.current && markerRef.current) {
+    if (mapInstanceRef.current && markerRef.current && !isInternalUpdateRef.current) {
       const newLngLat = [location.lng, location.lat] as mapboxgl.LngLatLike;
       const currentCenter = mapInstanceRef.current.getCenter();
 
       // Only update if the location is significantly different to avoid fighting with user drag
-      if (Math.abs(currentCenter.lat - location.lat) > 1e-5 || Math.abs(currentCenter.lng - location.lng) > 1e-5) {
-        mapInstanceRef.current.setCenter(newLngLat);
-        mapInstanceRef.current.setZoom(15); // Zoom in a bit more on update
+      if (Math.abs(currentCenter.lat - location.lat) > 0.0001 || Math.abs(currentCenter.lng - location.lng) > 0.0001) {
+        mapInstanceRef.current.flyTo({
+          center: newLngLat,
+          zoom: 15,
+          essential: true
+        });
       }
 
       const currentMarkerLngLat = markerRef.current.getLngLat();
-      if (Math.abs(currentMarkerLngLat.lat - location.lat) > 1e-5 || Math.abs(currentMarkerLngLat.lng - location.lng) > 1e-5) {
+      if (Math.abs(currentMarkerLngLat.lat - location.lat) > 1e-6 || Math.abs(currentMarkerLngLat.lng - location.lng) > 1e-6) {
         markerRef.current.setLngLat(newLngLat);
       }
     }

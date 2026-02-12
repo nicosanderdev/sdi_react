@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../config/supabase'
 import { useAppDispatch } from '../hooks/reduxHooks'
@@ -30,6 +30,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const dispatch = useAppDispatch()
+  const hasInitialized = useRef(false)
+  const checkForceLogoutRef = useRef<((user: User | null) => Promise<void>) | null>(null)
 
   // Check for force logout
   const checkForceLogout = useCallback(async () => {
@@ -54,7 +56,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user])
 
+  // Keep ref updated with latest checkForceLogout
   useEffect(() => {
+    checkForceLogoutRef.current = checkForceLogout
+  }, [checkForceLogout])
+
+  useEffect(() => {
+    // Only initialize once
+    if (hasInitialized.current) return
+    hasInitialized.current = true
+
     // Get initial session
     const getInitialSession = async () => {
       try {
@@ -69,7 +80,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           if (session?.user) {
             dispatch(fetchUserProfile(session.user))
             // Check for force logout after profile is loaded
-            setTimeout(() => checkForceLogout(), 1000)
+            setTimeout(() => checkForceLogoutRef.current?.(), 1000)
           }
         }
       } catch (error) {
@@ -90,11 +101,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // Handle auth state changes
+        // Handle auth state changes - only fetch profile on SIGNED_IN event
         if (event === 'SIGNED_IN' && session?.user) {
           dispatch(fetchUserProfile(session.user))
           // Check for force logout after signing in
-          setTimeout(() => checkForceLogout(), 1000)
+          setTimeout(() => checkForceLogoutRef.current?.(), 1000)
         } else if (event === 'SIGNED_OUT') {
           // Clear user profile from Redux store
           // This will be handled by the userSlice reducer
@@ -105,7 +116,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [dispatch]) // Removed checkForceLogout from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Empty deps - only run once on mount, hasInitialized ref prevents re-runs
 
   // Periodic check for force logout when user is authenticated
   useEffect(() => {

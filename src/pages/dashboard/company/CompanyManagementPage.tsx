@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Spinner, Alert, Button, Card } from 'flowbite-react';
 import { AlertCircle, Crown } from 'lucide-react';
@@ -14,7 +14,6 @@ import messageService from '../../../services/MessageService';
 import reportService from '../../../services/ReportService';
 
 export function CompanyManagementPage() {
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const navigate = useNavigate();
 
   // Fetch company info
@@ -111,109 +110,102 @@ export function CompanyManagementPage() {
     }
   }, [hasNoCompany, navigate]);
 
-  // Show subscription modal if company exists but no subscription
-  useEffect(() => {
-    if (hasCompanyButNoSubscription) {
-      setShowSubscriptionModal(true);
-    }
-  }, [hasCompanyButNoSubscription]);
-
   return (
-    <div className="space-y-6">
-      <DashboardPageTitle title="Gestión de Empresa" />
+    <div className="max-w-4xl mx-auto p-4 md:p-6">
+      <h1 className="text-2xl font-bold mb-6">Gestión de empresa</h1>
 
-      {error && !hasNoCompany && (
-        <Alert color="failure" icon={AlertCircle}>
-          <span className="font-medium">Error:</span>{' '}
-          {error instanceof Error ? error.message : 'Error al cargar la información de la compañía'}
-        </Alert>
-      )}
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Spinner size="xl" />
-        </div>
-      ) : (
-        <>
-          {/* Company Information Summary */}
-          <section>
-            <CompanyInfoCard
-              companyInfo={enhancedCompanyInfo}
-              isLoading={isLoadingCompanyInfo}
-              error={companyInfoError ? (companyInfoError instanceof Error ? companyInfoError.message : 'Error desconocido') : null}
-            />
-          </section>
-
-          {/* Company Subscription Management */}
-          <section>
-            <Card>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Crown className="w-8 h-8 text-purple-500" />
-                  <div>
-                    <h3 className="text-lg font-semibold">Suscripción de Empresa</h3>
-                    <p className="text-sm text-gray-600">Gestiona el plan de suscripción de tu empresa</p>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => navigate('/dashboard/company/subscription')}
-                  className="bg-purple-600 hover:bg-purple-700 text-white"
-                >
-                  Gestionar Suscripción
-                </Button>
-              </div>
-            </Card>
-          </section>
-
-          {/* Company Profile Editor */}
-          <section>
-            <CompanyProfileEditor
-              companyInfo={enhancedCompanyInfo}
-              isLoading={isLoadingCompanyInfo}
-              onUpdate={handleRefresh}
-            />
-          </section>
-
-          {/* Company Users Management */}
-          <section>
-            <CompanyUsersList
-              users={companyUsers}
-              isLoading={isLoadingUsers}
-              error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
-              onRefresh={handleRefresh}
-            />
-          </section>
-        </>
-      )}
-
-      {/* Subscription Required Modal */}
-      {showSubscriptionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="text-center">
-              <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Suscripción Requerida</h3>
-              <p className="text-gray-600 dark:text-gray-300 mb-6">
-                Tu empresa necesita una suscripción activa para acceder a todas las funciones de gestión.
-              </p>
-              <div className="flex space-x-3">
-                <Button
-                  onClick={() => navigate('/dashboard')}
-                  color="gray"
-                  className="flex-1"
-                >
-                  Más tarde
-                </Button>
-                <Button
-                  onClick={() => navigate('/dashboard/company/subscription')}
-                  className="flex-1 bg-[#1B4965] hover:bg-[#153a52] text-white"
-                >
-                  Suscribirse
-                </Button>
-              </div>
+      {hasCompanyButNoSubscription ? (
+        /* Subscription Required Card */
+        <Card className="max-w-2xl mx-auto">
+          <div className="text-center py-8">
+            <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Suscripción Requerida</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Tu empresa necesita una suscripción activa para acceder a todas las funciones de gestión.
+            </p>
+            <div className="flex space-x-3 justify-center">
+              <Button
+                onClick={() => navigate('/dashboard')}
+                color="gray"
+                className="flex-1 max-w-xs"
+              >
+                Más tarde
+              </Button>
+              <Button
+                onClick={() => navigate('/dashboard/company/subscription')}
+                className="flex-1 max-w-xs bg-[#1B4965] hover:bg-[#153a52] text-white"
+              >
+                Suscribirse
+              </Button>
             </div>
           </div>
-        </div>
+        </Card>
+      ) : (
+        <>
+          {error && !hasNoCompany && (
+            <Alert color="failure" icon={AlertCircle}>
+              <span className="font-medium">Error:</span>{' '}
+              {error instanceof Error ? error.message : 'Error al cargar la información de la compañía'}
+            </Alert>
+          )}
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Spinner size="xl" />
+            </div>
+          ) : (
+            <>
+              {/* Company Information Summary */}
+              <section>
+                <CompanyInfoCard
+                  companyInfo={enhancedCompanyInfo}
+                  isLoading={isLoadingCompanyInfo}
+                  error={companyInfoError ? (companyInfoError instanceof Error ? companyInfoError.message : 'Error desconocido') : null}
+                />
+              </section>
+
+              {/* Company Subscription Management */}
+              <section>
+                <Card>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Crown className="w-8 h-8 text-purple-500" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Suscripción de Empresa</h3>
+                        <p className="text-sm text-gray-600">Gestiona el plan de suscripción de tu empresa</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => navigate('/dashboard/company/subscription')}
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                    >
+                      Gestionar Suscripción
+                    </Button>
+                  </div>
+                </Card>
+              </section>
+
+              {/* Company Profile Editor */}
+              <section>
+                <CompanyProfileEditor
+                  companyInfo={enhancedCompanyInfo}
+                  isLoading={isLoadingCompanyInfo}
+                  onUpdate={handleRefresh}
+                />
+              </section>
+
+              {/* Company Users Management */}
+              <section>
+                <CompanyUsersList
+                  users={companyUsers}
+                  isLoading={isLoadingUsers}
+                  error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
+                  onRefresh={handleRefresh}
+                />
+              </section>
+            </>
+          )}
+        </>
       )}
     </div>
   );

@@ -19,7 +19,7 @@ export function PropertyFormStep1({
 
     const geocodeAddress = useCallback(
         debounce(async (addressQuery: string) => {
-            if (addressQuery.length < 10) return;
+            if (addressQuery.length < 10 || locationManuallySet) return;
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1`);
                 const data = await response.json();
@@ -31,17 +31,29 @@ export function PropertyFormStep1({
             } catch (error) {
                 console.error("Geocoding error:", error);
             }
-        }, 100),
-        []);
+        }, 500),
+        [locationManuallySet, setValue]);
 
     useEffect(() => {
         const [streetName, houseNumber, city, state, country] = addressParts;
-        if (streetName && houseNumber && city && state && country) {
-            // Only auto-geocode if location hasn't been manually set by user
-            if (!locationManuallySet) {
-                const fullAddress = [streetName + ' ' + houseNumber, city, state, country].join(', ');
-                geocodeAddress(fullAddress);
-            }
+        
+        // Ensure all required fields have values and are not just whitespace
+        const isComplete = 
+            streetName?.trim() && 
+            houseNumber?.trim() && 
+            city?.trim() && 
+            state?.trim() && 
+            country?.trim();
+
+        if (isComplete && !locationManuallySet) {
+            const fullAddress = [
+                `${streetName.trim()} ${houseNumber.trim()}`,
+                city.trim(),
+                state.trim(),
+                country.trim()
+            ].filter(Boolean).join(', ');
+            
+            geocodeAddress(fullAddress);
         }
     }, [addressParts, geocodeAddress, locationManuallySet]);
 
@@ -64,8 +76,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="streetName"
-                        {...register('streetName')}
-                        onChange={() => setLocationManuallySet(false)}
+                        {...register('streetName', {
+                            onChange: () => setLocationManuallySet(false)
+                        })}
                         placeholder="Nombre de calle" />
                     {errors.streetName && <p className="text-red-500 text-sm mt-1">{errors.streetName.message}</p>}
                 </div>
@@ -76,8 +89,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="houseNumber"
-                        {...register('houseNumber')}
-                        onChange={() => setLocationManuallySet(false)} />
+                        {...register('houseNumber', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.houseNumber && <p className="text-red-500 text-sm mt-1">{errors.houseNumber.message}</p>}
                 </div>
             </div>
@@ -100,8 +114,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="city"
-                        {...register('city')}
-                        onChange={() => setLocationManuallySet(false)} />
+                        {...register('city', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>}
                 </div>
                 <div>
@@ -111,8 +126,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="state"
-                        {...register('state')}
-                        onChange={() => setLocationManuallySet(false)} />
+                        {...register('state', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>}
                 </div>
             </div>
@@ -134,7 +150,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="country"
-                        {...register('country')} />
+                        {...register('country', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>}
                 </div>
             </div>
