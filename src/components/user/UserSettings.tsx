@@ -297,7 +297,7 @@ export function UserSettings() {
                                 onClick={handleInitiate2fa}
                             className={`mt-4 md:mt-0 px-4 py-2 rounded-md transition-colors text-sm font-semibold flex items-center justify-center min-w-[140px] ${is2faEnabled
                                     ? 'bg-red-100 text-red-800 border border-red-200 hover:bg-red-200'
-                                : 'bg-[#62B6CB] text-[#FDFFFC] hover:bg-[#47A9C2]'
+                                : 'bg-[#0f9d58] text-[#FDFFFC] hover:bg-[#0d8a4d]'
                                 }`}
                         >
                             {is2faEnabled ? (

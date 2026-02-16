@@ -126,14 +126,15 @@ export function CompanyManagementPage() {
             <div className="flex space-x-3 justify-center">
               <Button
                 onClick={() => navigate('/dashboard')}
-                color="gray"
+                color="alternative"
                 className="flex-1 max-w-xs"
               >
                 Más tarde
               </Button>
               <Button
                 onClick={() => navigate('/dashboard/company/subscription')}
-                className="flex-1 max-w-xs bg-[#1B4965] hover:bg-[#153a52] text-white"
+                color="green"
+                className="flex-1 max-w-xs"
               >
                 Suscribirse
               </Button>
