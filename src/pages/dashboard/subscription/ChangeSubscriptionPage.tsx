@@ -1,7 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../../store/store';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { 
     Crown, 
@@ -18,7 +16,6 @@ import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 
 export function ChangeSubscriptionPage() {
-    const user = useSelector((state: RootState) => state.user.profile);
     const navigate = useNavigate();
     const [plans, setPlans] = useState<PlanData[]>([]);
     const [currentSubscription, setCurrentSubscription] = useState<SubscriptionData | null>(null);
@@ -95,6 +92,15 @@ export function ChangeSubscriptionPage() {
     const currentPlan = plans.find(p => p.id === currentSubscription.planId);
     const selectedPlan = plans.find(p => p.id === selectedPlanId);
 
+    // Get the three plans to display: FREE, MANAGER_PRO, and COMPANY
+    const freePlan = plans.find(plan => plan.key === PlanKey.FREE);
+    const proPlan = plans.find(plan => plan.key === PlanKey.MANAGER_PRO);
+    const companyPlan = plans.find(plan => 
+        plan.key === PlanKey.COMPANY_SMALL || plan.key === PlanKey.COMPANY_UNLIMITED
+    );
+    
+    const displayPlans = [freePlan, proPlan, companyPlan].filter(Boolean) as PlanData[];
+
     return (
         <div className="max-w-6xl mx-auto p-6">
             {/* Header */}
@@ -107,7 +113,7 @@ export function ChangeSubscriptionPage() {
                     <span>Volver a Suscripción</span>
                 </button>
                 <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center">
                         <Crown className="w-6 h-6 text-white" />
                     </div>
                     <div>
@@ -124,12 +130,21 @@ export function ChangeSubscriptionPage() {
                 </div>
             )}
 
-            {/* Current Plan Card */}
-            <Card className="mb-6 border-2 border-primary-500">
+            {/* Current Plan Card - Usage Details and Billing */}
+            <Card className="mb-6 border-2 border-primary-500 relative overflow-hidden bg-gradient-to-br from-green-50 to-primary-50 dark:from-green-900/20 dark:to-primary-900/20">
+                {/* Animated background indicator */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-primary-500 to-green-500 animate-pulse"></div>
+                
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Plan Actual</h3>
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        Activo
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                            <Check className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-lg font-semibold">Plan Actual</h3>
+                    </div>
+                    <span className="bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                        <span>Activo</span>
                     </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -162,39 +177,96 @@ export function ChangeSubscriptionPage() {
                 </div>
             </Card>
 
-            {/* Recommended Plans */}
+            {/* Comparison Plans */}
             <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-4">Planes Recomendados</h3>
+                <h3 className="text-xl font-semibold mb-8">Comparar Planes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {plans
-                        .filter(plan => plan.id !== currentSubscription.planId)
-                        .map((plan) => {
-                            const isSelected = selectedPlanId === plan.id;
-                            const isUpgrade = (plan.monthlyPrice || 0) > (currentPlan?.monthlyPrice || 0);
-                            const isPopular = plan.key === PlanKey.MANAGER || plan.key === PlanKey.MANAGER_PRO || plan.key === PlanKey.COMPANY_SMALL;
+                    {displayPlans.map((plan) => {
+                        const isCurrentPlan = plan.id === currentSubscription.planId;
+                        const isSelected = selectedPlanId === plan.id && !isCurrentPlan;
+                        const isUpgrade = (plan.monthlyPrice || 0) > (currentPlan?.monthlyPrice || 0);
+                        const isPopular = plan.key === PlanKey.MANAGER_PRO || plan.key === PlanKey.COMPANY_SMALL;
+                        const isCompanyPlan = plan.key === PlanKey.COMPANY_SMALL || plan.key === PlanKey.COMPANY_UNLIMITED;
 
                             return (
                                 <Card
                                     key={plan.id}
-                                    className={`relative cursor-pointer transition-all ${
-                                        isSelected ? 'ring-2 ring-primary-500 shadow-lg' : 'hover:shadow-md'
+                                    className={`relative transition-all duration-300 transform ${
+                                        isCurrentPlan
+                                            ? 'shadow-2xl scale-105 border-2 border-primary-500 bg-gradient-to-br from-green-50 to-primary-50 dark:from-green-900/30 dark:to-primary-900/30'
+                                            : isSelected 
+                                            ? 'ring-2 ring-primary-500 shadow-xl scale-105 border-primary-500 cursor-pointer bg-gradient-to-br from-green-500/10 to-blue-500/10 dark:from-green-500/20 dark:to-blue-500/20' 
+                                            : 'hover:shadow-xl hover:scale-105 hover:border-primary-300 border-gray-200 dark:border-gray-700 cursor-pointer'
                                     }`}
-                                    onClick={() => setSelectedPlanId(plan.id)}
+                                    onClick={() => {
+                                        if (isCurrentPlan) return;
+                                        if (isCompanyPlan) {
+                                            navigate('/dashboard/company/subscription');
+                                        } else {
+                                            setSelectedPlanId(plan.id);
+                                        }
+                                    }}
                                 >
-                                    {isPopular && (
-                                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                                            <div className="bg-purple-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                                                <Star className="w-4 h-4" />
+                                    {/* Animated glow effect */}
+                                    <div className={`absolute inset-0 rounded-lg transition-opacity duration-300 ${
+                                        isCurrentPlan
+                                            ? 'opacity-100 bg-gradient-to-br from-green-100/70 to-primary-100/70 dark:from-green-900/40 dark:to-primary-900/40'
+                                            : isSelected 
+                                            ? 'opacity-100 bg-gradient-to-br from-green-100/50 to-blue-100/50 dark:from-green-900/30 dark:to-blue-900/30' 
+                                            : 'opacity-0 hover:opacity-100 bg-gradient-to-br from-primary-50/50 to-green-50/50 dark:from-primary-900/20 dark:to-green-900/20'
+                                    } pointer-events-none`}></div>
+                                    
+                                    {/* Current Plan Indicator */}
+                                    {isCurrentPlan && (
+                                        <>
+                                            {/* Current Plan Badge */}
+                                            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                                                <div className="bg-gradient-to-r from-green-500 to-primary-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-2 shadow-lg">
+                                                    <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+                                                    <span>Activo</span>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                    
+                                    {/* Popular/Recommended Badge */}
+                                    {!isCurrentPlan && isPopular && (
+                                        <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">
+                                            <div className="bg-gradient-to-r from-green-500 to-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center space-x-1 shadow-lg">
+                                                <Star className="w-4 h-4 animate-spin-slow" />
                                                 <span>Recomendado</span>
                                             </div>
                                         </div>
                                     )}
 
-                                    <div className="text-center mb-6">
+                                    {/* Selection indicator */}
+                                    {isSelected && (
+                                        <div className="absolute top-4 right-4 z-10">
+                                            <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                                                <Check className="w-5 h-5 text-white" />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="text-center mb-6 relative z-10">
                                         <div className={`inline-flex items-center justify-center w-16 h-16 ${
-                                            isUpgrade ? 'bg-green-500' : 'bg-blue-500'
-                                        } text-white rounded-full mb-4`}>
-                                            {isUpgrade ? <ArrowRight className="w-8 h-8" /> : <Crown className="w-8 h-8" />}
+                                            isCurrentPlan 
+                                                ? 'bg-gradient-to-br from-green-500 to-green-600 ring-4 ring-green-200 dark:ring-green-800 animate-pulse'
+                                                : isUpgrade 
+                                                ? 'bg-gradient-to-br from-green-500 to-green-600' 
+                                                : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                                        } text-white rounded-full mb-4 transition-transform duration-300 ${
+                                            isCurrentPlan || isSelected 
+                                                ? 'scale-110 ring-4 ring-primary-200 dark:ring-primary-800' 
+                                                : 'hover:scale-110'
+                                        } shadow-lg`}>
+                                            {isCurrentPlan ? (
+                                                <Check className="w-8 h-8" />
+                                            ) : isUpgrade ? (
+                                                <ArrowRight className="w-8 h-8 animate-pulse" />
+                                            ) : (
+                                                <Crown className="w-8 h-8" />
+                                            )}
                                         </div>
                                         <h4 className="text-xl font-bold text-[#1B4965] dark:text-gray-200 mb-2">
                                             {plan.name}
@@ -205,7 +277,7 @@ export function ChangeSubscriptionPage() {
                                             </span>
                                             <span className="text-gray-600 dark:text-gray-400">/{plan.billingCycle}</span>
                                         </div>
-                                        {!isUpgrade && (
+                                        {!isUpgrade && !isCurrentPlan && (
                                             <span className="inline-block bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
                                                 Bajar plan
                                             </span>
@@ -217,20 +289,20 @@ export function ChangeSubscriptionPage() {
                                         )}
                                     </div>
 
-                                    <ul className="space-y-3 mb-6">
-                                        <li className="flex items-center space-x-3">
+                                    <ul className="space-y-3 mb-6 relative z-10">
+                                        <li className="flex items-center space-x-3 transition-all duration-200 hover:translate-x-1">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                                             <span className="">
                                                 Hasta {plan.maxProperties} propiedades
                                             </span>
                                         </li>
-                                        <li className="flex items-center space-x-3">
+                                        <li className="flex items-center space-x-3 transition-all duration-200 hover:translate-x-1">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                                             <span className="">
                                                 {plan.maxUsers} usuarios
                                             </span>
                                         </li>
-                                        <li className="flex items-center space-x-3">
+                                        <li className="flex items-center space-x-3 transition-all duration-200 hover:translate-x-1">
                                             <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
                                             <span className="">
                                                 {plan.maxStorageMb} GB almacenamiento
@@ -239,14 +311,38 @@ export function ChangeSubscriptionPage() {
                                     </ul>
 
                                     <Button
-                                        onClick={() => setSelectedPlanId(plan.id)}
-                                        className={`w-full ${
-                                            isSelected
-                                                ? 'bg-[#1B4965] text-white'
-                                                : 'bg-gray-100  hover:bg-gray-200'
+                                        onClick={() => {
+                                            if (isCurrentPlan) return;
+                                            if (isCompanyPlan) {
+                                                navigate('/dashboard/company/subscription');
+                                            } else {
+                                                setSelectedPlanId(plan.id);
+                                            }
+                                        }}
+                                        disabled={isCurrentPlan}
+                                        className={`w-full relative z-10 transition-all duration-300 ${
+                                            isCurrentPlan
+                                                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg cursor-not-allowed'
+                                                : isSelected
+                                                ? 'bg-gradient-to-r from-[#1B4965] to-primary-600 text-white shadow-lg transform scale-105'
+                                                : 'bg-gray-100 dark:bg-gray-700 hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300'
                                         }`}
                                     >
-                                        {isSelected ? 'Seleccionado' : 'Seleccionar Plan'}
+                                        {isCurrentPlan ? (
+                                            <span className="flex items-center justify-center space-x-2">
+                                                <Check className="w-4 h-4" />
+                                                <span>Plan Actual</span>
+                                            </span>
+                                        ) : isSelected ? (
+                                            <span className="flex items-center justify-center space-x-2">
+                                                <Check className="w-4 h-4" />
+                                                <span>Seleccionado</span>
+                                            </span>
+                                        ) : isCompanyPlan ? (
+                                            'Ver Plan Empresa'
+                                        ) : (
+                                            'Seleccionar Plan'
+                                        )}
                                     </Button>
                                 </Card>
                             );
@@ -256,7 +352,7 @@ export function ChangeSubscriptionPage() {
 
             {/* Change Plan Button */}
             {selectedPlanId && selectedPlanId !== currentSubscription.planId && (
-                <div className="text-center">
+                <div className="text-center max-w-md mx-auto">
                     <Card className="mb-4">
                         <div className="flex items-center justify-between">
                             <div>
@@ -275,8 +371,8 @@ export function ChangeSubscriptionPage() {
                             onClick={handleChangePlan}
                             disabled={isProcessing}
                             size="lg"
-                            className="w-md bg-gradient-to-r from-blue-500 to-purple-500 text-white 
-                            px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-purple-600 
+                            className="w-md bg-gradient-to-r from-blue-500 to-green-500 text-white 
+                            px-8 py-4 rounded-lg font-semibold text-lg hover:from-blue-600 hover:to-green-600 
                             transition-all disabled:opacity-50 mx-auto"
                         >
                             {isProcessing ? (

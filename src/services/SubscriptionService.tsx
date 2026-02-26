@@ -7,6 +7,34 @@ import { supabase } from '../config/supabase';
 import { mapDbToSubscription, getCurrentUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
 
+/**
+ * Maps PlanKey enum to database integer Key value
+ * Database stores: 0 = FREE, 1 = MANAGER_PRO, 2 = COMPANY_SMALL/COMPANY_UNLIMITED
+ */
+const planKeyToInt = (planKey: PlanKey): number => {
+    const mapping: Record<PlanKey, number> = {
+        [PlanKey.FREE]: 0,
+        [PlanKey.MANAGER]: 1, // Note: MANAGER maps to 1, but seed data shows MANAGER_PRO = 1
+        [PlanKey.MANAGER_PRO]: 1,
+        [PlanKey.COMPANY_SMALL]: 2,
+        [PlanKey.COMPANY_UNLIMITED]: 2
+    };
+    return mapping[planKey] ?? 0;
+};
+
+/**
+ * Maps database integer Key value to PlanKey enum
+ * Database stores: 0 = FREE, 1 = MANAGER_PRO, 2 = COMPANY_SMALL/COMPANY_UNLIMITED
+ */
+const intToPlanKey = (keyInt: number): PlanKey => {
+    const mapping: Record<number, PlanKey> = {
+        0: PlanKey.FREE,
+        1: PlanKey.MANAGER_PRO, // Default to MANAGER_PRO for 1
+        2: PlanKey.COMPANY_SMALL // Default to COMPANY_SMALL for 2
+    };
+    return mapping[keyInt] ?? PlanKey.FREE;
+};
+
 // Type for the RPC response from get_admin_subscriptions
 interface AdminSubscriptionRpcResponse {
   Id: string;
@@ -28,11 +56,12 @@ interface AdminSubscriptionRpcResponse {
   LastModified: string;
   LastModifiedBy: string | null;
   Plans_Id: string;
-  Plans_Key: string;
+  Plans_Key: number; // Database stores Key as integer
   Plans_Name: string;
   Plans_MonthlyPrice: number;
   Plans_Currency: string;
   Plans_MaxProperties: number | null;
+  Plans_MaxPublishedProperties: number | null;
   Plans_MaxUsers: number | null;
   Plans_MaxStorageMb: number | null;
   Plans_BillingCycle: number;
@@ -61,7 +90,7 @@ const ENDPOINTS = {
 }
 
 /**
- * @returns The current subscription
+ * @returns The current subscription, or free plan if no subscription found
  */
 const getCurrentSubscription = async (): Promise<SubscriptionData> => {
     try {
@@ -117,15 +146,110 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             }
         }
 
+        // If no subscription found, return free plan subscription
         if (!subscriptionData || subscriptionData.length === 0) {
-            throw new Error('No active subscription found');
+            // Try to fetch free plan from database
+            const { data: freePlanData, error: freePlanError } = await supabase
+                .from('Plans')
+                .select('*')
+                .eq('Key', planKeyToInt(PlanKey.FREE))
+                .eq('IsActive', true)
+                .eq('IsDeleted', false)
+                .limit(1);
+
+            let freePlan: PlanData;
+            
+            if (!freePlanError && freePlanData && freePlanData.length > 0) {
+                // Use free plan from database
+                const plan = freePlanData[0];
+                freePlan = {
+                    id: plan.Id,
+                    key: intToPlanKey(plan.Key),
+                    name: plan.Name,
+                    monthlyPrice: plan.MonthlyPrice,
+                    currency: plan.Currency,
+                    maxProperties: plan.MaxProperties || 0,
+                    maxUsers: plan.MaxUsers || 0,
+                    maxStorageMb: plan.MaxStorageMb || 0,
+                    billingCycle: plan.BillingCycle.toString(),
+                    isActive: plan.IsActive,
+                    publishedProperties: plan.MaxPublishedProperties || 0,
+                    totalProperties: plan.MaxProperties || 0,
+                    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined
+                };
+            } else {
+                // Create default free plan object if not found in database (Inicial plan: 5 published, 7 total)
+                freePlan = {
+                    id: '',
+                    key: PlanKey.FREE,
+                    name: 'Free',
+                    monthlyPrice: 0,
+                    currency: 'USD',
+                    maxProperties: 7, // Total properties limit
+                    maxUsers: 1,
+                    maxStorageMb: 0,
+                    billingCycle: '1',
+                    isActive: true,
+                    publishedProperties: 5, // Published properties limit
+                    totalProperties: 7, // Total properties limit
+                    bookingReceiptMinimumAmount: undefined
+                };
+            }
+
+            // Return free plan subscription
+            return {
+                id: '',
+                ownerType: '0',
+                ownerId: userId,
+                providerCustomerId: '',
+                providerSubscriptionId: '',
+                planId: freePlan.id,
+                plan: freePlan,
+                status: '0', // 0 = inactive/free plan
+                currentPeriodStart: new Date(),
+                currentPeriodEnd: new Date(),
+                cancelAtPeriodEnd: false,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            };
         }
 
         return mapDbToSubscription(subscriptionData[0]);
 
     } catch (error: any) {
-        console.log('No active subscription found:', error.message);
-        throw error;
+        console.log('Error fetching subscription, returning free plan:', error.message);
+        
+        // On error, return free plan as fallback
+        const userId = await getCurrentUserId().catch(() => '');
+        return {
+            id: '',
+            ownerType: '0',
+            ownerId: userId,
+            providerCustomerId: '',
+            providerSubscriptionId: '',
+            planId: '',
+            plan: {
+                id: '',
+                key: PlanKey.FREE,
+                name: 'Free',
+                monthlyPrice: 0,
+                currency: 'USD',
+                maxProperties: 7, // Total properties limit
+                maxUsers: 1,
+                maxStorageMb: 0,
+                billingCycle: '1',
+                isActive: true,
+                publishedProperties: 5, // Published properties limit
+                totalProperties: 7, // Total properties limit
+                bookingReceiptMinimumAmount: undefined
+            },
+            status: '0',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(),
+            cancelAtPeriodEnd: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
     }
 }
 
@@ -296,7 +420,7 @@ const getPlans = async (): Promise<PlanData[]> => {
 
         return data?.map(plan => ({
             id: plan.Id,
-            key: plan.Key,
+            key: intToPlanKey(plan.Key),
             name: plan.Name,
             monthlyPrice: plan.MonthlyPrice,
             currency: plan.Currency,
@@ -304,7 +428,10 @@ const getPlans = async (): Promise<PlanData[]> => {
             maxUsers: plan.MaxUsers || 0,
             maxStorageMb: plan.MaxStorageMb || 0,
             billingCycle: plan.BillingCycle.toString(),
-            isActive: plan.IsActive
+            isActive: plan.IsActive,
+            publishedProperties: plan.MaxPublishedProperties || 0,
+            totalProperties: plan.MaxProperties || 0,
+            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined
         })) || [];
 
     } catch (error: any) {
@@ -368,6 +495,7 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
                     MonthlyPrice: item.Plans_MonthlyPrice,
                     Currency: item.Plans_Currency,
                     MaxProperties: item.Plans_MaxProperties,
+                    MaxPublishedProperties: item.Plans_MaxPublishedProperties || null,
                     MaxUsers: item.Plans_MaxUsers,
                     MaxStorageMb: item.Plans_MaxStorageMb,
                     BillingCycle: item.Plans_BillingCycle,
@@ -471,11 +599,14 @@ const getSubscriptionStatus = async (user?: any): Promise<{
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',
-                    maxProperties: 0,
+                    maxProperties: 7, // Total properties limit
                     maxUsers: 1,
                     maxStorageMb: 0,
                     billingCycle: '1',
-                    isActive: true
+                    isActive: true,
+                    publishedProperties: 5, // Published properties limit
+                    totalProperties: 7, // Total properties limit
+                    bookingReceiptMinimumAmount: undefined
                 },
                 status: '0', // Assuming 0 = inactive/cancelled
                 currentPeriodStart: new Date(),

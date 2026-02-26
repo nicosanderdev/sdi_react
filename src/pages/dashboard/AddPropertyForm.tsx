@@ -20,20 +20,9 @@ import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useSubscriptionNotifications } from '../../hooks/useSubscriptionNotifications';
 
 
-const propertyStatusMap: { [key: string]: number } = {
-  sale: 0, rent: 1, reserved: 2, sold: 3, unavailable: 4,
-};
-const areaUnitMap: { [key: string]: number } = {
-  'm²': 0, 'ft²': 1, 'yd²': 2, 'acres': 3, 'hectares': 4, 'sq_km': 5, 'sq_mi': 6,
-};
-const currencyMap: { [key: string]: number } = {
-  USD: 0, UYU: 1, BRL: 2, EUR: 3, GBP: 4,
-};
-
-
 const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
 const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
-const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'capacity', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
+const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
 
 export const propertyFormSchema = z.object({
   // ESTATE PROPERTY
@@ -105,12 +94,9 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   // Property quota management
   const {
     canCreateProperty,
-    canPublishProperty,
     isAtPublishedLimit,
     totalLimit,
     publishedLimit,
-    ownedCount,
-    publishedCount,
     isLoading: isQuotaLoading
   } = usePropertyQuota();
 
@@ -120,7 +106,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   // Check quota limits when component mounts
   useEffect(() => {
     if (!isQuotaLoading && !canCreateProperty) {
-      setApiError(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+      setApiError(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
       setView('error');
     }
   }, [isQuotaLoading, canCreateProperty, totalLimit]);
@@ -180,9 +166,9 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       setWasAutoDowngraded(false);
       console.log("Form data received for submission:", data);
 
-      // Check hard cap (10 total properties)
+      // Check total properties limit
       if (!canCreateProperty) {
-        throw new Error(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+        throw new Error(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
       }
 
       // Check if user wants to publish but is at published limit
@@ -219,7 +205,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       if (wasAutoDowngraded) {
         showWarningNotification(
           'Propiedad creada como privada',
-          `La propiedad "${data.title}" fue creada exitosamente pero se configuró como privada porque has alcanzado el límite de ${publishedLimit} propiedades publicadas de tu plan.`
+          `La propiedad "${data.title}" fue creada exitosamente pero se configuró como privada porque has alcanzado el límite de ${publishedLimit} propiedades publicadas de tu plan. Puedes publicarla más tarde cuando tengas espacio disponible.`
         );
       }
 
@@ -246,7 +232,14 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const onSubmit = (formData: PropertyFormData) => {
     // Additional validation for quota limits (double-check before submission)
     if (!canCreateProperty) {
-      setApiError(`Has alcanzado el límite máximo de ${totalLimit} propiedades. No puedes crear más propiedades.`);
+      setApiError(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
+      setView('error');
+      return;
+    }
+
+    // Check if trying to publish when at published limit
+    if (formData.isPropertyVisible && isAtPublishedLimit) {
+      setApiError(`Your plan limits have reached. You cannot publish more than ${publishedLimit} properties.`);
       setView('error');
       return;
     }

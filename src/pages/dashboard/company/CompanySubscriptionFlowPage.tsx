@@ -121,11 +121,11 @@ export function CompanySubscriptionFlowPage() {
             {/* Header */}
             <div className="mb-8">
                 <button
-                    onClick={() => navigate('/dashboard/company')}
+                    onClick={() => navigate('/dashboard/subscription')}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 mb-4"
                 >
                     <ArrowLeft className="w-5 h-5" />
-                    <span>Volver a Gestión de Empresa</span>
+                    <span>Volver a Gestión de suscripción</span>
                 </button>
                 <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">

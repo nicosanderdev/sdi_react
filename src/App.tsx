@@ -32,6 +32,7 @@ import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './pages/dashboard/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
 import PropertyBookingsPage from './pages/dashboard/PropertyBookingsPage';
+import ReservasPage from './pages/dashboard/ReservasPage';
 import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 
 // Subscription pages
@@ -107,12 +108,12 @@ export function App() {
             <Route index element={<AdminRedirectWrapper><DashboardOverview /></AdminRedirectWrapper>} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
+            <Route path="reservas" element={<ReservasPage />} />
             {/* <Route path="favorites" element={<FavoritesPage />} /> */}
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
-            <Route path="subscription/plans" element={<PlansSelectionPage />} />
             <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />

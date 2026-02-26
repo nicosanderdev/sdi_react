@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyStats } from '../../components/dashboard/PropertyStats';
 import { RecentMessages } from '../../components/dashboard/RecentMessages';
+import { PendingBookingsCard } from '../../components/dashboard/PendingBookingsCard';
 import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
 import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
@@ -11,6 +12,7 @@ import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react
 import reportService from './../../services/ReportService';
 import { Dropdown, DropdownItem } from 'flowbite-react';
 import { COMPANY_SELECTOR_OPTIONS, CompanySelector } from '../../components/dashboard/CompanySelector';
+import { useEnsureReceiptsAndBlock } from '../../hooks/useEnsureReceiptsAndBlock';
 
 // Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
@@ -20,6 +22,9 @@ export function DashboardOverview() {
 
     const [period, setPeriod] = useState('last30days');
     const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+
+    // On-demand receipt creation and property block (no cron)
+    useEnsureReceiptsAndBlock();
 
     // Helper function to get company filter for API calls
     const getCompanyFilter = () => {
@@ -162,9 +167,9 @@ export function DashboardOverview() {
 
                 </div>
 
-                {/* Right Column - Messages */}
+                {/* Right Column - Pending bookings and Messages */}
                 <div className="space-y-6">
-                    {/* Recent Messages */}
+                    <PendingBookingsCard />
                     <RecentMessages />
 
 

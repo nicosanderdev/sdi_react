@@ -216,14 +216,36 @@ const PropertiesManagerComponent = () => {
             </div>
           ) : (
             <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-medium">Sin suscripción activa.</span> Puedes crear hasta 2 propiedades.
-                <Link
-                  to="/dashboard/subscription/plans"
-                  className="ml-2 text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
-                >
-                  Ver planes de suscripción
-                </Link>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+                <div className="flex space-x-6">
+                  <div className="text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
+                    <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                      {ownedCount}/{totalLimit}
+                    </span>
+                    {isAtTotalLimit && (
+                      <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
+                    <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
+                      {publishedCount}/{publishedLimit}
+                    </span>
+                    {isAtPublishedLimit && (
+                      <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-medium">Plan Inicial:</span> Puedes crear hasta {totalLimit} propiedades ({publishedLimit} publicadas).
+                  <Link
+                    to="/dashboard/subscription/plans"
+                    className="ml-2 text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
+                  >
+                    Ver planes de suscripción
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -288,7 +310,7 @@ const PropertiesManagerComponent = () => {
               <p className="text-lg mb-2">
                 {hasPersonalSubscription
                   ? "Has alcanzado el límite máximo de propiedades de tu plan."
-                  : "Como usuario sin suscripción activa, puedes crear hasta 2 propiedades."
+                  : `Como usuario con plan Inicial, puedes crear hasta ${totalLimit} propiedades (${publishedLimit} publicadas).`
                 }
               </p>
             </div>

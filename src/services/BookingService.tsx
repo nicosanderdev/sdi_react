@@ -15,6 +15,14 @@ export interface BookingWithMember extends Booking {
   };
 }
 
+// Extended for owner's list: booking with guest and property title
+export interface BookingWithMemberAndProperty extends BookingWithMember {
+  EstateProperty?: {
+    Id: string;
+    Title?: string;
+  };
+}
+
 // Booking creation/update form data
 export interface BookingFormData {
   estatePropertyId: string;
@@ -89,6 +97,47 @@ class BookingService {
   }
 
   /**
+   * Get all bookings for the current owner (all their properties).
+   * RLS restricts to bookings for properties owned by the current user.
+   */
+  static async getOwnerBookings(): Promise<SdiApiResponse<BookingWithMemberAndProperty[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('Bookings')
+        .select(`
+          *,
+          Guest:Members!FK_Bookings_Members_GuestId(
+            Id,
+            UserId,
+            FirstName,
+            LastName,
+            Email,
+            Phone,
+            AvatarUrl
+          ),
+          EstateProperty:EstateProperties(
+            Id,
+            Title
+          )
+        `)
+        .eq('IsDeleted', false)
+        .order('CheckInDate', { ascending: false });
+
+      if (error) throw error;
+
+      return {
+        succeeded: true,
+        data: (data || []) as BookingWithMemberAndProperty[]
+      };
+    } catch (error: any) {
+      return {
+        succeeded: false,
+        errorMessage: error.message || 'Failed to fetch bookings'
+      };
+    }
+  }
+
+  /**
    * Get a single booking by ID with member information
    */
   static async getBookingById(bookingId: string): Promise<SdiApiResponse<BookingWithMember>> {
@@ -126,9 +175,13 @@ class BookingService {
   }
 
   /**
-   * Create a new booking with validation
+   * Create a new booking with validation.
+   * Default status is Pending (e.g. guest submissions). Pass status: BookingStatus.Confirmed for owner-created bookings.
    */
-  static async createBooking(bookingData: BookingFormData): Promise<SdiApiResponse<BookingWithMember>> {
+  static async createBooking(
+    bookingData: BookingFormData,
+    options?: { status?: BookingStatus }
+  ): Promise<SdiApiResponse<BookingWithMember>> {
     try {
       // First validate for conflicts
       const validation = await this.validateBookingDates(
@@ -144,6 +197,8 @@ class BookingService {
         };
       }
 
+      const status = options?.status ?? BookingStatus.Pending;
+
       const bookingPayload = {
         EstatePropertyId: bookingData.estatePropertyId,
         GuestId: bookingData.guestId && bookingData.guestId.trim() !== '' ? bookingData.guestId : null,
@@ -155,7 +210,7 @@ class BookingService {
         Notes: bookingData.notes,
         BookingSource: bookingData.bookingSource,
         ExternalBookingId: bookingData.externalBookingId,
-        Status: BookingStatus.Confirmed, // Default to confirmed
+        Status: status,
         ValidationStatus: ValidationStatus.Valid,
         HasConflict: validation.data.conflicts.length > 0,
         ConflictReason: validation.data.conflicts.length > 0

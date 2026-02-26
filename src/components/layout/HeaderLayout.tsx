@@ -58,8 +58,8 @@ export function HeaderLayout() {
   return (
     <>
       <Navbar fluid rounded theme={navbarTheme} className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-100 dark:border-gray-700">
-        <div className="flex items-center w-full justify-between">
-          {/* Search Bar */}
+        <div className="flex items-center w-full justify-end">
+          {/* Search Bar 
           <div className="relative">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
@@ -69,7 +69,7 @@ export function HeaderLayout() {
               placeholder="Buscar..."
               className="block w-64 pl-10 pr-3 py-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-green-500 focus:border-green-500 dark:focus:ring-green-400 dark:focus:border-green-400"
             />
-          </div>
+          </div> */}
 
           {/* Right side - Dark mode toggle and User menu */}
           <div className="flex items-center space-x-4">

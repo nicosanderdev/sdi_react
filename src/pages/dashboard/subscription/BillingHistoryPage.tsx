@@ -5,13 +5,18 @@ import {
     ArrowLeft,
     FileText,
     AlertCircle,
-    RefreshCw
+    RefreshCw,
+    Receipt
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useBillingHistory } from '../../../hooks/useBillingHistory';
+import { useEnsureReceiptsAndBlock } from '../../../hooks/useEnsureReceiptsAndBlock';
 import { BillingFilters } from '../../../components/subscription/BillingFilters';
 import { BillingHistoryTable } from '../../../components/subscription/BillingHistoryTable';
 import { InvoiceModal } from '../../../components/subscription/InvoiceModal';
 import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
+import BookingReceiptService from '../../../services/BookingReceiptService';
 
 export function BillingHistoryPage() {
     const navigate = useNavigate();
@@ -25,6 +30,9 @@ export function BillingHistoryPage() {
         totalAmount,
         filteredCount
     } = useBillingHistory();
+
+    // On-demand receipt creation and property block (no cron)
+    const { unpaidReceipts, runEnsure } = useEnsureReceiptsAndBlock();
 
     const [selectedInvoice, setSelectedInvoice] = useState<BillingHistoryData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -56,7 +64,7 @@ export function BillingHistoryPage() {
                 </button>
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center">
                             <FileText className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -82,6 +90,46 @@ export function BillingHistoryPage() {
                     <AlertCircle className="w-5 h-5 text-red-600" />
                     <span className="text-red-800">{error}</span>
                 </div>
+            )}
+
+            {/* Booking receipts (per-booking commission) */}
+            {unpaidReceipts.length > 0 && (
+                <Card className="mb-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Receipt className="w-6 h-6 text-green-600" />
+                        <h2 className="text-xl font-semibold">Facturación por reservas</h2>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Recibos pendientes de pago por comisiones de reservas. Si no pagas antes de la fecha de vencimiento, tus propiedades podrían quedar ocultas.
+                    </p>
+                    <ul className="space-y-3">
+                        {unpaidReceipts.map((receipt) => (
+                            <li
+                                key={receipt.id}
+                                className="flex flex-wrap items-center justify-between gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50"
+                            >
+                                <div>
+                                    <span className="font-medium">
+                                        {receipt.currency} {receipt.amount.toFixed(2)}
+                                    </span>
+                                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">
+                                        Vence: {format(receipt.dueDate, 'd MMM yyyy', { locale: es })}
+                                    </span>
+                                </div>
+                                <Button
+                                    size="xs"
+                                    color="primary"
+                                    onClick={async () => {
+                                        const ok = await BookingReceiptService.markReceiptPaid(receipt.id);
+                                        if (ok) await runEnsure();
+                                    }}
+                                >
+                                    Pagar
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
+                </Card>
             )}
 
             {/* Filters */}

@@ -178,7 +178,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
 
       let result;
       if (isCreating) {
-        result = await BookingService.createBooking(bookingFormData);
+        result = await BookingService.createBooking(bookingFormData, { status: BookingStatus.Confirmed });
         if (result.succeeded && result.data) {
           onNewBooking(result.data);
           setIsCreating(false);

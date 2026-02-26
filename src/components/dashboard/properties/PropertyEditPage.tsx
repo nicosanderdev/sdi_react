@@ -15,6 +15,8 @@ import { PropertyData, PropertyDocument, PropertyImage, PropertyVideo, Amenity }
 import { ImageManager, DisplayImage } from './ImageManager';
 import { DocumentManager, DisplayDocument } from './DocumentManager';
 import { VideoManager, DisplayVideo } from './VideoManager';
+import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
+import { useSubscriptionNotifications } from '../../../hooks/useSubscriptionNotifications';
 
 const propertyStatusMap: Record<string, number> = { 'Sale': 0, 'Rent': 1, 'Sold': 2, 'Reserved': 3, 'Unavailable': 4 };
 const currencyMap: Record<string, number> = { 'USD': 0, 'UYU': 1, 'BRL': 2, 'EUR': 3, 'CLP': 4 };
@@ -48,6 +50,18 @@ export function PropertyEditPage() {
     const queryClient = useQueryClient();
     const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<PropertyData>();
 
+    // Property quota management
+    const {
+      canPublishProperty,
+      isAtPublishedLimit,
+      publishedLimit,
+      publishedCount,
+      isLoading: isQuotaLoading
+    } = usePropertyQuota();
+
+    // Subscription notifications
+    const { showWarningNotification } = useSubscriptionNotifications();
+
     // --- State Management ---
     const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
     const [apiError, setApiError] = useState<string | null>(null);
@@ -56,6 +70,7 @@ export function PropertyEditPage() {
     const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
     const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
     const hasGarage = watch("hasGarage");
+    const isPropertyVisible = watch("isPropertyVisible");
 
     // --- Data Fetching ---
     const { data: property, isLoading, isError, error: queryError } = useQuery<PropertyData, Error>({
@@ -78,6 +93,15 @@ export function PropertyEditPage() {
         mutationFn: async ({ id, payload }): Promise<PropertyData> => {
             setApiError(null);
             console.log("Payload received for update:", payload);
+
+            // Check if trying to publish when at published limit
+            const currentIsVisible = property?.isPropertyVisible || false;
+            const newIsVisible = payload.isPropertyVisible || false;
+            
+            // Only check limit if changing from unpublished to published
+            if (!currentIsVisible && newIsVisible && isAtPublishedLimit) {
+                throw new Error(`Your plan limits have reached. You cannot publish more than ${publishedLimit} properties.`);
+            }
 
             // Convert PropertyData to PropertyFormData structure
             const formData: PropertyFormData = {
@@ -653,10 +677,19 @@ export function PropertyEditPage() {
                                 label="Visible al público"
                                 error={errors.isPropertyVisible?.message}
                             >
-                                <Select {...register("isPropertyVisible")}>
+                                <Select 
+                                    {...register("isPropertyVisible")}
+                                    disabled={!property?.isPropertyVisible && isAtPublishedLimit}
+                                >
                                     <option value="true">Visible</option>
                                     <option value="false">Oculta</option>
                                 </Select>
+                                {!property?.isPropertyVisible && isAtPublishedLimit && (
+                                    <p className="text-sm text-yellow-600 mt-1">
+                                        Has alcanzado el límite de {publishedLimit} propiedades publicadas ({publishedCount}/{publishedLimit}). 
+                                        No puedes publicar más propiedades hasta que despublicar alguna o actualizar tu plan.
+                                    </p>
+                                )}
                             </FormField>
                             <FormField
                                 icon={<EyeOff size={20} className="text-[#1B4965]" />}

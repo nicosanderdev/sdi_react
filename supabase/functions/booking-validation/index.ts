@@ -59,6 +59,18 @@ async function handleBookingValidation(req: Request, user: any): Promise<Respons
       return createForbiddenResponse('You do not have access to this property')
     }
 
+    // Reject if property is blocked for new bookings (e.g. overdue unpaid receipt)
+    const isBlocked = await BookingValidationDB.isPropertyBlockedForBooking(request.propertyId)
+    if (isBlocked) {
+      return new Response(JSON.stringify({
+        error: 'This property is temporarily not accepting new bookings.',
+        blockedForBooking: true
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     // Validate date range
     const checkInDate = new Date(request.checkInDate + 'T00:00:00.000Z')
     const checkOutDate = new Date(request.checkOutDate + 'T00:00:00.000Z')

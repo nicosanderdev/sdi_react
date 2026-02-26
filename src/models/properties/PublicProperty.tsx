@@ -31,4 +31,6 @@ export interface PublicProperty {
   isElectricityIncluded: boolean;
   isWaterIncluded: boolean;
   ownerId?: string;
+  /** When true, property is visible but not accepting new bookings (e.g. overdue unpaid receipt). */
+  blockedForBooking?: boolean;
 }

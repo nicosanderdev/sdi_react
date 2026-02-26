@@ -91,11 +91,12 @@ interface SubscriptionsRow {
 
 interface PlansRow {
   Id: string;
-  Key: string;
+  Key: number; // Database stores Key as integer: 0 = FREE, 1 = MANAGER_PRO, 2 = COMPANY_SMALL/COMPANY_UNLIMITED
   Name: string;
   MonthlyPrice: number;
   Currency: string;
   MaxProperties: number | null;
+  MaxPublishedProperties: number | null;
   MaxUsers: number | null;
   MaxStorageMb: number | null;
   BillingCycle: number;
@@ -105,7 +106,21 @@ interface PlansRow {
   CreatedBy: string | null;
   LastModified: string;
   LastModifiedBy: string | null;
+  BookingReceiptMinimumAmount?: number | null;
 }
+
+/**
+ * Maps database integer Key value to PlanKey enum
+ * Database stores: 0 = FREE, 1 = MANAGER_PRO, 2 = COMPANY_SMALL/COMPANY_UNLIMITED
+ */
+const intToPlanKey = (keyInt: number): PlanKey => {
+    const mapping: Record<number, PlanKey> = {
+        0: PlanKey.FREE,
+        1: PlanKey.MANAGER_PRO, // Default to MANAGER_PRO for 1
+        2: PlanKey.COMPANY_SMALL // Default to COMPANY_SMALL for 2
+    };
+    return mapping[keyInt] ?? PlanKey.FREE;
+};
 
 interface OwnersRow {
   Id: string;
@@ -165,6 +180,7 @@ interface EstatePropertyValuesRow {
   Status: number;
   IsActive: boolean;
   IsPropertyVisible: boolean;
+  BlockedForBooking?: boolean;
   IsFeatured: boolean;
   IsDeleted: boolean;
   Created: string;
@@ -346,15 +362,18 @@ export const mapDbToProfile = (
 export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: PlansRow }): SubscriptionData => {
   const plan: PlanData = {
     id: subscription.Plans.Id,
-    key: subscription.Plans.Key as PlanKey,
+    key: intToPlanKey(subscription.Plans.Key),
     name: subscription.Plans.Name,
     monthlyPrice: subscription.Plans.MonthlyPrice,
     currency: subscription.Plans.Currency,
-    maxProperties: subscription.Plans.MaxProperties || 0,
+    maxProperties: subscription.Plans.MaxProperties || 0, // Keep for backward compatibility
     maxUsers: subscription.Plans.MaxUsers || 0,
     maxStorageMb: subscription.Plans.MaxStorageMb || 0,
     billingCycle: subscription.Plans.BillingCycle.toString(),
-    isActive: subscription.Plans.IsActive
+    isActive: subscription.Plans.IsActive,
+    publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
+    totalProperties: subscription.Plans.MaxProperties || 0,
+    bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined
   };
 
   return {
@@ -656,6 +675,7 @@ export const mapDbToPropertyData = (
     status: (statusMapReverse[latestValues?.Status || 0] || 'sale') as 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable',
     isActive: latestValues?.IsActive || true,
     isPropertyVisible: latestValues?.IsPropertyVisible || true,
+    blockedForBooking: latestValues?.BlockedForBooking ?? false,
     created: new Date(property.Created)
   };
 };
@@ -732,7 +752,8 @@ export const mapDbToPublicProperty = (
     currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
     isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
     isWaterIncluded: latestValues?.IsWaterIncluded || false,
-    ownerId: property.OwnerId
+    ownerId: property.OwnerId,
+    blockedForBooking: latestValues?.BlockedForBooking ?? false
   };
 };
 

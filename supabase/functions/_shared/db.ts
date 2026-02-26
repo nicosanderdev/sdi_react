@@ -248,6 +248,23 @@ export class CalendarIntegrationsDB {
 
 // Booking Validation Database Operations
 export class BookingValidationDB {
+  /** Returns true if the property's latest value row has BlockedForBooking = true (e.g. overdue receipt). */
+  static async isPropertyBlockedForBooking(propertyId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from('EstatePropertyValues')
+      .select('BlockedForBooking')
+      .eq('EstatePropertyId', propertyId)
+      .eq('IsDeleted', false)
+      .order('Created', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      throw new Error(`Failed to check property block status: ${error.message}`)
+    }
+    return data?.BlockedForBooking === true
+  }
+
   static async getExistingBookings(
     propertyId: string,
     startDate: string,

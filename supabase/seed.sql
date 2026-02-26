@@ -68,12 +68,34 @@ INSERT INTO public."Amenities" ("Id", "Name", "IconId", "IsDeleted") VALUES
 ON CONFLICT ("Id") DO NOTHING;
 
 -- Insert seed data for Plans table (only if not exists)
-INSERT INTO public."Plans" ("Id", "Key", "Name", "MonthlyPrice", "Currency", "MaxProperties", "MaxUsers", "MaxStorageMb", "BillingCycle", "IsActive", "IsDeleted", "Created", "CreatedBy", "LastModified", "LastModifiedBy") VALUES
-('9f9a6d25-94f2-4f8d-bbcb-1d2b5678c001', 0, 'Free User', 0, 'USD', 3, 1, 50, 1, true, false, '2025-11-12 10:14:14.231-03'::timestamptz, 'system', '2025-11-12 10:14:14.231-03'::timestamptz, 'system'),
-('b2eabf63-65f8-4c43-8f3d-8abfd43e2c02', 1, 'Manager (Basic)', 9.99, 'USD', 20, 3, 500, 1, true, false, '2025-11-12 10:14:14.231-03'::timestamptz, 'system', '2025-11-12 10:14:14.231-03'::timestamptz, 'system'),
-('d4b5c6e7-f8a9-4b2c-8d3e-9f1a2b3c4d5e', 4, 'Manager Pro', 19.99, 'USD', 50, 5, 1000, 1, true, false, '2025-11-12 10:14:14.231-03'::timestamptz, 'system', '2025-11-12 10:14:14.231-03'::timestamptz, 'system'),
-('e3f92f84-48a2-4f1b-9e2c-5a13fd98b303', 2, 'Real Estate Company (Small)', 29.99, 'USD', 100, 10, 2000, 1, true, false, '2025-11-12 10:14:14.231-03'::timestamptz, 'system', '2025-11-12 10:14:14.231-03'::timestamptz, 'system'),
-('c5adf485-0a2d-4f91-913e-2dcd76f4d404', 3, 'Real Estate Company (Unlimited)', 99.99, 'USD', 999999, 999999, 100000, 1, true, false, '2025-11-12 10:14:14.231-03'::timestamptz, 'system', '2025-11-12 10:14:14.231-03'::timestamptz, 'system')
+-- Plan 1: Inicial (Initial) - Up to 5 published properties, 7 total, Free, 6.5% commission (min USD 9), No extra properties
+-- Plan 2: Profesional (Professional) - Up to 10 published properties, 12 total, USD 129/month, 3.5% commission, No extra properties
+-- Plan 3: Inmobiliaria (Real Estate) - 10 included published, unlimited total, USD 199/month, 2.5% commission, USD 8 (11-30) / USD 5 (31+)
+INSERT INTO public."Plans" (
+    "Id", 
+    "Key", 
+    "Name", 
+    "MonthlyPrice", 
+    "Currency", 
+    "MaxProperties", 
+    "MaxPublishedProperties",
+    "MaxUsers", 
+    "MaxStorageMb", 
+    "BillingCycle", 
+    "CommissionPercentage",
+    "CommissionMinimumAmount",
+    "ExtraPropertiesPrice11to30",
+    "ExtraPropertiesPrice31Plus",
+    "IsActive", 
+    "IsDeleted", 
+    "Created", 
+    "CreatedBy", 
+    "LastModified", 
+    "LastModifiedBy"
+) VALUES
+('a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789'::uuid, 0, 'Inicial', 0, 'USD', 7, 5, 1, 50, 1, 6.5, 9, NULL, NULL, true, false, NOW(), 'system', NOW(), 'system'),
+('b2c3d4e5-f6a7-4890-b123-c4d5e6f7a890'::uuid, 1, 'Profesional', 129, 'USD', 12, 10, 3, 500, 1, 3.5, NULL, NULL, NULL, true, false, NOW(), 'system', NOW(), 'system'),
+('c3d4e5f6-a7b8-4901-c234-d5e6f7a8b901'::uuid, 2, 'Inmobiliaria', 199, 'USD', 999999, 10, 10, 2000, 1, 2.5, NULL, 8, 5, true, false, NOW(), 'system', NOW(), 'system')
 ON CONFLICT ("Id") DO NOTHING;
 
 -- ============================================================================

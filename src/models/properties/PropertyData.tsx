@@ -51,6 +51,7 @@ export interface PropertyData {
   status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
   isActive: boolean;
   isPropertyVisible: boolean;
+  blockedForBooking?: boolean;
   created: Date;
   visits?: number;
   

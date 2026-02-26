@@ -40,10 +40,10 @@ export function usePropertyQuota(): PropertyQuotaState {
     hasPersonalSubscription: false,
     ownedCount: 0,
     publishedCount: 0,
-    totalLimit: 10, // Hard cap
-    publishedLimit: 2,
-    remainingTotal: 10,
-    remainingPublished: 2,
+    totalLimit: 7, // Default to Inicial plan total limit
+    publishedLimit: 5, // Default to Inicial plan published limit
+    remainingTotal: 7,
+    remainingPublished: 5,
     isAtTotalLimit: false,
     isAtPublishedLimit: false,
     isOverTotalLimit: false,
@@ -69,15 +69,14 @@ export function usePropertyQuota(): PropertyQuotaState {
           propertyService.getPublishedPropertiesCount(user)
         ]);
 
-        // Get limits from subscription (free users get 2 properties total and 2 published)
-        const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.maxProperties
-          ? personalSubscription.plan.maxProperties
-          : 2;
+        // Get limits from subscription plan (Inicial plan: 5 published, 7 total)
+        const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.publishedProperties
+          ? personalSubscription.plan.publishedProperties
+          : (personalSubscription?.plan.publishedProperties ?? 5); // Default to Inicial plan
 
-        // Total limit: subscribed users get their plan limit, free users get 2, hard cap of 10
-        const totalLimit = hasPersonalSubscription && personalSubscription?.plan.maxProperties
-          ? Math.min(personalSubscription.plan.maxProperties, state.totalLimit) // state.totalLimit is the hard cap (10)
-          : 2; // Free users get 2 total properties
+        const totalLimit = hasPersonalSubscription && personalSubscription?.plan.totalProperties
+          ? personalSubscription.plan.totalProperties
+          : (personalSubscription?.plan.totalProperties ?? 7); // Default to Inicial plan
 
         // Calculate derived values
         const remainingTotal = Math.max(0, totalLimit - ownedCount);
@@ -120,7 +119,7 @@ export function usePropertyQuota(): PropertyQuotaState {
     if (hasPersonalSubscription !== undefined) {
       fetchPropertyCounts();
     }
-  }, [personalSubscription, hasPersonalSubscription, state.totalLimit]);
+  }, [personalSubscription, hasPersonalSubscription]);
 
   // Refresh quota when properties query is invalidated
   useEffect(() => {
@@ -139,15 +138,14 @@ export function usePropertyQuota(): PropertyQuotaState {
                 propertyService.getPublishedPropertiesCount(user)
               ]);
 
-              // Get limits from subscription (free users get 2 properties total and 2 published)
-              const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.maxProperties
-                ? personalSubscription.plan.maxProperties
-                : 2;
+              // Get limits from subscription plan (Inicial plan: 5 published, 7 total)
+              const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.publishedProperties
+                ? personalSubscription.plan.publishedProperties
+                : (personalSubscription?.plan.publishedProperties ?? 5); // Default to Inicial plan
 
-              // Total limit: subscribed users get their plan limit, free users get 2, hard cap of 10
-              const totalLimit = hasPersonalSubscription && personalSubscription?.plan.maxProperties
-                ? Math.min(personalSubscription.plan.maxProperties, state.totalLimit) // state.totalLimit is the hard cap (10)
-                : 2; // Free users get 2 total properties
+              const totalLimit = hasPersonalSubscription && personalSubscription?.plan.totalProperties
+                ? personalSubscription.plan.totalProperties
+                : (personalSubscription?.plan.totalProperties ?? 7); // Default to Inicial plan
 
               // Calculate derived values
               const remainingTotal = Math.max(0, totalLimit - ownedCount);
@@ -191,7 +189,7 @@ export function usePropertyQuota(): PropertyQuotaState {
     });
 
     return unsubscribe;
-  }, [queryClient, hasPersonalSubscription, personalSubscription, state.totalLimit, user]);
+  }, [queryClient, hasPersonalSubscription, personalSubscription, user]);
 
   return state;
 }
