@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import messageService, { TabCounts } from '../../services/MessageService';
+import BookingService from '../../services/BookingService';
+import { BookingStatus } from '../../models/calendar/CalendarSync';
 
 interface NotificationsState {
   counts: TabCounts;
@@ -13,12 +15,19 @@ const initialState: NotificationsState = {
   error: null,
 };
 
-// Async thunk to fetch message counts
-export const fetchMessageCounts = createAsyncThunk<TabCounts>(
-  'notifications/fetchMessageCounts',
+// Async thunk to fetch message counts and pending bookings count
+export const fetchNotificationCounts = createAsyncThunk<TabCounts>(
+  'notifications/fetchNotificationCounts',
   async () => {
-    const counts = await messageService.getMessageCounts();
-    return counts;
+    const [messageCounts, ownerBookingsRes] = await Promise.all([
+      messageService.getMessageCounts(),
+      BookingService.getOwnerBookings(),
+    ]);
+    const pendingBookings =
+      ownerBookingsRes.succeeded && ownerBookingsRes.data
+        ? ownerBookingsRes.data.filter((b) => b.Status === BookingStatus.Pending).length
+        : 0;
+    return { ...messageCounts, pendingBookings };
   }
 );
 
@@ -28,16 +37,16 @@ const notificationsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchMessageCounts.pending, (state) => {
+      .addCase(fetchNotificationCounts.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchMessageCounts.fulfilled, (state, action: PayloadAction<TabCounts>) => {
+      .addCase(fetchNotificationCounts.fulfilled, (state, action: PayloadAction<TabCounts>) => {
         state.status = 'succeeded';
         state.counts = action.payload;
       })
-      .addCase(fetchMessageCounts.rejected, (state, action) => {
+      .addCase(fetchNotificationCounts.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message || 'Failed to fetch message counts';
+        state.error = action.error.message || 'Failed to fetch notification counts';
       });
   },
 });
