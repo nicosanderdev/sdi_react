@@ -21,12 +21,12 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
 ### 3. Database Setup
 
-Run the test user migration to create test accounts:
+Run the migrations to create test accounts and booking data:
 
 ```bash
-# Apply the migration to your Supabase database
+# Apply all migrations to your Supabase database
 # This can be done through the Supabase dashboard SQL editor or CLI
-supabase db reset  # This will run all migrations including the test users
+supabase db reset  # This will run all migrations including the test users and e2e booking data
 ```
 
 ### Test User Credentials
@@ -76,6 +76,17 @@ npx playwright show-report
 - **Data Validation**: Ensures geocoding works and forms validate properly
 - **Success Verification**: Confirms properties are created and success messages appear
 - **Multiple Scenarios**: Tests different property types (apartment, house, commercial)
+
+### Bookings & Receipts Tests
+- **Bookings management**: `e2e/bookings-and-receipts.spec.ts` uses the basic test user to:
+  - View bookings grouped into **Pendientes**, **Próximas / Actuales** and **Pasadas** on `ReservasPage`.
+  - Accept and reject pending bookings using the real `BookingService.updateBooking` API.
+- **Booking receipts**: The same spec navigates to `/dashboard/subscription/billing-history` to:
+  - Trigger on-demand receipt generation via `useEnsureReceiptsAndBlock`.
+  - Verify that unpaid booking commission receipts are listed in the **Facturación por reservas** card.
+  - Pay a receipt using the **Pagar** button (which calls `BookingReceiptService.markReceiptPaid`) and assert it disappears from the unpaid list.
+
+> The booking and receipt data used by these tests is seeded by the migration `20260227100000_add_test_bookings_for_e2e.sql`. Make sure this migration has been applied (e.g. via `supabase db reset`) before running the Playwright suite.
 
 ### Test Data
 Test data is generated dynamically to avoid conflicts:
