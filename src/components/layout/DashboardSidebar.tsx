@@ -20,7 +20,7 @@ import { AdminNavigation } from './AdminNavigation';
 import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, fetchMessageCounts, RootState } from '../../store';
+import { AppDispatch, fetchNotificationCounts, RootState } from '../../store';
 import { Button, Modal, ModalBody, ModalHeader, Sidebar, SidebarItem, SidebarItemGroup, SidebarItems, SidebarLogo } from 'flowbite-react';
 import { hasRole } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
@@ -83,14 +83,14 @@ export function DashboardSidebar() {
 
   useEffect(() => {
     if (status === 'idle') {
-      dispatch(fetchMessageCounts());
+      dispatch(fetchNotificationCounts());
     }
   }, [status, dispatch]);
 
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Panel', icon: HomeIcon, path: '/dashboard' },
     { id: 'properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/properties' },
-    { id: 'reservas', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/reservas' },
+    { id: 'reservas', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/reservas', badgeCount: counts?.pendingBookings && counts.pendingBookings > 0 ? counts.pendingBookings : undefined },
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.inbox && counts.inbox > 0 ? counts.inbox : undefined },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
