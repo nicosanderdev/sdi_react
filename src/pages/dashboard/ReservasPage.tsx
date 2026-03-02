@@ -123,26 +123,41 @@ function BookingRow({
             )}
           </div>
         </div>
-        {showActions && (
+        {(showActions || showCancel) && (
           <div className="flex gap-2 flex-shrink-0">
-            <Button
-              size="xs"
-              color="success"
-              onClick={() => onAccept(booking.Id)}
-              className="flex items-center gap-1"
-            >
-              <Check className="h-4 w-4" />
-              Aceptar
-            </Button>
-            <Button
-              size="xs"
-              color="failure"
-              onClick={() => onReject(booking.Id)}
-              className="flex items-center gap-1"
-            >
-              <X className="h-4 w-4" />
-              Rechazar
-            </Button>
+            {showActions && (
+              <>
+                <Button
+                  size="xs"
+                  color="success"
+                  onClick={() => onAccept(booking.Id)}
+                  className="flex items-center gap-1"
+                >
+                  <Check className="h-4 w-4" />
+                  Aceptar
+                </Button>
+                <Button
+                  size="xs"
+                  color="failure"
+                  onClick={() => onReject(booking.Id)}
+                  className="flex items-center gap-1"
+                >
+                  <X className="h-4 w-4" />
+                  Rechazar
+                </Button>
+              </>
+            )}
+            {showCancel && onCancel && (
+              <Button
+                size="xs"
+                color="failure"
+                onClick={() => onCancel(booking.Id)}
+                className="flex items-center gap-1"
+              >
+                <X className="h-4 w-4" />
+                Cancelar
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -303,7 +318,7 @@ export default function ReservasPage() {
               key={b.Id}
               booking={b}
               onAccept={handleAccept}
-              onReject={handleReject}
+              onReject={(id) => setConfirmModal({ bookingId: id, action: 'reject' })}
               showActions={true}
             />
           ))
@@ -326,6 +341,35 @@ export default function ReservasPage() {
           </Card>
         ) : (
           current.map((b) => (
+            <BookingRow
+              key={b.Id}
+              booking={b}
+              onAccept={handleAccept}
+              onReject={handleReject}
+              onCancel={(id) => setConfirmModal({ bookingId: id, action: 'cancel' })}
+              showActions={false}
+              showCancel={true}
+            />
+          ))
+        )}
+      </section>
+
+      {/* Rechazadas / Canceladas */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+          Rechazadas / Canceladas
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          Reservas que rechazaste o cancelaste.
+        </p>
+        {rejectedOrCancelled.length === 0 ? (
+          <Card>
+            <p className="text-gray-500 dark:text-gray-400 text-center py-4">
+              No hay reservas rechazadas o canceladas.
+            </p>
+          </Card>
+        ) : (
+          rejectedOrCancelled.map((b) => (
             <BookingRow
               key={b.Id}
               booking={b}
@@ -369,6 +413,42 @@ export default function ReservasPage() {
           <Spinner size="xl" />
         </div>
       )}
+
+      {/* Confirm reject/cancel modal */}
+      <Modal
+        show={confirmModal !== null}
+        onClose={() => setConfirmModal(null)}
+        size="md"
+      >
+        <ModalHeader>
+          {confirmModal?.action === 'reject' ? 'Rechazar reserva' : 'Cancelar reserva'}
+        </ModalHeader>
+        <ModalBody>
+          <p className="text-gray-600 dark:text-gray-300">
+            Esta acción no se puede deshacer. El usuario que realizó la reserva será notificado.
+          </p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
+            ¿Deseas continuar?
+          </p>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="green" onClick={() => setConfirmModal(null)}>
+            No, volver
+          </Button>
+          <Button
+            color="red"
+            onClick={() => {
+              if (!confirmModal) return;
+              const { bookingId, action } = confirmModal;
+              setConfirmModal(null);
+              if (action === 'reject') handleReject(bookingId);
+              else handleCancel(bookingId);
+            }}
+          >
+            Sí, {confirmModal?.action === 'reject' ? 'rechazar' : 'cancelar'}
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 }
