@@ -27,32 +27,38 @@ function splitBookings(bookings: BookingWithMemberAndProperty[]) {
   const pending: BookingWithMemberAndProperty[] = [];
   const current: BookingWithMemberAndProperty[] = [];
   const past: BookingWithMemberAndProperty[] = [];
+  const rejectedOrCancelled: BookingWithMemberAndProperty[] = [];
   const todayStr = today();
 
   for (const b of bookings) {
     if (b.Status === BookingStatus.Pending) {
       pending.push(b);
+    } else if (b.Status === BookingStatus.Cancelled) {
+      rejectedOrCancelled.push(b);
     } else if (b.CheckOutDate < todayStr) {
       past.push(b);
     } else if (b.Status === BookingStatus.Confirmed) {
       current.push(b);
     }
-    // Cancelled/other future bookings not shown in "current" (only confirmed upcoming)
   }
 
-  return { pending, current, past };
+  return { pending, current, past, rejectedOrCancelled };
 }
 
 function BookingRow({
   booking,
   onAccept,
   onReject,
-  showActions
+  onCancel,
+  showActions,
+  showCancel
 }: {
   booking: BookingWithMemberAndProperty;
   onAccept: (id: string) => void;
   onReject: (id: string) => void;
+  onCancel?: (id: string) => void;
   showActions: boolean;
+  showCancel?: boolean;
 }) {
   const guest = booking.Guest;
   const guestName = guest
@@ -143,10 +149,12 @@ function BookingRow({
 }
 
 export default function ReservasPage() {
+  const dispatch = useDispatch<AppDispatch>();
   const [bookings, setBookings] = useState<BookingWithMemberAndProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{ bookingId: string; action: 'reject' | 'cancel' } | null>(null);
 
   // On-demand receipt creation and property block (no cron)
   useEnsureReceiptsAndBlock();
