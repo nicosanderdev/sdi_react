@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -13,13 +14,14 @@ import {
   Building2,
   Users
 } from 'lucide-react';
-import { Button, Card, Spinner, Alert, Badge } from 'flowbite-react';
+import { Button, Card, Spinner, Alert, Badge, Modal, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import BookingService, {
   BookingWithMemberAndProperty
 } from '../../services/BookingService';
 import { BookingStatus, BOOKING_STATUS_NAMES, CURRENCY_SYMBOLS, Currency } from '../../models/calendar/CalendarSync';
 import { useEnsureReceiptsAndBlock } from '../../hooks/useEnsureReceiptsAndBlock';
+import { AppDispatch, fetchNotificationCounts } from '../../store';
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -174,7 +176,7 @@ export default function ReservasPage() {
     fetchBookings();
   }, [fetchBookings]);
 
-  const { pending, current, past } = useMemo(
+  const { pending, current, past, rejectedOrCancelled } = useMemo(
     () => splitBookings(bookings),
     [bookings]
   );
@@ -191,11 +193,12 @@ export default function ReservasPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        dispatch(fetchNotificationCounts());
       } else {
         setError(res.errorMessage ?? 'Error al aceptar la reserva');
       }
     },
-    []
+    [dispatch]
   );
 
   const handleReject = useCallback(
@@ -210,11 +213,32 @@ export default function ReservasPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        dispatch(fetchNotificationCounts());
       } else {
         setError(res.errorMessage ?? 'Error al rechazar la reserva');
       }
     },
-    []
+    [dispatch]
+  );
+
+  const handleCancel = useCallback(
+    async (id: string) => {
+      setActionId(id);
+      const res = await BookingService.updateBooking(id, {
+        status: BookingStatus.Cancelled
+      });
+      setActionId(null);
+      if (res.succeeded) {
+        const updated = res.data as BookingWithMemberAndProperty;
+        setBookings((prev) =>
+          prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
+        );
+        dispatch(fetchNotificationCounts());
+      } else {
+        setError(res.errorMessage ?? 'Error al cancelar la reserva');
+      }
+    },
+    [dispatch]
   );
 
   if (isLoading) {
