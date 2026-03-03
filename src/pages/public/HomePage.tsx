@@ -5,12 +5,12 @@ import { CTASection } from '../../components/public/CTASection';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 
 export function HomePage() {
-  return (<>
+  return (
     <PublicLayout>
       <HeroSection />
       <ServicesSection />
       <ConnectSection />
       <CTASection />
-    </PublicLayout>;
-    </>)
+    </PublicLayout>
+  );
 }

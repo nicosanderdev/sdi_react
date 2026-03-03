@@ -1,31 +1,11 @@
 import { useSelector } from 'react-redux';
-import { selectUserProfile, selectUserStatus } from '../../store/slices/userSlice';
+import { selectUserProfile } from '../../store/slices/userSlice';
 import { Avatar, Dropdown, DropdownDivider, DropdownHeader, DropdownItem, Navbar } from 'flowbite-react';
 import { CustomDarkThemeToggle } from '../ui/CustomDarkThemeToggle';
-
-interface HeaderProps {
-  onNotificationsClick: () => void;
-  notificationCount: number;
-}
-
-// Helper function to get initials from a name
-const getInitials = (firstName = '', lastName = '') => {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-};
+import { Search } from 'lucide-react';
 
 export function HeaderLayout() {
   const userProfile = useSelector(selectUserProfile);
-  const userStatus = useSelector(selectUserStatus);
-
-  // You can show a loading state or a skeleton here
-  {/* if (userStatus === 'loading' || !userProfile) {
-    // Optional: Render a loading skeleton for a better UX
-    return <header className="bg-[#FDFFFC] h-16 border-b border-gray-200 flex items-center justify-end px-6 shadow-sm">
-      <div className="animate-pulse flex items-center">
-        <div className="h-10 w-10 rounded-full bg-gray-300 ml-3"></div>
-      </div>
-    </header>;
-  } */}
 
   const navbarTheme = {
     "root": {
@@ -77,25 +57,55 @@ export function HeaderLayout() {
 
   return (
     <>
-      <Navbar fluid rounded theme={navbarTheme}>
-        <CustomDarkThemeToggle className="mr-3" />
-        <Dropdown
-          arrowIcon={false}
-          inline
-          label={
-            <Avatar alt="User settings" img="https://flowbite.com/docs/images/people/profile-picture-5.jpg" rounded />
-          }
-        >
-          <DropdownHeader>
-            <span className="block text-sm">Bonnie Green</span>
-            <span className="block truncate text-sm font-medium">name@flowbite.com</span>
-          </DropdownHeader>
-          <DropdownItem>Dashboard</DropdownItem>
-          <DropdownItem>Settings</DropdownItem>
-          <DropdownItem>Earnings</DropdownItem>
-          <DropdownDivider />
-          <DropdownItem>Sign out</DropdownItem>
-        </Dropdown>
+      <Navbar fluid rounded theme={navbarTheme} className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-100 dark:border-gray-700">
+        <div className="flex items-center w-full justify-end">
+          {/* Search Bar 
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Search className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar..."
+              className="block w-64 pl-10 pr-3 py-2 text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-green-500 focus:border-green-500 dark:focus:ring-green-400 dark:focus:border-green-400"
+            />
+          </div> */}
+
+          {/* Right side - Dark mode toggle and User menu */}
+          <div className="flex items-center space-x-4">
+            <CustomDarkThemeToggle />
+            <Dropdown
+              arrowIcon={false}
+              inline
+              label={
+                <div className="flex items-center space-x-3">
+                  <Avatar alt="User settings" img="https://flowbite.com/docs/images/people/profile-picture-5.jpg" rounded />
+                  <div className="hidden md:block text-left">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {userProfile?.firstName || 'Usuario'} {userProfile?.lastName || ''}
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      {userProfile?.email || 'usuario@email.com'}
+                    </div>
+                  </div>
+                </div>
+              }
+            >
+              <DropdownHeader>
+                <span className="block text-sm font-medium">
+                  {userProfile?.firstName || 'Usuario'} {userProfile?.lastName || ''}
+                </span>
+                <span className="block truncate text-sm font-medium text-gray-500 dark:text-gray-400">
+                  {userProfile?.email || 'usuario@email.com'}
+                </span>
+              </DropdownHeader>
+              <DropdownItem>Perfil</DropdownItem>
+              <DropdownItem>Configuración</DropdownItem>
+              <DropdownDivider />
+              <DropdownItem>Cerrar Sesión</DropdownItem>
+            </Dropdown>
+          </div>
+        </div>
       </Navbar>
     </>
   );

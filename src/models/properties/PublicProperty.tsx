@@ -25,11 +25,12 @@ export interface PublicProperty {
   amenities: Amenity[];
   mainImageId: string;
   description: string;
-  arePetsAllowed: boolean;
   salePrice?: number;
   rentPrice?: number;
   currency: 'USD' | 'EUR' | 'GBP';
   isElectricityIncluded: boolean;
   isWaterIncluded: boolean;
   ownerId?: string;
+  /** When true, property is visible but not accepting new bookings (e.g. overdue unpaid receipt). */
+  blockedForBooking?: boolean;
 }

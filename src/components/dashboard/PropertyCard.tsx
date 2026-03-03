@@ -27,7 +27,7 @@ export function PropertyCard({
   };
 
   return <div 
-    className="group bg-white dark:bg-gray-400 rounded-lg overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow relative cursor-pointer"
+    className="group bg-white dark:bg-primary-900 rounded-lg overflow-hidden shadow-sm border border-primary-800 dark:border-gray-700 hover:shadow-md transition-shadow relative cursor-pointer"
     onClick={handleCardClick}
   >
       <div className="relative h-48">

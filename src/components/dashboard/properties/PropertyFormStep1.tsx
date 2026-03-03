@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { debounce } from 'lodash';
 import { PropertyFormMap } from './PropertyFormMap';
-import { PropertyFormData } from './AddPropertyForm';
+import { PropertyFormData } from '../../../pages/dashboard/AddPropertyForm';
 import { Button, Label, TextInput } from 'flowbite-react';
 
 interface PropertyFormStep1Props {
@@ -15,11 +15,11 @@ export function PropertyFormStep1({
     const { register, formState: { errors }, watch, setValue, trigger } = useFormContext<PropertyFormData>();
     const location = watch('location');
     const addressParts = watch(['streetName', 'houseNumber', 'city', 'state', 'country']);
-    const [userEditedAddress, setUserEditedAddress] = useState(false);
+    const [locationManuallySet, setLocationManuallySet] = useState(false);
 
     const geocodeAddress = useCallback(
         debounce(async (addressQuery: string) => {
-            if (addressQuery.length < 10) return;
+            if (addressQuery.length < 10 || locationManuallySet) return;
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}&limit=1`);
                 const data = await response.json();
@@ -31,19 +31,31 @@ export function PropertyFormStep1({
             } catch (error) {
                 console.error("Geocoding error:", error);
             }
-        }, 100),
-        []);
+        }, 500),
+        [locationManuallySet, setValue]);
 
     useEffect(() => {
-        if (!userEditedAddress) return;
-
         const [streetName, houseNumber, city, state, country] = addressParts;
-        if (streetName && houseNumber && city && state && country) {
-            const fullAddress = [streetName + ' ' + houseNumber, city, state, country].join(', ');
+        
+        // Ensure all required fields have values and are not just whitespace
+        const isComplete = 
+            streetName?.trim() && 
+            houseNumber?.trim() && 
+            city?.trim() && 
+            state?.trim() && 
+            country?.trim();
+
+        if (isComplete && !locationManuallySet) {
+            const fullAddress = [
+                `${streetName.trim()} ${houseNumber.trim()}`,
+                city.trim(),
+                state.trim(),
+                country.trim()
+            ].filter(Boolean).join(', ');
+            
             geocodeAddress(fullAddress);
-            setUserEditedAddress(false);
         }
-    }, [addressParts, geocodeAddress, userEditedAddress]);
+    }, [addressParts, geocodeAddress, locationManuallySet]);
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,8 +76,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="streetName"
-                        {...register('streetName')}
-                        onChange={() => { setUserEditedAddress(true); }}
+                        {...register('streetName', {
+                            onChange: () => setLocationManuallySet(false)
+                        })}
                         placeholder="Nombre de calle" />
                     {errors.streetName && <p className="text-red-500 text-sm mt-1">{errors.streetName.message}</p>}
                 </div>
@@ -76,8 +89,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="houseNumber"
-                        {...register('houseNumber')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        {...register('houseNumber', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.houseNumber && <p className="text-red-500 text-sm mt-1">{errors.houseNumber.message}</p>}
                 </div>
             </div>
@@ -100,8 +114,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="city"
-                        {...register('city')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        {...register('city', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.city && <p className="text-red-500 text-sm mt-1">{errors.city.message}</p>}
                 </div>
                 <div>
@@ -111,8 +126,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="state"
-                        {...register('state')}
-                        onChange={() => { setUserEditedAddress(true); }} />
+                        {...register('state', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.state && <p className="text-red-500 text-sm mt-1">{errors.state.message}</p>}
                 </div>
             </div>
@@ -134,7 +150,9 @@ export function PropertyFormStep1({
                         </Label>
                     </div>
                     <TextInput id="country"
-                        {...register('country')} />
+                        {...register('country', {
+                            onChange: () => setLocationManuallySet(false)
+                        })} />
                     {errors.country && <p className="text-red-500 text-sm mt-1">{errors.country.message}</p>}
                 </div>
             </div>
@@ -147,12 +165,17 @@ export function PropertyFormStep1({
                 <div id="location" className="h-[300px] border border-gray-300 rounded-lg overflow-hidden">
                     <PropertyFormMap
                         location={location}
-                        onLocationChange={newLocation => setValue('location', newLocation, { shouldValidate: true })} />
+                        onLocationChange={newLocation => {
+                            setValue('location', newLocation, { shouldValidate: true });
+                            setLocationManuallySet(true);
+                        }} />
                 </div>
                 {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location.message}</p>}
             </div>
             <div className="flex justify-end">
-                <Button type="submit">
+                <Button 
+                id="next-step-button"
+                type="submit">
                     Siguiente
                 </Button>
             </div>

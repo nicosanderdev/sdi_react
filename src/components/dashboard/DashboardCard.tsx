@@ -22,7 +22,7 @@ export function DashboardCard({
 }: DashboardCardProps) {
   return (
     <Card className={className}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-start justify-between mb-4">
         <h3 className="text-lg font-medium">{title}</h3>
         <IconWrapper
           icon={Icon}

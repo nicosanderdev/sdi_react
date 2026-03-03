@@ -1,5 +1,11 @@
 // src/services/profileService.ts
-import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up for JWT auth
+import apiClient from './AxiosClient'; // Keep for auth-related HTTP calls
+import { supabase } from '../config/supabase';
+import {
+  mapDbToProfile,
+  getCurrentUserId,
+  mapRoleStringToNumber
+} from './SupabaseHelpers';
 
 export interface RequestPasswordChangeResponse {
   is2FaRequired: boolean;
@@ -15,6 +21,11 @@ export interface AddressData {
   country: string;
 }
 
+export interface UserCompany {
+  id: string;
+  name: string;
+}
+
 export interface ProfileData {
   id?: string;
   firstName: string;
@@ -23,8 +34,8 @@ export interface ProfileData {
   phone: string;
   title: string;
   avatarUrl?: string;
-  address: AddressData;
-  roles?: string[];
+  address: AddressData; 
+  companies?: UserCompany[];
 }
 
 export interface UpdateProfilePayload {
@@ -37,20 +48,69 @@ export interface ChangePasswordPayload {
   newPassword: string;
 }
 
-// API Endpoints
+export interface ChangeRoleRequest {
+  userId: string;
+  newRole: string;
+  companyId?: string;
+}
+
+export interface ChangeRoleResponse {
+  success: boolean;
+  message: string;
+  newRole: string;
+  affectedCompanies: UserCompany[];
+}
+
+// API Endpoints (keep for auth-related operations)
 const ENDPOINTS = {
-  CURRENT_PROFILE: '/profile/me',
   CHANGE_PASSWORD: '/profile/me/change-password',
-  UPLOAD_AVATAR: '/profile/avatar',
   RESET_PASSWORD_INIT: '/auth/reset-password-init',
 };
 
 /**
  * Fetches the profile of the currently authenticated user.
  */
-const getCurrentUserProfile = async (): Promise<ProfileData> => {
+const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
   try {
-    return await apiClient.get<ProfileData>(ENDPOINTS.CURRENT_PROFILE);
+    const userId = await getCurrentUserId(user);
+
+    const { data: memberData, error } = await supabase
+      .from('Members')
+      .select(`
+        *
+      `)
+      .eq('UserId', userId)
+      .eq('IsDeleted', false);
+
+    if (error) {
+      // If no member record exists, this might be a new user - handle gracefully
+      if (error.code === 'PGRST116') {
+        // Create a basic profile from available data
+        return {
+          id: '',
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          title: '',
+          address: {
+            street: '',
+            street2: '',
+            city: '',
+            state: '',
+            postalCode: '',
+            country: ''
+          },
+          companies: []
+        };
+      }
+      throw error;
+    }
+
+    // Map the joined data to ProfileData
+    const member = memberData[0]; // Should be single due to UserId unique constraint
+    return mapDbToProfile(member, member.UserCompanies);
+
   } catch (error: any) {
     console.error('Error fetching current user profile:', error.message);
     throw error;
@@ -63,7 +123,47 @@ const getCurrentUserProfile = async (): Promise<ProfileData> => {
  */
 const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promise<UpdateProfilePayload> => {
   try {
-    return await apiClient.put<UpdateProfilePayload>(ENDPOINTS.CURRENT_PROFILE, profileUpdateData);
+    const userId = await getCurrentUserId();
+
+    if (!profileUpdateData.updateProfileDto) {
+      throw new Error('No profile data provided for update');
+    }
+
+    const { updateProfileDto } = profileUpdateData;
+
+    // Map ProfileData fields to Members table columns
+    const updateData: any = {};
+
+    if (updateProfileDto.firstName !== undefined) updateData.FirstName = updateProfileDto.firstName;
+    if (updateProfileDto.lastName !== undefined) updateData.LastName = updateProfileDto.lastName;
+    if (updateProfileDto.title !== undefined) updateData.Title = updateProfileDto.title;
+    if (updateProfileDto.avatarUrl !== undefined) updateData.AvatarUrl = updateProfileDto.avatarUrl;
+    if (updateProfileDto.phone !== undefined) updateData.Phone = updateProfileDto.phone;
+
+    // Address fields
+    if (updateProfileDto.address) {
+      if (updateProfileDto.address.street !== undefined) updateData.Street = updateProfileDto.address.street;
+      if (updateProfileDto.address.street2 !== undefined) updateData.Street2 = updateProfileDto.address.street2;
+      if (updateProfileDto.address.city !== undefined) updateData.City = updateProfileDto.address.city;
+      if (updateProfileDto.address.state !== undefined) updateData.State = updateProfileDto.address.state;
+      if (updateProfileDto.address.postalCode !== undefined) updateData.PostalCode = updateProfileDto.address.postalCode;
+      if (updateProfileDto.address.country !== undefined) updateData.Country = updateProfileDto.address.country;
+    }
+
+    updateData.LastModified = new Date().toISOString();
+    updateData.LastModifiedBy = userId;
+
+    const { data, error } = await supabase
+      .from('Members')
+      .update(updateData)
+      .eq('UserId', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { id: data.Id, updateProfileDto };
+
   } catch (error: any) {
     console.error('Error updating user profile:', error.message);
     throw error;
@@ -75,14 +175,78 @@ const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promi
  * @param {FormData} formData - The FormData object containing the image file.
  *                              Typically, the file is appended with a key like 'avatar'.
  */
-const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => { // Or Promise<ProfileData> if backend returns full profile
+const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => {
   try {
-    const response = await apiClient.post<{ avatarUrl: string }>(ENDPOINTS.UPLOAD_AVATAR, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response;
+    const userId = await getCurrentUserId();
+    const file = formData.get('avatar') as File;
+
+    if (!file) {
+      throw new Error('No file provided for upload');
+    }
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
+
+    // Check if avatars bucket exists
+    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
+    if (bucketError) {
+      console.warn('Could not verify bucket existence, proceeding with upload:', bucketError.message);
+    } else {
+      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars');
+      if (!avatarsBucket) {
+        console.warn('Avatars bucket not found in list, but proceeding with upload attempt');
+      }
+    }
+
+    // Upload to Supabase Storage
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (uploadError) {
+      if (uploadError.message?.includes('Bucket not found')) {
+        throw new Error('Avatar storage bucket not found. Please contact an administrator to create the "avatars" bucket.');
+      }
+      throw new Error(`Upload failed: ${uploadError.message}`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(fileName);
+
+    const avatarUrl = urlData.publicUrl;
+
+    // Update the member record with the new avatar URL using RPC function
+    // This bypasses RLS policies that might be blocking the direct update
+    const { data: updateResult, error: updateError } = await supabase
+      .rpc('update_member_avatar', {
+        avatar_url: avatarUrl
+      });
+
+    if (updateError) {
+      console.error('RPC update error:', updateError);
+      // Fallback to direct update if RPC fails
+      const { error: directUpdateError } = await supabase
+        .from('Members')
+        .update({
+          AvatarUrl: avatarUrl,
+          LastModified: new Date().toISOString(),
+          LastModifiedBy: userId
+        })
+        .eq('UserId', userId);
+
+      if (directUpdateError) throw directUpdateError;
+    } else if (!updateResult) {
+      throw new Error('Failed to update avatar URL');
+    }
+
+    return { avatarUrl };
+
   } catch (error: any) {
     console.error('Error uploading profile picture:', error.message);
     throw error;
@@ -96,13 +260,86 @@ const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> =>
     console.error('Reset password error:', error?.response?.data || error?.message);
     throw error;
   }
-} 
+}
+
+/**
+ * Changes the role of a user (admin to manager, etc.)
+ * @param request - The role change request
+ * @returns The response with new role and affected companies
+ */
+const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleResponse> => {
+  try {
+    const roleNumber = mapRoleStringToNumber(request.newRole);
+
+    // If companyId is specified, update only that specific UserCompany record
+    if (request.companyId) {
+      const { data, error } = await supabase
+        .from('UserCompanies')
+        .update({ Role: roleNumber })
+        .eq('MemberId', request.userId)
+        .eq('CompanyId', request.companyId)
+        .eq('IsDeleted', false)
+        .select(`
+          *,
+          Companies (*)
+        `);
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('User is not a member of the specified company');
+      }
+
+      const affectedCompanies = data.map(uc => ({
+        id: uc.Companies.Id,
+        name: uc.Companies.Name
+      }));
+
+      return {
+        success: true,
+        message: 'Role updated successfully',
+        newRole: request.newRole,
+        affectedCompanies
+      };
+    }
+
+    // If no companyId specified, update all UserCompany records for this user
+    const { data, error } = await supabase
+      .from('UserCompanies')
+      .update({ Role: roleNumber })
+      .eq('MemberId', request.userId)
+      .eq('IsDeleted', false)
+      .select(`
+        *,
+        Companies (*)
+      `);
+
+    if (error) throw error;
+
+    const affectedCompanies = data?.map(uc => ({
+      id: uc.Companies.Id,
+      name: uc.Companies.Name
+    })) || [];
+
+    return {
+      success: true,
+      message: `Role updated for ${affectedCompanies.length} companies`,
+      newRole: request.newRole,
+      affectedCompanies
+    };
+
+  } catch (error: any) {
+    console.error('Change role error:', error.message);
+    throw error;
+  }
+}
 
 const profileService = {
   getCurrentUserProfile,
   updateUserProfile,
   uploadProfilePicture,
-  requestPasswordChange
+  requestPasswordChange,
+  changeRole
 };
 
 export default profileService;

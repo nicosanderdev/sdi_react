@@ -38,8 +38,6 @@ export interface PropertyData {
   description?: string;
   availableFrom: Date;
   availableFromText: string;
-  arePetsAllowed: boolean;
-  capacity: number;
   ownerId?: string;
   // price and status
   currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
@@ -53,6 +51,7 @@ export interface PropertyData {
   status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
   isActive: boolean;
   isPropertyVisible: boolean;
+  blockedForBooking?: boolean;
   created: Date;
   visits?: number;
   

@@ -16,7 +16,9 @@ export interface EstatePropertyValues {
   status: number; // PropertyStatus enum value
   isActive: boolean;
   isPropertyVisible: boolean;
-  
+  /** When true, property is visible but cannot accept new bookings (e.g. overdue unpaid receipt). */
+  blockedForBooking?: boolean;
+
   // Relationships
   isFeatured: boolean;
   estatePropertyId: string;

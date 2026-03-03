@@ -5,7 +5,6 @@ import { CheckboxFilterGroup } from '../../components/public/properties/Checkbox
 import { RadioFilterGroup } from '../../components/public/properties/RadioFilterGroup';
 import { PropertyParams, PublicProperty } from '../../models/properties';
 import propertyService from '../../services/PropertyService';
-import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [
@@ -211,10 +210,6 @@ export function PropertiesResultsPage() {
                 imgSrc={property.propertyImages?.[0]?.url ?? ''}
                 className="transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl hover:cursor-pointer relative"
               >
-                {/* Favorite Button positioned absolutely in top-right corner */}
-                <div className="absolute top-4 right-4 z-10">
-                  <FavoriteButton propertyId={property.id} size="md" />
-                </div>
                 
                 <h5 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
                   {property.title}

@@ -45,7 +45,7 @@ export function PropertyFormStep3({
           <Button color="alternative" onClick={onBack}>
             Atrás
           </Button>
-          <Button onClick={onNext}>
+          <Button id="next-step-button" onClick={onNext}>
             Siguiente
           </Button>
         </div>

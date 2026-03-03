@@ -46,10 +46,10 @@ export function VisitsByDateChart({ data }: VisitsByDateChartProps) {
           type="monotone" 
           dataKey="visits" 
           name="Visitas"
-          stroke="#62B6CB" 
+          stroke="#0f9d58" 
           strokeWidth={2.5} 
-          dot={{ r: 4, fill: '#62B6CB', strokeWidth: 1, stroke: '#FDFFFC' }} 
-          activeDot={{ r: 6, fill: '#1B4965', strokeWidth: 2, stroke: '#FDFFFC' }} 
+          dot={{ r: 4, fill: '#0f9d58', strokeWidth: 1, stroke: '#FDFFFC' }} 
+          activeDot={{ r: 6, fill: '#0f9d58', strokeWidth: 2, stroke: '#FDFFFC' }} 
         />
       </LineChart>
     </ResponsiveContainer>

@@ -9,7 +9,6 @@ import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
 import { PropertyParams, PublicProperty } from '../../models/properties';
-import { FavoriteButton } from '../../components/ui/FavoriteButton';
 
 
 
@@ -93,7 +92,6 @@ function PublicPropertyViewPage() {
                       For {property.salePrice ? 'Sale' : 'Rent'}
                     </Badge>
                   </div>
-                  <FavoriteButton propertyId={property.id} size="lg" />
                 </div>
                 <h1 className="text-3xl font-bold">{property.title}</h1>
                 <p className="mt-1">{`${property.streetName} ${property.houseNumber}, ${property.city}, ${property.state}`}</p>
@@ -147,6 +145,15 @@ function PublicPropertyViewPage() {
           {/* Property Videos */}
           <PropertyVideoSection videos={property.propertyVideos} />
           
+          {/* Blocked for booking notice */}
+          {property.blockedForBooking && (
+            <Card className="mb-6 border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800">
+              <p className="text-amber-800 dark:text-amber-200 font-medium">
+                No acepta reservas temporalmente.
+              </p>
+            </Card>
+          )}
+
           {/* Q&A Section */}
           <div>
             <PropertyContact propertyId={propertyId} ownerId={property.ownerId} />

@@ -6,24 +6,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-  --color-primary-950: #1e1b4b;
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #0f9d58;
+  --color-primary-600: #0d8a4d;
+  --color-primary-700: #0a6b3d;
+  --color-primary-800: #085231;
+  --color-primary-900: #06401f;
+  --color-primary-950: #03200f;
 
   /* Foreground (text) colors for contrast */
-  --color-primary-50-foreground: #1e1b4b;
-  --color-primary-100-foreground: #1e1b4b;
-  --color-primary-200-foreground: #1e1b4b;
-  --color-primary-300-foreground: #1e1b4b;
-  --color-primary-400-foreground: #1e1b4b;
+  --color-primary-50-foreground: #03200f;
+  --color-primary-100-foreground: #03200f;
+  --color-primary-200-foreground: #03200f;
+  --color-primary-300-foreground: #03200f;
+  --color-primary-400-foreground: #03200f;
   --color-primary-500-foreground: #ffffff;
   --color-primary-600-foreground: #ffffff;
   --color-primary-700-foreground: #ffffff;
@@ -153,4 +153,29 @@
 
 .animate-pulse-slow {
 animation: pulse-slow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* React Calendar Dark Mode Support */
+.dark .react-calendar {
+  @apply bg-gray-800 border-gray-700 text-gray-200;
+}
+
+.dark .react-calendar__navigation button {
+  @apply text-gray-200 hover:bg-gray-700;
+}
+
+.dark .react-calendar__month-view__weekdays {
+  @apply text-gray-400;
+}
+
+.dark .react-calendar__tile {
+  @apply text-gray-200;
+}
+
+.dark .react-calendar__tile--now {
+  @apply bg-primary-900/20 text-primary-300;
+}
+
+.dark .react-calendar__month-view__days__day--neighboringMonth {
+  @apply text-gray-600;
 }
