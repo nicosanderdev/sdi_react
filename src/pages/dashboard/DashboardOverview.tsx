@@ -124,7 +124,7 @@ export function DashboardOverview() {
             {/* --- Stats Cards Row --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <DashboardStatCard
-                    title="Visitas"
+                    title="Visitas a propiedades"
                     icon={EyeIcon}
                     value={renderCardValue(summaryData?.visits?.currentPeriod, isLoadingSummary, isErrorSummary)}
                     trend={{
@@ -134,7 +134,7 @@ export function DashboardOverview() {
                 />
 
                 <DashboardStatCard
-                    title="Mensajes"
+                    title="Mensajes recibidos por consulta"
                     icon={MessageSquareIcon}
                     value={renderCardValue(summaryData?.messages?.currentPeriod, isLoadingSummary, isErrorSummary)}
                     trend={{
@@ -144,7 +144,7 @@ export function DashboardOverview() {
                 />
 
                 <DashboardStatCard
-                    title="Propiedades"
+                    title="Propiedades publicadas"
                     icon={HomeIcon}
                     value={renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
                     trend={{

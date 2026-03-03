@@ -446,6 +446,36 @@ const deleteMessage = async (messageId: string): Promise<void> => {
 };
 
 /**
+ * Restores a message from trash to inbox. (Sets IsDeleted to false for the user)
+ */
+const restoreMessage = async (messageId: string): Promise<void> => {
+  try {
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsDeleted: false })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
+  } catch (error: any) {
+    console.error(`Error restoring message ${messageId}:`, error.message);
+    throw error;
+  }
+};
+
+/**
  * Fetches counts for different message categories/tabs.
  */
 const getMessageCounts = async (): Promise<TabCounts> => {
@@ -561,6 +591,7 @@ const messageService = {
   archiveMessage,
   unarchiveMessage,
   deleteMessage,
+  restoreMessage,
   getMessageCounts,
   getMessagesByPropertyId,
   getMessagesByThreadId,
