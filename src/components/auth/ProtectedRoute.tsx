@@ -21,9 +21,9 @@ const ProtectedRouteComponent = ({
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
 
-  // Show loading if either auth or user profile is loading
-  // Only wait for profile loading if we have an authenticated Supabase user
-  if (authLoading || (supabaseUser && (userStatus === 'loading' || userStatus === 'idle'))) {
+  // Show loading if auth is loading; for protected routes only, also wait for profile
+  // (Public routes like /login must not block on profile, so authenticated users can render and redirect)
+  if (authLoading || (requireAuth && supabaseUser && (userStatus === 'loading' || userStatus === 'idle'))) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>

@@ -154,18 +154,27 @@ export function DashboardSidebar() {
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Menú
               </div>
-              {navItems.map(item => (
-                <SidebarItem
-                  key={item.id}
-                  onClick={() => navigate(item.path)}
-                  icon={item.icon}
-                  label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
-                  active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
-                  className="hover:bg-green-50 dark:hover:bg-green-900/20"
-                >
-                  {item.label}
-                </SidebarItem>
-              ))}
+              {navItems.map(item => {
+                const content = (
+                  <SidebarItem
+                    key={item.id}
+                    onClick={() => navigate(item.path)}
+                    icon={item.icon}
+                    label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
+                    active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
+                    className="hover:bg-green-50 dark:hover:bg-green-900/20"
+                  >
+                    {item.label}
+                  </SidebarItem>
+                );
+                if (item.id === 'subscription') {
+                  return <div key={item.id} id="onboarding-nav-subscription">{content}</div>;
+                }
+                if (item.id === 'company') {
+                  return <div key={item.id} id="onboarding-nav-company">{content}</div>;
+                }
+                return content;
+              })}
             </SidebarItemGroup>
           )}
           <SidebarItemGroup>

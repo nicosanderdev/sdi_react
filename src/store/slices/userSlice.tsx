@@ -55,6 +55,7 @@ const userSlice = createSlice({
         state.profile.roles = action.payload;
       }
     },
+    clearUserState: () => initialState,
   },
   extraReducers: (builder) => {
     builder
@@ -95,6 +96,9 @@ export const selectUserStatus = (state: RootState) => state.user.status;
 // Company selectors
 export const selectUserCompanies = (state: RootState) => state.user.companies;
 export const selectHasCompanies = (state: RootState) => state.user.companies.length > 0;
-export const selectDefaultCompany = (state: RootState) => 
+export const selectDefaultCompany = (state: RootState) =>
   state.user.companies.length > 0 ? state.user.companies[0] : null;
+
+export const { clearUserState } = userSlice.actions;
+
 export default userSlice.reducer;

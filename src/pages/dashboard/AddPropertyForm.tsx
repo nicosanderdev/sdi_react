@@ -18,6 +18,8 @@ import { DisplayDocument } from '../../components/dashboard/properties/DocumentM
 import { DisplayVideo } from '../../components/dashboard/properties/VideoManager';
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useSubscriptionNotifications } from '../../hooks/useSubscriptionNotifications';
+import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
+import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 
 
 const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
@@ -89,6 +91,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('form');
   const [currentStep, setCurrentStep] = useState(1);
   const [wasAutoDowngraded, setWasAutoDowngraded] = useState(false);
+  const [showOnboardingSuccessMessage, setShowOnboardingSuccessMessage] = useState(false);
   const queryClient = useQueryClient();
 
   // Property quota management
@@ -102,6 +105,16 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
 
   // Subscription notifications
   const { showWarningNotification } = useSubscriptionNotifications();
+
+  // Owner onboarding
+  const {
+    isEligibleForOnboarding,
+    isFreePlan,
+    planPublishedLimit,
+    currentStep: onboardingStep,
+    setStep,
+    complete,
+  } = useOwnerOnboarding();
 
   // Check quota limits when component mounts
   useEffect(() => {
@@ -196,10 +209,16 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
 
       return PropertyService.createProperty(modifiedData, processedImages, processedDocuments);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log("Property created successfully:", data);
       setApiError(null);
       queryClient.invalidateQueries({ queryKey: ['properties'] });
+
+      // Mark owner onboarding complete when first property is published
+      if (isEligibleForOnboarding) {
+        setShowOnboardingSuccessMessage(true);
+        await complete();
+      }
 
       // Show warning if property was auto-downgraded
       if (wasAutoDowngraded) {
@@ -257,7 +276,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       <Card className="min-h-full">
         {view === 'form' && (
           <>
-            <div>
+            <div id="onboarding-plan-limit">
               <div className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center">
                   {currentStep > 1 && (
@@ -315,8 +334,8 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
 
         {view === 'success' && (
           <SuccessDisplay
-            title="¡Registro de propiedad exitoso!"
-            message="La propiedad ha sido registrada correctamente."
+            title={showOnboardingSuccessMessage ? 'Your property has been published!' : '¡Registro de propiedad exitoso!'}
+            message={showOnboardingSuccessMessage ? 'You can view and manage it from your properties list.' : 'La propiedad ha sido registrada correctamente.'}
             redirectUrl="/dashboard/properties"
           />
         )}
@@ -330,6 +349,51 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
           />
         )}
       </Card>
+
+      {/* Owner onboarding: Plan limit (Free plan only) */}
+      {view === 'form' && isEligibleForOnboarding && isFreePlan && currentStep === 1 && onboardingStep <= 2 && (
+        <OwnerOnboardingTour
+          active={true}
+          step={{
+            element: '#onboarding-plan-limit',
+            title: 'Free Plan',
+            description: `You're using the Free Plan, which allows up to ${planPublishedLimit} properties. Reservations made through this plan include a commission fee.`,
+            nextBtnText: 'Continue',
+          }}
+          onNext={() => setStep(3)}
+          onDismiss={() => {}}
+        />
+      )}
+
+      {/* Owner onboarding: Step 4a — Description, pricing, availability (form step 2) */}
+      {view === 'form' && isEligibleForOnboarding && currentStep === 2 && (
+        <OwnerOnboardingTour
+          active={true}
+          step={{
+            element: '#onboarding-form-details',
+            title: 'Property details',
+            description: 'Add a property description, set pricing, and set availability. These help guests find and book your property.',
+            nextBtnText: 'Next',
+          }}
+          onNext={() => {}}
+          onDismiss={() => {}}
+        />
+      )}
+
+      {/* Owner onboarding: Step 4b — Photos (form step 3) */}
+      {view === 'form' && isEligibleForOnboarding && currentStep === 3 && (
+        <OwnerOnboardingTour
+          active={true}
+          step={{
+            element: '#onboarding-form-photos',
+            title: 'Add photos',
+            description: 'Photos help your listing stand out. Add clear images of the property, rooms, and amenities.',
+            nextBtnText: 'Next',
+          }}
+          onNext={() => {}}
+          onDismiss={() => {}}
+        />
+      )}
     </FormProvider>
   );
 }

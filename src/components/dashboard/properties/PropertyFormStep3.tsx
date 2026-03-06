@@ -26,7 +26,7 @@ export function PropertyFormStep3({
 }: PropertyFormStep3Props) {
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto" id="onboarding-form-photos">
       <div className="space-y-6">
         {/* Images Section */}
         <ImageManager

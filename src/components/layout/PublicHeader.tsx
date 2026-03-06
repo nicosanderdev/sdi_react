@@ -1,13 +1,12 @@
 import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
 import { CustomDarkThemeToggle } from "../ui/CustomDarkThemeToggle";
-import { useSelector } from 'react-redux';
-import { RootState } from '../../store/store';
-import { User, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import authService from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export function PublicHeader() {
-  const user = useSelector((state: RootState) => state.user.profile);
+  const { user: supabaseUser, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -16,7 +15,12 @@ export function PublicHeader() {
   };
 
   const getUserNavigation = () => {
-    if (!user) {
+    // While auth state is loading, avoid flashing incorrect buttons
+    if (loading) {
+      return null;
+    }
+
+    if (!supabaseUser) {
       return (
         <>
           <NavbarLink href="/login">Iniciar Sesión</NavbarLink>
@@ -26,18 +30,14 @@ export function PublicHeader() {
     }
 
     return (
-    <>
+      <>
         <NavbarLink href="/dashboard" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Dashboard</NavbarLink>
         <NavbarLink href="#" onClick={handleLogout} className="flex items-center space-x-1 text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">
-        <LogOut className="w-4 h-4" />
-        <span>Cerrar Sesión</span>
+          <LogOut className="w-4 h-4" />
+          <span>Cerrar Sesión</span>
         </NavbarLink>
-    </>
+      </>
     );
-
-    // Public user navigation removed - dashboard only system
-
-    return null;
   };
 
   return (

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
@@ -10,6 +10,8 @@ import { PropertyData } from '../../models/properties';
 import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
+import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
+import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 
 const TABS = [
   { id: 'all', label: 'Todas' },
@@ -22,6 +24,7 @@ const TABS = [
 const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
 
 const PropertiesManagerComponent = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [allProperties, setAllProperties] = useState<PropertyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,6 +37,21 @@ const PropertiesManagerComponent = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+  const [showVerificationGateTooltip, setShowVerificationGateTooltip] = useState(false);
+
+  const {
+    isEligibleForOnboarding,
+    isExperiencedOwner,
+    currentStep,
+    completedAt,
+    emailVerified,
+    phoneVerified,
+    setStep,
+    dismiss,
+  } = useOwnerOnboarding();
+
+  const needsVerification = isEligibleForOnboarding && (!emailVerified || !phoneVerified);
+  const showVerificationBanner = needsVerification;
 
   // Property quota information
   const {
@@ -116,8 +134,6 @@ const PropertiesManagerComponent = () => {
     return properties;
   }, [allProperties, activeTab, searchTerm]);
 
-  const navigate = useNavigate();
-
   const handleViewBookings = (property: PropertyData) => {
     navigate(`/dashboard/property/${property.id}/bookings`);
   };
@@ -168,6 +184,10 @@ const PropertiesManagerComponent = () => {
             <Button
                 id="add-property-button"
                 onClick={() => {
+                  if (needsVerification) {
+                    setShowVerificationGateTooltip(true);
+                    return;
+                  }
                   if (isAtTotalLimit) {
                     setShowLimitModal(true);
                   } else {
@@ -250,6 +270,24 @@ const PropertiesManagerComponent = () => {
             </div>
           )}
         </>
+      )}
+
+      {showVerificationBanner && (
+        <div
+          id="onboarding-verification-gate"
+          className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
+        >
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Before publishing properties, we need to verify your email and phone number.
+            This helps maintain trust and communication with guests.
+          </p>
+          <Link
+            to="/dashboard/profile"
+            className="inline-block mt-2 text-sm font-medium text-[#62B6CB] hover:text-[#4a9bb0] underline"
+          >
+            Go to profile to verify
+          </Link>
+        </div>
       )}
 
       {error && !isDeleting && ( 
@@ -410,6 +448,86 @@ const PropertiesManagerComponent = () => {
           </div>
         </ModalBody>
       </Modal>}
+
+      {/* Owner onboarding: Step 1 — Welcome */}
+      {!isExperiencedOwner && (
+        <OwnerOnboardingTour
+          active={
+            isEligibleForOnboarding &&
+            currentStep === 0 &&
+            !showAddProperty &&
+            !showVerificationGateTooltip
+          }
+          step={
+            currentStep === 0
+              ? {
+                  element: '#add-property-button',
+                  title: "Welcome! Let's publish your first property.",
+                  description:
+                    "We'll guide you through the process step by step.",
+                  nextBtnText: 'Create property',
+                }
+              : null
+          }
+          onNext={() => setStep(1)}
+          onDismiss={() => dismiss()}
+        />
+      )}
+
+      {/* Owner onboarding: Step 2 — Verification gate */}
+      {!isExperiencedOwner && (
+        <OwnerOnboardingTour
+          active={showVerificationGateTooltip && showVerificationBanner}
+          step={
+            showVerificationGateTooltip
+              ? {
+                  element: '#onboarding-verification-gate',
+                  title: 'Verify your email and phone',
+                  description:
+                    'Before publishing properties, we need to verify your email and phone number. This helps maintain trust and communication with guests.',
+                  nextBtnText: 'Go to profile',
+                }
+              : null
+          }
+          onNext={() => {
+            setShowVerificationGateTooltip(false);
+            navigate('/dashboard/profile');
+          }}
+          onDismiss={() => setShowVerificationGateTooltip(false)}
+        />
+      )}
+
+      {/* Owner onboarding: Step 5a — Subscription tip (post-activation) */}
+      {completedAt && currentStep === 5 && (
+        <OwnerOnboardingTour
+          active={true}
+          step={{
+            element: '#onboarding-nav-subscription',
+            title: 'Upgrade your plan',
+            description:
+              'You can upgrade your plan anytime to publish more properties or reduce commission fees.',
+            nextBtnText: 'Next',
+          }}
+          onNext={() => setStep(6)}
+          onDismiss={() => setStep(7)}
+        />
+      )}
+
+      {/* Owner onboarding: Step 5b — Company tip (post-activation) */}
+      {completedAt && currentStep === 6 && (
+        <OwnerOnboardingTour
+          active={true}
+          step={{
+            element: '#onboarding-nav-company',
+            title: 'Companies & agencies',
+            description:
+              'If you manage properties with a team, you can create a company or real estate agency. Companies allow multiple users to manage properties together.',
+            nextBtnText: 'Got it',
+          }}
+          onNext={() => setStep(7)}
+          onDismiss={() => setStep(7)}
+        />
+      )}
     </div>
   );
 };

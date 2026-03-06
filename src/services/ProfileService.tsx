@@ -175,6 +175,8 @@ const updateUserProfile = async (profileUpdateData: UpdateProfilePayload): Promi
  * @param {FormData} formData - The FormData object containing the image file.
  *                              Typically, the file is appended with a key like 'avatar'.
  */
+const PROFILE_PICTURES_MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
+
 const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: string }> => {
   try {
     const userId = await getCurrentUserId();
@@ -184,24 +186,28 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
       throw new Error('No file provided for upload');
     }
 
+    if (file.size > PROFILE_PICTURES_MAX_SIZE_BYTES) {
+      throw new Error('Profile picture must be 8MB or smaller.');
+    }
+
     // Generate unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
 
-    // Check if avatars bucket exists
+    // Check if profile_pictures bucket exists
     const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
     if (bucketError) {
       console.warn('Could not verify bucket existence, proceeding with upload:', bucketError.message);
     } else {
-      const avatarsBucket = buckets?.find(bucket => bucket.name === 'avatars');
-      if (!avatarsBucket) {
-        console.warn('Avatars bucket not found in list, but proceeding with upload attempt');
+      const profilePicturesBucket = buckets?.find(bucket => bucket.name === 'profile_pictures');
+      if (!profilePicturesBucket) {
+        console.warn('profile_pictures bucket not found in list, but proceeding with upload attempt');
       }
     }
 
     // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from('avatars')
+      .from('profile_pictures')
       .upload(fileName, file, {
         cacheControl: '3600',
         upsert: true
@@ -209,14 +215,14 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
 
     if (uploadError) {
       if (uploadError.message?.includes('Bucket not found')) {
-        throw new Error('Avatar storage bucket not found. Please contact an administrator to create the "avatars" bucket.');
+        throw new Error('Profile picture storage is not configured. Please contact an administrator to create the "profile_pictures" bucket.');
       }
       throw new Error(`Upload failed: ${uploadError.message}`);
     }
 
     // Get public URL
     const { data: urlData } = supabase.storage
-      .from('avatars')
+      .from('profile_pictures')
       .getPublicUrl(fileName);
 
     const avatarUrl = urlData.publicUrl;
@@ -334,12 +340,70 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
   }
 }
 
+/**
+ * Sends an email verification code to the new email address.
+ * Call verifyEmailCode with the code to complete the change.
+ */
+const sendEmailVerification = async (newEmail: string): Promise<{ message: string; email: string }> => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.functions.invoke('send-email-verification', {
+    body: { userId, newEmail }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { message: data?.message ?? 'Verification code sent', email: data?.email ?? newEmail };
+};
+
+/**
+ * Verifies the email change with the 6-digit code received by email.
+ */
+const verifyEmailCode = async (code: string): Promise<{ message: string; newEmail: string }> => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.functions.invoke('verify-email-code', {
+    body: { userId, code }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { message: data?.message ?? 'Email updated', newEmail: data?.newEmail ?? '' };
+};
+
+/**
+ * Sends a phone verification code to the new phone number.
+ * Call verifyPhoneCode with the code to complete the change.
+ */
+const sendPhoneVerification = async (newPhone: string): Promise<{ message: string; phone: string }> => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.functions.invoke('send-phone-verification', {
+    body: { userId, newPhone }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { message: data?.message ?? 'Verification code sent', phone: data?.phone ?? newPhone };
+};
+
+/**
+ * Verifies the phone change with the 6-digit code received by SMS.
+ */
+const verifyPhoneCode = async (code: string): Promise<{ message: string; newPhone: string }> => {
+  const userId = await getCurrentUserId();
+  const { data, error } = await supabase.functions.invoke('verify-phone-code', {
+    body: { userId, code }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return { message: data?.message ?? 'Phone updated', newPhone: data?.newPhone ?? '' };
+};
+
 const profileService = {
   getCurrentUserProfile,
   updateUserProfile,
   uploadProfilePicture,
   requestPasswordChange,
-  changeRole
+  changeRole,
+  sendEmailVerification,
+  verifyEmailCode,
+  sendPhoneVerification,
+  verifyPhoneCode
 };
 
 export default profileService;

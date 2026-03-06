@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef, ChangeEvent, FormEvent } from 'react';
+import { useDispatch } from 'react-redux';
 import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, BriefcaseIcon, Edit3Icon, SaveIcon, XIcon } from 'lucide-react';
 import profileService, { ProfileData, AddressData, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
 import { ChangePasswordModal } from '../../components/user/ChangePasswordModal';
+import { EmailPhoneVerificationModal } from '../../components/user/EmailPhoneVerificationModal';
+import type { VerificationType } from '../../components/user/EmailPhoneVerificationModal';
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
+import { fetchUserProfile } from '../../store/slices/userSlice';
 
 const initialProfileState: ProfileData = {
   firstName: '',
@@ -23,6 +27,7 @@ const initialProfileState: ProfileData = {
 };
 
 export function UserProfile() {
+  const dispatch = useDispatch();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [formData, setFormData] = useState<ProfileData>(initialProfileState);
   const [editing, setEditing] = useState(false);
@@ -30,6 +35,7 @@ export function UserProfile() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [verificationModalType, setVerificationModalType] = useState<VerificationType | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +103,7 @@ export function UserProfile() {
       }
       setEditing(false);
       setIsUpdating(false);
-      window.location.reload();
+      dispatch(fetchUserProfile());
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Failed to update profile.');
       console.error(err);
@@ -119,6 +125,7 @@ export function UserProfile() {
         setProfileData(prev => prev ? { ...prev, avatarUrl: response.avatarUrl } : null);
         setFormData(prev => ({ ...prev, avatarUrl: response.avatarUrl }));
         setAvatarPreview(null); // Clear preview since we now have the uploaded URL
+        dispatch(fetchUserProfile());
       } catch (err: any) {
         let errorMessage = 'Failed to upload avatar.';
         if (err.message?.includes('bucket not found')) {
@@ -252,8 +259,28 @@ export function UserProfile() {
               <div className="space-y-5">
                 {renderInfoField(<IconWrapper icon={UserIcon} size={20} />, "Nombre completo", `${profileData.firstName} ${profileData.lastName}`)}
                 {renderInfoField(<IconWrapper icon={BriefcaseIcon} size={20} />, "Título / Cargo", profileData.title)}
-                {renderInfoField(<IconWrapper icon={MailIcon} size={20} />, "Correo electrónico", profileData.email)}
-                {renderInfoField(<IconWrapper icon={PhoneIcon} size={20} />, "Teléfono", profileData.phone)}
+                <div id="onboarding-verification-section" className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="mr-4 shrink-0"><IconWrapper icon={MailIcon} size={20} /></div>
+                      <div>
+                        <p className="text-sm text-gray-500">Correo electrónico</p>
+                        <p className="font-medium break-words">{profileData.email || '-'}</p>
+                      </div>
+                    </div>
+                    <Button size="xs" color="light" onClick={() => setVerificationModalType('email')}>Cambiar correo</Button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="mr-4 shrink-0"><IconWrapper icon={PhoneIcon} size={20} /></div>
+                      <div>
+                        <p className="text-sm text-gray-500">Teléfono</p>
+                        <p className="font-medium break-words">{profileData.phone || '-'}</p>
+                      </div>
+                    </div>
+                    <Button size="xs" color="light" onClick={() => setVerificationModalType('phone')}>Cambiar teléfono</Button>
+                  </div>
+                </div>
                 <div className="flex">
                      <div className="mr-4 shrink-0">
                         <IconWrapper icon={MapPinIcon} size={20} />
@@ -355,6 +382,20 @@ export function UserProfile() {
           alert('Password changed successfully!');
         }}
       />
+      {verificationModalType && (
+        <EmailPhoneVerificationModal
+          isOpen={!!verificationModalType}
+          onClose={() => setVerificationModalType(null)}
+          onSuccess={async () => {
+            dispatch(fetchUserProfile());
+            const data = await profileService.getCurrentUserProfile();
+            setProfileData(data);
+            setFormData(data);
+          }}
+          type={verificationModalType}
+          memberId={profileData?.id}
+        />
+      )}
     </div>
   );
 }

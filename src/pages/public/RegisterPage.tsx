@@ -14,6 +14,16 @@ const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25C22.56 11.45 22.49 10.68 22.36 9.93H12.25V14.4H18.1C17.84 15.93 17.06 17.21 15.82 18.06V20.75H19.46C21.45 18.99 22.56 15.9 22.56 12.25Z" fill="#4285F4"/><path d="M12.25 23C15.47 23 18.2 21.94 20.04 20.1L16.4 17.45C15.33 18.15 13.89 18.57 12.25 18.57C9.22 18.57 6.65 16.68 5.68 14.04H1.94V16.81C3.76 20.44 7.69 23 12.25 23Z" fill="#34A853"/><path d="M5.68 14.04C5.43 13.34 5.3 12.6 5.3 11.83C5.3 11.05 5.43 10.31 5.68 9.61V6.84H1.94C1.23 8.26 0.85 9.98 0.85 11.83C0.85 13.67 1.23 15.39 1.94 16.81L5.68 14.04Z" fill="#FBBC05"/><path d="M12.25 5.18C13.99 5.18 15.26 5.86 15.84 6.4L18.49 3.84C16.69 2.13 14.6 1 12.25 1C7.69 1 3.76 3.56 1.94 7.19L5.68 9.96C6.65 7.32 9.22 5.18 12.25 5.18Z" fill="#EA4335"/></svg>
 );
 
+const FacebookIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="20" height="20" rx="4" fill="#1877F2" />
+    <path
+      d="M14.5 8H16V5.5H13.8C11.7 5.5 10.5 6.7 10.5 8.7V10H8.5V12.5H10.5V18.5H13V12.5H15.2L15.7 10H13V8.7C13 8.3 13.2 8 14.5 8Z"
+      fill="white"
+    />
+  </svg>
+);
+
 export function RegisterPage() {
   const dispatch = useAppDispatch();
   const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('initial');
@@ -182,22 +192,22 @@ export function RegisterPage() {
     setFormData({ ...formData, [name]: value });
   };
   
-  const handleExternalAuth = async () => {
+  const handleExternalAuth = async (provider: 'google' | 'facebook') => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         options: {
           redirectTo: `${window.location.origin}/dashboard`
         }
       });
 
       if (error) {
-        console.error('Google OAuth error:', error);
+        console.error(`${provider} OAuth error:`, error);
         // Handle error - maybe show a message to user
       }
       // Note: The redirect will happen automatically if successful
     } catch (error) {
-      console.error('Google OAuth registration failed:', error);
+      console.error(`${provider} OAuth registration failed:`, error);
     }
   }
 
@@ -218,18 +228,26 @@ export function RegisterPage() {
             <div className="space-y-4">
               <Button
                 onClick={() => setView('form')}
-                color="success"
-                className="w-full bg-green-600 hover:bg-green-700"
+                color="green"
+                className="w-full"
               >
                 Registrarse con correo electrónico
               </Button>
               <Button
-                onClick={() => handleExternalAuth()}
+                onClick={() => handleExternalAuth('google')}
                 color="light"
                 className="w-full flex items-center justify-center gap-3"
               >
                 <GoogleIcon />
                 Registrarse con Google
+              </Button>
+              <Button
+                onClick={() => handleExternalAuth('facebook')}
+                color="light"
+                className="w-full flex items-center justify-center gap-3"
+              >
+                <FacebookIcon />
+                Registrarse con Facebook
               </Button>
             </div>
             <div className="text-center">
@@ -333,6 +351,14 @@ export function RegisterPage() {
                   placeholder="••••••••"
                   icon={LockIcon}
                   color={errors.password ? "failure" : "gray"}
+                  theme={{
+                    field: {
+                      rightIcon: {
+                        base: 'pointer-events-auto absolute inset-y-0 right-0 flex items-center pr-3',
+                        svg: 'h-5 w-5 text-gray-500 dark:text-gray-400',
+                      },
+                    },
+                  }}
                   helperText={errors.password ? (
                     <span className="flex items-center gap-1 text-red-600 text-xs">
                       <AlertCircleIcon size={14} />
@@ -343,7 +369,8 @@ export function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                     </button>
@@ -360,11 +387,20 @@ export function RegisterPage() {
                   placeholder="••••••••"
                   icon={LockIcon}
                   color={errors.repeatPassword ? "failure" : "gray"}
+                  theme={{
+                    field: {
+                      rightIcon: {
+                        base: 'pointer-events-auto absolute inset-y-0 right-0 flex items-center pr-3',
+                        svg: 'h-5 w-5 text-gray-500 dark:text-gray-400',
+                      },
+                    },
+                  }}
                   rightIcon={() => (
                     <button
                       type="button"
                       onClick={() => setShowRepeatPassword(!showRepeatPassword)}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      aria-label={showRepeatPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     >
                       {showRepeatPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                     </button>
@@ -393,8 +429,8 @@ export function RegisterPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                color="success"
-                className="w-full bg-green-600 hover:bg-green-700"
+                color="green"
+                className="w-full"
               >
                 {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
               </Button>

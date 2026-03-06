@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../config/supabase'
 import { useAppDispatch } from '../hooks/reduxHooks'
-import { fetchUserProfile } from '../store/slices/userSlice'
+import { fetchUserProfile, clearUserState } from '../store/slices/userSlice'
 import userAdminService from '../services/UserAdminService'
 
 interface AuthContextType {
@@ -107,8 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Check for force logout after signing in
           setTimeout(() => checkForceLogoutRef.current?.(), 1000)
         } else if (event === 'SIGNED_OUT') {
-          // Clear user profile from Redux store
-          // This will be handled by the userSlice reducer
+          dispatch(clearUserState())
         }
       }
     )

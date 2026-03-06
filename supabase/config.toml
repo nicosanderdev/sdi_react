@@ -226,6 +226,12 @@ client_id = "421740408370-4led5qdbhia4roaanb9r4ne7t9lr31bt.apps.googleuserconten
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
 
+[auth.external.facebook]
+enabled = false
+client_id = ""
+secret = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_SECRET)"
+redirect_uri = ""
+
 # Uncomment to customize email template
 # [auth.email.template.invite]
 # subject = "You have been invited"

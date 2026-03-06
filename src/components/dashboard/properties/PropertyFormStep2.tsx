@@ -64,7 +64,7 @@ export function PropertyFormStep2({
   };
 
   return (
-    <form onSubmit={handleNext} className="max-w-2xl mx-auto">
+    <form onSubmit={handleNext} className="max-w-2xl mx-auto" id="onboarding-form-details">
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-2">Información Principal</h3>

@@ -2,10 +2,17 @@ import { useSelector } from 'react-redux';
 import { selectUserProfile } from '../../store/slices/userSlice';
 import { Avatar, Dropdown, DropdownDivider, DropdownHeader, DropdownItem, Navbar } from 'flowbite-react';
 import { CustomDarkThemeToggle } from '../ui/CustomDarkThemeToggle';
-import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import authService from '../../services/AuthService';
 
 export function HeaderLayout() {
   const userProfile = useSelector(selectUserProfile);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await authService.logout();
+    navigate('/login');
+  };
 
   const navbarTheme = {
     "root": {
@@ -72,14 +79,34 @@ export function HeaderLayout() {
           </div> */}
 
           {/* Right side - Dark mode toggle and User menu */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center">
             <CustomDarkThemeToggle />
-            <Dropdown
-              arrowIcon={false}
-              inline
-              label={
-                <div className="flex items-center space-x-3">
-                  <Avatar alt="User settings" img="https://flowbite.com/docs/images/people/profile-picture-5.jpg" rounded />
+            <div className="ml-4">
+              <Dropdown
+                arrowIcon={false}
+                inline
+                label={
+                <div className="flex items-center space-x-3 w-56">
+                  {userProfile?.avatarUrl ? (
+                    <Avatar
+                      alt="User settings"
+                      img={userProfile.avatarUrl}
+                      rounded
+                      theme={{ root: { img: { base: "rounded object-cover" } } }}
+                    />
+                  ) : (
+                    <div
+                      className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-500 text-white font-semibold text-sm"
+                      aria-label="User avatar"
+                    >
+                      {[userProfile?.firstName, userProfile?.lastName]
+                        .filter(Boolean)
+                        .map((n) => n!.charAt(0))
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2) || 'U'}
+                    </div>
+                  )}
                   <div className="hidden md:block text-left">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">
                       {userProfile?.firstName || 'Usuario'} {userProfile?.lastName || ''}
@@ -98,12 +125,13 @@ export function HeaderLayout() {
                 <span className="block truncate text-sm font-medium text-gray-500 dark:text-gray-400">
                   {userProfile?.email || 'usuario@email.com'}
                 </span>
-              </DropdownHeader>
-              <DropdownItem>Perfil</DropdownItem>
-              <DropdownItem>Configuración</DropdownItem>
-              <DropdownDivider />
-              <DropdownItem>Cerrar Sesión</DropdownItem>
-            </Dropdown>
+                </DropdownHeader>
+                <DropdownItem onClick={() => navigate('/dashboard/profile')}>Perfil</DropdownItem>
+                <DropdownItem onClick={() => navigate('/dashboard/settings')}>Configuración</DropdownItem>
+                <DropdownDivider />
+                <DropdownItem onClick={handleLogout}>Cerrar Sesión</DropdownItem>
+              </Dropdown>
+            </div>
           </div>
         </div>
       </Navbar>

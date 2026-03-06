@@ -38,7 +38,6 @@ import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerS
 // Subscription pages
 import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSubscriptionPage';
 import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
-import { PlansSelectionPage } from './pages/dashboard/subscription/PlansSelectionPage';
 import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
 import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistoryPage';
 import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStripeCheckoutPage';
@@ -114,6 +113,7 @@ export function App() {
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
+            <Route path="subscription/plans" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
             <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
