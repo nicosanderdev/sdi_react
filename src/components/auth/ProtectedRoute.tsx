@@ -1,16 +1,23 @@
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { getRedirectPath, hasRole } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../config/supabase';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: (Roles.Admin | Roles.User)[];
   requireAuth?: boolean;
 }
+
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
+    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
+  </div>
+);
 
 const ProtectedRouteComponent = ({
   children,
@@ -20,19 +27,30 @@ const ProtectedRouteComponent = ({
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
+  const [sessionPendingContext, setSessionPendingContext] = useState(false);
 
-  // Show loading if auth is loading; for protected routes only, also wait for profile
-  // (Public routes like /login must not block on profile, so authenticated users can render and redirect)
+  // When we would redirect to login but session might exist (context not updated yet), check getSession once
+  useEffect(() => {
+    if (!requireAuth || supabaseUser || authLoading) {
+      setSessionPendingContext(false);
+      return;
+    }
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!cancelled && session?.user) setSessionPendingContext(true);
+    });
+    return () => { cancelled = true; };
+  }, [requireAuth, supabaseUser, authLoading]);
+
+  // Show loading if auth is loading; for protected routes only, wait for profile when loading/idle (not when 'failed')
+  // When userStatus === 'failed' we allow render so dashboard shell can show; children handle null profile.
   if (authLoading || (requireAuth && supabaseUser && (userStatus === 'loading' || userStatus === 'idle'))) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
-  // Check Supabase session first
+  // Check Supabase session first; if session exists but context not updated yet, show loading instead of redirect
   if (requireAuth && !supabaseUser) {
+    if (sessionPendingContext) return <LoadingSpinner />;
     return <Navigate to="/login" replace />;
   }
 
@@ -50,16 +68,6 @@ const ProtectedRouteComponent = ({
 };
 
 export const ProtectedRoute = memo(ProtectedRouteComponent);
-
-
-// COMMENTED OUT: for reuse in new project managing public view - dashboard only system
-// export function PublicUserOnlyRoute({ children }: { children: React.ReactNode }) {
-//   return (
-//     <ProtectedRoute allowedRoles={[Roles.PublicUser]}>
-//       {children}
-//     </ProtectedRoute>
-//   );
-// }
 
 export const PublicRoute = memo(({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute requireAuth={false}>

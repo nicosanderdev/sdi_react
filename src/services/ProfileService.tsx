@@ -34,8 +34,9 @@ export interface ProfileData {
   phone: string;
   title: string;
   avatarUrl?: string;
-  address: AddressData; 
+  address: AddressData;
   companies?: UserCompany[];
+  roles?: string[];
 }
 
 export interface UpdateProfilePayload {
