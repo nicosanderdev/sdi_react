@@ -364,7 +364,7 @@ export interface EnsureReceiptsResult {
 
 /**
  * Main entry: ensure receipts are created (if threshold met) and block/unblock properties.
- * Call when owner loads dashboard, billing, or ReservasPage.
+ * Call when owner loads dashboard, billing, or BookingsPage.
  */
 export async function ensureReceiptsAndBlockStatus(): Promise<EnsureReceiptsResult | null> {
   const userId = await getCurrentUserId().catch(() => null);

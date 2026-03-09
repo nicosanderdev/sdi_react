@@ -32,7 +32,7 @@ import { EmailConfirmationPage } from './components/user/EmailConfirmationPage';
 import { PropertyViewPage } from './pages/dashboard/PropertyViewPage';
 import { PropertyEditPage } from './components/dashboard/properties/PropertyEditPage';
 import PropertyBookingsPage from './pages/dashboard/PropertyBookingsPage';
-import ReservasPage from './pages/dashboard/ReservasPage';
+import BookingsPage from './pages/dashboard/BookingsPage';
 import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 
 // Subscription pages
@@ -107,7 +107,7 @@ export function App() {
             <Route index element={<AdminRedirectWrapper><DashboardOverview /></AdminRedirectWrapper>} />
             <Route path="profile" element={<UserProfile />} />
             <Route path="properties" element={<PropertiesManager />} />
-            <Route path="reservas" element={<ReservasPage />} />
+            <Route path="bookings" element={<BookingsPage />} />
             {/* <Route path="favorites" element={<FavoritesPage />} /> */}
             <Route path="messages" element={<MessageCenter />} />
             <Route path="reports" element={<ReportsAndMetrics />} />

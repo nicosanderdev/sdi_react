@@ -99,8 +99,8 @@ export function CrossAppOnboarding() {
             cuenta en todos nuestros servicios.
           </p>
         </ModalBody>
-        <ModalFooter>
-          <Button color="primary" onClick={handleWelcomeContinue}>
+        <ModalFooter className='flex justify-center gap-2'>
+          <Button color="green" onClick={handleWelcomeContinue}>
             Continuar
           </Button>
         </ModalFooter>

@@ -57,7 +57,7 @@ export function PendingBookingsCard() {
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Reservas pendientes</h3>
         <Link
-          to="/dashboard/reservas"
+          to="/dashboard/bookings"
           className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
         >
           Ver todas →
@@ -76,7 +76,7 @@ export function PendingBookingsCard() {
           return (
             <Link
               key={booking.Id}
-              to="/dashboard/reservas"
+              to="/dashboard/bookings"
               className="block p-4 rounded-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-green-200 dark:hover:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
             >
               <div className="flex items-start">

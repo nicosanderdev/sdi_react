@@ -9,8 +9,8 @@ test.describe.serial('Bookings and receipts flow', () => {
     page = await setupAuthenticatedContext(context, 'basic');
   });
 
-  test('shows seeded bookings grouped by status on Reservas page', async () => {
-    await page.goto('/dashboard/reservas');
+  test('shows seeded bookings grouped by status on bookings page', async () => {
+    await page.goto('/dashboard/bookings');
     await page.waitForLoadState('networkidle');
 
     // Pendientes section with at least one pending booking
@@ -38,7 +38,7 @@ test.describe.serial('Bookings and receipts flow', () => {
   });
 
   test('can accept a pending booking and move it to current list', async () => {
-    await page.goto('/dashboard/reservas');
+    await page.goto('/dashboard/bookings');
     await page.waitForLoadState('networkidle');
 
     const pendientesSection = page.locator('section', {
@@ -63,7 +63,7 @@ test.describe.serial('Bookings and receipts flow', () => {
   });
 
   test('can reject a pending booking so it no longer appears in pending list', async () => {
-    await page.goto('/dashboard/reservas');
+    await page.goto('/dashboard/bookings');
     await page.waitForLoadState('networkidle');
 
     const pendientesSection = page.locator('section', {

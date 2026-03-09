@@ -20,7 +20,7 @@ export interface UseEnsureReceiptsAndBlockReturn {
 
 /**
  * Runs ensureReceiptsAndBlockStatus on mount (and optionally when navigating to dashboard/billing/Reservas).
- * Use this on DashboardOverview, ReservasPage, and BillingHistoryPage so receipts are created and block status applied on-demand (no cron).
+ * Use this on DashboardOverview, BookingsPage, and BillingHistoryPage so receipts are created and block status applied on-demand (no cron).
  */
 export function useEnsureReceiptsAndBlock(): UseEnsureReceiptsAndBlockReturn {
   const [unpaidReceipts, setUnpaidReceipts] = useState<BookingReceipt[]>([]);

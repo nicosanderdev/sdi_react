@@ -79,7 +79,7 @@ npx playwright show-report
 
 ### Bookings & Receipts Tests
 - **Bookings management**: `e2e/bookings-and-receipts.spec.ts` uses the basic test user to:
-  - View bookings grouped into **Pendientes**, **Próximas / Actuales** and **Pasadas** on `ReservasPage`.
+  - View bookings grouped into **Pendientes**, **Próximas / Actuales** and **Pasadas** on `BookingsPage`.
   - Accept and reject pending bookings using the real `BookingService.updateBooking` API.
 - **Booking receipts**: The same spec navigates to `/dashboard/subscription/billing-history` to:
   - Trigger on-demand receipt generation via `useEnsureReceiptsAndBlock`.

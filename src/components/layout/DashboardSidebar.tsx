@@ -90,7 +90,7 @@ export function DashboardSidebar() {
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Panel', icon: HomeIcon, path: '/dashboard' },
     { id: 'properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/properties' },
-    { id: 'reservas', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/reservas', badgeCount: counts?.pendingBookings && counts.pendingBookings > 0 ? counts.pendingBookings : undefined },
+    { id: 'reservas', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/bookings', badgeCount: counts?.pendingBookings && counts.pendingBookings > 0 ? counts.pendingBookings : undefined },
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.inbox && counts.inbox > 0 ? counts.inbox : undefined },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
