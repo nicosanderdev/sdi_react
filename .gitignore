@@ -45,3 +45,5 @@ e2e/.auth/*.json
 !e2e/.auth/.gitkeep
 
 supabase/snippets/
+
+supabase/public_schema.sql

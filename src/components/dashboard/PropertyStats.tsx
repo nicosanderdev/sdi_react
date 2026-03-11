@@ -3,7 +3,16 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import reportService from './../../services/ReportService'; // Adjust path if needed
 import { Card } from 'flowbite-react';
 
-export function PropertyStats() {
+export interface PropertyStatsProps {
+  /** Time period for charts (default last7days) */
+  period?: string;
+  /** Company filter: undefined = my properties, or company UUID for a specific company */
+  companyId?: string | null;
+}
+
+export function PropertyStats({ period = 'last7days', companyId }: PropertyStatsProps) {
+  const companyFilter = companyId ? { companyId } : {};
+
   // --- Data Fetching for Visits Per Day Chart ---
   const {
     data: dailyVisitsData,
@@ -11,8 +20,8 @@ export function PropertyStats() {
     isError: isErrorDailyVisits,
     error: errorDailyVisits,
   } = useQuery({
-    queryKey: ['dailyVisitsLast7Days'],
-    queryFn: () => reportService.getDailyVisits({ period: 'last7days' }),
+    queryKey: ['dailyVisits', period, companyId],
+    queryFn: () => reportService.getDailyVisits({ period, ...companyFilter }),
   });
 
   const {
@@ -21,17 +30,15 @@ export function PropertyStats() {
     isError: isErrorDailyMessages,
     error: errorDailyMessages,
   } = useQuery({
-    queryKey: ['dailyMessagesLast7Days'],
-    queryFn: () => reportService.getDailyMessages({ period: 'last7days' }),
+    queryKey: ['dailyMessages', period, companyId],
+    queryFn: () => reportService.getDailyMessages({ period, ...companyFilter }),
   });
 
   // --- Data Fetching for Visits By Source Chart ---
   const { data: visitsBySourceData, isLoading: isLoadingVisitsBySource, isError: isErrorVisitsBySource, error: errorVisitsBySource } = useQuery({
-    queryKey: ['visitsBySourceLast7Days'],
-    queryFn: () => reportService.getVisitsBySource({ period: 'last7days' }),
+    queryKey: ['visitsBySource', period, companyId],
+    queryFn: () => reportService.getVisitsBySource({ period, ...companyFilter }),
     select: (response) => response
-    // API should return: [{ source: "Web", visits: 45 }, ...]
-    // We will use 'source' for XAxis and 'visits' for Bar dataKey
   });
 
   // Helper for chart loading/error
@@ -53,10 +60,12 @@ export function PropertyStats() {
         }))
       : dailyVisitsData || [];
 
+  const periodLabel = period === 'last7days' ? 'Últimos 7 días' : period === 'last30days' ? 'Últimos 30 días' : period === 'last90days' ? 'Últimos 90 días' : period === 'thisyear' ? 'Este año' : period;
+
   return (
     <Card>
       <h2 className="text-xl font-bold mb-6">
-        Estadísticas de Visitas (Últimos 7 días)
+        Estadísticas de Visitas ({periodLabel})
       </h2>
       <div className="mb-8">
         <h3 className="text-md font-medium mb-3">

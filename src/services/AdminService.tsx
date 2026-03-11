@@ -66,6 +66,10 @@ export interface AdminDashboardStats {
     avgPropertiesPerUser: number;
     usersWithoutProperties: number;
   };
+  /** Property page view counts (from PropertyVisitLogs). Populated when get_admin_property_views_summary RPC exists. */
+  totalPropertyViews?: number;
+  viewsLast7Days?: number;
+  viewsLast30Days?: number;
 }
 
 // Request parameters
@@ -367,7 +371,8 @@ class AdminService {
   }
 
   /**
-   * Fetch admin dashboard stats for executive overview
+   * Fetch admin dashboard stats for executive overview.
+   * Merges in property views summary from get_admin_property_views_summary when available.
    */
   async getDashboardStats(): Promise<AdminDashboardStats> {
     const { data, error } = await supabase.rpc('get_admin_dashboard_stats', {
@@ -378,7 +383,24 @@ class AdminService {
       throw new Error(`Failed to fetch admin dashboard stats: ${error.message}`);
     }
 
-    return data as AdminDashboardStats;
+    const stats = data as AdminDashboardStats;
+
+    const { data: viewsSummary } = await supabase.rpc('get_admin_property_views_summary', {
+      p_period_7d: 'last7days',
+      p_period_30d: 'last30days'
+    });
+
+    if (viewsSummary && typeof viewsSummary === 'object') {
+      const v = viewsSummary as { totalPropertyViews?: number; viewsLast7Days?: number; viewsLast30Days?: number };
+      return {
+        ...stats,
+        totalPropertyViews: v.totalPropertyViews ?? stats.totalPropertyViews,
+        viewsLast7Days: v.viewsLast7Days ?? stats.viewsLast7Days,
+        viewsLast30Days: v.viewsLast30Days ?? stats.viewsLast30Days
+      };
+    }
+
+    return stats;
   }
 }
 

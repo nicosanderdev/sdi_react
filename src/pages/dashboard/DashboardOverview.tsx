@@ -6,7 +6,7 @@ import { PendingBookingsCard } from '../../components/dashboard/PendingBookingsC
 import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
 import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon } from 'lucide-react';
+import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
 
 // Import services
 import reportService from './../../services/ReportService';
@@ -161,7 +161,7 @@ export function DashboardOverview() {
                 <div className="xl:col-span-2 space-y-6">
                     {/* Analytics Chart */}
                     <DashboardChartCard title="Análisis de Rendimiento">
-                        <PropertyStats />
+                        <PropertyStats period={period} companyId={getCompanyFilter().companyId} />
                     </DashboardChartCard>
 
 

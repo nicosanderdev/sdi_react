@@ -455,76 +455,42 @@ const getDashboardSummary = async (params?: { period: string; companyId?: string
   }
 };*/
 
+const normalizeCompanyIdForRpc = (companyId?: string): string | null => {
+  if (!companyId || companyId === 'all' || companyId === 'all-companies') return null;
+  return companyId;
+};
+
 const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }): Promise<DailyVisit[]> => {
   try {
     const userId = await getCurrentUserId();
     const { startDate, endDate } = parsePeriod(params.period || 'last7days');
 
-    // Get accessible company IDs for filtering
-    let companyIds: string[] = [];
-    if (params.companyId) {
-      // If specific company requested, validate user has access
-      const { data: userCompany } = await supabase
-        .from('UserCompanies')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('CompanyId', params.companyId)
-        .eq('IsDeleted', false)
-        .single();
-
-      if (userCompany) {
-        companyIds = [userCompany.CompanyId];
-      }
-    } else {
-      // Get all accessible companies for the user
-      const { data: userCompanies } = await supabase
-        .from('UserCompanies')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('IsDeleted', false);
-
-      companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-    }
-
-    // Query visits grouped by date
-    const { data: visitsData, error } = await supabase
-      .from('PropertyVisitLogs')
-      .select(`
-        VisitedOnUtc,
-        EstateProperties!inner(
-          OwnerId,
-          Owners!inner(OwnerType, CompanyId)
-        )
-      `)
-      .gte('VisitedOnUtc', startDate.toISOString())
-      .lte('VisitedOnUtc', endDate.toISOString())
-      .eq('EstateProperties.Owners.OwnerType', 'company')
-      .in('EstateProperties.Owners.CompanyId', companyIds);
+    const { data: rows, error } = await supabase.rpc('get_dashboard_views_timeseries', {
+      p_period: params.period || 'last7days',
+      p_company_id: normalizeCompanyIdForRpc(params.companyId),
+      p_user_id: userId
+    });
 
     if (error) throw error;
 
-    // Group visits by date
-    const visitsByDate = (visitsData || []).reduce((acc, visit) => {
-      const date = new Date(visit.VisitedOnUtc);
-      const dateKey = date.toISOString().split('T')[0];
-      acc[dateKey] = (acc[dateKey] || 0) + 1;
+    const countByDate = (rows || []).reduce((acc: Record<string, number>, row: { date: string; count: number }) => {
+      const dateKey = typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0];
+      acc[dateKey] = Number(row.count ?? 0);
       return acc;
-    }, {} as Record<string, number>);
+    }, {});
 
-    // Fill missing dates and format for chart
     const filledData = fillDateRange(
       startDate,
       endDate,
       (date) => date.toISOString().split('T')[0],
-      Object.entries(visitsByDate).map(([date, visits]) => ({ date, count: visits }))
+      Object.entries(countByDate).map(([date, count]) => ({ date, count }))
     );
 
     return filledData.map(item => ({
       date: item.date,
-      dayName: new Date(item.date).toLocaleDateString('es-ES', { weekday: 'short' }), // Spanish day names like "lun", "mar"
+      dayName: new Date(item.date).toLocaleDateString('es-ES', { weekday: 'short' }),
       visits: item.count
     }));
-
   } catch (error: any) {
     console.error('Error fetching daily visits:', error.message);
     throw error;
@@ -602,68 +568,85 @@ const getDailyMessages = async (params: DailyVisitsParams & { companyId?: string
 const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: string }): Promise<VisitSource[]> => {
   try {
     const userId = await getCurrentUserId();
-    const { startDate, endDate } = parsePeriod(params.period || 'last30days');
 
-    // Get accessible company IDs for filtering
-    let companyIds: string[] = [];
-    if (params.companyId) {
-      // If specific company requested, validate user has access
-      const { data: userCompany } = await supabase
-        .from('UserCompanies')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('CompanyId', params.companyId)
-        .eq('IsDeleted', false)
-        .single();
-
-      if (userCompany) {
-        companyIds = [userCompany.CompanyId];
-      }
-    } else {
-      // Get all accessible companies for the user
-      const { data: userCompanies } = await supabase
-        .from('UserCompanies')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('IsDeleted', false);
-
-      companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-    }
-
-    // Query visits grouped by source
-    const { data: visitsData, error } = await supabase
-      .from('PropertyVisitLogs')
-      .select(`
-        Source,
-        EstateProperties!inner(
-          OwnerId,
-          Owners!inner(OwnerType, CompanyId)
-        )
-      `)
-      .gte('VisitedOnUtc', startDate.toISOString())
-      .lte('VisitedOnUtc', endDate.toISOString())
-      .not('Source', 'is', null)
-      .eq('EstateProperties.Owners.OwnerType', 'company')
-      .in('EstateProperties.Owners.CompanyId', companyIds);
+    const { data: rows, error } = await supabase.rpc('get_views_by_source', {
+      p_period: params.period || 'last30days',
+      p_company_id: normalizeCompanyIdForRpc(params.companyId),
+      p_user_id: userId
+    });
 
     if (error) throw error;
 
-    // Group by source and count
-    const sourceCounts = (visitsData || []).reduce((acc, visit) => {
-      const source = visit.Source || 'Unknown';
-      acc[source] = (acc[source] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Convert to array and sort by visits descending
-    const result: VisitSource[] = Object.entries(sourceCounts)
-      .map(([source, visits]) => ({ source, visits }))
-      .sort((a, b) => b.visits - a.visits);
+    const result: VisitSource[] = (rows || []).map((row: { source: string; visits: number }) => ({
+      source: row.source || 'website',
+      visits: Number(row.visits ?? 0)
+    })).sort((a, b) => b.visits - a.visits);
 
     return result;
-
   } catch (error: any) {
     console.error('Error fetching visits by source:', error.message);
+    throw error;
+  }
+};
+
+/** Per-property views: daily breakdown for a single property (requires user access). */
+const getPropertyViews = async (
+  propertyId: string,
+  params: PropertySpecificReportParams
+): Promise<DateCount[]> => {
+  try {
+    const userId = await getCurrentUserId();
+    const { startDate, endDate } = parsePeriod(params.period || 'last30days');
+
+    const { data: rows, error } = await supabase.rpc('get_property_views', {
+      p_property_id: propertyId,
+      p_period: params.period || 'last30days',
+      p_user_id: userId
+    });
+
+    if (error) throw error;
+
+    const countByDate = (rows || []).reduce((acc: Record<string, number>, row: { date: string; count: number }) => {
+      const dateKey = typeof row.date === 'string' ? row.date.split('T')[0] : new Date(row.date).toISOString().split('T')[0];
+      acc[dateKey] = Number(row.count ?? 0);
+      return acc;
+    }, {});
+
+    const filledData = fillDateRange(
+      startDate,
+      endDate,
+      (date) => date.toISOString().split('T')[0],
+      Object.entries(countByDate).map(([date, count]) => ({ date, count }))
+    );
+    return filledData;
+  } catch (error: any) {
+    console.error(`Error fetching property views for ${propertyId}:`, error.message);
+    throw error;
+  }
+};
+
+/** Per-property views by source for a single property (requires user access). */
+const getPropertyViewsBySource = async (
+  propertyId: string,
+  params: PropertySpecificReportParams
+): Promise<VisitSource[]> => {
+  try {
+    const userId = await getCurrentUserId();
+
+    const { data: rows, error } = await supabase.rpc('get_property_views_by_source', {
+      p_property_id: propertyId,
+      p_period: params.period || 'last30days',
+      p_user_id: userId
+    });
+
+    if (error) throw error;
+
+    return (rows || []).map((row: { source: string; visits: number }) => ({
+      source: row.source || 'website',
+      visits: Number(row.visits ?? 0)
+    })).sort((a, b) => b.visits - a.visits);
+  } catch (error: any) {
+    console.error(`Error fetching property views by source for ${propertyId}:`, error.message);
     throw error;
   }
 };
@@ -677,6 +660,8 @@ const reportService = {
   getDailyVisits,
   getVisitsBySource,
   getDailyMessages,
+  getPropertyViews,
+  getPropertyViewsBySource,
 };
 
 export default reportService;

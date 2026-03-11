@@ -10,9 +10,13 @@ import {
   EyeOffIcon,
   XCircleIcon,
   ClockIcon,
-  UserIcon
+  UserIcon,
+  BarChart3Icon
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
+import reportService from '../../../services/ReportService';
 
 interface PropertyDetailModalProps {
   hook: UseAdminPropertiesReturn;
@@ -73,6 +77,8 @@ const getAreaUnitLabel = (unit: number): string => {
   return units[unit] || 'm²';
 };
 
+const PROPERTY_VIEWS_PERIOD = 'last30days';
+
 export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }) => {
   const {
     selectedProperty,
@@ -83,6 +89,25 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
     markPropertyInvalid,
     openDeleteConfirmModal,
   } = hook;
+
+  const { data: propertyViewsData, isLoading: loadingViews } = useQuery({
+    queryKey: ['propertyViews', selectedProperty?.id, PROPERTY_VIEWS_PERIOD],
+    queryFn: () => reportService.getPropertyViews(selectedProperty!.id, { period: PROPERTY_VIEWS_PERIOD }),
+    enabled: !!selectedProperty?.id,
+  });
+
+  const { data: propertyViewsBySource, isLoading: loadingViewsBySource } = useQuery({
+    queryKey: ['propertyViewsBySource', selectedProperty?.id, PROPERTY_VIEWS_PERIOD],
+    queryFn: () => reportService.getPropertyViewsBySource(selectedProperty!.id, { period: PROPERTY_VIEWS_PERIOD }),
+    enabled: !!selectedProperty?.id,
+  });
+
+  const totalViews = propertyViewsData?.reduce((sum, d) => sum + d.count, 0) ?? 0;
+  const chartData = (propertyViewsData ?? []).map(d => ({
+    date: d.date,
+    dateLabel: new Date(d.date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+    visits: d.count,
+  }));
 
   if (!selectedProperty) return null;
 
@@ -336,6 +361,56 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </div>
               </Card>
+            </TabItem>
+
+            {/* Analytics / Views Tab */}
+            <TabItem title="Visitas" icon={BarChart3Icon}>
+              <div className="space-y-6">
+                {loadingViews && loadingViewsBySource ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
+                  </div>
+                ) : (
+                  <>
+                    <Card>
+                      <h4 className="text-md font-semibold mb-2">Vistas (últimos 30 días)</h4>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalViews.toLocaleString('es-ES')}</p>
+                    </Card>
+                    <Card>
+                      <h4 className="text-md font-semibold mb-3">Visitas por día</h4>
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="dateLabel" tick={{ fontSize: 10 }} />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                            <Tooltip formatter={(value: number) => [value, 'Visitas']} />
+                            <Line type="monotone" dataKey="visits" name="Visitas" stroke="#0f9d58" strokeWidth={2} dot={{ r: 3 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                    <Card>
+                      <h4 className="text-md font-semibold mb-3">Visitas por fuente</h4>
+                      {(propertyViewsBySource?.length ?? 0) === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Sin datos por fuente en este período.</p>
+                      ) : (
+                        <div className="h-48">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={propertyViewsBySource ?? []} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis dataKey="source" tick={{ fontSize: 10 }} />
+                              <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                              <Tooltip />
+                              <Bar dataKey="visits" name="Visitas" fill="#0f9d58" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      )}
+                    </Card>
+                  </>
+                )}
+              </div>
             </TabItem>
 
             {/* Description Tab */}
