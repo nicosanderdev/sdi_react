@@ -5,6 +5,8 @@ import {
   PropertyData,
   PublicProperty,
   Amenity,
+  Listing,
+  ListingType,
 } from '../models/properties';
 import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateProperty';
 
@@ -46,15 +48,15 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
       .from('EstateProperties')
       .select(`
         *,
-        EstatePropertyValues!inner(*),
+        Listings!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
         EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
       .eq('IsDeleted', false)
-      .eq('EstatePropertyValues.IsDeleted', false)
-      .eq('EstatePropertyValues.IsPropertyVisible', true)
-      .eq('EstatePropertyValues.IsActive', true);
+      .eq('Listings.IsDeleted', false)
+      .eq('Listings.IsPropertyVisible', true)
+      .eq('Listings.IsActive', true);
 
     // Apply filters
     if (params?.filter?.ownerId) {
@@ -63,7 +65,7 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
 
     if (params?.filter?.status) {
       const statusCode = params.filter.status === 'sale' ? 0 : params.filter.status === 'rent' ? 1 : 0;
-      query = query.eq('EstatePropertyValues.Status', statusCode);
+      query = query.eq('Listings.Status', statusCode);
     }
 
     if (params?.filter?.searchTerm) {
@@ -122,15 +124,15 @@ const getPropertiesInBounds = async (
       .from('EstateProperties')
       .select(`
         *,
-        EstatePropertyValues!inner(*),
+        Listings!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
         EstatePropertyAmenity(Amenities(*))
       `, { count: 'exact' })
       .eq('IsDeleted', false)
-      .eq('EstatePropertyValues.IsDeleted', false)
-      .eq('EstatePropertyValues.IsPropertyVisible', true)
-      .eq('EstatePropertyValues.IsActive', true)
+      .eq('Listings.IsDeleted', false)
+      .eq('Listings.IsPropertyVisible', true)
+      .eq('Listings.IsActive', true)
       .gte('LocationLatitude', swLat)
       .lte('LocationLatitude', neLat)
       .gte('LocationLongitude', swLng)
@@ -143,7 +145,7 @@ const getPropertiesInBounds = async (
 
     if (additionalParams?.filter?.status) {
       const statusCode = additionalParams.filter.status === 'sale' ? 0 : additionalParams.filter.status === 'rent' ? 1 : 0;
-      query = query.eq('EstatePropertyValues.Status', statusCode);
+      query = query.eq('Listings.Status', statusCode);
     }
 
     if (additionalParams?.filter?.searchTerm) {
@@ -190,7 +192,7 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
 // Fetch a single property with public info by its ID
 const getPropertyById = async (id: string, params?: PropertyParams): Promise<PublicProperty> => {
   try {
-    let selectFields = '*, EstatePropertyValues!inner(*)';
+    let selectFields = '*, Listings!inner(*)';
 
     // Include related data based on params
     const includes = [];
@@ -213,9 +215,9 @@ const getPropertyById = async (id: string, params?: PropertyParams): Promise<Pub
       .select(selectFields)
       .eq('Id', id)
       .eq('IsDeleted', false)
-      .eq('EstatePropertyValues.IsDeleted', false)
-      .eq('EstatePropertyValues.IsPropertyVisible', true)
-      .eq('EstatePropertyValues.IsActive', true)
+      .eq('Listings.IsDeleted', false)
+      .eq('Listings.IsPropertyVisible', true)
+      .eq('Listings.IsActive', true)
       .single();
 
     if (error) {
@@ -268,7 +270,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
       .select(`
         *,
         Owners!inner(OwnerType, MemberId, CompanyId),
-        EstatePropertyValues(*),
+        Listings(*),
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
@@ -370,7 +372,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
       .select(`
         *,
         Owners!inner(OwnerType, MemberId, CompanyId),
-        EstatePropertyValues(*),
+        Listings(*),
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
@@ -417,7 +419,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
       const statusCode = params.filter.status === 'sale' ? 0 : params.filter.status === 'rent' ? 1 :
                         params.filter.status === 'reserved' ? 2 : params.filter.status === 'sold' ? 3 :
                         params.filter.status === 'unavailable' ? 4 : 0;
-      query = query.eq('EstatePropertyValues.Status', statusCode);
+      query = query.eq('Listings.Status', statusCode);
     }
 
     if (params?.filter?.searchTerm) {
@@ -1061,12 +1063,12 @@ const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
     // Count all visible, active properties owned by this member
     const { count, error } = await supabase
       .from('EstateProperties')
-      .select('*, EstatePropertyValues!inner(*)', { count: 'exact', head: true })
+      .select('*, Listings!inner(*)', { count: 'exact', head: true })
       .eq('OwnerId', member.Id)
       .eq('IsDeleted', false)
-      .eq('EstatePropertyValues.IsDeleted', false)
-      .eq('EstatePropertyValues.IsPropertyVisible', true)
-      .eq('EstatePropertyValues.IsActive', true);
+      .eq('Listings.IsDeleted', false)
+      .eq('Listings.IsPropertyVisible', true)
+      .eq('Listings.IsActive', true);
 
     if (error) throw error;
 

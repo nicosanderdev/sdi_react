@@ -44,6 +44,9 @@ export const propertyFormSchema = z.object({
   type: z.enum(['house', 'apartment', 'commercial', 'land', 'other'], {
     errorMap: () => ({ message: 'El tipo de propiedad es requerido.' }),
   }),
+  // end-purpose for this property (optional on create)
+  propertyType: z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']).optional(),
+  // structural / infrastructure
   areaValue: z.coerce.number().min(1, 'El área debe ser al menos 1.'),
   areaUnit: z.enum(['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'], {
     errorMap: () => ({ message: 'La unidad de área es requerida.' }),
@@ -52,11 +55,17 @@ export const propertyFormSchema = z.object({
   bathrooms: z.coerce.number().min(0),
   hasGarage: z.boolean(),
   garageSpaces: z.coerce.number().int().min(0),
+  hasLaundryRoom: z.boolean().optional(),
+  hasPool: z.boolean().optional(),
+  hasBalcony: z.boolean().optional(),
+  isFurnished: z.boolean().optional(),
+  capacity: z.coerce.number().int().min(1).optional(),
 
   // --- Values (Step 3) ---
   description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
   availableFrom: z.string().min(1, 'La fecha de disponibilidad es requerida.'),
   // price and status
+  listingType: z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']).optional(),
   currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']),
   salePrice: z.string().optional(),
   rentPrice: z.string().optional(),
@@ -145,17 +154,24 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       // --- Description (Step 2) ---
       title: '',
       type: undefined,
+      propertyType: undefined,
       areaValue: 0,
       areaUnit: undefined,
       bedrooms: 1,
       bathrooms: 1,
       hasGarage: false,
       garageSpaces: 0,
+      hasLaundryRoom: false,
+      hasPool: false,
+      hasBalcony: false,
+      isFurnished: false,
+      capacity: 1,
 
       // --- Values (Step 3) ---
       description: '',
       availableFrom: new Date().toISOString().split('T')[0],
       currency: 'USD',
+      listingType: undefined,
       salePrice: '',
       rentPrice: '',
       hasCommonExpenses: false,

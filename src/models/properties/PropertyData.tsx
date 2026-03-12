@@ -4,6 +4,45 @@ import { PropertyVideo } from "./PropertyVideo";
 import { Amenity } from "./Amenity";
 import { EstatePropertyValues } from "./EstatePropertyValues";
 
+export type PropertyType =
+  | 'SummerRent'
+  | 'EventVenue'
+  | 'AnnualRent'
+  | 'RealEstate';
+
+export type LocationCategory = 'rural' | 'city' | 'near_shore';
+
+export type ViewType = 'city' | 'mountain' | 'rural' | 'sea';
+
+export type ListingType = PropertyType;
+
+export interface Listing {
+  id: string;
+  estatePropertyId: string;
+  listingType: ListingType;
+  description?: string;
+  availableFrom: Date;
+  capacity?: number;
+  currency: number;
+  salePrice?: number;
+  rentPrice?: number;
+  hasCommonExpenses: boolean;
+  commonExpensesValue?: number;
+  isElectricityIncluded?: boolean;
+  isWaterIncluded?: boolean;
+  isPriceVisible: boolean;
+  status: number;
+  isActive: boolean;
+  isPropertyVisible: boolean;
+  isFeatured: boolean;
+  blockedForBooking?: boolean;
+  isDeleted: boolean;
+  createdAt: Date;
+  createdBy?: string;
+  lastModified?: Date;
+  lastModifiedBy?: string;
+}
+
 export interface PropertyData {
   id: string;
   // address
@@ -27,6 +66,13 @@ export interface PropertyData {
   bathrooms: number;
   hasGarage: boolean;
   garageSpaces: number;
+  // end-purpose type and structural/infrastructure flags
+  propertyType?: PropertyType;
+  hasLaundryRoom?: boolean;
+  hasPool?: boolean;
+  hasBalcony?: boolean;
+  isFurnished?: boolean;
+  capacity?: number;
   // other info
   //relationships
   mainImageId?: string;
@@ -34,6 +80,8 @@ export interface PropertyData {
   propertyDocuments?: PropertyDocument[];
   propertyVideos: PropertyVideo[];
   amenities: Amenity[];
+  locationCategory?: LocationCategory;
+  viewType?: ViewType;
   // estate property values
   description?: string;
   availableFrom: Date;
@@ -57,4 +105,6 @@ export interface PropertyData {
   
   // Version history
   estatePropertyValues?: EstatePropertyValues[];
+  // Listings history (one active per type, others historical)
+  listings?: Listing[];
 }
