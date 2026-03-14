@@ -4,7 +4,7 @@ import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import apiClient from './AxiosClient'; // Keep for Stripe operations
 import { supabase } from '../config/supabase';
-import { mapDbToSubscription, getCurrentUserId } from './SupabaseHelpers';
+import { mapDbToSubscription, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
 
 /**
@@ -96,6 +96,8 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
     try {
         const userId = await getCurrentUserId();
 
+        const member = await getMemberByUserId(userId);
+
         // First try to find subscription by user ownership
         const { data: userSubscriptionData, error } = await supabase
             .from('Subscriptions')
@@ -115,17 +117,21 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
 
         // If no user-owned subscription, try company-owned subscriptions where user is a member
         if (subscriptionData.length === 0) {
-            const { data: userCompanies, error: companiesError } = await supabase
-                .from('UserCompanies')
-                .select('CompanyId')
-                .eq('MemberId', userId)
-                .eq('IsDeleted', false);
+            let companyIds: string[] = [];
 
-            if (companiesError) throw companiesError;
+            if (member) {
+                const { data: userCompanies, error: companiesError } = await supabase
+                    .from('UserCompanies')
+                    .select('CompanyId')
+                    .eq('MemberId', member.Id)
+                    .eq('IsDeleted', false);
 
-            const companyIds = (userCompanies ?? [])
-                .map(uc => uc.CompanyId)
-                .filter(Boolean);
+                if (companiesError) throw companiesError;
+
+                companyIds = (userCompanies ?? [])
+                    .map(uc => uc.CompanyId)
+                    .filter(Boolean);
+            }
 
             if (companyIds.length > 0) {
                 const { data: companySubs, error: companyError } = await supabase
@@ -319,6 +325,8 @@ const getBillingHistory = async (filters?: {
     try {
         const userId = await getCurrentUserId();
 
+        const member = await getMemberByUserId(userId);
+
         // First get the user's subscription(s)
         const { data: userSubscriptionData, error: subError } = await supabase
             .from('Subscriptions')
@@ -333,17 +341,21 @@ const getBillingHistory = async (filters?: {
 
         // If no user-owned subscription, try company-owned subscriptions
         if (subscriptionIds.length === 0) {
-            const { data: userCompanies, error: companiesError } = await supabase
-                .from('UserCompanies')
-                .select('CompanyId')
-                .eq('MemberId', userId)
-                .eq('IsDeleted', false);
+            let companyIds: string[] = [];
 
-            if (companiesError) throw companiesError;
+            if (member) {
+                const { data: userCompanies, error: companiesError } = await supabase
+                    .from('UserCompanies')
+                    .select('CompanyId')
+                    .eq('MemberId', member.Id)
+                    .eq('IsDeleted', false);
 
-            const companyIds = (userCompanies ?? [])
-                .map(uc => uc.CompanyId)
-                .filter(Boolean);
+                if (companiesError) throw companiesError;
+
+                companyIds = (userCompanies ?? [])
+                    .map(uc => uc.CompanyId)
+                    .filter(Boolean);
+            }
 
             if (companyIds.length > 0) {
                 const { data: companySubs, error: companyError } = await supabase
@@ -431,7 +443,8 @@ const getPlans = async (): Promise<PlanData[]> => {
             isActive: plan.IsActive,
             publishedProperties: plan.MaxPublishedProperties || 0,
             totalProperties: plan.MaxProperties || 0,
-            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined
+            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+            propertyType: plan.PropertyType as any
         })) || [];
 
     } catch (error: any) {
@@ -567,16 +580,21 @@ const getSubscriptionStatus = async (user?: any): Promise<{
     try {
         const userId = await getCurrentUserId(user);
 
-        // Get user companies
-        const { data: userCompanies, error: companiesError } = await supabase
-            .from('UserCompanies')
-            .select('CompanyId')
-            .eq('MemberId', userId)
-            .eq('IsDeleted', false);
+        const member = await getMemberByUserId(userId);
 
-        if (companiesError) throw companiesError;
+        let companyIds: string[] = [];
 
-        const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+        if (member) {
+            const { data: userCompanies, error: companiesError } = await supabase
+                .from('UserCompanies')
+                .select('CompanyId')
+                .eq('MemberId', member.Id)
+                .eq('IsDeleted', false);
+
+            if (companiesError) throw companiesError;
+
+            companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
+        }
         const hasCompanyAccess = companyIds.length > 0;
 
         // Get subscription (same logic as getCurrentSubscription)

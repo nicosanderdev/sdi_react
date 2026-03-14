@@ -39,7 +39,7 @@ interface UserCompaniesRow {
   Id: string;
   MemberId: string;
   CompanyId: string;
-  Role: number;
+  Role: string | number;
   AddedBy: string;
   JoinedAt: string;
   IsDeleted: boolean;
@@ -374,7 +374,8 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     isActive: subscription.Plans.IsActive,
     publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
     totalProperties: subscription.Plans.MaxProperties || 0,
-    bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined
+    bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
+    propertyType: subscription.Plans.PropertyType as any
   };
 
   return {
@@ -390,7 +391,9 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     currentPeriodEnd: new Date(subscription.CurrentPeriodEnd),
     cancelAtPeriodEnd: subscription.CancelAtPeriodEnd,
     createdAt: new Date(subscription.CreatedAt),
-    updatedAt: new Date(subscription.UpdatedAt)
+    updatedAt: new Date(subscription.UpdatedAt),
+    propertyType: plan.propertyType,
+    propertyTypes: plan.propertyType ? [plan.propertyType] : []
   };
 };
 
@@ -432,21 +435,45 @@ export const mapDbToCompanyUser = (userCompany: UserCompaniesRow & { Members: Me
 };
 
 /**
- * Maps role number from UserCompanies to string role
+ * Maps role value from UserCompanies to string role.
+ * Supports both numeric (legacy) and string-based roles.
  */
-export const mapRoleNumberToString = (roleNumber: number): string => {
-  // TODO: Define the role number to string mapping based on your enum
-  // For now, return the number as string
-  return roleNumber.toString();
+export const mapRoleNumberToString = (role: number | string): string => {
+  if (typeof role === 'string') {
+    const normalized = role.trim().toLowerCase();
+    if (normalized === 'admin') return 'Admin';
+    if (normalized === 'manager') return 'Manager';
+    if (normalized === 'member') return 'Member';
+
+    // If it's a numeric string like "2" or "1", fall through to numeric mapping
+    const parsed = parseInt(role, 10);
+    if (!isNaN(parsed)) {
+      role = parsed;
+    } else {
+      return 'Member';
+    }
+  }
+
+  switch (role) {
+    case 2:
+      return 'Admin';
+    case 1:
+      return 'Manager';
+    default:
+      return 'Member';
+  }
 };
 
 /**
- * Maps string role to role number for UserCompanies
+ * Maps string role to role number for UserCompanies (for legacy numeric storage).
  */
 export const mapRoleStringToNumber = (roleString: string): number => {
-  // TODO: Define the string role to number mapping based on your enum
-  // For now, try to parse as number
-  const parsed = parseInt(roleString);
+  const normalized = roleString.trim().toLowerCase();
+  if (normalized === 'admin') return 2;
+  if (normalized === 'manager') return 1;
+  if (normalized === 'member') return 0;
+
+  const parsed = parseInt(roleString, 10);
   return isNaN(parsed) ? 0 : parsed;
 };
 

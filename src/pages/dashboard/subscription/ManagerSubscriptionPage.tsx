@@ -20,6 +20,7 @@ import { BillingHistoryData } from '../../../models/subscriptions/BillingHistory
 import { Button, Card, Spinner, Alert } from 'flowbite-react';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
+import type { PropertyType } from '../../../models/properties/PropertyData';
 
 export function ManagerSubscriptionPage() {
     const user = useSelector((state: RootState) => state.user.profile);
@@ -28,6 +29,8 @@ export function ManagerSubscriptionPage() {
     const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [selectedPropertyType, setSelectedPropertyType] = useState<PropertyType | 'all'>('all');
 
     // Get property quota data
     const {
@@ -63,6 +66,24 @@ export function ManagerSubscriptionPage() {
         };
         fetchBillingHistory();
     }, []);
+
+    const getPropertyTypeLabel = (type: PropertyType | 'all') => {
+        if (type === 'all') return 'Todas';
+        switch (type) {
+            case 'RealEstate': return 'En Venta';
+            case 'AnnualRent': return 'En Alquiler';
+            case 'EventVenue': return 'Locales';
+            case 'SummerRent': return 'Alquileres de verano';
+            default: return type;
+        }
+    };
+
+    const availablePropertyTypes: PropertyType[] =
+        subscription?.propertyTypes && subscription.propertyTypes.length > 0
+            ? subscription.propertyTypes
+            : subscription?.propertyType
+                ? [subscription.propertyType]
+                : [];
 
     // Show loading state
     if (isLoading) {
@@ -164,6 +185,25 @@ export function ManagerSubscriptionPage() {
                         <p>Gestiona tu plan {subscription?.plan.name ?? ''}</p>
                     </div>
                 </div>
+                {availablePropertyTypes.length > 0 && (
+                    <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tipo de propiedad
+                        </label>
+                        <select
+                            className="mt-1 block w-full md:w-64 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                            value={selectedPropertyType}
+                            onChange={(e) => setSelectedPropertyType(e.target.value as PropertyType | 'all')}
+                        >
+                            <option value="all">Todas</option>
+                            {availablePropertyTypes.map((t) => (
+                                <option key={t} value={t}>
+                                    {getPropertyTypeLabel(t)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

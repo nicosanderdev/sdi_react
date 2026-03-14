@@ -5,7 +5,7 @@ import { CompanyUser } from '../models/companies/CompanyUser';
 import { CompanyInfo } from '../models/companies/CompanyInfo';
 import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyRequest';
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
-import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId } from './SupabaseHelpers';
+import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 
 // Company role constants based on Supabase company_roles enum
 // Assuming enum values: 'Admin', 'Manager', 'Member'
@@ -31,20 +31,32 @@ const ENDPOINTS = {
 /**
  * Fetches the current user's company information
  */
-const getCompanyInfo = async (): Promise<CompanyInfo> => {
+const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
   try {
     const userId = await getCurrentUserId();
 
-    // Get the user's primary company (first one they joined)
-    const { data: userCompany, error: ucError } = await supabase
+    const member = await getMemberByUserId(userId);
+    if (!member) {
+      throw new Error('User is not a member of any company');
+    }
+
+    // Get the user's company membership (optionally for a specific company)
+    let query = supabase
       .from('UserCompanies')
       .select(`
         *,
         Companies (*)
       `)
-      .eq('MemberId', userId)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
+      .eq('MemberId', member.Id)
+      .eq('IsDeleted', false);
+
+    if (companyId) {
+      query = query.eq('CompanyId', companyId);
+    } else {
+      query = query.order('JoinedAt', { ascending: true });
+    }
+
+    const { data: userCompany, error: ucError } = await query
       .limit(1)
       .single();
 
@@ -80,6 +92,7 @@ const createCompany = async (companyData: {
 }): Promise<CompanyInfo> => {
   try {
     const userId = await getCurrentUserId();
+    const nowIso = new Date().toISOString();
 
     // Get current user profile for billing email
     const { data: userProfile, error: profileError } = await supabase
@@ -99,7 +112,7 @@ const createCompany = async (companyData: {
         Description: companyData.description || '',
         BillingContactUserId: userId,
         BillingEmail: companyData.billingEmail || '', // Will be updated after user provides it
-        CreatedAt: new Date().toISOString(),
+        CreatedAt: nowIso,
         LogoUrl: '',
         BannerUrl: '',
         Street: '',
@@ -109,7 +122,11 @@ const createCompany = async (companyData: {
         PostalCode: '',
         Country: '',
         Phone: '',
-        IsDeleted: false
+        IsDeleted: false,
+        Created: nowIso,
+        CreatedBy: userId,
+        LastModified: nowIso,
+        LastModifiedBy: userId
       })
       .select()
       .single();
@@ -141,25 +158,40 @@ const createCompany = async (companyData: {
 /**
  * Fetches the list of users in the company
  */
-const getCompanyUsers = async (): Promise<CompanyUser[]> => {
+const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[]> => {
   try {
     const userId = await getCurrentUserId();
 
-    // First get the user's company
-    const { data: userCompany, error: ucError } = await supabase
-      .from('UserCompanies')
-      .select('CompanyId')
-      .eq('MemberId', userId)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
-      .limit(1)
-      .single();
+    const member = await getMemberByUserId(userId);
+    if (!member) {
+      return [];
+    }
 
-    if (ucError) {
-      if (ucError.code === 'PGRST116') {
-        return []; // User not in any company
+    // Determine which company to load users for
+    let companyId = companyIdOverride;
+
+    if (!companyId) {
+      const { data: userCompany, error: ucError } = await supabase
+        .from('UserCompanies')
+        .select('CompanyId')
+        .eq('MemberId', member.Id)
+        .eq('IsDeleted', false)
+        .order('JoinedAt', { ascending: true })
+        .limit(1)
+        .single();
+
+      if (ucError) {
+        if ((ucError as any).code === 'PGRST116') {
+          return []; // User not in any company
+        }
+        throw ucError;
       }
-      throw ucError;
+
+      companyId = userCompany.CompanyId;
+    }
+
+    if (!companyId) {
+      return [];
     }
 
     // Get all users in this company
@@ -169,7 +201,7 @@ const getCompanyUsers = async (): Promise<CompanyUser[]> => {
         *,
         Members (*)
       `)
-      .eq('CompanyId', userCompany.CompanyId)
+      .eq('CompanyId', companyId)
       .eq('IsDeleted', false)
       .eq('Members.IsDeleted', false);
 
@@ -238,11 +270,16 @@ const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promi
   try {
     const userId = await getCurrentUserId();
 
+    const member = await getMemberByUserId(userId);
+    if (!member) {
+      throw new Error('Insufficient permissions to update company profile');
+    }
+
     // Get the user's company
     const { data: userCompany, error: ucError } = await supabase
       .from('UserCompanies')
       .select('CompanyId, Role')
-      .eq('MemberId', userId)
+      .eq('MemberId', member.Id)
       .eq('IsDeleted', false)
       .order('JoinedAt', { ascending: true })
       .limit(1)
@@ -300,6 +337,10 @@ const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promi
 const uploadCompanyLogo = async (formData: FormData): Promise<{ logoUrl: string }> => {
   try {
     const userId = await getCurrentUserId();
+    const member = await getMemberByUserId(userId);
+    if (!member) {
+      throw new Error('User is not a member of any company');
+    }
     const file = formData.get('logo') as File;
 
     if (!file) {
@@ -310,7 +351,7 @@ const uploadCompanyLogo = async (formData: FormData): Promise<{ logoUrl: string 
     const { data: userCompany, error: ucError } = await supabase
       .from('UserCompanies')
       .select('CompanyId')
-      .eq('MemberId', userId)
+      .eq('MemberId', member.Id)
       .eq('IsDeleted', false)
       .order('JoinedAt', { ascending: true })
       .limit(1)
@@ -365,6 +406,10 @@ const uploadCompanyLogo = async (formData: FormData): Promise<{ logoUrl: string 
 const uploadCompanyBanner = async (formData: FormData): Promise<{ bannerUrl: string }> => {
   try {
     const userId = await getCurrentUserId();
+    const member = await getMemberByUserId(userId);
+    if (!member) {
+      throw new Error('User is not a member of any company');
+    }
     const file = formData.get('banner') as File;
 
     if (!file) {
@@ -375,7 +420,7 @@ const uploadCompanyBanner = async (formData: FormData): Promise<{ bannerUrl: str
     const { data: userCompany, error: ucError } = await supabase
       .from('UserCompanies')
       .select('CompanyId')
-      .eq('MemberId', userId)
+      .eq('MemberId', member.Id)
       .eq('IsDeleted', false)
       .order('JoinedAt', { ascending: true })
       .limit(1)

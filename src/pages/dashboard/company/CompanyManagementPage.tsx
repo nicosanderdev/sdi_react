@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Spinner, Alert, Button, Card } from 'flowbite-react';
 import { AlertCircle, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { CompanyInfoCard } from '../../../components/company/CompanyInfoCard';
 import { CompanyUsersList } from '../../../components/company/CompanyUsersList';
@@ -12,9 +13,17 @@ import subscriptionService from '../../../services/SubscriptionService';
 import propertyService from '../../../services/PropertyService';
 import messageService from '../../../services/MessageService';
 import reportService from '../../../services/ReportService';
+import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../../store/slices/userSlice';
+import { CompanyRoles } from '../../../models/CompanyRoles';
 
 export function CompanyManagementPage() {
   const navigate = useNavigate();
+
+  const userCompanies = useSelector(selectUserCompanies);
+  const hasCompanies = useSelector(selectHasCompanies);
+  const userProfile = useSelector(selectUserProfile);
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
 
   // Fetch company info
   const {
@@ -23,10 +32,13 @@ export function CompanyManagementPage() {
     error: companyInfoError,
     refetch: refetchCompanyInfo,
   } = useQuery({
-    queryKey: ['companyInfo'],
+    queryKey: ['companyInfo', selectedCompanyId],
     queryFn: async () => {
       const [info, subscription, propertiesData, messageCounts, totalsData] = await Promise.all([
-        companyService.getCompanyInfo().catch(() => null),
+        (selectedCompanyId
+          ? companyService.getCompanyInfo(selectedCompanyId)
+          : companyService.getCompanyInfo()
+        ).catch(() => null),
         subscriptionService.getCurrentSubscription().catch(() => null),
         propertyService.getOwnersProperties({ pageSize: 1 }).catch(() => null),
         messageService.getMessageCounts().catch(() => null),
@@ -74,8 +86,8 @@ export function CompanyManagementPage() {
     error: usersError,
     refetch: refetchUsers,
   } = useQuery({
-    queryKey: ['companyUsers'],
-    queryFn: () => companyService.getCompanyUsers(),
+    queryKey: ['companyUsers', selectedCompanyId],
+    queryFn: () => companyService.getCompanyUsers(selectedCompanyId),
   });
 
   // Fetch company subscription
@@ -103,6 +115,21 @@ export function CompanyManagementPage() {
   const hasNoCompany = error && error instanceof Error && error.message.includes('not a member of any company');
   const hasCompanyButNoSubscription = companyInfo && !isLoadingSubscription && !companySubscription;
 
+  useEffect(() => {
+    if (!hasCompanies) {
+      setSelectedCompanyId(undefined);
+      return;
+    }
+
+    if (!selectedCompanyId) {
+      if (companyInfo?.id) {
+        setSelectedCompanyId(companyInfo.id);
+      } else if (userCompanies.length > 0) {
+        setSelectedCompanyId(userCompanies[0].id);
+      }
+    }
+  }, [hasCompanies, companyInfo?.id, userCompanies, selectedCompanyId]);
+
   // Redirect to company subscription flow if no company
   useEffect(() => {
     if (hasNoCompany) {
@@ -110,9 +137,55 @@ export function CompanyManagementPage() {
     }
   }, [hasNoCompany, navigate]);
 
+  const selectedCompany =
+    selectedCompanyId && userCompanies
+      ? userCompanies.find((c) => c.id === selectedCompanyId)
+      : null;
+
+  const isGlobalAdmin = userProfile?.roles?.includes(CompanyRoles.Admin) ?? false;
+
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
-      <h1 className="text-2xl font-bold mb-6">Gestión de empresa</h1>
+      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <h1 className="text-2xl font-bold">Gestión de empresa</h1>
+        <div className="flex flex-col items-start md:items-end gap-2">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            {hasCompanies && selectedCompany ? (
+              isGlobalAdmin ? (
+                <>
+                  Estás gestionando la empresa:{' '}
+                  <span className="font-semibold">{selectedCompany.name}</span> (Administrador)
+                </>
+              ) : (
+                <>
+                  Estás viendo la empresa:{' '}
+                  <span className="font-semibold">{selectedCompany.name}</span> (sin permisos de administración)
+                </>
+              )
+            ) : (
+              'No perteneces a ninguna empresa.'
+            )}
+          </p>
+          {hasCompanies && userCompanies.length > 1 && (
+            <div className="w-full md:w-64">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                Empresa actual
+              </label>
+              <select
+                className="mt-1 block w-full rounded-md border border-gray-300 bg-white dark:bg-gray-800 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={selectedCompanyId || userCompanies[0]?.id || ''}
+                onChange={(e) => setSelectedCompanyId(e.target.value || undefined)}
+              >
+                {userCompanies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
 
       {hasCompanyButNoSubscription ? (
         /* Subscription Required Card */
@@ -176,34 +249,40 @@ export function CompanyManagementPage() {
                         <p className="text-sm text-gray-600">Gestiona el plan de suscripción de tu empresa</p>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => navigate('/dashboard/company/subscription')}
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                    >
-                      Gestionar Suscripción
-                    </Button>
+                    {isGlobalAdmin && (
+                      <Button
+                        onClick={() => navigate('/dashboard/company/subscription')}
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                      >
+                        Gestionar Suscripción
+                      </Button>
+                    )}
                   </div>
                 </Card>
               </section>
 
               {/* Company Profile Editor */}
-              <section>
-                <CompanyProfileEditor
-                  companyInfo={enhancedCompanyInfo}
-                  isLoading={isLoadingCompanyInfo}
-                  onUpdate={handleRefresh}
-                />
-              </section>
+              {isGlobalAdmin ? (
+                <section>
+                  <CompanyProfileEditor
+                    companyInfo={enhancedCompanyInfo}
+                    isLoading={isLoadingCompanyInfo}
+                    onUpdate={handleRefresh}
+                  />
+                </section>
+              ) : null}
 
               {/* Company Users Management */}
-              <section>
-                <CompanyUsersList
-                  users={companyUsers}
-                  isLoading={isLoadingUsers}
-                  error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
-                  onRefresh={handleRefresh}
-                />
-              </section>
+              {isGlobalAdmin ? (
+                <section>
+                  <CompanyUsersList
+                    users={companyUsers}
+                    isLoading={isLoadingUsers}
+                    error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
+                    onRefresh={handleRefresh}
+                  />
+                </section>
+              ) : null}
             </>
           )}
         </>

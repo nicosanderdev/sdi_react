@@ -1,4 +1,5 @@
 import { PlanKey } from "./PlanKey";
+import type { PropertyType } from "../properties/PropertyData";
 
 export interface PlanData {
     id: string;
@@ -15,4 +16,6 @@ export interface PlanData {
     totalProperties: number; // MaxProperties from database
     /** Minimum unpaid commission sum to create a receipt (Free tier). Set per plan in env. */
     bookingReceiptMinimumAmount?: number | null;
+    /** Estate property type this plan applies to (RealEstate, AnnualRent, EventVenue, SummerRent). */
+    propertyType?: PropertyType;
 }

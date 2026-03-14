@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, Button, Label, TextInput, Textarea, Alert, ModalHeader, ModalBody } from 'flowbite-react';
+import { Modal, Button, Label, TextInput, Textarea, Alert, ModalHeader, ModalBody, Spinner } from 'flowbite-react';
 import { Building2, AlertCircle, CheckCircle } from 'lucide-react';
 import companyService from '../../services/CompanyService';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CreateCompanyModalProps {
   show: boolean;
@@ -10,6 +11,8 @@ interface CreateCompanyModalProps {
 }
 
 export function CreateCompanyModal({ show, onClose, onSuccess }: CreateCompanyModalProps) {
+  const { user } = useAuth();
+  const userEmail = user?.email ?? '';
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -128,15 +131,27 @@ export function CreateCompanyModal({ show, onClose, onSuccess }: CreateCompanyMo
 
           <div>
             <Label htmlFor="billingEmail" value="Correo de Facturación *" />
-            <TextInput
-              id="billingEmail"
-              type="email"
-              placeholder="correo@empresa.com"
-              value={formData.billingEmail}
-              onChange={(e) => handleInputChange('billingEmail', e.target.value)}
-              required
-              disabled={isLoading || success}
-            />
+            <div className="flex gap-2 mt-1">
+              <TextInput
+                id="billingEmail"
+                type="email"
+                className="flex-1"
+                placeholder="correo@empresa.com"
+                value={formData.billingEmail}
+                onChange={(e) => handleInputChange('billingEmail', e.target.value)}
+                required
+                disabled={isLoading || success}
+              />
+              <Button
+                type="button"
+                size="xs"
+                color="light"
+                onClick={() => handleInputChange('billingEmail', userEmail)}
+                disabled={isLoading || success || !userEmail}
+              >
+                Usar mi email
+              </Button>
+            </div>
             <p className="text-xs text-gray-500 mt-1">
               Este correo se utilizará para facturación y comunicaciones importantes
             </p>
@@ -153,9 +168,15 @@ export function CreateCompanyModal({ show, onClose, onSuccess }: CreateCompanyMo
             <Button
               type="submit"
               disabled={isLoading || success}
-              isProcessing={isLoading}
             >
-              {isLoading ? 'Creando...' : 'Crear Compañía'}
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <Spinner size="sm" />
+                  <span>Creando...</span>
+                </div>
+              ) : (
+                'Crear Compañía'
+              )}
             </Button>
           </div>
         </form>

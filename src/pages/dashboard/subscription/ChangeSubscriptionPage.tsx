@@ -101,6 +101,17 @@ export function ChangeSubscriptionPage() {
     
     const displayPlans = [freePlan, proPlan, companyPlan].filter(Boolean) as PlanData[];
 
+    const getPlanPropertyTypeLabel = (plan: PlanData) => {
+        if (!plan.propertyType) return 'Todas las propiedades';
+        switch (plan.propertyType) {
+            case 'RealEstate': return 'En Venta';
+            case 'AnnualRent': return 'En Alquiler';
+            case 'EventVenue': return 'Locales';
+            case 'SummerRent': return 'Alquileres de verano';
+            default: return plan.propertyType;
+        }
+    };
+
     return (
         <div className="max-w-6xl mx-auto p-6">
             {/* Header */}
@@ -268,9 +279,12 @@ export function ChangeSubscriptionPage() {
                                                 <Crown className="w-8 h-8" />
                                             )}
                                         </div>
-                                        <h4 className="text-xl font-bold text-[#1B4965] dark:text-gray-200 mb-2">
+                                        <h4 className="text-xl font-bold text-[#1B4965] dark:text-gray-200 mb-1">
                                             {plan.name}
                                         </h4>
+                                        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-3">
+                                            Tipo de propiedad: {getPlanPropertyTypeLabel(plan)}
+                                        </p>
                                         <div className="mb-4">
                                             <span className="text-4xl font-bold text-[#1B4965] dark:text-gray-200">
                                                 €{plan.monthlyPrice}

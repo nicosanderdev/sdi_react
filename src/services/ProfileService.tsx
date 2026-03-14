@@ -78,7 +78,11 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
     const { data: memberData, error } = await supabase
       .from('Members')
       .select(`
-        *
+        *,
+        UserCompanies (
+          *,
+          Companies (*)
+        )
       `)
       .eq('UserId', userId)
       .eq('IsDeleted', false);
@@ -110,7 +114,7 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
 
     // Map the joined data to ProfileData
     const member = memberData[0]; // Should be single due to UserId unique constraint
-    return mapDbToProfile(member, member.UserCompanies);
+    return mapDbToProfile(member, (member as any).UserCompanies);
 
   } catch (error: any) {
     console.error('Error fetching current user profile:', error.message);
