@@ -30,13 +30,7 @@ export function RecentMessages() {
   });
 
   const handleReply = (messageId: string) => {
-    // For now, let's assume clicking "Reply" just marks it as replied via API
-    // In a real app, this would open a reply interface.
-    // If your API doesn't have a direct "mark as replied",
-    // this button would navigate to a full message view/reply screen.
     console.log(`Replying to message ${messageId} - implement actual reply UI`);
-    // Example if you had a specific "mark as replied" action:
-    // replyMutation.mutate(messageId);
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -48,42 +42,43 @@ export function RecentMessages() {
     }
   };
 
-
   if (isLoading) return <p className="p-6 text-center">Cargando mensajes...</p>;
   if (isError) return <p className="p-6 text-center text-red-500">Error al cargar mensajes: {error?.message}</p>;
 
   return (
-    <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6 h-full">
+    <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm p-4 md:p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-[#1B4965]">Mensajes Recientes</h2>
-        <button className="text-[#62B6CB] text-sm font-medium hover:underline">
-          Ver todos
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Mensajes Recientes</h3>
+        <button className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium">
+          Ver todos →
         </button>
       </div>
-      {recentMessages.length === 0 && <p className="text-gray-500">No hay mensajes recientes.</p>}
+
+      {recentMessages.length === 0 && <p className="text-gray-500 dark:text-gray-400 text-center py-4">No hay mensajes recientes.</p>}
+
       <div className="space-y-4">
         {recentMessages.map((message : Message) => (
-          <div key={message.id} className={`p-3 rounded-lg ${message.isRead ? 'bg-[#FDFFFC]' : 'bg-[#BEE9E8]/20'} border border-gray-100`}>
+          <div key={message.id} className={`p-4 rounded-lg border ${message.isRead ? 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800' : 'border-green-100 dark:border-green-900 bg-green-50 dark:bg-green-900/20'}`}>
             <div className="flex items-start">
-              <div className="h-10 w-10 rounded-full bg-[#BEE9E8] flex items-center justify-center text-[#1B4965] mr-3 shrink-0">
-                <UserIcon size={20} />
+              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3">
+                <UserIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
               </div>
-              <div className="flex-1 min-w-0"> {/* Added min-w-0 for flex truncation */}
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-[#1B4965] truncate" title={message.senderName}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 truncate" title={message.senderName}>
                     {message.senderName || 'Desconocido'}
-                  </h3>
-                  <span className="text-xs text-gray-500 shrink-0 ml-2">{formatTimeAgo(message.createdAt)}</span>
+                  </h4>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0 ml-2">{formatTimeAgo(message.createdAt)}</span>
                 </div>
-                <p className="text-sm text-gray-600 mt-1 truncate" title={message.propertyTitle}>
+                <p className="text-sm text-gray-600 dark:text-gray-400 truncate mb-2" title={message.propertyTitle}>
                     Propiedad: {message.propertyTitle || 'N/A'}
                 </p>
-                <p className="text-sm mt-1 break-words">{message.snippet}</p> {/* Use break-words for long messages */}
+                <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{message.snippet}</p>
               </div>
             </div>
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-end mt-3">
               {message.isReplied ? (
-                <span className="text-xs flex items-center text-green-600">
+                <span className="text-xs flex items-center text-green-600 dark:text-green-400">
                   <CheckCircleIcon size={14} className="mr-1" />
                   Respondido
                 </span>
@@ -91,7 +86,7 @@ export function RecentMessages() {
                 <button
                   onClick={() => handleReply(message.id)}
                   disabled={isLoading && replyMutation.variables === message.id}
-                  className="text-xs bg-[#62B6CB] text-[#FDFFFC] px-3 py-1 rounded-md hover:bg-[#539BAF] transition-colors flex items-center"
+                  className="text-xs bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-full transition-colors flex items-center shadow-sm"
                 >
                   <MessageSquareIcon size={14} className="mr-1" />
                   Responder

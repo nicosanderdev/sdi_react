@@ -24,3 +24,26 @@ dist-ssr
 *.sw?
 
 Dockerfile
+
+.env.prod
+
+sql/
+
+supabase/.env
+
+supabase/functions/.env
+
+tasks/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+e2e/.auth/*.json
+!e2e/.auth/.gitkeep
+
+supabase/snippets/
+
+supabase/public_schema.sql

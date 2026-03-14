@@ -1,5 +1,181 @@
-/* PLEASE NOTE: THESE TAILWIND IMPORTS SHOULD NEVER BE DELETED */
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
-/* DO NOT DELETE THESE TAILWIND IMPORTS, OTHERWISE THE STYLING WILL NOT RENDER AT ALL */
+@import 'tailwindcss';
+@plugin 'flowbite-react/plugin/tailwindcss';
+@source '../.flowbite-react/class-list.json';
+@import "flowbite/src/themes/default";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #0f9d58;
+  --color-primary-600: #0d8a4d;
+  --color-primary-700: #0a6b3d;
+  --color-primary-800: #085231;
+  --color-primary-900: #06401f;
+  --color-primary-950: #03200f;
+
+  /* Foreground (text) colors for contrast */
+  --color-primary-50-foreground: #03200f;
+  --color-primary-100-foreground: #03200f;
+  --color-primary-200-foreground: #03200f;
+  --color-primary-300-foreground: #03200f;
+  --color-primary-400-foreground: #03200f;
+  --color-primary-500-foreground: #ffffff;
+  --color-primary-600-foreground: #ffffff;
+  --color-primary-700-foreground: #ffffff;
+  --color-primary-800-foreground: #ffffff;
+  --color-primary-900-foreground: #ffffff;
+  --color-primary-950-foreground: #ffffff;
+
+  /* Secondary color palette - Teal/Emerald tones */
+  --color-secondary-50: #f0fdfa;
+  --color-secondary-100: #ccfbf1;
+  --color-secondary-200: #99f6e4;
+  --color-secondary-300: #5eead4;
+  --color-secondary-400: #2dd4bf;
+  --color-secondary-500: #14b8a6;
+  --color-secondary-600: #0d9488;
+  --color-secondary-700: #0f766e;
+  --color-secondary-800: #115e59;
+  --color-secondary-900: #134e4a;
+  --color-secondary-950: #042f2e;
+
+  /* Foreground (text) colors for secondary contrast */
+  --color-secondary-50-foreground: #042f2e;
+  --color-secondary-100-foreground: #042f2e;
+  --color-secondary-200-foreground: #042f2e;
+  --color-secondary-300-foreground: #042f2e;
+  --color-secondary-400-foreground: #042f2e;
+  --color-secondary-500-foreground: #ffffff;
+  --color-secondary-600-foreground: #ffffff;
+  --color-secondary-700-foreground: #ffffff;
+  --color-secondary-800-foreground: #ffffff;
+  --color-secondary-900-foreground: #ffffff;
+  --color-secondary-950-foreground: #ffffff;
+}
+
+/* Custom utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
+}
+
+.property-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+}
+
+.property-popup .popup-img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 0.4rem;
+}
+
+.property-popup .popup-img--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb;
+  color: #4b5563;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.property-popup__content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.property-popup__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.property-popup__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.property-popup__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.property-popup__status--rent {
+  background-color: var(--color-secondary-100);
+  color: var(--color-secondary-700);
+}
+
+.property-popup__status--sale {
+  background-color: var(--color-primary-100);
+  color: var(--color-primary-700);
+}
+
+.property-popup__price {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary-600);
+}
+
+.property-popup__address {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.7rem;
+  color: #4b5563;
+  line-height: 1.2;
+}
+
+@keyframes pulse-slow {
+0%, 100% { transform: scale(1); opacity: 0.6; }
+50% { transform: scale(1.8); opacity: 0; }
+}
+
+.animate-pulse-slow {
+animation: pulse-slow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* React Calendar Dark Mode Support */
+.dark .react-calendar {
+  @apply bg-gray-800 border-gray-700 text-gray-200;
+}
+
+.dark .react-calendar__navigation button {
+  @apply text-gray-200 hover:bg-gray-700;
+}
+
+.dark .react-calendar__month-view__weekdays {
+  @apply text-gray-400;
+}
+
+.dark .react-calendar__tile {
+  @apply text-gray-200;
+}
+
+.dark .react-calendar__tile--now {
+  @apply bg-primary-900/20 text-primary-300;
+}
+
+.dark .react-calendar__month-view__days__day--neighboringMonth {
+  @apply text-gray-600;
+}

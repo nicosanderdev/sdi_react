@@ -1,16 +1,16 @@
-import { PublicLayout } from '../../components/public/layout/PublicLayout';
-import { HeroSection } from '../../components/public/home/HeroSection';
-import { ServicesSection } from '../../components/public/home/ServicesSection';
-import { ConnectSection } from '../../components/public/home/ConnectSection';
-import { CTASection } from '../../components/public/home/CTASection';
+import { HeroSection } from '../../components/public/HeroSection';
+import { ServicesSection } from '../../components/public/ServicesSection';
+import { ConnectSection } from '../../components/public/ConnectSection';
+import { CTASection } from '../../components/public/CTASection';
+import { PublicLayout } from '../../components/layout/PublicLayout';
 
 export function HomePage() {
-  return (<>
+  return (
     <PublicLayout>
       <HeroSection />
       <ServicesSection />
       <ConnectSection />
       <CTASection />
-    </PublicLayout>;
-    </>)
+    </PublicLayout>
+  );
 }

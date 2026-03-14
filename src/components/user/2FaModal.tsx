@@ -2,7 +2,7 @@ import { Clipboard, ClipboardCheck, KeyRound, Loader2, X } from "lucide-react";
 import { useState, useEffect } from "react";
 // --- START: Key Change ---
 // Import the stylish six-box input component
-import { TwoFactorInput } from '../../pages/public/TwoFactorInput';
+import { TwoFactorInput } from '../public/TwoFactorInput';
 // Note: You might need to adjust the import path '../public/form/TwoFactorInput'
 // based on your actual file structure.
 // --- END: Key Change ---

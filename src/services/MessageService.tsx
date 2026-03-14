@@ -1,32 +1,32 @@
 // src/services/messageService.ts
-import apiClient from './AxiosClient'; // Assuming AxiosClient is correctly set up
+import { supabase } from '../config/supabase';
+import { getCurrentUserId, mapDbToMessage, mapDbToMessageDetail, mapDbToTabCounts } from './SupabaseHelpers';
 
 // --- Type Definitions ---
 export interface Message {
   id: string;
-  threadId?: string; // For grouping messages in a conversation/thread
-  senderId?: string; // ID of the user who sent this specific message
+  threadId?: string;
+  senderId?: string;
   senderName: string;
   senderEmail?: string;
   
-  recipientId?: string; // ID of the user who is the recipient of this specific message (current user)
+  recipientId?: string;
 
   propertyId?: string;
   propertyTitle?: string;
   
   subject: string;
-  snippet: string; // Short preview for list view
+  snippet: string;
 
-  createdAt: string; // ISO date string from backend
+  createdAt: string;
 
   isRead: boolean;
   isReplied: boolean;
   isStarred: boolean;
   isArchived: boolean;
-  // isTrash?: boolean; // If you have a separate trash status
+  // isTrash?: boolean;
 }
 
-// For the detail view, ensuring fullBody is present
 export interface MessageDetail extends Message {
   fullBody: string;
 }
@@ -34,14 +34,14 @@ export interface MessageDetail extends Message {
 export interface GetMessagesParams {
   page?: number;
   limit?: number;
-  filter?: 'inbox' | 'starred' | 'replied' | 'archived' | 'sent' | 'trash' | string; // Allow custom filters
-  query?: string; // For search
+  filter?: 'inbox' | 'starred' | 'replied' | 'archived' | 'sent' | 'trash' | string;
+  query?: string;
   propertyId?: string;
   sortBy?: string;
 }
 
 export interface SendMessageData {
-  recipientId: string;
+  recipientId?: string;
   propertyId?: string;
   subject: string;
   body: string;
@@ -59,42 +59,62 @@ export interface TabCounts {
   [key: string]: number | undefined;
 }
 
-// --- API Endpoints ---
-const ENDPOINTS = {
-  MESSAGES: '/messages',
-  MESSAGE_DETAIL: (id: string) => `/messages/${id}`,
-  MARK_AS_READ: (id: string) => `/messages/${id}/read`,
-  MARK_AS_UNREAD: (id: string) => `/messages/${id}/unread`,
-  MARK_AS_REPLIED: (id: string) => `/messages/${id}/replied`,
-  STAR: (id: string) => `/messages/${id}/star`,
-  UNSTAR: (id: string) => `/messages/${id}/unstar`,
-  ARCHIVE: (id: string) => `/messages/${id}/archive`,
-  UNARCHIVE: (id: string) => `/messages/${id}/unarchive`,
-  DELETE: (id: string) => `/messages/${id}`,
-  MESSAGE_COUNTS: '/messages/counts',
+// --- Supabase RPC Function Names ---
+const RPC_FUNCTIONS = {
+  SEND_MESSAGE: 'send_message',
+  GET_MESSAGES: 'get_messages',
+  GET_MESSAGE_BY_ID: 'get_message_by_id',
+  GET_MESSAGE_COUNTS: 'get_message_counts',
+  GET_MESSAGES_BY_PROPERTY_ID: 'get_messages_by_property_id',
+  GET_MESSAGES_BY_THREAD_ID: 'get_messages_by_thread_id',
 };
 
 // --- Service Functions ---
 
 /**
  * Fetches a list of messages.
- * Assumes API returns: { data: Message[], total: number, page: number, limit: number, totalPages: number }
  */
 const getMessages = async (
   params: GetMessagesParams
 ): Promise<{ data: Message[]; total: number; page: number; totalPages: number }> => {
   try {
-    const response = await apiClient.get<{ data: Message[]; total: number; page: number; limit: number; totalPages?: number }>(
-      ENDPOINTS.MESSAGES, { params }
-    );
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase.rpc('get_messages', {
+      p_user_id: userId,
+      p_page: params.page || 1,
+      p_limit: params.limit || 15,
+      p_filter: params.filter || 'inbox',
+      p_query: params.query || null,
+      p_property_id: params.propertyId || null,
+      p_sort_by: params.sortBy || 'createdAt_desc'
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
     return {
-        data: response.data.map(m => ({...m, id: String(m.id)})), // Ensure IDs are strings
-        total: response.total,
-        page: response.page,
-        totalPages: response.totalPages || (response.limit ? Math.ceil(response.total / response.limit) : 1),
+      data: (result.data || []).map((msg: any) => ({
+        ...msg,
+        id: String(msg.id),
+        threadId: String(msg.threadId),
+        senderId: String(msg.senderId),
+        recipientId: msg.recipientId ? String(msg.recipientId) : undefined,
+        propertyId: msg.propertyId ? String(msg.propertyId) : undefined,
+        createdAt: msg.createdAt,
+        isRead: Boolean(msg.isRead),
+        isReplied: Boolean(msg.isReplied),
+        isStarred: Boolean(msg.isStarred),
+        isArchived: Boolean(msg.isArchived)
+      })),
+      total: result.total || 0,
+      page: result.page || 1,
+      totalPages: result.totalPages || 0
     };
   } catch (error: any) {
-    console.error('Error fetching messages:', error.response?.data?.message || error.message);
+    console.error('Error fetching messages:', error.message);
     throw error;
   }
 };
@@ -104,10 +124,34 @@ const getMessages = async (
  */
 const getMessageById = async (id: string): Promise<MessageDetail> => {
   try {
-    var response = await apiClient.get<MessageDetail>(ENDPOINTS.MESSAGE_DETAIL(id));
-    return response;
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase.rpc('get_message_by_id', {
+      p_message_id: id,
+      p_user_id: userId
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    return {
+      ...result,
+      id: String(result.id),
+      threadId: String(result.threadId),
+      senderId: String(result.senderId),
+      recipientId: result.recipientId ? String(result.recipientId) : undefined,
+      propertyId: result.propertyId ? String(result.propertyId) : undefined,
+      createdAt: result.createdAt,
+      isRead: Boolean(result.isRead),
+      isReplied: Boolean(result.isReplied),
+      isStarred: Boolean(result.isStarred),
+      isArchived: Boolean(result.isArchived),
+      fullBody: result.fullBody
+    };
   } catch (error: any) {
-    console.error(`Error fetching message ${id}:`, error.response?.data?.message || error.message);
+    console.error(`Error fetching message ${id}:`, error.message);
     throw error;
   }
 };
@@ -115,12 +159,40 @@ const getMessageById = async (id: string): Promise<MessageDetail> => {
 /**
  * Sends a new message or a reply.
  */
-const sendMessage = async (messageData: SendMessageData): Promise<Message> => { // Returns the sent message
+const sendMessage = async (messageData: SendMessageData): Promise<Message> => {
   try {
-    const response = await apiClient.post<Message>(ENDPOINTS.MESSAGES, messageData);
-    return {...response, id: String(response.id)};
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase.rpc('send_message', {
+      p_user_id: userId,
+      p_recipient_id: messageData.recipientId || null,
+      p_property_id: messageData.propertyId || null,
+      p_subject: messageData.subject,
+      p_body: messageData.body,
+      p_in_reply_to_message_id: messageData.inReplyToMessageId || null,
+      p_thread_id: messageData.threadId || null
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    return {
+      ...result,
+      id: String(result.id),
+      threadId: String(result.threadId),
+      senderId: String(result.senderId),
+      recipientId: result.recipientId ? String(result.recipientId) : undefined,
+      propertyId: result.propertyId ? String(result.propertyId) : undefined,
+      createdAt: result.createdAt,
+      isRead: Boolean(result.isRead),
+      isReplied: Boolean(result.isReplied),
+      isStarred: Boolean(result.isStarred),
+      isArchived: Boolean(result.isArchived)
+    };
   } catch (error: any) {
-    console.error('Error sending message:', error.response?.data?.message || error.message);
+    console.error('Error sending message:', error.message);
     throw error;
   }
 };
@@ -130,9 +202,28 @@ const sendMessage = async (messageData: SendMessageData): Promise<Message> => { 
  */
 const markMessageAsRead = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.get(ENDPOINTS.MARK_AS_READ(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsRead: true })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error marking message ${messageId} as read:`, error.response?.data?.message || error.message);
+    console.error(`Error marking message ${messageId} as read:`, error.message);
     throw error;
   }
 };
@@ -142,9 +233,28 @@ const markMessageAsRead = async (messageId: string): Promise<void> => {
  */
 const markMessageAsUnread = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.MARK_AS_UNREAD(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsRead: false })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error marking message ${messageId} as unread:`, error.response?.data?.message || error.message);
+    console.error(`Error marking message ${messageId} as unread:`, error.message);
     throw error;
   }
 };
@@ -153,22 +263,60 @@ const markMessageAsUnread = async (messageId: string): Promise<void> => {
  * Marks a message as replied. (Might be handled by backend automatically on sendMessage)
  */
 const markMessageAsReplied = async (messageId: string): Promise<void> => {
-    try {
-      await apiClient.patch(ENDPOINTS.MARK_AS_REPLIED(messageId));
-    } catch (error: any) {
-      console.error(`Error marking message ${messageId} as replied:`, error.response?.data?.message || error.message);
-      throw error;
-    }
-  };
+  try {
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ HasBeenRepliedToByRecipient: true })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
+  } catch (error: any) {
+    console.error(`Error marking message ${messageId} as replied:`, error.message);
+    throw error;
+  }
+};
 
 /**
  * Stars a message.
  */
 const starMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.STAR(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsStarred: true })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error starring message ${messageId}:`, error.response?.data?.message || error.message);
+    console.error(`Error starring message ${messageId}:`, error.message);
     throw error;
   }
 };
@@ -178,9 +326,28 @@ const starMessage = async (messageId: string): Promise<void> => {
  */
 const unstarMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.delete(ENDPOINTS.UNSTAR(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsStarred: false })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error unstarring message ${messageId}:`, error.response?.data?.message || error.message);
+    console.error(`Error unstarring message ${messageId}:`, error.message);
     throw error;
   }
 };
@@ -190,9 +357,28 @@ const unstarMessage = async (messageId: string): Promise<void> => {
  */
 const archiveMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.post(ENDPOINTS.ARCHIVE(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsArchived: true })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error archiving message ${messageId}:`, error.response?.data?.message || error.message);
+    console.error(`Error archiving message ${messageId}:`, error.message);
     throw error;
   }
 };
@@ -202,21 +388,89 @@ const archiveMessage = async (messageId: string): Promise<void> => {
  */
 const unarchiveMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.patch(ENDPOINTS.UNARCHIVE(messageId)); // Or DELETE
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Update the message recipient status
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsArchived: false })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error unarchiving message ${messageId}:`, error.response?.data?.message || error.message);
+    console.error(`Error unarchiving message ${messageId}:`, error.message);
     throw error;
   }
 };
 
 /**
- * Deletes a message. (Soft or Hard delete based on backend)
+ * Deletes a message. (Soft delete - marks as deleted for the user)
  */
 const deleteMessage = async (messageId: string): Promise<void> => {
   try {
-    await apiClient.delete(ENDPOINTS.DELETE(messageId));
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    // Soft delete - mark as deleted for this user
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsDeleted: true })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
   } catch (error: any) {
-    console.error(`Error deleting message ${messageId}:`, error.response?.data?.message || error.message);
+    console.error(`Error deleting message ${messageId}:`, error.message);
+    throw error;
+  }
+};
+
+/**
+ * Restores a message from trash to inbox. (Sets IsDeleted to false for the user)
+ */
+const restoreMessage = async (messageId: string): Promise<void> => {
+  try {
+    const userId = await getCurrentUserId();
+
+    // Get member ID
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', userId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (memberError) throw memberError;
+
+    const { error } = await supabase
+      .from('MessageRecipients')
+      .update({ IsDeleted: false })
+      .eq('MessageId', messageId)
+      .eq('RecipientId', member.Id);
+
+    if (error) throw error;
+  } catch (error: any) {
+    console.error(`Error restoring message ${messageId}:`, error.message);
     throw error;
   }
 };
@@ -225,13 +479,104 @@ const deleteMessage = async (messageId: string): Promise<void> => {
  * Fetches counts for different message categories/tabs.
  */
 const getMessageCounts = async (): Promise<TabCounts> => {
-    try {
-      return await apiClient.get<TabCounts>(ENDPOINTS.MESSAGE_COUNTS);
-    } catch (error: any) {
-      console.error('Error fetching message counts:', error.response?.data?.message || error.message);
-      throw error;
-    }
-  };
+  try {
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase.rpc('get_message_counts', {
+      p_user_id: userId
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    return {
+      inbox: result.inbox || 0,
+      starred: result.starred || 0,
+      replied: result.replied || 0,
+      archived: result.archived || 0,
+      sent: result.sent || 0,
+      trash: result.trash || 0
+    };
+  } catch (error: any) {
+    console.error('Error fetching message counts:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetches messages for a specific property.
+ */
+const getMessagesByPropertyId = async (propertyId: string): Promise<Message[]> => {
+  try {
+    const { data, error } = await supabase.rpc('get_messages_by_property_id', {
+      p_property_id: propertyId
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    return (result || []).map((msg: any) => ({
+      ...msg,
+      id: String(msg.id),
+      threadId: String(msg.threadId),
+      senderId: String(msg.senderId),
+      recipientId: msg.recipientId ? String(msg.recipientId) : undefined,
+      propertyId: msg.propertyId ? String(msg.propertyId) : undefined,
+      createdAt: msg.createdAt,
+      isRead: Boolean(msg.isRead),
+      isReplied: Boolean(msg.isReplied),
+      isStarred: Boolean(msg.isStarred),
+      isArchived: Boolean(msg.isArchived)
+    }));
+  } catch (error: any) {
+    console.error(`Error fetching messages for property ${propertyId}:`, error.message);
+    throw error;
+  }
+};
+
+/**
+ * Fetches all messages in a thread by threadId.
+ */
+const getMessagesByThreadId = async (threadId: string): Promise<MessageDetail[]> => {
+  try {
+    const userId = await getCurrentUserId();
+
+    const { data, error } = await supabase.rpc('get_messages_by_thread_id', {
+      p_thread_id: threadId,
+      p_user_id: userId,
+      p_page: 1,
+      p_limit: 100,
+      p_sort_by: 'createdAt_asc'
+    });
+
+    if (error) throw error;
+
+    // Parse the JSON response
+    const result = typeof data === 'string' ? JSON.parse(data) : data;
+
+    return (result || []).map((msg: any) => ({
+      ...msg,
+      id: String(msg.id),
+      threadId: String(msg.threadId),
+      senderId: String(msg.senderId),
+      recipientId: msg.recipientId ? String(msg.recipientId) : undefined,
+      propertyId: msg.propertyId ? String(msg.propertyId) : undefined,
+      createdAt: msg.createdAt,
+      isRead: Boolean(msg.isRead),
+      isReplied: Boolean(msg.isReplied),
+      isStarred: Boolean(msg.isStarred),
+      isArchived: Boolean(msg.isArchived),
+      fullBody: msg.fullBody
+    }));
+  } catch (error: any) {
+    console.error(`Error fetching messages for thread ${threadId}:`, error.message);
+    throw error;
+  }
+};
 
 
 const messageService = {
@@ -246,7 +591,10 @@ const messageService = {
   archiveMessage,
   unarchiveMessage,
   deleteMessage,
+  restoreMessage,
   getMessageCounts,
+  getMessagesByPropertyId,
+  getMessagesByThreadId,
 };
 
 export default messageService;

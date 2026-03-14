@@ -35,8 +35,8 @@ export function VisitsBySourceChart({ data }: VisitsBySourceChartProps) {
         </Pie>
         <Tooltip 
             contentStyle={{
-                backgroundColor: '#FDFFFC',
-                borderColor: '#e2e8f0',
+                backgroundColor: '#eef2ff',
+                borderColor: '#c7d2fe',
                 borderRadius: '0.375rem',
                 boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
                 fontSize: '12px',

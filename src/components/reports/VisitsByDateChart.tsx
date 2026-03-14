@@ -32,8 +32,8 @@ export function VisitsByDateChart({ data }: VisitsByDateChartProps) {
         />
         <Tooltip 
           contentStyle={{
-            backgroundColor: '#FDFFFC', // Ensure Tailwind evaluates this
-            borderColor: '#e2e8f0',
+            backgroundColor: '#eef2ff',
+            borderColor: '#c7d2fe',
             borderRadius: '0.375rem',
             boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
             fontSize: '12px',
@@ -46,10 +46,10 @@ export function VisitsByDateChart({ data }: VisitsByDateChartProps) {
           type="monotone" 
           dataKey="visits" 
           name="Visitas"
-          stroke="#62B6CB" 
+          stroke="#0f9d58" 
           strokeWidth={2.5} 
-          dot={{ r: 4, fill: '#62B6CB', strokeWidth: 1, stroke: '#FDFFFC' }} 
-          activeDot={{ r: 6, fill: '#1B4965', strokeWidth: 2, stroke: '#FDFFFC' }} 
+          dot={{ r: 4, fill: '#0f9d58', strokeWidth: 1, stroke: '#FDFFFC' }} 
+          activeDot={{ r: 6, fill: '#0f9d58', strokeWidth: 2, stroke: '#FDFFFC' }} 
         />
       </LineChart>
     </ResponsiveContainer>
