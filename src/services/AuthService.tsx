@@ -11,7 +11,7 @@ interface User {
   isEmailConfirmed: boolean;
   isAuthenticated: boolean;
   is2FAEnabled: boolean;
-  roles: string[];
+  role: string;
 }
 
 interface UserSettings {
@@ -108,7 +108,7 @@ const mapSupabaseUserToLegacyUser = (supabaseUser: SupabaseUser): User => {
     isEmailConfirmed: supabaseUser.email_confirmed_at ? true : false,
     isAuthenticated: true,
     is2FAEnabled: false, // TODO: Check MFA factors
-    roles: [] // TODO: Get roles from user metadata or separate table
+    role: 'user' // Actual role loaded from Members via profile
   }
 }
 

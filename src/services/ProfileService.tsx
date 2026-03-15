@@ -36,7 +36,7 @@ export interface ProfileData {
   avatarUrl?: string;
   address: AddressData;
   companies?: UserCompany[];
-  roles?: string[];
+  role?: string;
 }
 
 export interface UpdateProfilePayload {
@@ -81,7 +81,7 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
         *,
         UserCompanies (
           *,
-          Companies (*)
+          Companies!FK_UserCompanies_Companies_CompanyId (*)
         )
       `)
       .eq('UserId', userId)
@@ -292,7 +292,7 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
         .eq('IsDeleted', false)
         .select(`
           *,
-          Companies (*)
+          Companies!FK_UserCompanies_Companies_CompanyId (*)
         `);
 
       if (error) throw error;
@@ -322,7 +322,7 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
       .eq('IsDeleted', false)
       .select(`
         *,
-        Companies (*)
+        Companies!FK_UserCompanies_Companies_CompanyId (*)
       `);
 
     if (error) throw error;

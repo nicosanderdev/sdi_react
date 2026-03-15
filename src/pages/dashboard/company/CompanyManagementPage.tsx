@@ -14,7 +14,8 @@ import propertyService from '../../../services/PropertyService';
 import messageService from '../../../services/MessageService';
 import reportService from '../../../services/ReportService';
 import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../../store/slices/userSlice';
-import { CompanyRoles } from '../../../models/CompanyRoles';
+import { hasRole } from '../../../utils/RoleUtils';
+import { Roles } from '../../../models/Roles';
 
 export function CompanyManagementPage() {
   const navigate = useNavigate();
@@ -142,7 +143,7 @@ export function CompanyManagementPage() {
       ? userCompanies.find((c) => c.id === selectedCompanyId)
       : null;
 
-  const isGlobalAdmin = userProfile?.roles?.includes(CompanyRoles.Admin) ?? false;
+  const isGlobalAdmin = userProfile ? hasRole(userProfile, Roles.Admin) : false;
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">

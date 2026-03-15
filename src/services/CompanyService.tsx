@@ -45,7 +45,7 @@ const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
       .from('UserCompanies')
       .select(`
         *,
-        Companies (*)
+        Companies!FK_UserCompanies_Companies_CompanyId (*)
       `)
       .eq('MemberId', member.Id)
       .eq('IsDeleted', false);

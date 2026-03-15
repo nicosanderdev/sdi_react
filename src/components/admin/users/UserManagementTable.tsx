@@ -148,10 +148,10 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
               {/* Role */}
               <TableCell>
                 <Badge
-                  color={user.roles.includes('admin') ? 'purple' : 'gray'}
+                  color={user.role === 'admin' ? 'purple' : 'gray'}
                   size="sm"
                 >
-                  {user.roles.includes('admin') ? 'Admin' : 'User'}
+                  {user.role === 'admin' ? 'Admin' : 'User'}
                 </Badge>
               </TableCell>
 

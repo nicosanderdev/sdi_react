@@ -50,9 +50,9 @@ const userSlice = createSlice({
     updateUserCompanies: (state, action: PayloadAction<UserCompany[]>) => {
       state.companies = action.payload;
     },
-    updateUserRoles: (state, action: PayloadAction<string[]>) => {
+    updateUserRole: (state, action: PayloadAction<string>) => {
       if (state.profile) {
-        state.profile.roles = action.payload;
+        state.profile.role = action.payload;
       }
     },
     clearUserState: () => initialState,
@@ -76,9 +76,9 @@ const userSlice = createSlice({
       })
       .addCase(changeUserRole.fulfilled, (state, action: PayloadAction<ChangeRoleResponse>) => {
         state.status = 'succeeded';
-        // Update user roles and companies based on role change response
+        // Update user role and companies based on role change response
         if (state.profile) {
-          state.profile.roles = [action.payload.newRole];
+          state.profile.role = action.payload.newRole;
           state.companies = action.payload.affectedCompanies;
         }
       })
@@ -99,6 +99,6 @@ export const selectHasCompanies = (state: RootState) => state.user.companies.len
 export const selectDefaultCompany = (state: RootState) =>
   state.user.companies.length > 0 ? state.user.companies[0] : null;
 
-export const { clearUserState } = userSlice.actions;
+export const { clearUserState, updateUserRole } = userSlice.actions;
 
 export default userSlice.reducer;

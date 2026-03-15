@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { getRedirectPath, hasRole } from '../../utils/RoleUtils';
+import { getPrimaryRole, getRedirectPath } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../config/supabase';
@@ -57,9 +57,9 @@ const ProtectedRouteComponent = ({
   // If we have a Supabase user but no profile loaded yet, let it pass through
   // The profile will be loaded by the AuthContext
   if (supabaseUser && user) {
-    const userRole = hasRole(user, Roles.Admin) ? Roles.Admin : Roles.User;
+    const userRole = user.role ?? getPrimaryRole(user) ?? Roles.User;
 
-    if (!allowedRoles.includes(userRole)) {
+    if (!allowedRoles.includes(userRole as typeof Roles.Admin | typeof Roles.User)) {
       return <Navigate to={getRedirectPath(user)} replace />;
     }
   }
