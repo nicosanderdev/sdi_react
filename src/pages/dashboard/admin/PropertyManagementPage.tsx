@@ -1,7 +1,7 @@
 // src/pages/dashboard/admin/PropertyManagementPage.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card, Modal, ModalBody, ModalHeader } from 'flowbite-react';
+import { Button, Card } from 'flowbite-react';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminProperties } from '../../../hooks/useAdminProperties';
@@ -10,13 +10,10 @@ import { PropertyManagementTable } from '../../../components/admin/properties/Pr
 import { PropertyStatistics } from '../../../components/admin/properties/PropertyStatistics';
 import { PropertyDetailModal } from '../../../components/admin/properties/PropertyDetailModal';
 import { DeletePropertyConfirmModal } from '../../../components/admin/properties/DeletePropertyConfirmModal';
-import { PropertyCreationWizard } from '../../../components/dashboard/properties/PropertyCreationWizard';
-import { PropertyType } from '../../../models/properties/Types';
 
 const PropertyManagementPage = () => {
   const navigate = useNavigate();
   const hook = useAdminProperties();
-  const [showCreateModal, setShowCreateModal] = React.useState(false);
   const {
     totalProperties,
     currentPage,
@@ -50,8 +47,6 @@ const PropertyManagementPage = () => {
         PropertyManagementTableType: typeof PropertyManagementTable,
         PropertyDetailModalType: typeof PropertyDetailModal,
         DeletePropertyConfirmModalType: typeof DeletePropertyConfirmModal,
-        PropertyCreationWizardType: typeof PropertyCreationWizard,
-        ModalType: typeof Modal,
       },
       timestamp: Date.now(),
     }),
@@ -116,7 +111,7 @@ const PropertyManagementPage = () => {
             <Button
               color="green"
               size="sm"
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => navigate('/dashboard/admin/properties/create')}
               className="flex items-center space-x-2"
             >
               <PlusIcon className="w-4 h-4" />
@@ -203,28 +198,6 @@ const PropertyManagementPage = () => {
       {/* Modals */}
       <PropertyDetailModal hook={hook} />
       <DeletePropertyConfirmModal hook={hook} />
-      {/* Creation modal */}
-      <Modal
-        show={showCreateModal}
-        size="6xl"
-        onClose={() => setShowCreateModal(false)}
-      >
-        <ModalHeader>Crear propiedad</ModalHeader>
-        <ModalBody>
-          <PropertyCreationWizard
-            initialContext={{
-              mode: 'admin',
-              isAdmin: true,
-              availablePropertyTypes: [PropertyType.RealEstate, PropertyType.SummerRent, PropertyType.EventVenue],
-            }}
-            onComplete={() => {
-              setShowCreateModal(false);
-              fetchProperties();
-            }}
-            onClose={() => setShowCreateModal(false)}
-          />
-        </ModalBody>
-      </Modal>
     </div>
   );
 };

@@ -17,11 +17,14 @@ import PropertyService from '../../../services/PropertyService';
 import { getMemberById, getMemberByEmail } from '../../../services/AdminMemberService';
 import { AdminCreateMemberForm } from '../../../components/admin/properties/AdminCreateMemberForm';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
+import { useAuth } from '../../../contexts/AuthContext';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function AdminCreatePropertyPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const currentUserEmail = user?.email ?? '';
   const [phase, setPhase] = useState<'owner' | 'property'>('owner');
   const [ownerMode, setOwnerMode] = useState<'existing' | 'new'>('existing');
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
@@ -97,7 +100,7 @@ export function AdminCreatePropertyPage() {
         ? await getMemberById(trimmed)
         : await getMemberByEmail(trimmed);
       if (!member) {
-        setOwnerError('ID de miembro no encontrado.');
+        setOwnerError('ID o email de miembro no encontrado.');
         return;
       }
       setOwnerUserId(member.UserId);
@@ -214,15 +217,33 @@ export function AdminCreatePropertyPage() {
                   htmlFor="memberIdOrEmail"
                   className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
                 >
-                  ID de miembro o email
+                  ID de miembro (UUID) o email
                 </Label>
-                <TextInput
-                  id="memberIdOrEmail"
-                  value={existingInput}
-                  onChange={(e) => setExistingInput(e.target.value)}
-                  placeholder="UUID o email del miembro"
-                  className="mt-1 max-w-md"
-                />
+                <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center max-w-xl">
+                  <TextInput
+                    id="memberIdOrEmail"
+                    value={existingInput}
+                    onChange={(e) => setExistingInput(e.target.value)}
+                    placeholder="Ej: 883ff807-044d-401b-894a-055525766dc6 o usuario@dominio.com"
+                    className="flex-1"
+                  />
+                  {currentUserEmail && (
+                    <Button
+                      type="button"
+                      color="light"
+                      onClick={() => {
+                        setExistingInput(currentUserEmail);
+                        setOwnerError(null);
+                      }}
+                    >
+                      Usar mi email
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Usa el <span className="font-semibold">ID de miembro</span> (no el ID de propiedad) o el email exacto
+                  con el que se registró el miembro.
+                </p>
                 {ownerError && (
                   <p className="text-sm text-red-600 dark:text-red-400">{ownerError}</p>
                 )}

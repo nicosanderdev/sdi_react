@@ -22,7 +22,7 @@ export async function getMemberById(id: string): Promise<MemberLookupResult | nu
     .from('Members')
     .select(MEMBERS_SELECT)
     .eq('Id', id)
-    .eq('IsDeleted', false)
+    .or('IsDeleted.is.null,IsDeleted.eq.false')
     .single();
 
   if (error) {
@@ -40,7 +40,7 @@ export async function getMemberByEmail(email: string): Promise<MemberLookupResul
     .from('Members')
     .select(MEMBERS_SELECT)
     .eq('Email', email.trim())
-    .eq('IsDeleted', false)
+    .or('IsDeleted.is.null,IsDeleted.eq.false')
     .single();
 
   if (error) {
