@@ -14,7 +14,7 @@ import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
 
 // Import types for Supabase property creation
-import { PropertyFormData } from '../pages/dashboard/AddPropertyForm';
+import { PropertyFormData } from '../models/properties/PropertyFormSchema';
 import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 

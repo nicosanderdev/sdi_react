@@ -2,7 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { debounce } from 'lodash';
 import { PropertyFormMap } from './PropertyFormMap';
-import { PropertyFormData } from '../../../pages/dashboard/AddPropertyForm';
+import { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import { Button, Label, TextInput } from 'flowbite-react';
 
 interface PropertyFormStep1Props {

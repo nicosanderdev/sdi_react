@@ -5,13 +5,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
-import {
-  propertyFormSchema,
-  PropertyFormData,
-  step1Fields,
-  step2Fields,
-  step3Fields,
-} from '../AddPropertyForm';
+import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import { PropertyFormStep1 } from '../../../components/dashboard/properties/PropertyFormStep1';
 import { PropertyFormStep2 } from '../../../components/dashboard/properties/PropertyFormStep2';
 import { PropertyFormStep3 } from '../../../components/dashboard/properties/PropertyFormStep3';
@@ -124,10 +118,9 @@ export function AdminCreatePropertyPage() {
     setPropertyError(null);
   };
 
-  const handlePropertyNext = async (fieldsToValidate: (keyof PropertyFormData)[]) => {
+  const handlePropertyNext = () => {
     setPropertyError(null);
-    const isValid = await trigger(fieldsToValidate);
-    if (isValid) setPropertyStep((s) => Math.min(4, s + 1));
+    setPropertyStep((s) => Math.min(4, s + 1));
   };
 
   const onPropertySubmit = async (formData: PropertyFormData) => {
@@ -276,13 +269,13 @@ export function AdminCreatePropertyPage() {
               )}
               {propertyStep === 2 && (
                 <PropertyFormStep2
-                  onNext={() => handlePropertyNext(step2Fields)}
+                  onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
                 />
               )}
               {propertyStep === 3 && (
                 <PropertyFormStep3
-                  onNext={() => handlePropertyNext(step3Fields)}
+                  onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
                   displayImages={displayImages}
                   setDisplayImages={setDisplayImages}

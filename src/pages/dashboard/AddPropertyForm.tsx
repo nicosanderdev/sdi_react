@@ -1,121 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useForm, FormProvider } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
-import { ArrowLeft, X } from 'lucide-react';
-import { PropertyFormStep1 } from '../../components/dashboard/properties/PropertyFormStep1';
-import { PropertyFormStep2 } from '../../components/dashboard/properties/PropertyFormStep2';
-import { PropertyFormStep3 } from '../../components/dashboard/properties/PropertyFormStep3';
-import { PropertyFormStep4 } from '../../components/dashboard/properties/PropertyFormStep4';
-import PropertyService from '../../services/PropertyService';
-import { PropertyData } from '../../models/properties';
-import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
-import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
+import React, { useState } from 'react';
 import { Card } from 'flowbite-react';
-import { DisplayImage } from '../../components/dashboard/properties/ImageManager';
-import { DisplayDocument } from '../../components/dashboard/properties/DocumentManager';
-import { DisplayVideo } from '../../components/dashboard/properties/VideoManager';
-import { usePropertyQuota } from '../../hooks/usePropertyQuota';
-import { useSubscriptionNotifications } from '../../hooks/useSubscriptionNotifications';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
-
-
-export const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
-export const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
-export const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
-
-export const propertyFormSchema = z.object({
-  // ESTATE PROPERTY
-  // address
-  streetName: z.string().min(5, 'La dirección debe tener al menos 5 caracteres.'),
-  houseNumber: z.string().min(1, 'El número de casa es requerido.'),
-  neighborhood: z.string().optional(),
-  city: z.string().min(1, 'La ciudad es requerida.'),
-  state: z.string().min(1, 'El estado/provincia es requerido.'),
-  zipCode: z.string().min(1, 'El código postal es requerido.'),
-  country: z.string().min(1, 'El país es requerido.'),
-  location: z.object({ lat: z.number(), lng: z.number() }).refine(val => val.lat !== -34.9011 || val.lng !== -56.1645, {
-    message: "Por favor, confirma la ubicación en el mapa.",
-  }),
-  // description
-  title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
-  type: z.enum(['house', 'apartment', 'commercial', 'land', 'other'], {
-    errorMap: () => ({ message: 'El tipo de propiedad es requerido.' }),
-  }),
-  // end-purpose for this property (optional on create)
-  propertyType: z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']).optional(),
-  // structural / infrastructure
-  areaValue: z.coerce.number().min(1, 'El área debe ser al menos 1.'),
-  areaUnit: z.enum(['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'], {
-    errorMap: () => ({ message: 'La unidad de área es requerida.' }),
-  }),
-  bedrooms: z.coerce.number().int().min(0),
-  bathrooms: z.coerce.number().min(0),
-  hasGarage: z.boolean(),
-  garageSpaces: z.coerce.number().int().min(0),
-  hasLaundryRoom: z.boolean().optional(),
-  hasPool: z.boolean().optional(),
-  hasBalcony: z.boolean().optional(),
-  isFurnished: z.boolean().optional(),
-  capacity: z.coerce.number().int().min(1).optional(),
-
-  // --- Values (Step 3) ---
-  description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
-  availableFrom: z.string().min(1, 'La fecha de disponibilidad es requerida.'),
-  // price and status
-  listingType: z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']).optional(),
-  currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']),
-  salePrice: z.string().optional(),
-  rentPrice: z.string().optional(),
-  hasCommonExpenses: z.boolean(),
-  commonExpensesValue: z.string().optional(),
-  isElectricityIncluded: z.boolean(),
-  isWaterIncluded: z.boolean(),
-  isPriceVisible: z.boolean(),
-  status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']),
-  isActive: z.boolean(),
-  isPropertyVisible: z.boolean(),
-
-  // --- Amenities ---
-  amenities: z.array(z.string()).optional(),
-
-}).refine((data) => data.salePrice || data.rentPrice, {
-  message: 'Debes especificar un precio de venta o de alquiler.',
-  path: ['salePrice'],
-}).refine(data => !data.hasCommonExpenses || (data.hasCommonExpenses && data.commonExpensesValue), {
-  message: 'Debes especificar el monto de los gastos comunes.',
-  path: ['commonExpensesValue'],
-});
-
-export type PropertyFormData = z.infer<typeof propertyFormSchema>;
-
+import { PropertyCreationWizard } from '../../components/dashboard/properties/PropertyCreationWizard';
+import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 interface AddPropertyFormProps {
   onClose: () => void;
 }
 
 export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('form');
-  const [currentStep, setCurrentStep] = useState(1);
-  const [wasAutoDowngraded, setWasAutoDowngraded] = useState(false);
+  const [view, setView] = useState<'form' | 'success'>('form');
   const [showOnboardingSuccessMessage, setShowOnboardingSuccessMessage] = useState(false);
-  const queryClient = useQueryClient();
-
-  // Property quota management
-  const {
-    canCreateProperty,
-    isAtPublishedLimit,
-    totalLimit,
-    publishedLimit,
-    isLoading: isQuotaLoading
-  } = usePropertyQuota();
-
-  // Subscription notifications
-  const { showWarningNotification } = useSubscriptionNotifications();
-
-  // Owner onboarding
   const {
     isEligibleForOnboarding,
     isFreePlan,
@@ -124,248 +19,34 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
     setStep,
     complete,
   } = useOwnerOnboarding();
-
-  // Check quota limits when component mounts
-  useEffect(() => {
-    if (!isQuotaLoading && !canCreateProperty) {
-      setApiError(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
-      setView('error');
-    }
-  }, [isQuotaLoading, canCreateProperty, totalLimit]);
-
-  // --- State Management for Images, Videos, and Documents ---
-  const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
-  const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
-  const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
-  const methods = useForm<PropertyFormData>({
-    resolver: zodResolver(propertyFormSchema),
-    mode: 'onTouched',
-    defaultValues: {
-      // --- Address (Step 1) ---
-      streetName: '',
-      houseNumber: '',
-      neighborhood: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: 'Uruguay',
-      location: { lat: -30.8994, lng: -55.5469 }, // Rivera
-
-      // --- Description (Step 2) ---
-      title: '',
-      type: undefined,
-      propertyType: undefined,
-      areaValue: 0,
-      areaUnit: undefined,
-      bedrooms: 1,
-      bathrooms: 1,
-      hasGarage: false,
-      garageSpaces: 0,
-      hasLaundryRoom: false,
-      hasPool: false,
-      hasBalcony: false,
-      isFurnished: false,
-      capacity: 1,
-
-      // --- Values (Step 3) ---
-      description: '',
-      availableFrom: new Date().toISOString().split('T')[0],
-      currency: 'USD',
-      listingType: undefined,
-      salePrice: '',
-      rentPrice: '',
-      hasCommonExpenses: false,
-      commonExpensesValue: '',
-      isElectricityIncluded: false,
-      isWaterIncluded: false,
-      isPriceVisible: true,
-      status: undefined,
-      isActive: true,
-      isPropertyVisible: true,
-
-      // --- Amenities ---
-      amenities: [],
-    },
-  });
-  const { handleSubmit, trigger, formState: { isSubmitting } } = methods;
-
-  const mutation = useMutation<PropertyData, Error, PropertyFormData>({
-    mutationFn: async (data: PropertyFormData): Promise<PropertyData> => {
-      setApiError(null);
-      setWasAutoDowngraded(false);
-      console.log("Form data received for submission:", data);
-
-      // Check total properties limit
-      if (!canCreateProperty) {
-        throw new Error(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
-      }
-
-      // Check if user wants to publish but is at published limit
-      let modifiedData = { ...data };
-      if (data.isPropertyVisible && isAtPublishedLimit) {
-        // Auto-downgrade to private/draft
-        modifiedData.isPropertyVisible = false;
-        setWasAutoDowngraded(true);
-        console.log("Auto-downgraded property to private due to published limit");
-      }
-
-      // Convert display images/videos to the format expected by PropertyService
-      const processedImages = displayImages.map(img => ({
-        ...img,
-        altText: img.alt || '',
-        isPublic: true
-      }));
-
-      const processedDocuments = displayDocuments.map(doc => ({
-        ...doc,
-        name: doc.name || '',
-        fileName: doc.fileName || doc.name || '',
-        isPublic: true
-      }));
-
-      return PropertyService.createProperty(modifiedData, processedImages, processedDocuments);
-    },
-    onSuccess: async (data) => {
-      console.log("Property created successfully:", data);
-      setApiError(null);
-      queryClient.invalidateQueries({ queryKey: ['properties'] });
-
-      // Mark owner onboarding complete when first property is published
-      if (isEligibleForOnboarding) {
-        setShowOnboardingSuccessMessage(true);
-        await complete();
-      }
-
-      // Show warning if property was auto-downgraded
-      if (wasAutoDowngraded) {
-        showWarningNotification(
-          'Propiedad creada como privada',
-          `La propiedad "${data.title}" fue creada exitosamente pero se configuró como privada porque has alcanzado el límite de ${publishedLimit} propiedades publicadas de tu plan. Puedes publicarla más tarde cuando tengas espacio disponible.`
-        );
-      }
-
-      setView('success');
-    },
-    onError: (error: Error) => {
-      setView('error');
-      setApiError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
-      console.error("Submission failed", error.message);
-    }
-  });
-
-  const addProperty = mutation.mutate;
-  const isLoading = mutation.isPending;
-  const handleNext = async (fieldsToValidate: (keyof PropertyFormData)[]) => {
-    const isValid = await trigger(fieldsToValidate);
-    if (isValid) {
-      setCurrentStep(prev => Math.min(prev + 1, 4));
-    }
-  };
-  const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-  };
-  const onSubmit = (formData: PropertyFormData) => {
-    // Additional validation for quota limits (double-check before submission)
-    if (!canCreateProperty) {
-      setApiError(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
-      setView('error');
-      return;
-    }
-
-    // Check if trying to publish when at published limit
-    if (formData.isPropertyVisible && isAtPublishedLimit) {
-      setApiError(`Your plan limits have reached. You cannot publish more than ${publishedLimit} properties.`);
-      setView('error');
-      return;
-    }
-
-    addProperty(formData);
-  };
-  const handleRetry = () => {
-    setApiError(null);
-    setView('form');
-  };
-    
   return (
-
-    <FormProvider {...methods}>
-      <Card className="min-h-full">
-        {view === 'form' && (
-          <>
-            <div id="onboarding-plan-limit">
-              <div className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  {currentStep > 1 && (
-                    <button onClick={handleBack} className="mr-4 p-2 hover:bg-gray-100 rounded-full">
-                      <ArrowLeft size={20} />
-                    </button>
-                  )}
-                  <h1 className="text-xl font-semibold">
-                    Nueva Propiedad - Paso {currentStep} de 4
-                  </h1>
-                </div>
-                <button onClick={onClose} className="p-2 hover:bg-primary-400/20 rounded-full">
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="px-6 flex space-x-1">
-                {[1, 2, 3, 4].map(step => (
-                  <div
-                    key={step}
-                    className={`flex-1 h-1 rounded-full ${step <= currentStep ? 'bg-primary-400' : 'bg-gray-200'}`}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="p-6">
-              {currentStep === 1 && <PropertyFormStep1 onNext={() => handleNext(step1Fields)} />}
-              {currentStep === 2 && <PropertyFormStep2 onNext={() => handleNext(step2Fields)} onBack={handleBack} />}
-              {currentStep === 3 && (
-                <PropertyFormStep3 
-                  onNext={() => handleNext(step3Fields)} 
-                  onBack={handleBack}
-                  displayImages={displayImages}
-                  setDisplayImages={setDisplayImages}
-                  displayVideos={displayVideos}
-                  setDisplayVideos={setDisplayVideos}
-                />
-              )}
-              {currentStep === 4 && (
-                <PropertyFormStep4
-                  onSubmit={handleSubmit(
-                    onSubmit,
-                    (errors) => {
-                      console.error("Form validation failed:", errors);
-                    }
-                  )}
-                  onBack={handleBack}
-                  isSubmitting={isLoading || isSubmitting}
-                  displayDocuments={displayDocuments}
-                  setDisplayDocuments={setDisplayDocuments}
-                />
-              )}
-            </div>
-          </>
-        )}
-
-        {view === 'success' && (
-          <SuccessDisplay
-            title={showOnboardingSuccessMessage ? 'Your property has been published!' : '¡Registro de propiedad exitoso!'}
-            message={showOnboardingSuccessMessage ? 'You can view and manage it from your properties list.' : 'La propiedad ha sido registrada correctamente.'}
-            redirectUrl="/dashboard/properties"
+    <Card className="min-h-full">
+      {view === 'form' && (
+        <div id="onboarding-plan-limit">
+          <PropertyCreationWizard
+            initialContext={{
+              mode: 'user',
+              isAdmin: false,
+              availablePropertyTypes: ['RealEstate', 'AnnualRent', 'SummerRent', 'EventVenue'],
+            }}
+            onComplete={async () => {
+              if (isEligibleForOnboarding) {
+                setShowOnboardingSuccessMessage(true);
+                await complete();
+              }
+              setView('success');
+            }}
+            onClose={onClose}
           />
-        )}
-
-        {view === 'error' && apiError && (
-          <ErrorDisplay
-            title="Error en el registro de propiedad"
-            message={apiError}
-            buttonText="Intentar de nuevo"
-            onRetry={handleRetry}
-          />
-        )}
-      </Card>
-
+        </div>
+      )}
+      {view === 'success' && (
+        <SuccessDisplay
+          title={showOnboardingSuccessMessage ? 'Your property has been published!' : '¡Registro de propiedad exitoso!'}
+          message={showOnboardingSuccessMessage ? 'You can view and manage it from your properties list.' : 'La propiedad ha sido registrada correctamente.'}
+          redirectUrl="/dashboard/properties"
+        />
+      )}
       {/* Owner onboarding: Plan limit (Free plan only) */}
       {view === 'form' && isEligibleForOnboarding && isFreePlan && currentStep === 1 && onboardingStep <= 2 && (
         <OwnerOnboardingTour
@@ -388,7 +69,8 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
           step={{
             element: '#onboarding-form-details',
             title: 'Property details',
-            description: 'Add a property description, set pricing, and set availability. These help guests find and book your property.',
+            description:
+              'Add a property description, set pricing, and set availability. These help guests find and book your property.',
             nextBtnText: 'Next',
           }}
           onNext={() => {}}
@@ -403,13 +85,14 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
           step={{
             element: '#onboarding-form-photos',
             title: 'Add photos',
-            description: 'Photos help your listing stand out. Add clear images of the property, rooms, and amenities.',
+            description:
+              'Photos help your listing stand out. Add clear images of the property, rooms, and amenities.',
             nextBtnText: 'Next',
           }}
           onNext={() => {}}
           onDismiss={() => {}}
         />
       )}
-    </FormProvider>
+    </Card>
   );
 }

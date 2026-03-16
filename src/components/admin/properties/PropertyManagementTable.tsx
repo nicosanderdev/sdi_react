@@ -1,4 +1,4 @@
-// src/components/admin/properties/PropertyManagementTable.tsx
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';

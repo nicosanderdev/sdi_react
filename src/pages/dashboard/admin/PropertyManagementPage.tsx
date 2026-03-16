@@ -1,7 +1,7 @@
 // src/pages/dashboard/admin/PropertyManagementPage.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card } from 'flowbite-react';
+import { Button, Card, Modal, ModalBody, ModalHeader } from 'flowbite-react';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminProperties } from '../../../hooks/useAdminProperties';
@@ -10,10 +10,13 @@ import { PropertyManagementTable } from '../../../components/admin/properties/Pr
 import { PropertyStatistics } from '../../../components/admin/properties/PropertyStatistics';
 import { PropertyDetailModal } from '../../../components/admin/properties/PropertyDetailModal';
 import { DeletePropertyConfirmModal } from '../../../components/admin/properties/DeletePropertyConfirmModal';
+import { PropertyCreationWizard } from '../../../components/dashboard/properties/PropertyCreationWizard';
+import { PropertyType } from '../../../models/properties/Types';
 
-const PropertyManagementPage: React.FC = () => {
+const PropertyManagementPage = () => {
   const navigate = useNavigate();
   const hook = useAdminProperties();
+  const [showCreateModal, setShowCreateModal] = React.useState(false);
   const {
     totalProperties,
     currentPage,
@@ -27,6 +30,33 @@ const PropertyManagementPage: React.FC = () => {
   const handleRefresh = () => {
     fetchProperties();
   };
+
+  // #region agent log
+  fetch('http://127.0.0.1:7410/ingest/8cfc8ae1-a75f-4ac9-842a-c9e78ca77428', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Debug-Session-Id': '200f5b',
+    },
+    body: JSON.stringify({
+      sessionId: '200f5b',
+      runId: 'admin-prop-pre-fix-2',
+      hypothesisId: 'H-component-types',
+      location: 'PropertyManagementPage.tsx:33',
+      message: 'Component types in PropertyManagementPage render',
+      data: {
+        PropertyStatisticsType: typeof PropertyStatistics,
+        PropertyFiltersType: typeof PropertyFilters,
+        PropertyManagementTableType: typeof PropertyManagementTable,
+        PropertyDetailModalType: typeof PropertyDetailModal,
+        DeletePropertyConfirmModalType: typeof DeletePropertyConfirmModal,
+        PropertyCreationWizardType: typeof PropertyCreationWizard,
+        ModalType: typeof Modal,
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion agent log
 
   return (
     <div className="space-y-6">
@@ -86,7 +116,7 @@ const PropertyManagementPage: React.FC = () => {
             <Button
               color="green"
               size="sm"
-              onClick={() => navigate('/dashboard/admin/properties/create')}
+              onClick={() => setShowCreateModal(true)}
               className="flex items-center space-x-2"
             >
               <PlusIcon className="w-4 h-4" />
@@ -173,6 +203,28 @@ const PropertyManagementPage: React.FC = () => {
       {/* Modals */}
       <PropertyDetailModal hook={hook} />
       <DeletePropertyConfirmModal hook={hook} />
+      {/* Creation modal */}
+      <Modal
+        show={showCreateModal}
+        size="6xl"
+        onClose={() => setShowCreateModal(false)}
+      >
+        <ModalHeader>Crear propiedad</ModalHeader>
+        <ModalBody>
+          <PropertyCreationWizard
+            initialContext={{
+              mode: 'admin',
+              isAdmin: true,
+              availablePropertyTypes: [PropertyType.RealEstate, PropertyType.AnnualRent, PropertyType.SummerRent, PropertyType.EventVenue],
+            }}
+            onComplete={() => {
+              setShowCreateModal(false);
+              fetchProperties();
+            }}
+            onClose={() => setShowCreateModal(false)}
+          />
+        </ModalBody>
+      </Modal>
     </div>
   );
 };

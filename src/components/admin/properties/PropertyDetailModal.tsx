@@ -1,6 +1,6 @@
 // src/components/admin/properties/PropertyDetailModal.tsx
 import React from 'react';
-import { Modal, ModalBody, ModalHeader, ModalFooter, Button, Badge, Tabs, TabItem, Card } from 'flowbite-react';
+import { Modal, Button, Badge, Tabs, Card } from 'flowbite-react';
 import {
   CalendarIcon,
   MapPinIcon,
@@ -141,7 +141,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
       size="4xl"
       className="h-full"
     >
-      <ModalHeader>
+      <Modal.Header>
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <HomeIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -155,9 +155,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             </p>
           </div>
         </div>
-      </ModalHeader>
+      </Modal.Header>
 
-      <ModalBody>
+      <Modal.Body>
         {propertyDetailLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
@@ -165,7 +165,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
         ) : (
           <Tabs aria-label="Pestañas de detalles de la propiedad" style="underline">
             {/* Overview Tab */}
-            <TabItem active title="Resumen" icon={HomeIcon}>
+            <Tabs.Item active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
@@ -351,10 +351,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </Card>
               </div>
-            </TabItem>
+            </Tabs.Item>
 
             {/* Owner Tab */}
-            <TabItem title="Propietario" icon={UserIcon}>
+            <Tabs.Item title="Propietario" icon={UserIcon}>
               <Card>
                 <h4 className="text-md font-semibold mb-4">Información del propietario</h4>
                 <div className="space-y-3">
@@ -372,10 +372,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </div>
               </Card>
-            </TabItem>
+            </Tabs.Item>
 
             {/* Analytics / Views Tab */}
-            <TabItem title="Visitas" icon={BarChart3Icon}>
+            <Tabs.Item title="Visitas" icon={BarChart3Icon}>
               <div className="space-y-6">
                 {loadingViews && loadingViewsBySource ? (
                   <div className="flex justify-center py-8">
@@ -422,11 +422,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </>
                 )}
               </div>
-            </TabItem>
+            </Tabs.Item>
 
             {/* Description Tab */}
             {selectedProperty.description && (
-              <TabItem title="Descripción" icon={HomeIcon}>
+              <Tabs.Item title="Descripción" icon={HomeIcon}>
                 <Card>
                   <h4 className="text-md font-semibold mb-4">Descripción de la propiedad</h4>
                   <div className="prose dark:prose-invert max-w-none">
@@ -435,17 +435,17 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                     </p>
                   </div>
                 </Card>
-              </TabItem>
+              </Tabs.Item>
             )}
           </Tabs>
         )}
-      </ModalBody>
+      </Modal.Body>
 
-      <ModalFooter>
+      <Modal.Footer>
         <Button color="gray" onClick={closeDetailModal}>
           Cerrar
         </Button>
-      </ModalFooter>
+      </Modal.Footer>
     </Modal>
   );
 };

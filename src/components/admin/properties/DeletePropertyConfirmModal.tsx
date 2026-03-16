@@ -1,6 +1,6 @@
 // src/components/admin/properties/DeletePropertyConfirmModal.tsx
 import React, { useState } from 'react';
-import { Modal, ModalBody, ModalHeader, ModalFooter, Button, Alert, Checkbox } from 'flowbite-react';
+import { Modal, Button, Alert, Checkbox } from 'flowbite-react';
 import { AlertTriangleIcon, TrashIcon, HomeIcon } from 'lucide-react';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 
@@ -53,14 +53,14 @@ export const DeletePropertyConfirmModal: React.FC<DeletePropertyConfirmModalProp
 
   return (
     <Modal show={deleteConfirmModalOpen} onClose={handleClose} size="lg">
-      <ModalHeader>
+      <Modal.Header>
         <div className="flex items-center space-x-2">
           <TrashIcon className="w-5 h-5 text-red-600" />
           <span>Eliminar propiedad</span>
         </div>
-      </ModalHeader>
+      </Modal.Header>
 
-      <ModalBody>
+      <Modal.Body>
         <div className="space-y-6">
           {/* Warning Alert */}
           <Alert color="failure" icon={AlertTriangleIcon}>
@@ -157,9 +157,9 @@ export const DeletePropertyConfirmModal: React.FC<DeletePropertyConfirmModalProp
             </Alert>
           )}
         </div>
-      </ModalBody>
+      </Modal.Body>
 
-      <ModalFooter>
+      <Modal.Footer>
         <Button color="gray" onClick={handleClose} disabled={actionLoading}>
           Cancelar
         </Button>
@@ -171,7 +171,7 @@ export const DeletePropertyConfirmModal: React.FC<DeletePropertyConfirmModalProp
         >
           {actionLoading ? 'Eliminando...' : 'Eliminar propiedad permanentemente'}
         </Button>
-        </ModalFooter>
+      </Modal.Footer>
     </Modal>
   );
 };
