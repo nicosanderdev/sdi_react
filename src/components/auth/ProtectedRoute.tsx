@@ -1,11 +1,10 @@
-import React, { memo, useState, useEffect } from 'react';
+import React, { memo } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { getPrimaryRole, getRedirectPath } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
 import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../config/supabase';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -26,34 +25,6 @@ const ProtectedRouteComponent = ({
 }: ProtectedRouteProps) => {
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
-  const [sessionPendingContext, setSessionPendingContext] = useState(false);
-  const [sessionCheckDone, setSessionCheckDone] = useState(false);
-  const [noSessionFound, setNoSessionFound] = useState(false);
-
-  // When we would redirect to login, check getSession first so we don't redirect if session exists but context not updated yet
-  useEffect(() => {
-    if (!requireAuth || supabaseUser || authLoading) {
-      setSessionCheckDone(false);
-      setSessionPendingContext(false);
-      setNoSessionFound(false);
-      return;
-    }
-    setSessionCheckDone(false);
-    setNoSessionFound(false);
-    let cancelled = false;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (cancelled) return;
-      setSessionCheckDone(true);
-      if (session?.user) {
-        setSessionPendingContext(true);
-        setNoSessionFound(false);
-      } else {
-        setNoSessionFound(true);
-        setSessionPendingContext(false);
-      }
-    });
-    return () => { cancelled = true; };
-  }, [requireAuth, supabaseUser, authLoading]);
 
   // Show loading only while auth state is being determined, not while profile is loading.
   // When we have a session, render children and let the dashboard handle profile loading/null.
@@ -61,12 +32,9 @@ const ProtectedRouteComponent = ({
     return <LoadingSpinner />;
   }
 
-  // Check Supabase session first; if session exists but context not updated yet, show loading instead of redirect
+  // If route requires auth and we don't have a Supabase user, redirect to login
   if (requireAuth && !supabaseUser) {
-    if (sessionPendingContext) return <LoadingSpinner />;
-    // Only redirect once we've confirmed there is no session (avoids redirecting right after login before context updates)
-    if (sessionCheckDone && noSessionFound) return <Navigate to="/login" replace />;
-    return <LoadingSpinner />;
+    return <Navigate to="/login" replace />;
   }
 
   // If we have a Supabase user but no profile loaded yet, let it pass through

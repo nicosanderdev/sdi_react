@@ -17,13 +17,13 @@ import {
   type LucideIcon
 } from 'lucide-react';
 import { AdminNavigation } from './AdminNavigation';
-import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, fetchNotificationCounts, RootState } from '../../store';
 import { Button, Modal, ModalBody, ModalHeader, Sidebar, SidebarItem, SidebarItemGroup, SidebarItems, SidebarLogo } from 'flowbite-react';
 import { hasRole } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Custom sidebar theme to match the green app theme
 const customSidebarTheme = {
@@ -80,6 +80,7 @@ export function DashboardSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = user ? hasRole(user, Roles.Admin) : false;
+  const { logout } = useAuth();
 
   useEffect(() => {
     if (status === 'idle') {
@@ -100,7 +101,8 @@ export function DashboardSidebar() {
   ];
 
   const handleLogout = async () => {
-    await authService.logout();
+    await logout();
+
     navigate('/');
   };
 

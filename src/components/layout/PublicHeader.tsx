@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
 import { CustomDarkThemeToggle } from "../ui/CustomDarkThemeToggle";
 import { LogOut } from 'lucide-react';
-import authService from '../../services/AuthService';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function PublicHeader() {
-  const { user: supabaseUser, loading } = useAuth();
+  const { user: supabaseUser, loading, logout } = useAuth();
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!supabaseUser) setLoggingOut(false);
+  }, [supabaseUser]);
 
   useEffect(() => {
     if (!supabaseUser) setLoggingOut(false);
@@ -19,7 +22,7 @@ export function PublicHeader() {
     e.preventDefault();
     e.stopPropagation();
     setLoggingOut(true);
-    await authService.logout();
+    await logout();
     navigate('/', { replace: true });
   };
 

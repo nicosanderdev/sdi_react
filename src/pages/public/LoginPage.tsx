@@ -45,17 +45,6 @@ export function LoginPage() {
   const { user: authUser } = useAuth();
   const twoFaFormRef = useRef<HTMLFormElement>(null);
 
-  // Navigate when AuthContext user is set and we have a pending redirect (state or ref).
-  // Ref ensures we don't lose the path if effect runs before state commit.
-  useEffect(() => {
-    if (!authUser) return;
-    const path = pendingRedirectPath ?? pendingRedirectRef.current;
-    if (!path) return;
-    pendingRedirectRef.current = null;
-    setPendingRedirectPath(null);
-    navigate(path, { replace: true });
-  }, [authUser, pendingRedirectPath, navigate]);
-
   useEffect(() => {
     const checkAuthStatus = async () => {
       setIsVerifying(true);
@@ -144,7 +133,7 @@ export function LoginPage() {
         const redirectPath = getRedirectPath(response.user);
         pendingRedirectRef.current = redirectPath;
         setPendingRedirectPath(redirectPath);
-        navigate(redirectPath, { replace: true });
+        window.location.href = redirectPath;
       } else if (response.requires2FA) {
         // For Supabase MFA, we need to initiate the challenge
         setLoginStep('2fa');
@@ -177,7 +166,7 @@ export function LoginPage() {
         const redirectPath = getRedirectPath(response.user);
         pendingRedirectRef.current = redirectPath;
         setPendingRedirectPath(redirectPath);
-        navigate(redirectPath, { replace: true });
+        window.location.href = redirectPath;
       } else {
         setFormData(prev => ({ ...prev, twoFactorCode: '' }));
         setError(response.errorMessage || 'Invalid 2FA code.');
