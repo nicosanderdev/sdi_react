@@ -26,32 +26,47 @@ const ProtectedRouteComponent = ({
 }: ProtectedRouteProps) => {
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
-  const userStatus = useSelector((state: RootState) => state.user.status);
   const [sessionPendingContext, setSessionPendingContext] = useState(false);
+  const [sessionCheckDone, setSessionCheckDone] = useState(false);
+  const [noSessionFound, setNoSessionFound] = useState(false);
 
-  // When we would redirect to login but session might exist (context not updated yet), check getSession once
+  // When we would redirect to login, check getSession first so we don't redirect if session exists but context not updated yet
   useEffect(() => {
     if (!requireAuth || supabaseUser || authLoading) {
+      setSessionCheckDone(false);
       setSessionPendingContext(false);
+      setNoSessionFound(false);
       return;
     }
+    setSessionCheckDone(false);
+    setNoSessionFound(false);
     let cancelled = false;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!cancelled && session?.user) setSessionPendingContext(true);
+      if (cancelled) return;
+      setSessionCheckDone(true);
+      if (session?.user) {
+        setSessionPendingContext(true);
+        setNoSessionFound(false);
+      } else {
+        setNoSessionFound(true);
+        setSessionPendingContext(false);
+      }
     });
     return () => { cancelled = true; };
   }, [requireAuth, supabaseUser, authLoading]);
 
-  // Show loading if auth is loading; for protected routes only, wait for profile when loading/idle (not when 'failed')
-  // When userStatus === 'failed' we allow render so dashboard shell can show; children handle null profile.
-  if (authLoading || (requireAuth && supabaseUser && (userStatus === 'loading' || userStatus === 'idle'))) {
+  // Show loading only while auth state is being determined, not while profile is loading.
+  // When we have a session, render children and let the dashboard handle profile loading/null.
+  if (authLoading) {
     return <LoadingSpinner />;
   }
 
   // Check Supabase session first; if session exists but context not updated yet, show loading instead of redirect
   if (requireAuth && !supabaseUser) {
     if (sessionPendingContext) return <LoadingSpinner />;
-    return <Navigate to="/login" replace />;
+    // Only redirect once we've confirmed there is no session (avoids redirecting right after login before context updates)
+    if (sessionCheckDone && noSessionFound) return <Navigate to="/login" replace />;
+    return <LoadingSpinner />;
   }
 
   // If we have a Supabase user but no profile loaded yet, let it pass through

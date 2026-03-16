@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
 import { CustomDarkThemeToggle } from "../ui/CustomDarkThemeToggle";
 import { LogOut } from 'lucide-react';
@@ -8,11 +9,21 @@ import { useAuth } from '../../contexts/AuthContext';
 export function PublicHeader() {
   const { user: supabaseUser, loading } = useAuth();
   const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
+  useEffect(() => {
+    if (!supabaseUser) setLoggingOut(false);
+  }, [supabaseUser]);
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setLoggingOut(true);
     await authService.logout();
-    navigate('/');
+    navigate('/', { replace: true });
   };
+
+  const showGuestMenu = loggingOut || !supabaseUser;
 
   const getUserNavigation = () => {
     // While auth state is loading, avoid flashing incorrect buttons
@@ -20,11 +31,10 @@ export function PublicHeader() {
       return null;
     }
 
-    if (!supabaseUser) {
+    if (showGuestMenu) {
       return (
         <>
           <NavbarLink href="/login">Iniciar Sesión</NavbarLink>
-          <NavbarLink href="/register">Registrarse</NavbarLink>
         </>
       );
     }
@@ -54,7 +64,9 @@ export function PublicHeader() {
           <NavbarCollapse>
             <NavbarLink href="/" active className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Inicio</NavbarLink>
             <NavbarLink href="/contact" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Contacto</NavbarLink>
-            {getUserNavigation()}
+            <React.Fragment key={supabaseUser?.id ?? 'guest'}>
+              {getUserNavigation()}
+            </React.Fragment>
           </NavbarCollapse>
         </Navbar>
       </div>

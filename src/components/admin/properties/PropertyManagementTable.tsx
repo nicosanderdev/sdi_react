@@ -1,10 +1,12 @@
 // src/components/admin/properties/PropertyManagementTable.tsx
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
 import {
   ChevronUpIcon,
   ChevronDownIcon,
   EyeIcon,
+  CalendarIcon,
   Loader2Icon,
   HomeIcon
 } from 'lucide-react';
@@ -35,12 +37,24 @@ const getActivityBadgeColor = (isActive: boolean) => {
   return isActive ? 'success' : 'warning';
 };
 
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    sale: 'En venta',
+    rent: 'En alquiler',
+    reserved: 'Reservado',
+    sold: 'Vendido',
+    unavailable: 'No disponible',
+  };
+  return labels[status] ?? status;
+};
+
 const formatDate = (dateString: string | null): string => {
-  if (!dateString) return 'Never';
+  if (!dateString) return 'Nunca';
   return new Date(dateString).toLocaleDateString();
 };
 
 export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = ({ hook }) => {
+  const navigate = useNavigate();
   const {
     properties,
     loading,
@@ -89,7 +103,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
     return (
       <div className="text-center py-12">
         <HomeIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <p className="text-gray-500 dark:text-gray-400">No properties found matching the current filters.</p>
+        <p className="text-gray-500 dark:text-gray-400">No se encontraron propiedades con los filtros actuales.</p>
       </div>
     );
   }
@@ -98,15 +112,15 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
     <div className="overflow-x-auto">
       <Table hoverable>
         <TableHead>
-          <SortableHeader field="title">Title</SortableHeader>
-          <SortableHeader field="ownerName">Owner</SortableHeader>
-          <SortableHeader field="status">Status</SortableHeader>
-          <SortableHeader field="city">Location</SortableHeader>
-          <TableHeadCell>Visibility</TableHeadCell>
-          <TableHeadCell>Activity</TableHeadCell>
-          <SortableHeader field="createdAt">Created</SortableHeader>
-          <SortableHeader field="lastModified">Modified</SortableHeader>
-          <TableHeadCell>Actions</TableHeadCell>
+          <SortableHeader field="title">Título</SortableHeader>
+          <SortableHeader field="ownerName">Propietario</SortableHeader>
+          <SortableHeader field="status">Estado</SortableHeader>
+          <SortableHeader field="city">Ubicación</SortableHeader>
+          <TableHeadCell>Visibilidad</TableHeadCell>
+          <TableHeadCell>Actividad</TableHeadCell>
+          <SortableHeader field="createdAt">Creado</SortableHeader>
+          <SortableHeader field="lastModified">Modificado</SortableHeader>
+          <TableHeadCell>Acciones</TableHeadCell>
         </TableHead>
         <TableBody className="divide-y">
           {properties.map((property) => (
@@ -134,7 +148,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   color={getStatusBadgeColor(property.status)}
                   size="sm"
                 >
-                  {property.status.charAt(0).toUpperCase() + property.status.slice(1)}
+                  {getStatusLabel(property.status)}
                 </Badge>
               </TableCell>
 
@@ -151,7 +165,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   color={getVisibilityBadgeColor(property.isPropertyVisible)}
                   size="sm"
                 >
-                  {property.isPropertyVisible ? 'Visible' : 'Hidden'}
+                  {property.isPropertyVisible ? 'Visible' : 'Oculto'}
                 </Badge>
               </TableCell>
 
@@ -161,7 +175,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   color={getActivityBadgeColor(property.isActive)}
                   size="sm"
                 >
-                  {property.isActive ? 'Active' : 'Inactive'}
+                  {property.isActive ? 'Activo' : 'Inactivo'}
                 </Badge>
               </TableCell>
 
@@ -181,13 +195,23 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   <Button
                     size="sm"
                     color="light"
+                    onClick={() => navigate(`/dashboard/property/${property.id}/bookings`)}
+                    className="p-2"
+                    title="Gestionar calendario"
+                    aria-label="Gestionar calendario"
+                  >
+                    <CalendarIcon className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    color="light"
                     onClick={() => handleViewProperty(property)}
                     className="p-2"
-                    title="View property details"
+                    title="Ver propiedad"
+                    aria-label="Ver propiedad"
                   >
                     <EyeIcon className="w-4 h-4" />
                   </Button>
-
                   <PropertyActionsMenu property={property} hook={hook} />
                 </div>
               </TableCell>

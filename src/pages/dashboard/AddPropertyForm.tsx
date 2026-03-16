@@ -22,9 +22,9 @@ import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 
 
-const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
-const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
-const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
+export const step1Fields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country', 'location'];
+export const step2Fields: (keyof PropertyFormData)[] = ['title', 'type', 'areaValue', 'areaUnit', 'bedrooms', 'bathrooms', 'hasGarage', 'garageSpaces'];
+export const step3Fields: (keyof PropertyFormData)[] = ['description', 'availableFrom', 'currency', 'salePrice', 'rentPrice', 'status', 'hasCommonExpenses', 'commonExpensesValue'];
 
 export const propertyFormSchema = z.object({
   // ESTATE PROPERTY

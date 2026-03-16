@@ -66,11 +66,11 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
     filters.registrationDateTo;
 
   const subscriptionTierOptions = [
-    { value: 'all', label: 'All Plans' },
-    { value: SubscriptionTier.Free.toString(), label: 'Free' },
+    { value: 'all', label: 'Todos los planes' },
+    { value: SubscriptionTier.Free.toString(), label: 'Gratis' },
     { value: SubscriptionTier.Manager.toString(), label: 'Manager' },
-    { value: SubscriptionTier.CompanySmall.toString(), label: 'Company Small' },
-    { value: SubscriptionTier.CompanyUnlimited.toString(), label: 'Company Unlimited' },
+    { value: SubscriptionTier.CompanySmall.toString(), label: 'Empresa pequeña' },
+    { value: SubscriptionTier.CompanyUnlimited.toString(), label: 'Empresa ilimitada' },
     { value: SubscriptionTier.ManagerPro.toString(), label: 'Manager Pro' },
   ];
 
@@ -82,7 +82,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
           <div className="relative">
             <TextInput
               type="text"
-              placeholder="Search by name or email..."
+              placeholder="Buscar por nombre o correo..."
               value={filters.search || ''}
               onChange={(e) => handleSearchChange(e.target.value)}
               icon={SearchIcon}
@@ -96,23 +96,23 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
           {/* Subscription Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Subscription Status
+              Estado de suscripción
             </label>
             <Select
               value={filters.subscriptionStatus || 'all'}
               onChange={(e) => handleSubscriptionStatusChange(e.target.value)}
             >
-              <option value="all">All Statuses</option>
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="none">No Subscription</option>
+              <option value="all">Todos los estados</option>
+              <option value="active">Activo</option>
+              <option value="expired">Expirado</option>
+              <option value="none">Sin suscripción</option>
             </Select>
           </div>
 
           {/* Subscription Plan */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Subscription Plan
+              Plan de suscripción
             </label>
             <Select
               value={filters.subscriptionTier?.toString() || 'all'}
@@ -129,27 +129,27 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
           {/* Account Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Account Status
+              Estado de la cuenta
             </label>
             <Select
               value={filters.accountStatus || 'all'}
               onChange={(e) => handleAccountStatusChange(e.target.value)}
             >
-              <option value="all">All Accounts</option>
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
+              <option value="all">Todas las cuentas</option>
+              <option value="active">Activo</option>
+              <option value="suspended">Suspendido</option>
             </Select>
           </div>
 
           {/* Registration Date Range */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Registration Date
+              Fecha de registro
             </label>
             <div className="flex space-x-2">
               <TextInput
                 type="date"
-                placeholder="From"
+                placeholder="Desde"
                 value={registrationDateFrom}
                 onChange={(e) => setRegistrationDateFrom(e.target.value)}
                 onBlur={handleDateChange}
@@ -157,7 +157,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
               />
               <TextInput
                 type="date"
-                placeholder="To"
+                placeholder="Hasta"
                 value={registrationDateTo}
                 onChange={(e) => setRegistrationDateTo(e.target.value)}
                 onBlur={handleDateChange}
@@ -186,7 +186,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
               onClick={clearFilters}
               className="text-gray-600 hover:text-gray-800"
             >
-              Clear All Filters
+              Limpiar filtros
             </Button>
           </div>
         )}

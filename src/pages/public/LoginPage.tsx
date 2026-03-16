@@ -39,18 +39,22 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingRedirectPath, setPendingRedirectPath] = useState<string | null>(null);
+  const pendingRedirectRef = useRef<string | null>(null);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user: authUser } = useAuth();
   const twoFaFormRef = useRef<HTMLFormElement>(null);
 
-  // Navigate only when both pendingRedirectPath and AuthContext user are set,
-  // so ProtectedRoute will see supabaseUser and not redirect back to login.
+  // Navigate when AuthContext user is set and we have a pending redirect (state or ref).
+  // Ref ensures we don't lose the path if effect runs before state commit.
   useEffect(() => {
-    if (!pendingRedirectPath || !authUser) return;
-    navigate(pendingRedirectPath, { replace: true });
+    if (!authUser) return;
+    const path = pendingRedirectPath ?? pendingRedirectRef.current;
+    if (!path) return;
+    pendingRedirectRef.current = null;
     setPendingRedirectPath(null);
-  }, [pendingRedirectPath, authUser, navigate]);
+    navigate(path, { replace: true });
+  }, [authUser, pendingRedirectPath, navigate]);
 
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -58,6 +62,7 @@ export function LoginPage() {
       const user = await authService.verifyAuth();
       if (user && user.isAuthenticated) {
         const redirectPath = getRedirectPath(user);
+        pendingRedirectRef.current = redirectPath;
         setPendingRedirectPath(redirectPath);
       }
       setIsVerifying(false);
@@ -137,7 +142,9 @@ export function LoginPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) dispatch(fetchUserProfile(session.user));
         const redirectPath = getRedirectPath(response.user);
+        pendingRedirectRef.current = redirectPath;
         setPendingRedirectPath(redirectPath);
+        navigate(redirectPath, { replace: true });
       } else if (response.requires2FA) {
         // For Supabase MFA, we need to initiate the challenge
         setLoginStep('2fa');
@@ -168,7 +175,9 @@ export function LoginPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) dispatch(fetchUserProfile(session.user));
         const redirectPath = getRedirectPath(response.user);
+        pendingRedirectRef.current = redirectPath;
         setPendingRedirectPath(redirectPath);
+        navigate(redirectPath, { replace: true });
       } else {
         setFormData(prev => ({ ...prev, twoFactorCode: '' }));
         setError(response.errorMessage || 'Invalid 2FA code.');
@@ -322,12 +331,6 @@ export function LoginPage() {
             <FacebookIcon />
             Continuar con Facebook
           </Button>
-        </div>
-
-        <div className="text-center">
-          <Link to="/register" className="text-sm text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">
-            ¿No tienes cuenta? <span className="font-semibold">Regístrate</span>
-          </Link>
         </div>
       </AuthCard>
     </PublicLayout>

@@ -294,14 +294,11 @@ function PropertyContact({ propertyId, ownerId }: PropertyContactProps) {
             {!isAuthenticated && (
               <div className="absolute inset-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm z-10 rounded-lg flex flex-col items-center justify-center p-6">
                 <p className="text-center text-gray-700 dark:text-gray-300 mb-6 text-lg">
-                  Por favor, inicia sesión o regístrate para enviar un mensaje.
+                  Por favor, inicia sesión para enviar un mensaje.
                 </p>
                 <div className="flex gap-4">
                   <Button color="blue" onClick={() => navigate('/login')}>
                     Iniciar sesión
-                  </Button>
-                  <Button color="green" onClick={() => navigate('/register')}>
-                    Registrarse
                   </Button>
                 </div>
               </div>

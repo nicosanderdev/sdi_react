@@ -15,9 +15,6 @@ export function HeroSection() {
             Publica tus propiedades. Administra tu sitio web. Llega a más clientes.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <a href="/register" className="bg-green-600 text-white px-8 py-4 rounded-xl hover:bg-green-700 transition-colors text-lg font-semibold shadow-md">
-              Comenzar ahora
-            </a>
             <a href="/demo" className="border-2 border-green-600 text-green-600 dark:text-green-400 px-8 py-4 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-lg font-semibold">
               Solicitar demo
             </a>

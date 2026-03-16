@@ -44,7 +44,7 @@ const UserManagementPage: React.FC = () => {
           className="flex items-center space-x-2"
         >
           <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
+          <span>Actualizar</span>
         </Button>
       </div>
 
@@ -65,25 +65,25 @@ const UserManagementPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total de usuarios</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {totalUsers.toLocaleString()}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Showing</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Mostrando</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {users.length} of {totalUsers}
+                {users.length} de {totalUsers}
               </p>
             </div>
           </div>
 
           <div className="text-right">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
+              Página {currentPage} de {totalPages}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {pageSize} per page
+              {pageSize} por página
             </p>
           </div>
         </div>
@@ -100,7 +100,7 @@ const UserManagementPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Page {currentPage} of {totalPages}
+                Página {currentPage} de {totalPages}
               </span>
             </div>
 
@@ -111,7 +111,7 @@ const UserManagementPage: React.FC = () => {
                 disabled={currentPage === 1 || loading}
                 onClick={() => hook.setPage(currentPage - 1)}
               >
-                Previous
+                Anterior
               </Button>
 
               {/* Page numbers */}
@@ -148,7 +148,7 @@ const UserManagementPage: React.FC = () => {
                 disabled={currentPage === totalPages || loading}
                 onClick={() => hook.setPage(currentPage + 1)}
               >
-                Next
+                Siguiente
               </Button>
             </div>
           </div>

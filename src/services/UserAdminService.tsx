@@ -127,6 +127,9 @@ class UserAdminService {
     const { data, error } = await supabase.rpc('get_admin_users_list', params);
 
     if (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7410/ingest/8cfc8ae1-a75f-4ac9-842a-c9e78ca77428',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0e13e9'},body:JSON.stringify({sessionId:'0e13e9',location:'UserAdminService.tsx:getUsersList',message:'get_admin_users_list RPC error',data:{message:error.message,code:error.code,details:error.details,hint:error.hint},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       throw new Error(`Failed to fetch users list: ${error.message}`);
     }
 

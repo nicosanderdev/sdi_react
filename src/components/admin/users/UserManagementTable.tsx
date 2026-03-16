@@ -17,12 +17,12 @@ interface UserManagementTableProps {
 
 const getSubscriptionTierLabel = (tier: number | null): string => {
   switch (tier) {
-    case SubscriptionTier.Free: return 'Free';
+    case SubscriptionTier.Free: return 'Gratis';
     case SubscriptionTier.Manager: return 'Manager';
-    case SubscriptionTier.CompanySmall: return 'Company Small';
-    case SubscriptionTier.CompanyUnlimited: return 'Company Unlimited';
+    case SubscriptionTier.CompanySmall: return 'Empresa pequeña';
+    case SubscriptionTier.CompanyUnlimited: return 'Empresa ilimitada';
     case SubscriptionTier.ManagerPro: return 'Manager Pro';
-    default: return 'None';
+    default: return 'Ninguno';
   }
 };
 
@@ -45,14 +45,14 @@ const getSubscriptionStatusBadgeColor = (status: string) => {
 };
 
 const formatDate = (dateString: string | null): string => {
-  if (!dateString) return 'Never';
+  if (!dateString) return 'Nunca';
   return new Date(dateString).toLocaleDateString();
 };
 
 const getFullName = (user: UserListItem): string => {
   const firstName = user.firstName || '';
   const lastName = user.lastName || '';
-  return `${firstName} ${lastName}`.trim() || 'Unknown User';
+  return `${firstName} ${lastName}`.trim() || 'Usuario desconocido';
 };
 
 export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }) => {
@@ -103,7 +103,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
   if (users.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 dark:text-gray-400">No users found matching the current filters.</p>
+        <p className="text-gray-500 dark:text-gray-400">No se encontraron usuarios con los filtros actuales.</p>
       </div>
     );
   }
@@ -113,14 +113,14 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
       <Table hoverable>
         <TableHead>
           <TableHeadCell className="w-16">Avatar</TableHeadCell>
-          <SortableHeader field="name">Name</SortableHeader>
-          <SortableHeader field="email">Email</SortableHeader>
-          <SortableHeader field="role">Role</SortableHeader>
-          <SortableHeader field="status">Status</SortableHeader>
-          <SortableHeader field="subscription">Subscription</SortableHeader>
-          <SortableHeader field="registrationDate">Registered</SortableHeader>
-          <SortableHeader field="lastLogin">Last Login</SortableHeader>
-          <TableHeadCell>Actions</TableHeadCell>
+          <SortableHeader field="name">Nombre</SortableHeader>
+          <SortableHeader field="email">Correo</SortableHeader>
+          <SortableHeader field="role">Rol</SortableHeader>
+          <SortableHeader field="status">Estado</SortableHeader>
+          <SortableHeader field="subscription">Suscripción</SortableHeader>
+          <SortableHeader field="registrationDate">Registrado</SortableHeader>
+          <SortableHeader field="lastLogin">Último acceso</SortableHeader>
+          <TableHeadCell>Acciones</TableHeadCell>
         </TableHead>
         <TableBody className="divide-y">
           {users.map((user) => (
@@ -151,7 +151,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                   color={user.role === 'admin' ? 'purple' : 'gray'}
                   size="sm"
                 >
-                  {user.role === 'admin' ? 'Admin' : 'User'}
+                  {user.role === 'admin' ? 'Administrador' : 'Usuario'}
                 </Badge>
               </TableCell>
 
@@ -161,7 +161,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                   color={getStatusBadgeColor(user.accountStatus)}
                   size="sm"
                 >
-                  {user.accountStatus.charAt(0).toUpperCase() + user.accountStatus.slice(1)}
+                  {user.accountStatus === 'active' ? 'Activo' : user.accountStatus === 'suspended' ? 'Suspendido' : user.accountStatus === 'deleted' ? 'Eliminado' : user.accountStatus}
                 </Badge>
               </TableCell>
 
@@ -172,7 +172,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                     color={getSubscriptionStatusBadgeColor(user.subscriptionStatus)}
                     size="sm"
                   >
-                    {user.subscriptionStatus.charAt(0).toUpperCase() + user.subscriptionStatus.slice(1)}
+                    {user.subscriptionStatus === 'active' ? 'Activo' : user.subscriptionStatus === 'expired' ? 'Expirado' : user.subscriptionStatus === 'none' ? 'Ninguna' : user.subscriptionStatus}
                   </Badge>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     {getSubscriptionTierLabel(user.subscriptionTier)}

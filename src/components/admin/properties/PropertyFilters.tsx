@@ -32,12 +32,12 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
     filters.location;
 
   const statusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'sale', label: 'For Sale' },
-    { value: 'rent', label: 'For Rent' },
-    { value: 'reserved', label: 'Reserved' },
-    { value: 'sold', label: 'Sold' },
-    { value: 'unavailable', label: 'Unavailable' },
+    { value: 'all', label: 'Todos los estados' },
+    { value: 'sale', label: 'En venta' },
+    { value: 'rent', label: 'En alquiler' },
+    { value: 'reserved', label: 'Reservado' },
+    { value: 'sold', label: 'Vendido' },
+    { value: 'unavailable', label: 'No disponible' },
   ];
 
   return (
@@ -48,7 +48,7 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
           <div className="relative">
             <TextInput
               type="text"
-              placeholder="Search by title, owner name, or location..."
+              placeholder="Buscar por título, nombre del propietario o ubicación..."
               value={filters.search || ''}
               onChange={(e) => handleSearchChange(e.target.value)}
               icon={SearchIcon}
@@ -62,7 +62,7 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
           {/* Property Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Property Status
+              Estado de la propiedad
             </label>
             <Select
               value={filters.status || 'all'}
@@ -79,11 +79,11 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
           {/* Location */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Location
+              Ubicación
             </label>
             <TextInput
               type="text"
-              placeholder="City, State or Country..."
+              placeholder="Ciudad, estado o país..."
               value={filters.location || ''}
               onChange={(e) => handleLocationChange(e.target.value)}
               className="w-full"
@@ -93,11 +93,11 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
           {/* Placeholder for future filters */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Owner ID (Advanced)
+              ID del propietario (avanzado)
             </label>
             <TextInput
               type="text"
-              placeholder="Enter owner member ID..."
+              placeholder="Ingrese el ID del miembro propietario..."
               value={filters.userId || ''}
               onChange={(e) => updateFilters({ userId: e.target.value || undefined })}
               className="w-full"
@@ -115,7 +115,7 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
               className="text-gray-600 hover:text-gray-800"
             >
               <XIcon className="w-4 h-4 mr-2" />
-              Clear All Filters
+              Limpiar todos los filtros
             </Button>
           </div>
         )}

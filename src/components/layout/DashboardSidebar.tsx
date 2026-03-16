@@ -101,11 +101,9 @@ export function DashboardSidebar() {
 
   const handleLogout = async () => {
     await authService.logout();
-    navigate('/login');
+    navigate('/');
   };
 
-  console.log(user);
-  
   return (
     <>
       <Sidebar aria-label="Sidebar with logo branding example" theme={customSidebarTheme} className="bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-700 shadow-sm">

@@ -41,9 +41,20 @@ const getActivityBadgeColor = (isActive: boolean) => {
   return isActive ? 'success' : 'warning';
 };
 
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    sale: 'En venta',
+    rent: 'En alquiler',
+    reserved: 'Reservado',
+    sold: 'Vendido',
+    unavailable: 'No disponible',
+  };
+  return labels[status] ?? status;
+};
+
 const formatDate = (dateString: string | null): string => {
-  if (!dateString) return 'Never';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  if (!dateString) return 'Nunca';
+  return new Date(dateString).toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -53,7 +64,7 @@ const formatDate = (dateString: string | null): string => {
 };
 
 const formatCurrency = (amount: number | null, currency: number): string => {
-  if (amount === null) return 'Not set';
+  if (amount === null) return 'No definido';
 
   const currencySymbols: { [key: number]: string } = {
     0: '$', // USD
@@ -68,8 +79,8 @@ const formatCurrency = (amount: number | null, currency: number): string => {
 };
 
 const getPropertyTypeLabel = (type: number): string => {
-  const types = ['House', 'Apartment', 'Commercial', 'Land', 'Other'];
-  return types[type] || 'Unknown';
+  const types = ['Casa', 'Apartamento', 'Comercial', 'Terreno', 'Otro'];
+  return types[type] || 'Desconocido';
 };
 
 const getAreaUnitLabel = (unit: number): string => {
@@ -152,13 +163,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
         ) : (
-          <Tabs aria-label="Property details tabs" style="underline">
+          <Tabs aria-label="Pestañas de detalles de la propiedad" style="underline">
             {/* Overview Tab */}
-            <TabItem active title="Overview" icon={HomeIcon}>
+            <TabItem active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Quick Actions</h4>
+                  <h4 className="text-md font-semibold mb-4">Acciones rápidas</h4>
                   <div className="flex flex-wrap gap-2">
                     {selectedProperty.isPropertyVisible ? (
                       <Button
@@ -168,7 +179,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                         className="flex items-center space-x-2"
                       >
                         <EyeOffIcon className="w-4 h-4" />
-                        <span>Hide Property</span>
+                        <span>Ocultar propiedad</span>
                       </Button>
                     ) : (
                       <Button
@@ -178,7 +189,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                         className="flex items-center space-x-2 opacity-50 cursor-not-allowed"
                       >
                         <EyeOffIcon className="w-4 h-4" />
-                        <span>Already Hidden</span>
+                        <span>Ya oculto</span>
                       </Button>
                     )}
 
@@ -189,7 +200,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       className="flex items-center space-x-2"
                     >
                       <XCircleIcon className="w-4 h-4" />
-                      <span>Mark Invalid</span>
+                      <span>Marcar como inválido</span>
                     </Button>
 
                     <Button
@@ -199,37 +210,37 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       className="flex items-center space-x-2"
                     >
                       <XCircleIcon className="w-4 h-4" />
-                      <span>Delete Property</span>
+                      <span>Eliminar propiedad</span>
                     </Button>
                   </div>
                 </Card>
 
                 {/* Property Status */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Property Status</h4>
+                  <h4 className="text-md font-semibold mb-4">Estado de la propiedad</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Estado</p>
                       <Badge color={getStatusBadgeColor(selectedProperty.status.toString())} className="mt-1">
-                        {selectedProperty.status}
+                        {getStatusLabel(selectedProperty.status.toString())}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Visibility</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Visibilidad</p>
                       <Badge color={getVisibilityBadgeColor(selectedProperty.isPropertyVisible)} className="mt-1">
-                        {selectedProperty.isPropertyVisible ? 'Visible' : 'Hidden'}
+                        {selectedProperty.isPropertyVisible ? 'Visible' : 'Oculto'}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Activity</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Actividad</p>
                       <Badge color={getActivityBadgeColor(selectedProperty.isActive)} className="mt-1">
-                        {selectedProperty.isActive ? 'Active' : 'Inactive'}
+                        {selectedProperty.isActive ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Featured</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Destacado</p>
                       <Badge color={selectedProperty.isFeatured ? 'success' : 'gray'} className="mt-1">
-                        {selectedProperty.isFeatured ? 'Yes' : 'No'}
+                        {selectedProperty.isFeatured ? 'Sí' : 'No'}
                       </Badge>
                     </div>
                   </div>
@@ -237,25 +248,25 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
                 {/* Basic Information */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Basic Information</h4>
+                  <h4 className="text-md font-semibold mb-4">Información básica</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Type: {getPropertyTypeLabel(selectedProperty.type)}
+                          Tipo: {getPropertyTypeLabel(selectedProperty.type)}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <MapPinIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Location: {selectedProperty.streetName} {selectedProperty.houseNumber}, {selectedProperty.city}, {selectedProperty.state}
+                          Ubicación: {selectedProperty.streetName} {selectedProperty.houseNumber}, {selectedProperty.city}, {selectedProperty.state}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Size: {selectedProperty.areaValue} {getAreaUnitLabel(selectedProperty.areaUnit)}
+                          Tamaño: {selectedProperty.areaValue} {getAreaUnitLabel(selectedProperty.areaUnit)}
                         </span>
                       </div>
                     </div>
@@ -263,19 +274,19 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Bedrooms: {selectedProperty.bedrooms}, Bathrooms: {selectedProperty.bathrooms}
+                          Habitaciones: {selectedProperty.bedrooms}, Baños: {selectedProperty.bathrooms}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Garage: {selectedProperty.hasGarage ? `${selectedProperty.garageSpaces} spaces` : 'No'}
+                          Garaje: {selectedProperty.hasGarage ? `${selectedProperty.garageSpaces} espacios` : 'No'}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <UserIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Capacity: {selectedProperty.capacity} people
+                          Capacidad: {selectedProperty.capacity} personas
                         </span>
                       </div>
                     </div>
@@ -285,13 +296,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                 {/* Pricing */}
                 {(selectedProperty.salePrice || selectedProperty.rentPrice) && (
                   <Card>
-                    <h4 className="text-md font-semibold mb-4">Pricing</h4>
+                    <h4 className="text-md font-semibold mb-4">Precios</h4>
                     <div className="space-y-2">
                       {selectedProperty.salePrice && (
                         <div className="flex items-center space-x-2">
                           <DollarSignIcon className="w-4 h-4 text-gray-400" />
                           <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Sale Price: {formatCurrency(selectedProperty.salePrice, selectedProperty.currency)}
+                            Precio de venta: {formatCurrency(selectedProperty.salePrice, selectedProperty.currency)}
                           </span>
                         </div>
                       )}
@@ -299,7 +310,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                         <div className="flex items-center space-x-2">
                           <DollarSignIcon className="w-4 h-4 text-gray-400" />
                           <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Rent Price: {formatCurrency(selectedProperty.rentPrice, selectedProperty.currency)}
+                            Precio de alquiler: {formatCurrency(selectedProperty.rentPrice, selectedProperty.currency)}
                           </span>
                         </div>
                       )}
@@ -307,7 +318,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                         <div className="flex items-center space-x-2">
                           <DollarSignIcon className="w-4 h-4 text-gray-400" />
                           <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Common Expenses: {formatCurrency(selectedProperty.commonExpensesValue, selectedProperty.currency)}
+                            Gastos comunes: {formatCurrency(selectedProperty.commonExpensesValue, selectedProperty.currency)}
                           </span>
                         </div>
                       )}
@@ -317,24 +328,24 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
                 {/* Dates */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Important Dates</h4>
+                  <h4 className="text-md font-semibold mb-4">Fechas importantes</h4>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <CalendarIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Available From: {formatDate(selectedProperty.availableFrom)}
+                        Disponible desde: {formatDate(selectedProperty.availableFrom)}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Created: {formatDate(selectedProperty.created)}
+                        Creado: {formatDate(selectedProperty.created)}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Last Modified: {formatDate(selectedProperty.lastModified)}
+                        Última modificación: {formatDate(selectedProperty.lastModified)}
                       </span>
                     </div>
                   </div>
@@ -343,20 +354,20 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             </TabItem>
 
             {/* Owner Tab */}
-            <TabItem title="Owner" icon={UserIcon}>
+            <TabItem title="Propietario" icon={UserIcon}>
               <Card>
-                <h4 className="text-md font-semibold mb-4">Owner Information</h4>
+                <h4 className="text-md font-semibold mb-4">Información del propietario</h4>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Nombre</p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Correo electrónico</p>
                     <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerEmail}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Owner ID</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">ID del propietario</p>
                     <p className="text-sm font-mono text-gray-600 dark:text-gray-300">{selectedProperty.ownerId}</p>
                   </div>
                 </div>
@@ -415,9 +426,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
             {/* Description Tab */}
             {selectedProperty.description && (
-              <TabItem title="Description" icon={HomeIcon}>
+              <TabItem title="Descripción" icon={HomeIcon}>
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Property Description</h4>
+                  <h4 className="text-md font-semibold mb-4">Descripción de la propiedad</h4>
                   <div className="prose dark:prose-invert max-w-none">
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                       {selectedProperty.description}
@@ -432,7 +443,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
       <ModalFooter>
         <Button color="gray" onClick={closeDetailModal}>
-          Close
+          Cerrar
         </Button>
       </ModalFooter>
     </Modal>

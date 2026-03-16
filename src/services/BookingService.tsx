@@ -138,6 +138,47 @@ class BookingService {
   }
 
   /**
+   * Get all bookings for admin view (all members).
+   * RLS allows admins to see all bookings; same query shape as getOwnerBookings.
+   */
+  static async getAdminBookings(): Promise<SdiApiResponse<BookingWithMemberAndProperty[]>> {
+    try {
+      const { data, error } = await supabase
+        .from('Bookings')
+        .select(`
+          *,
+          Guest:Members!FK_Bookings_Members_GuestId(
+            Id,
+            UserId,
+            FirstName,
+            LastName,
+            Email,
+            Phone,
+            AvatarUrl
+          ),
+          EstateProperty:EstateProperties(
+            Id,
+            Title
+          )
+        `)
+        .eq('IsDeleted', false)
+        .order('CheckInDate', { ascending: false });
+
+      if (error) throw error;
+
+      return {
+        succeeded: true,
+        data: (data || []) as BookingWithMemberAndProperty[]
+      };
+    } catch (error: any) {
+      return {
+        succeeded: false,
+        errorMessage: error.message || 'Failed to fetch bookings'
+      };
+    }
+  }
+
+  /**
    * Get a single booking by ID with member information
    */
   static async getBookingById(bookingId: string): Promise<SdiApiResponse<BookingWithMember>> {
