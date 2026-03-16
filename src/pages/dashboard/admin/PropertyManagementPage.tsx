@@ -215,7 +215,7 @@ const PropertyManagementPage = () => {
             initialContext={{
               mode: 'admin',
               isAdmin: true,
-              availablePropertyTypes: [PropertyType.RealEstate, PropertyType.AnnualRent, PropertyType.SummerRent, PropertyType.EventVenue],
+              availablePropertyTypes: [PropertyType.RealEstate, PropertyType.SummerRent, PropertyType.EventVenue],
             }}
             onComplete={() => {
               setShowCreateModal(false);

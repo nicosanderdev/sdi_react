@@ -7,14 +7,13 @@ import { EstatePropertyValues } from "./EstatePropertyValues";
 export type PropertyType =
   | 'SummerRent'
   | 'EventVenue'
-  | 'AnnualRent'
   | 'RealEstate';
 
 export type LocationCategory = 'rural' | 'city' | 'near_shore';
 
 export type ViewType = 'city' | 'mountain' | 'rural' | 'sea';
 
-export type ListingType = PropertyType;
+export type ListingType = 'SummerRent' | 'EventVenue' | 'AnnualRent' | 'RealEstate';
 
 export interface Listing {
   id: string;

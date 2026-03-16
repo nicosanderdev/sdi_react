@@ -2,7 +2,6 @@ export enum PropertyType {
   SummerRent = 'SummerRent',
   EventVenue = 'EventVenue',
   RealEstate = 'RealEstate',
-  AnnualRent = 'AnnualRent',
 }
 
 export enum ListingType {

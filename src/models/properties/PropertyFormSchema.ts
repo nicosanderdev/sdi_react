@@ -24,7 +24,7 @@ export const propertyFormBaseSchema = z.object({
   }),
   // end-purpose for this property (optional on create)
   propertyType: z
-    .enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate'])
+    .enum(['SummerRent', 'EventVenue', 'RealEstate'])
     .optional() as z.ZodType<PropertyType | undefined>,
   // structural / infrastructure
   areaValue: z.coerce.number().min(1, 'El área debe ser al menos 1.'),
