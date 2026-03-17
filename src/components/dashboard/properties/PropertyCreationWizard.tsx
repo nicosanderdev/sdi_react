@@ -70,11 +70,13 @@ fetch('http://127.0.0.1:7410/ingest/8cfc8ae1-a75f-4ac9-842a-c9e78ca77428', {
 
 export const propertyCreationFormSchema = propertyFormBaseSchema
   .extend({
-  publishMode: z.enum(['draft', 'publish']).default('publish'),
-  listingTypes: z
-    .array(z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']))
-    .default([]),
-})
+    publishMode: z.enum(['draft', 'publish']).default('publish'),
+    // Kept for backward-compatibility, but listing types are now derived
+    // from propertyType + listingType rather than a free-form multi-select.
+    listingTypes: z
+      .array(z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']))
+      .default([]),
+  })
   .refine(data => data.salePrice || data.rentPrice, {
     message: 'Debes especificar un precio de venta o de alquiler.',
     path: ['salePrice'],
@@ -125,6 +127,20 @@ export function PropertyCreationWizard({
     } as any,
   });
 
+  // Keep listingType aligned with propertyType when appropriate.
+  const watchedPropertyType = methods.watch('propertyType');
+  const watchedListingType = methods.watch('listingType');
+
+  if (!watchedListingType && watchedPropertyType) {
+    let inferred: ListingType | undefined;
+    if (watchedPropertyType === 'SummerRent') inferred = 'SummerRent';
+    if (watchedPropertyType === 'EventVenue') inferred = 'EventVenue';
+    if (watchedPropertyType === 'RealEstate') inferred = 'RealEstate';
+    if (inferred) {
+      methods.setValue('listingType', inferred, { shouldValidate: false });
+    }
+  }
+
   const stepCount = 4;
 
   const handleNext = () => {
@@ -173,15 +189,31 @@ export function PropertyCreationWizard({
 
       queryClient.invalidateQueries({ queryKey: ['properties'] });
 
-      const listingIntents: ListingIntent[] = (formData.listingTypes || []).map((lt: ListingType) => ({
-        listingType: lt,
-        publishNow,
-      }));
+      const effectivePropertyType: PropertyType =
+        (formData.propertyType as PropertyType) || initialContext.availablePropertyTypes[0];
+
+      // Primary listing type is determined from listingType (for RealEstate)
+      // or inferred from propertyType for the other extensions.
+      let mainListingType: ListingType | undefined = formData.listingType as ListingType | undefined;
+      if (!mainListingType) {
+        if (effectivePropertyType === 'SummerRent') mainListingType = 'SummerRent';
+        if (effectivePropertyType === 'EventVenue') mainListingType = 'EventVenue';
+        if (effectivePropertyType === 'RealEstate') mainListingType = 'RealEstate';
+      }
+
+      const listingIntents: ListingIntent[] = mainListingType
+        ? [
+            {
+              listingType: mainListingType,
+              publishNow,
+            },
+          ]
+        : [];
 
       const extensionIntents: PropertyExtensionIntent[] = [
         {
           propertyId: created.id,
-          propertyType: (formData.propertyType as PropertyType) || initialContext.availablePropertyTypes[0],
+          propertyType: effectivePropertyType,
           isPrimary: true,
         },
       ];

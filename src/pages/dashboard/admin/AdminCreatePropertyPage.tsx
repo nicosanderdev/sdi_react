@@ -1,5 +1,5 @@
 // src/pages/dashboard/admin/AdminCreatePropertyPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,8 @@ import { getMemberById, getMemberByEmail } from '../../../services/AdminMemberSe
 import { AdminCreateMemberForm } from '../../../components/admin/properties/AdminCreateMemberForm';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAuth } from '../../../contexts/AuthContext';
+import { supabase } from '../../../config/supabase';
+import type { PropertyType } from '../../../models/properties';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -36,6 +38,11 @@ export function AdminCreatePropertyPage() {
   const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
   const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const [isSubmittingProperty, setIsSubmittingProperty] = useState(false);
+  const [availablePropertyTypes, setAvailablePropertyTypes] = useState<PropertyType[]>([]);
+  const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(false);
+
+  // For admin-created properties, always allow choosing between the three core types.
+  const ALL_PROPERTY_TYPES: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
 
   const methods = useForm<PropertyFormData>({
     resolver: zodResolver(propertyFormSchema),
@@ -81,7 +88,57 @@ export function AdminCreatePropertyPage() {
     },
   });
 
-  const { handleSubmit, trigger } = methods;
+  const { handleSubmit, trigger, register, watch, setValue } = methods;
+
+  const watchedPropertyType = watch('propertyType');
+
+  useEffect(() => {
+    if (!ownerUserId) return;
+    const loadPropertyTypes = async () => {
+      setLoadingPropertyTypes(true);
+      try {
+        const { data, error } = await supabase
+          .from('Subscriptions')
+          .select(
+            `
+            *,
+            Plans (*)
+          `
+          )
+          .eq('OwnerId', ownerUserId)
+          .eq('Status', 1)
+          .eq('IsDeleted', false)
+          .order('CreatedAt', { ascending: false });
+
+        if (error) throw error;
+
+        const typesFromPlans: PropertyType[] =
+          data
+            ?.map((row: any) => row.Plans?.PropertyType)
+            .filter((t: any) => t) ?? [];
+
+        const uniqueTypes = Array.from(new Set(typesFromPlans)) as PropertyType[];
+        const finalTypes = uniqueTypes.length > 0 ? uniqueTypes : (['RealEstate'] as PropertyType[]);
+        setAvailablePropertyTypes(finalTypes);
+
+        // Ensure form has a default propertyType when entering the property phase.
+        if (!watch('propertyType') && finalTypes[0]) {
+          setValue('propertyType', finalTypes[0], { shouldValidate: false });
+        }
+      } catch (err) {
+        console.error('Error loading property types for owner:', err);
+        const fallback: PropertyType[] = ['RealEstate'];
+        setAvailablePropertyTypes(fallback);
+        if (!watch('propertyType')) {
+          setValue('propertyType', fallback[0], { shouldValidate: false });
+        }
+      } finally {
+        setLoadingPropertyTypes(false);
+      }
+    };
+
+    void loadPropertyTypes();
+  }, [ownerUserId, setValue, watch]);
 
   const handleBack = () => {
     navigate('/dashboard/admin/properties');
@@ -270,6 +327,31 @@ export function AdminCreatePropertyPage() {
         <FormProvider {...methods}>
           <Card>
             <div className="px-2">
+              {/* Property type selector.
+                  As an admin, you can always choose between the three core types,
+                  regardless of the specific subscription configuration. */}
+              <div className="mb-6 border border-gray-200 rounded-lg p-4">
+                <h2 className="text-sm font-semibold mb-2">Tipo de propiedad</h2>
+                {loadingPropertyTypes ? (
+                  <p className="text-sm text-gray-500">Cargando tipos de propiedad disponibles…</p>
+                ) : (
+                  <select
+                    className="w-full rounded-lg border-gray-300"
+                    {...register('propertyType')}
+                    value={watchedPropertyType ?? ALL_PROPERTY_TYPES[0]}
+                    onChange={(e) =>
+                      setValue('propertyType', e.target.value as PropertyType, { shouldValidate: true })
+                    }
+                  >
+                    {ALL_PROPERTY_TYPES.map((pt) => (
+                      <option key={pt} value={pt}>
+                        {pt}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
               <div className="flex space-x-1 mb-6">
                 {[1, 2, 3, 4].map((step) => (
                   <div
@@ -286,7 +368,7 @@ export function AdminCreatePropertyPage() {
                 </div>
               )}
               {propertyStep === 1 && (
-                <PropertyFormStep1 onNext={() => handlePropertyNext(step1Fields)} />
+                <PropertyFormStep1 onNext={handlePropertyNext} />
               )}
               {propertyStep === 2 && (
                 <PropertyFormStep2

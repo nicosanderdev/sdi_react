@@ -47,26 +47,14 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Not authenticated');
 
-      // Generate or retrieve export token from database
-      const { data: property, error: propertyError } = await supabase
-        .from('EstateProperties')
-        .select('ICalExportToken')
-        .eq('Id', propertyId)
-        .single();
+      // Retrieve export token via RPC backed by SummerRentExtension
+      const { data, error } = await supabase.rpc('get_property_ical_export_token', {
+        property_id: propertyId
+      });
 
-      if (propertyError) throw propertyError;
+      if (error || !data) throw error || new Error('Failed to load export token');
 
-      let token = property.ICalExportToken;
-      if (!token) {
-        // Generate new token if none exists
-        token = crypto.randomUUID();
-        const { error: updateError } = await supabase
-          .from('EstateProperties')
-          .update({ ICalExportToken: token })
-          .eq('Id', propertyId);
-
-        if (updateError) throw updateError;
-      }
+      const token = data as string;
 
       const baseUrl = window.location.origin;
       const url = `${baseUrl}/ical-export/${propertyId}?token=${token}`;
@@ -102,14 +90,13 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
     setError(null);
 
     try {
-      const newToken = crypto.randomUUID();
+      const { data, error } = await supabase.rpc('regenerate_property_ical_export_token', {
+        property_id: propertyId
+      });
 
-      const { error: updateError } = await supabase
-        .from('EstateProperties')
-        .update({ ICalExportToken: newToken })
-        .eq('Id', propertyId);
+      if (error || !data) throw error || new Error('Failed to regenerate token');
 
-      if (updateError) throw updateError;
+      const newToken = data as string;
 
       const baseUrl = window.location.origin;
       const newUrl = `${baseUrl}/ical-export/${propertyId}?token=${newToken}`;

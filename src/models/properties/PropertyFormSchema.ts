@@ -62,6 +62,27 @@ export const propertyFormBaseSchema = z.object({
 
   // --- Amenities ---
   amenities: z.array(z.string()).optional(),
+  // --- Extension-specific fields (RealEstate, SummerRent, EventVenue) ---
+  // RealEstateExtension-like fields
+  allowsFinancing: z.boolean().optional(),
+  isNewConstruction: z.boolean().optional(),
+  hasMortgage: z.boolean().optional(),
+  hoaFees: z.coerce.number().optional(),
+  minContractMonths: z.coerce.number().int().optional(),
+  requiresGuarantee: z.boolean().optional(),
+  guaranteeType: z.string().optional(),
+  allowsPets: z.boolean().optional(),
+  // EventVenueExtension-like fields
+  maxGuests: z.coerce.number().int().optional(),
+  hasCatering: z.boolean().optional(),
+  hasSoundSystem: z.boolean().optional(),
+  closingHour: z.string().optional(),
+  allowedEventsDescription: z.string().optional(),
+  // SummerRentExtension-like fields
+  minStayDays: z.coerce.number().int().optional(),
+  maxStayDays: z.coerce.number().int().optional(),
+  leadTimeDays: z.coerce.number().int().optional(),
+  bufferDays: z.coerce.number().int().optional(),
 });
 
 export const propertyFormSchema = propertyFormBaseSchema

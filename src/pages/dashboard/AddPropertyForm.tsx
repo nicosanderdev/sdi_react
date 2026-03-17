@@ -4,6 +4,9 @@ import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 import { PropertyCreationWizard } from '../../components/dashboard/properties/PropertyCreationWizard';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
+import { useQuery } from '@tanstack/react-query';
+import subscriptionService from '../../services/SubscriptionService';
+import type { PropertyType } from '../../models/properties';
 interface AddPropertyFormProps {
   onClose: () => void;
 }
@@ -19,6 +22,18 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
     setStep,
     complete,
   } = useOwnerOnboarding();
+
+  const { data: subscription } = useQuery({
+    queryKey: ['current-subscription'],
+    queryFn: () => subscriptionService.getCurrentSubscription(),
+  });
+
+  const availablePropertyTypes: PropertyType[] =
+    subscription?.propertyTypes && subscription.propertyTypes.length > 0
+      ? subscription.propertyTypes
+      : subscription?.propertyType
+      ? [subscription.propertyType]
+      : ['RealEstate'];
   return (
     <Card className="min-h-full">
       {view === 'form' && (
@@ -27,7 +42,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
             initialContext={{
               mode: 'user',
               isAdmin: false,
-              availablePropertyTypes: ['RealEstate', 'AnnualRent', 'SummerRent', 'EventVenue'],
+              availablePropertyTypes,
             }}
             onComplete={async () => {
               if (isEligibleForOnboarding) {

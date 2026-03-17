@@ -75,35 +75,17 @@ async function checkRateLimit(propertyId: string): Promise<boolean> {
  * Validate export token for property
  */
 async function validateExportToken(propertyId: string, token: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('EstateProperties')
-    .select('ICalExportToken')
-    .eq('Id', propertyId)
-    .eq('IsDeleted', false)
-    .single()
+  const { data, error } = await supabase.rpc('get_property_ical_export_token', {
+    property_id: propertyId
+  })
 
   if (error || !data) {
     logger.warn('token_validation_failed', { propertyId, tokenPrefix: token?.substring(0, 8) }, error?.message)
     return false
   }
 
-  // If no token exists, generate one
-  if (!data.ICalExportToken) {
-    const newToken = crypto.randomUUID()
-    const { error: updateError } = await supabase
-      .from('EstateProperties')
-      .update({ ICalExportToken: newToken })
-      .eq('Id', propertyId)
-
-    if (updateError) {
-      logger.error('generate_export_token_failed', updateError.message, { propertyId })
-      return false
-    }
-
-    return newToken === token
-  }
-
-  return data.ICalExportToken === token
+  const currentToken = data as string
+  return currentToken === token
 }
 
 /**

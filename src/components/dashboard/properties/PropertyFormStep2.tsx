@@ -5,6 +5,9 @@ import { PropertyFormData } from '../../../models/properties/PropertyFormSchema'
 import { Button, Label, Select, TextInput, Textarea, Checkbox } from 'flowbite-react';
 import PropertyService from '../../../services/PropertyService';
 import { Amenity } from '../../../models/properties/Amenity';
+import { RealEstateExtensionForm } from './RealEstateExtensionForm';
+import { SummerRentExtensionForm } from './SummerRentExtensionForm';
+import { EventVenueExtensionForm } from './EventVenueExtensionForm';
 
 interface PropertyFormStep2Props {
   onNext: () => void;
@@ -21,6 +24,7 @@ export function PropertyFormStep2({
   const hasCommonExpenses = watch('hasCommonExpenses');
   const hasGarage = watch('hasGarage');
   const selectedAmenities = watch('amenities') || [];
+  const propertyType = watch('propertyType');
 
   const { data: allAmenities, isLoading: isLoadingAmenities } = useQuery({
     queryKey: ['amenities'],
@@ -319,7 +323,12 @@ export function PropertyFormStep2({
                 </div>
             )}
         </div>
-        
+
+        {/* Extension-specific fields based on selected propertyType */}
+        {propertyType === 'RealEstate' && <RealEstateExtensionForm />}
+        {propertyType === 'SummerRent' && <SummerRentExtensionForm />}
+        {propertyType === 'EventVenue' && <EventVenueExtensionForm />}
+
         <div className="flex justify-between pt-4">
           <Button color="alternative" onClick={onBack}>
             Atrás
