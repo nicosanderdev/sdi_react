@@ -1,13 +1,14 @@
 // src/pages/dashboard/admin/UserManagementPage.tsx
 import React from 'react';
 import { Button, Card } from 'flowbite-react';
-import { RefreshCwIcon, UsersIcon } from 'lucide-react';
+import { RefreshCwIcon } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminUsers } from '../../../hooks/useAdminUsers';
 import { UserFilters } from '../../../components/admin/users/UserFilters';
 import { UserManagementTable } from '../../../components/admin/users/UserManagementTable';
 import { UserDetailModal } from '../../../components/admin/users/UserDetailModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
+import { UserStatistics } from '../../../components/admin/users/UserStatistics';
 
 const UserManagementPage: React.FC = () => {
   const hook = useAdminUsers();
@@ -56,6 +57,9 @@ const UserManagementPage: React.FC = () => {
           </div>
         </Card>
       )}
+
+      {/* Statistics */}
+      <UserStatistics hook={hook} />
 
       {/* Filters */}
       <UserFilters hook={hook} />
