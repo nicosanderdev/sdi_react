@@ -353,7 +353,7 @@ export const mapDbToProfile = (
       country: member.Country || ''
     },
     companies,
-    roles: member.Role ? [member.Role] : []
+    role: member.Role ? String(member.Role).toLowerCase() : 'user'
   };
 };
 

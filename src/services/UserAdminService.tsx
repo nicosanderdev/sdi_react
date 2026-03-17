@@ -34,7 +34,7 @@ export interface UserListItem {
   lastName: string | null;
   email: string;
   avatarUrl: string | null;
-  roles: string[];
+  role: string;
   subscriptionStatus: SubscriptionStatus;
   subscriptionTier: number | null;
   subscriptionExpiresAt: string | null;
@@ -77,7 +77,7 @@ export interface UserDetail {
   state: string | null;
   postalCode: string | null;
   country: string | null;
-  roles: string[];
+  role: string;
   subscriptionStatus: SubscriptionStatus;
   subscriptionTier: number | null;
   subscriptionExpiresAt: string | null;
@@ -147,7 +147,7 @@ class UserAdminService {
       lastName: user.last_name,
       email: user.email,
       avatarUrl: user.avatar_url,
-      roles: user.roles || [],
+      role: user.role ?? user.roles?.[0] ?? 'user',
       subscriptionStatus: user.subscription_status,
       subscriptionTier: user.subscription_tier,
       subscriptionExpiresAt: user.subscription_expires_at,
@@ -196,7 +196,7 @@ class UserAdminService {
       state: user.state,
       postalCode: user.postal_code,
       country: user.country,
-      roles: user.roles || [],
+      role: user.role ?? user.roles?.[0] ?? 'user',
       subscriptionStatus: user.subscription_status,
       subscriptionTier: user.subscription_tier,
       subscriptionExpiresAt: user.subscription_expires_at,

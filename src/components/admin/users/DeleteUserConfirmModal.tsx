@@ -75,7 +75,7 @@ export const DeleteUserConfirmModal: React.FC<DeleteUserConfirmModalProps> = ({ 
             <div className="space-y-1 text-sm">
               <p><strong>Name:</strong> {userName}</p>
               <p><strong>Email:</strong> {userToDelete.email}</p>
-              <p><strong>Role:</strong> {userToDelete.roles.includes('admin') ? 'Admin' : 'User'}</p>
+              <p><strong>Role:</strong> {userToDelete.role === 'admin' ? 'Admin' : 'User'}</p>
               <p><strong>Properties:</strong> {userToDelete.propertiesCount}</p>
             </div>
           </div>

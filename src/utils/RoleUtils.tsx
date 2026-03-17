@@ -8,7 +8,7 @@ interface AuthUser {
   isEmailConfirmed: boolean;
   isAuthenticated: boolean;
   is2FAEnabled: boolean;
-  roles: string[];
+  role: string;
 }
 
 // Union type to handle both ProfileData and AuthUser
@@ -17,11 +17,14 @@ export type UserData = ProfileData | AuthUser | null;
 export type UserRole = typeof Roles[keyof typeof Roles];
 
 /**
- * Checks if the user has a specific role
+ * Checks if the user has a specific role (case-insensitive for robustness).
  */
 export const hasRole = (user: UserData, role: UserRole): boolean => {
-    if (!user || !user.roles) return false;
-  return user.roles.includes(role);
+  if (!user) return false;
+  const r = (user as { role?: string; roles?: string[] }).role ?? (user as { role?: string; roles?: string[] }).roles?.[0];
+  if (r == null || r === '') return false;
+  const normalizedRole = role.toLowerCase();
+  return String(r).toLowerCase() === normalizedRole;
 };
 
 /**
@@ -35,7 +38,7 @@ export const isAdmin = (user: UserData): boolean => {
  * Checks if the user is a regular user (not admin)
  */
 export const isUser = (user: UserData): boolean => {
-  return hasRole(user, Roles.User) || (!isAdmin(user) && hasRole(user, Roles.User));
+  return hasRole(user, Roles.User);
 };
 
 /**
@@ -49,11 +52,12 @@ export const hasElevatedAccess = (user: UserData): boolean => {
  * Gets the primary role of the user
  */
 export const getPrimaryRole = (user: UserData): UserRole | null => {
-  if (!user || !user.roles || user.roles.length === 0) return null;
-
-  if (hasRole(user, Roles.Admin)) return Roles.Admin;
-  if (hasRole(user, Roles.User)) return Roles.User;
-
+  if (!user) return null;
+  const r = (user as { role?: string; roles?: string[] }).role ?? (user as { role?: string; roles?: string[] }).roles?.[0];
+  if (r == null || r === '') return null;
+  const normalized = String(r).toLowerCase();
+  if (normalized === Roles.Admin) return Roles.Admin;
+  if (normalized === Roles.User) return Roles.User;
   return null;
 };
 

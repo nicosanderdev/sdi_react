@@ -52,7 +52,6 @@ export function PublicFooter() {
                 <FooterTitle title="Recursos" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
                   <FooterLink href="/demo" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Demo</FooterLink>
-                  <FooterLink href="/register" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Registro</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>

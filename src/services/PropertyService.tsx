@@ -14,7 +14,7 @@ import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
 
 // Import types for Supabase property creation
-import { PropertyFormData } from '../pages/dashboard/AddPropertyForm';
+import { PropertyFormData } from '../models/properties/PropertyFormSchema';
 import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 
@@ -463,15 +463,14 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
 };
 
 
-// Create a new property using Supabase (with file uploads to Storage)
-const createProperty = async (
+// Internal: create property with a specific owner user id (used by createProperty and createPropertyForOwner)
+const createPropertyWithOwnerUserId = async (
+  ownerUserId: string,
   formData: PropertyFormData,
   displayImages: DisplayImage[],
   displayDocuments: DisplayDocument[]
 ): Promise<PropertyData> => {
   try {
-    const userId = await getCurrentUserId();
-
     // Upload images to Supabase Storage
     const uploadedImages = await Promise.all(
       displayImages
@@ -594,7 +593,7 @@ const createProperty = async (
       p_garage_spaces: formData.garageSpaces,
       p_description: formData.description || null,
       p_available_from: new Date(formData.availableFrom).toISOString(),
-      p_owner_user_id: userId,
+      p_owner_user_id: ownerUserId,
       p_currency: currencyMap[formData.currency],
       p_sale_price: formData.salePrice ? parseFloat(formData.salePrice) : null,
       p_rent_price: formData.rentPrice ? parseFloat(formData.rentPrice) : null,
@@ -690,6 +689,26 @@ const createProperty = async (
 
     throw new Error(error.message || 'Failed to create property with Supabase');
   }
+};
+
+// Create a new property using Supabase (with file uploads to Storage) — uses current user as owner
+const createProperty = async (
+  formData: PropertyFormData,
+  displayImages: DisplayImage[],
+  displayDocuments: DisplayDocument[]
+): Promise<PropertyData> => {
+  const userId = await getCurrentUserId();
+  return createPropertyWithOwnerUserId(userId, formData, displayImages, displayDocuments);
+};
+
+// Admin: create a property on behalf of another user (ownerUserId = that user's auth id)
+const createPropertyForOwner = async (
+  ownerUserId: string,
+  formData: PropertyFormData,
+  displayImages: DisplayImage[],
+  displayDocuments: DisplayDocument[]
+): Promise<PropertyData> => {
+  return createPropertyWithOwnerUserId(ownerUserId, formData, displayImages, displayDocuments);
 };
 
 // Update an existing property
@@ -1087,6 +1106,7 @@ const propertyService = {
   getOwnersProperties,
   getOwnersPropertyById,
   createProperty,
+  createPropertyForOwner,
   updateProperty,
   deleteProperty,
   duplicateProperty,

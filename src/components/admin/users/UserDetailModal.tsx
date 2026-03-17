@@ -199,8 +199,8 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
                       <div className="flex items-center space-x-2">
                         <ShieldIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm font-medium">Role:</span>
-                        <Badge color={selectedUser.roles.includes('admin') ? 'purple' : 'gray'}>
-                          {selectedUser.roles.includes('admin') ? 'Admin' : 'User'}
+                        <Badge color={selectedUser.role === 'admin' ? 'purple' : 'gray'}>
+                          {selectedUser.role === 'admin' ? 'Admin' : 'User'}
                         </Badge>
                       </div>
                       <div className="flex items-center space-x-2">

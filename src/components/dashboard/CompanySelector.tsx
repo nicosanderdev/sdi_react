@@ -1,7 +1,8 @@
 import { Dropdown, DropdownItem, DropdownDivider } from 'flowbite-react';
 import { useSelector } from 'react-redux';
 import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../store/slices/userSlice';
-import { CompanyRoles } from '../../models/CompanyRoles';
+import { hasRole } from '../../utils/RoleUtils';
+import { Roles } from '../../models/Roles';
 
 export type CompanySelectorMode = 'all-options' | 'companies-only' | 'without-all';
 
@@ -31,8 +32,8 @@ export function CompanySelector({
   const hasCompanies = useSelector(selectHasCompanies);
   const userProfile = useSelector(selectUserProfile);
 
-  // Check if user has admin role for any company
-  const hasAdminRole = userProfile?.roles?.includes(CompanyRoles.Admin) || false;
+  // Check if user has global admin role (Members.Role)
+  const hasAdminRole = userProfile ? hasRole(userProfile, Roles.Admin) : false;
 
   // Don't render the selector if user has no companies
   if (!hasCompanies) {

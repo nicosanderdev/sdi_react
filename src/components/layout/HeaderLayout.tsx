@@ -3,14 +3,15 @@ import { selectUserProfile } from '../../store/slices/userSlice';
 import { Avatar, Dropdown, DropdownDivider, DropdownHeader, DropdownItem, Navbar } from 'flowbite-react';
 import { CustomDarkThemeToggle } from '../ui/CustomDarkThemeToggle';
 import { useNavigate } from 'react-router-dom';
-import authService from '../../services/AuthService';
+import { useAuth } from '../../contexts/AuthContext';
 
 export function HeaderLayout() {
   const userProfile = useSelector(selectUserProfile);
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = async () => {
-    await authService.logout();
+    await logout();
     navigate('/login');
   };
 

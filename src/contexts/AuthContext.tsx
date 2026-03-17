@@ -4,11 +4,13 @@ import { supabase } from '../config/supabase'
 import { useAppDispatch } from '../hooks/reduxHooks'
 import { fetchUserProfile, clearUserState } from '../store/slices/userSlice'
 import userAdminService from '../services/UserAdminService'
+import authService from '../services/AuthService'
 
 interface AuthContextType {
   session: Session | null
   user: User | null
   loading: boolean
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -95,8 +97,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email)
-
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -130,10 +130,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval)
   }, [user]) // Removed checkForceLogout from dependencies to prevent re-running when it changes
 
+  const logout = useCallback(async () => {
+    try {
+      await authService.logout()
+    } finally {
+      setSession(null)
+      setUser(null)
+      dispatch(clearUserState())
+    }
+  }, [dispatch])
+
   const value = {
     session,
     user,
-    loading
+    loading,
+    logout
   }
 
   return (
