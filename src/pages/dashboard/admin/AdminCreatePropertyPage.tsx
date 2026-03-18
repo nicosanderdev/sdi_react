@@ -1,10 +1,10 @@
 // src/pages/dashboard/admin/AdminCreatePropertyPage.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft } from 'lucide-react';
-import { Button, Card, Label, TextInput } from 'flowbite-react';
+import { Button, Card, Dropdown, DropdownItem, Label, TextInput } from 'flowbite-react';
 import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import { PropertyFormStep1 } from '../../../components/dashboard/properties/PropertyFormStep1';
 import { PropertyFormStep2 } from '../../../components/dashboard/properties/PropertyFormStep2';
@@ -38,7 +38,6 @@ export function AdminCreatePropertyPage() {
   const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
   const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const [isSubmittingProperty, setIsSubmittingProperty] = useState(false);
-  const [availablePropertyTypes, setAvailablePropertyTypes] = useState<PropertyType[]>([]);
   const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(false);
 
   // For admin-created properties, always allow choosing between the three core types.
@@ -57,7 +56,6 @@ export function AdminCreatePropertyPage() {
       country: 'Uruguay',
       location: { lat: -30.8994, lng: -55.5469 },
       title: '',
-      type: undefined,
       propertyType: undefined,
       areaValue: 0,
       areaUnit: undefined,
@@ -88,9 +86,17 @@ export function AdminCreatePropertyPage() {
     },
   });
 
-  const { handleSubmit, trigger, register, watch, setValue } = methods;
+  const { handleSubmit, register, watch, setValue } = methods;
 
   const watchedPropertyType = watch('propertyType');
+
+  const getPropertyTypeLabel = (pt: PropertyType | null | undefined) => {
+    if (!pt) return 'Selecciona el tipo de propiedad';
+    if (pt === 'RealEstate') return 'Venta / alquiler anual';
+    if (pt === 'SummerRent') return 'Alquiler de temporada';
+    if (pt === 'EventVenue') return 'Eventos';
+    return pt;
+  };
 
   useEffect(() => {
     if (!ownerUserId) return;
@@ -119,7 +125,6 @@ export function AdminCreatePropertyPage() {
 
         const uniqueTypes = Array.from(new Set(typesFromPlans)) as PropertyType[];
         const finalTypes = uniqueTypes.length > 0 ? uniqueTypes : (['RealEstate'] as PropertyType[]);
-        setAvailablePropertyTypes(finalTypes);
 
         // Ensure form has a default propertyType when entering the property phase.
         if (!watch('propertyType') && finalTypes[0]) {
@@ -128,7 +133,6 @@ export function AdminCreatePropertyPage() {
       } catch (err) {
         console.error('Error loading property types for owner:', err);
         const fallback: PropertyType[] = ['RealEstate'];
-        setAvailablePropertyTypes(fallback);
         if (!watch('propertyType')) {
           setValue('propertyType', fallback[0], { shouldValidate: false });
         }
@@ -330,26 +334,41 @@ export function AdminCreatePropertyPage() {
               {/* Property type selector.
                   As an admin, you can always choose between the three core types,
                   regardless of the specific subscription configuration. */}
-              <div className="mb-6 border border-gray-200 rounded-lg p-4">
-                <h2 className="text-sm font-semibold mb-2">Tipo de propiedad</h2>
-                {loadingPropertyTypes ? (
-                  <p className="text-sm text-gray-500">Cargando tipos de propiedad disponibles…</p>
-                ) : (
-                  <select
-                    className="w-full rounded-lg border-gray-300"
-                    {...register('propertyType')}
-                    value={watchedPropertyType ?? ALL_PROPERTY_TYPES[0]}
-                    onChange={(e) =>
-                      setValue('propertyType', e.target.value as PropertyType, { shouldValidate: true })
-                    }
-                  >
-                    {ALL_PROPERTY_TYPES.map((pt) => (
-                      <option key={pt} value={pt}>
-                        {pt}
-                      </option>
-                    ))}
-                  </select>
-                )}
+              <div className="mb-6 flex justify-end">
+                <div className="rounded-lg p-3 max-w-xs">
+                  <h2 className="text-xs font-semibold mb-2 text-gray-700">Tipo de propiedad</h2>
+                  {loadingPropertyTypes ? (
+                    <p className="text-sm text-gray-500">Cargando tipos de propiedad disponibles…</p>
+                  ) : (
+                    <>
+                      <input type="hidden" {...register('propertyType')} />
+                      <Dropdown
+                        inline
+                        arrowIcon={false}
+                        label={
+                          <div className="flex max-w-xs items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm hover:bg-gray-50">
+                            <span>{getPropertyTypeLabel(watchedPropertyType ?? ALL_PROPERTY_TYPES[0])}</span>
+                            <span className="ml-2 text-xs text-gray-400">▼</span>
+                          </div>
+                        }
+                      >
+                        {ALL_PROPERTY_TYPES.map((pt) => (
+                          <DropdownItem
+                            key={pt}
+                            onClick={() =>
+                              setValue('propertyType', pt, {
+                                shouldValidate: true,
+                                shouldDirty: true,
+                              })
+                            }
+                          >
+                            {getPropertyTypeLabel(pt)}
+                          </DropdownItem>
+                        ))}
+                      </Dropdown>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex space-x-1 mb-6">
@@ -381,20 +400,18 @@ export function AdminCreatePropertyPage() {
                   onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
                   displayImages={displayImages}
-                  setDisplayImages={setDisplayImages}
-                  displayVideos={displayVideos}
-                  setDisplayVideos={setDisplayVideos}
+                setDisplayImages={setDisplayImages}
+                displayVideos={displayVideos}
+                setDisplayVideos={setDisplayVideos}
+                displayDocuments={displayDocuments}
+                setDisplayDocuments={setDisplayDocuments}
                 />
               )}
               {propertyStep === 4 && (
                 <PropertyFormStep4
-                  onSubmit={handleSubmit(onPropertySubmit, (errors) => {
-                    console.error('Form validation failed:', errors);
-                  })}
+                onSubmit={handleSubmit(onPropertySubmit)}
                   onBack={handlePropertyBack}
                   isSubmitting={isSubmittingProperty}
-                  displayDocuments={displayDocuments}
-                  setDisplayDocuments={setDisplayDocuments}
                 />
               )}
             </div>

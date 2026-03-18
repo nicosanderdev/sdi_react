@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card } from 'flowbite-react';
+import { Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
@@ -46,27 +46,6 @@ export interface PropertyCreationInitialContext {
   /** If the admin is creating on behalf of a specific user, their userId. */
   ownerUserId?: string;
 }
-
-// #region agent log
-fetch('http://127.0.0.1:7410/ingest/8cfc8ae1-a75f-4ac9-842a-c9e78ca77428', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Debug-Session-Id': '200f5b',
-  },
-  body: JSON.stringify({
-    sessionId: '200f5b',
-    runId: 'post-fix-1',
-    hypothesisId: 'H1',
-    location: 'PropertyCreationWizard.tsx:47',
-    message: 'propertyCreationFormSchema build point reached',
-    data: {
-      baseType: typeof propertyFormBaseSchema,
-    },
-    timestamp: Date.now(),
-  }),
-}).catch(() => {});
-// #endregion agent log
 
 export const propertyCreationFormSchema = propertyFormBaseSchema
   .extend({
@@ -243,7 +222,7 @@ export function PropertyCreationWizard({
     }
   };
 
-  const { handleSubmit, register } = methods;
+  const { handleSubmit, register, setValue } = methods;
 
   return (
     <FormProvider {...methods}>
@@ -278,28 +257,55 @@ export function PropertyCreationWizard({
 
             <div className="p-6">
               {/* ContextoUsuario: simple property type selector based on available types */}
-              <div className="mb-6 border border-gray-200 rounded-lg p-4">
-                <h2 className="text-sm font-semibold mb-2">Tipo de propiedad</h2>
-                {initialContext.availablePropertyTypes.length > 1 ||
-                initialContext.isAdmin ||
-                initialContext.isAffiliatedUsingAgencyQuota ? (
-                  <select
-                    className="w-full rounded-lg border-gray-300"
-                    {...register('propertyType')}
-                    defaultValue={initialContext.availablePropertyTypes[0]}
-                  >
-                    {initialContext.availablePropertyTypes.map(pt => (
-                      <option key={pt} value={pt}>
-                        {pt}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <p className="text-sm text-gray-600">
-                    {initialContext.availablePropertyTypes[0]}
-                  </p>
-                )}
-              </div>
+              {currentStep === 1 && (
+                <div className="mb-6 border border-gray-200 rounded-lg mx-auto max-w-xs p-4">
+                  <h2 className="text-sm font-semibold mb-2">Tipo de propiedad</h2>
+                  {initialContext.availablePropertyTypes.length > 1 ||
+                  initialContext.isAdmin ||
+                  initialContext.isAffiliatedUsingAgencyQuota ? (
+                    <>
+                      <input type="hidden" {...register('propertyType')} />
+                      <Dropdown
+                        inline
+                        arrowIcon={false}
+                        label={
+                          <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm hover:bg-gray-50">
+                            <span>
+                              {watchedPropertyType || 'Selecciona el tipo de propiedad'}
+                            </span>
+                            <span className="ml-2 text-xs text-gray-400">▼</span>
+                          </div>
+                        }
+                      >
+                        {initialContext.availablePropertyTypes.map(pt => (
+                          <DropdownItem
+                            key={pt}
+                            onClick={() =>
+                              setValue('propertyType', pt, {
+                                shouldValidate: true,
+                                shouldDirty: true,
+                              })
+                            }
+                          >
+                            {pt}
+                          </DropdownItem>
+                        ))}
+                      </Dropdown>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      {initialContext.availablePropertyTypes[0]}
+                    </p>
+                  )}
+                </div>
+              )}
+              {currentStep > 1 && watchedPropertyType && (
+                <div className="mb-6">
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+                    Tipo de propiedad: {watchedPropertyType}
+                  </span>
+                </div>
+              )}
 
               {currentStep === 1 && (
                 <PropertyFormStep1 onNext={handleNext} />
@@ -318,6 +324,8 @@ export function PropertyCreationWizard({
                   setDisplayImages={setDisplayImages}
                   displayVideos={displayVideos}
                   setDisplayVideos={setDisplayVideos}
+                  displayDocuments={displayDocuments}
+                  setDisplayDocuments={setDisplayDocuments}
                 />
               )}
               {currentStep === 4 && (
@@ -325,8 +333,6 @@ export function PropertyCreationWizard({
                   onSubmit={handleSubmit(handleSubmitInternal)}
                   onBack={handleBack}
                   isSubmitting={isSubmitting}
-                  displayDocuments={displayDocuments}
-                  setDisplayDocuments={setDisplayDocuments}
                 />
               )}
             </div>

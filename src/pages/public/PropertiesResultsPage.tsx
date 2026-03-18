@@ -1,6 +1,6 @@
 import { Card, TextInput, Dropdown, Sidebar, Button, DropdownItem, SidebarItems, SidebarItemGroup, Banner, Pagination } from 'flowbite-react';
 import { Search } from 'lucide-react';
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { CheckboxFilterGroup } from '../../components/public/properties/CheckboxFilterGroup';
 import { RadioFilterGroup } from '../../components/public/properties/RadioFilterGroup';
 import { PropertyParams, PublicProperty } from '../../models/properties';
@@ -10,8 +10,9 @@ import propertyService from '../../services/PropertyService';
 const PROPERTY_TYPES = [
   { id: 'house', name: 'House' },
   { id: 'apartment', name: 'Apartment' },
-  { id: 'condo', name: 'Condo' },
-  { id: 'land', name: 'Land' },
+  { id: 'lot', name: 'Lot' },
+  { id: 'small_farm', name: 'Small farm' },
+  { id: 'farmland', name: 'Farmland' },
 ];
 
 const STATES = [
@@ -23,11 +24,11 @@ const STATES = [
 
 // --- TYPES ---
 const propertyTypeOptions = [
-  { id: 'type-apartment', value: 'apartment', label: 'Apartment' },
-  { id: 'type-house', value: 'house', label: 'House' },
-  { id: 'type-commercial', value: 'commercial', label: 'Commercial' },
-  { id: 'type-land', value: 'land', label: 'Land' },
-  { id: 'type-other', value: 'other', label: 'Other' },
+  { id: 'type-apartment', value: 'apartment', label: 'Apartmento' },
+  { id: 'type-house', value: 'house', label: 'Casa' },
+  { id: 'type-lot', value: 'lot', label: 'Terreno' },
+  { id: 'type-small-farm', value: 'small_farm', label: 'Chacra' },
+  { id: 'type-farmland', value: 'farmland', label: 'Campo' },
 ];
 
 const priceRangeOptions = [

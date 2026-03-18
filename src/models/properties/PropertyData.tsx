@@ -58,7 +58,7 @@ export interface PropertyData {
   };
   // description
   title: string;
-  type: 'house' | 'apartment' | 'commercial' | 'land' | 'other';
+  type?: 'house' | 'apartment' | 'land' | 'small_farm' | 'farm';
   areaValue: number;
   areaUnit: 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi';
   bedrooms: number;
@@ -87,17 +87,17 @@ export interface PropertyData {
   availableFromText: string;
   ownerId?: string;
   // price and status
-  currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
+  currency?: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
   salePrice?: string;
   rentPrice?: string;
-  hasCommonExpenses: boolean;
+  hasCommonExpenses?: boolean;
   commonExpensesValue?: string;
-  isElectricityIncluded: boolean;
-  isWaterIncluded: boolean;
-  isPriceVisible: boolean;
-  status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
-  isActive: boolean;
-  isPropertyVisible: boolean;
+  isElectricityIncluded?: boolean;
+  isWaterIncluded?: boolean;
+  isPriceVisible?: boolean;
+  status?: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
+  isActive?: boolean;
+  isPropertyVisible?: boolean;
   blockedForBooking?: boolean;
   created: Date;
   visits?: number;

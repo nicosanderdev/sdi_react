@@ -47,13 +47,68 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    v_member_id         uuid := p_member_id;
-    v_owner_id          uuid;
-    v_property_id       uuid;
-    v_result            jsonb;
+    v_property_id UUID;
+    v_owner_id UUID;
+    v_member_id UUID;
+    v_company_id UUID;
+    v_result JSONB;
+    v_existing_property_count INTEGER;
+    v_subscription_plan_max_properties INTEGER;
+    v_hard_cap_limit INTEGER := 10;
+    v_free_user_limit INTEGER := 2;
 BEGIN
-    -- Existing quota / owner resolution logic remains unchanged
-    -- ...
+    -- Resolve owner using existing logic (member-based in this refactor)
+    v_member_id := p_member_id;
+    v_company_id := NULL;
+
+    IF v_member_id IS NULL THEN
+        RAISE EXCEPTION 'Member ID is required to create an estate property.';
+    END IF;
+
+    BEGIN
+        v_owner_id := get_or_create_owner(v_member_id, v_company_id, NULL);
+    EXCEPTION WHEN undefined_function THEN
+        -- Fallback for environments where get_or_create_owner does not exist
+        v_owner_id := COALESCE(v_member_id, v_company_id);
+    END;
+
+    -- Quota logic unchanged (uses EstateProperties count)
+    BEGIN
+        SELECT COUNT(*) INTO v_existing_property_count
+        FROM "EstateProperties" ep
+        INNER JOIN "Owners" o ON ep."OwnerId" = o."Id" AND o."IsDeleted" = false
+        WHERE ep."IsDeleted" = false
+        AND (
+            (o."OwnerType" = 'member' AND o."MemberId" = v_member_id) OR
+            (o."OwnerType" = 'company' AND o."CompanyId" IN (
+                SELECT uc."CompanyId"
+                FROM "UserCompanies" uc
+                WHERE uc."MemberId" = v_member_id AND uc."IsDeleted" = false
+            ))
+        );
+
+        SELECT COALESCE(p."MaxProperties", v_free_user_limit) INTO v_subscription_plan_max_properties
+        FROM "Members" m
+        LEFT JOIN "Subscriptions" s ON m."Id" = s."OwnerId"
+            AND s."OwnerType" = 0
+            AND s."Status" = 1
+            AND s."IsDeleted" = false
+            AND s."CancelAtPeriodEnd" = false
+            AND s."CurrentPeriodEnd" > NOW()
+        LEFT JOIN "Plans" p ON s."PlanId" = p."Id" AND p."IsActive" = true AND p."IsDeleted" = false
+        WHERE m."Id" = v_member_id AND m."IsDeleted" = false;
+
+        IF v_subscription_plan_max_properties IS NULL THEN
+            v_subscription_plan_max_properties := v_free_user_limit;
+        END IF;
+
+        v_subscription_plan_max_properties := LEAST(v_subscription_plan_max_properties, v_hard_cap_limit);
+
+        IF v_existing_property_count >= v_subscription_plan_max_properties THEN
+            RAISE EXCEPTION 'Property limit exceeded. You have % properties but your plan allows maximum %. Please upgrade your subscription or delete existing properties to create new ones.',
+                v_existing_property_count, v_subscription_plan_max_properties;
+        END IF;
+    END;
 
     -- Insert main estate property record. Only physical attributes and owner remain here.
     v_property_id := gen_random_uuid();
@@ -75,7 +130,10 @@ BEGIN
         "Bathrooms",
         "HasGarage",
         "GarageSpaces",
-        "OwnerId"
+        "OwnerId",
+        "IsDeleted",
+        "Created",
+        "LastModified"
     ) VALUES (
         v_property_id,
         p_street_name,
@@ -93,11 +151,62 @@ BEGIN
         p_bathrooms,
         p_has_garage,
         p_garage_spaces,
-        v_owner_id
+        v_owner_id,
+        false,
+        NOW(),
+        NOW()
     );
 
-    -- Create initial listing row (unchanged from existing logic)
-    -- ...
+    -- Initial listing row in Listings (same logic as existing function)
+    INSERT INTO "Listings" (
+        "Id",
+        "EstatePropertyId",
+        "ListingType",
+        "Description",
+        "AvailableFrom",
+        "Capacity",
+        "Currency",
+        "SalePrice",
+        "RentPrice",
+        "HasCommonExpenses",
+        "CommonExpensesValue",
+        "IsElectricityIncluded",
+        "IsWaterIncluded",
+        "IsPriceVisible",
+        "Status",
+        "IsActive",
+        "IsPropertyVisible",
+        "IsFeatured",
+        "IsDeleted",
+        "Created",
+        "LastModified"
+    ) VALUES (
+        gen_random_uuid(),
+        v_property_id,
+        CASE p_status
+            WHEN 0 THEN 'RealEstate'::"ListingType"
+            WHEN 1 THEN 'AnnualRent'::"ListingType"
+            ELSE 'RealEstate'::"ListingType"
+        END,
+        p_description,
+        p_available_from,
+        COALESCE(p_bedrooms, 1),
+        p_currency,
+        p_sale_price,
+        p_rent_price,
+        p_has_common_expenses,
+        p_common_expenses_value,
+        p_is_electricity_included,
+        p_is_water_included,
+        p_is_price_visible,
+        p_status,
+        p_is_active,
+        p_is_property_visible,
+        true,
+        false,
+        NOW(),
+        NOW()
+    );
 
     -- Create SummerRentExtension row for booking rules if applicable
     INSERT INTO "SummerRentExtension" (
@@ -115,9 +224,71 @@ BEGIN
     );
 
     -- Build and return result JSON (fields unchanged from previous behavior)
-    -- ...
+    v_result := jsonb_build_object(
+        'id', v_property_id,
+        'streetName', p_street_name,
+        'houseNumber', p_house_number,
+        'neighborhood', p_neighborhood,
+        'city', p_city,
+        'state', p_state,
+        'zipCode', p_zip_code,
+        'country', p_country,
+        'location', jsonb_build_object('lat', p_location_lat, 'lng', p_location_lng),
+        'title', p_title,
+        'type', CASE p_property_type
+            WHEN 0 THEN 'house'
+            WHEN 1 THEN 'apartment'
+            WHEN 2 THEN 'commercial'
+            WHEN 3 THEN 'land'
+            ELSE 'other'
+        END,
+        'areaValue', p_area_value,
+        'areaUnit', CASE p_area_unit
+            WHEN 0 THEN 'm┬▓'
+            WHEN 1 THEN 'ft┬▓'
+            WHEN 2 THEN 'yd┬▓'
+            WHEN 3 THEN 'acres'
+            WHEN 4 THEN 'hectares'
+            WHEN 5 THEN 'sq_km'
+            WHEN 6 THEN 'sq_mi'
+        END,
+        'bedrooms', p_bedrooms,
+        'bathrooms', p_bathrooms,
+        'hasGarage', p_has_garage,
+        'garageSpaces', p_garage_spaces,
+        'description', p_description,
+        'availableFrom', p_available_from,
+        'currency', CASE p_currency
+            WHEN 0 THEN 'USD'
+            WHEN 1 THEN 'UYU'
+            WHEN 2 THEN 'BRL'
+            WHEN 3 THEN 'EUR'
+            WHEN 4 THEN 'GBP'
+        END,
+        'salePrice', p_sale_price,
+        'rentPrice', p_rent_price,
+        'hasCommonExpenses', p_has_common_expenses,
+        'commonExpensesValue', p_common_expenses_value,
+        'isElectricityIncluded', p_is_electricity_included,
+        'isWaterIncluded', p_is_water_included,
+        'isPriceVisible', p_is_price_visible,
+        'status', CASE p_status
+            WHEN 0 THEN 'sale'
+            WHEN 1 THEN 'rent'
+            WHEN 2 THEN 'sold'
+            WHEN 3 THEN 'reserved'
+            WHEN 4 THEN 'unavailable'
+        END,
+        'isActive', p_is_active,
+        'isPropertyVisible', p_is_property_visible,
+        'ownerId', v_owner_id,
+        'created', NOW()
+    );
 
     RETURN v_result;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to create estate property (Listings-based with SummerRentExtension): %', SQLERRM;
 END;
 $$;
 

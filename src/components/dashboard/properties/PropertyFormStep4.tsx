@@ -1,24 +1,19 @@
 import React, { useState } from 'react';
-import { Button, Label, Radio } from 'flowbite-react';
+import { Button, Radio } from 'flowbite-react';
 import { useFormContext } from 'react-hook-form';
-import { DocumentManager } from './DocumentManager';
-import { DisplayDocument } from './DocumentManager';
 import type { PropertyCreationFormData } from './PropertyCreationWizard';
+import { ListingInformationForm } from './ListingInformationForm';
 
 interface PropertyFormStep4Props {
   onSubmit: (e: React.FormEvent) => void;
   onBack: () => void;
   isSubmitting: boolean;
-  displayDocuments: DisplayDocument[];
-  setDisplayDocuments: React.Dispatch<React.SetStateAction<DisplayDocument[]>>;
 }
 
 export function PropertyFormStep4({ 
   onSubmit, 
   onBack, 
-  isSubmitting,
-  displayDocuments,
-  setDisplayDocuments
+  isSubmitting
 }: PropertyFormStep4Props) {
   const { register, watch } = useFormContext<PropertyCreationFormData>();
   const publishMode = watch('publishMode');
@@ -27,11 +22,8 @@ export function PropertyFormStep4({
 
   const handleSubmitWithValidation = (e: React.FormEvent) => {
     // Require documents for RealEstate-type properties, per flow definition.
-    if (propertyType === 'RealEstate' && (!displayDocuments || displayDocuments.length === 0)) {
-      e.preventDefault();
-      setDocumentsError('Debes subir al menos un documento para propiedades de venta / alquiler anual.');
-      return;
-    }
+    // NOTE: Validation of required documents for RealEstate is now handled earlier
+    // in the flow alongside the documents upload UI.
     setDocumentsError(null);
     onSubmit(e);
   };
@@ -39,6 +31,10 @@ export function PropertyFormStep4({
   return (
     <form onSubmit={handleSubmitWithValidation} className="max-w-4xl mx-auto">
       <div className="space-y-8">
+        {/* Listing information section */}
+        <ListingInformationForm />
+
+        {/* Publish mode */}
         <div className="border border-gray-200 rounded-lg p-4 space-y-4">
           <h3 className="text-lg font-semibold mb-2">Publicación</h3>
           <div className="flex flex-col md:flex-row gap-4">
@@ -60,16 +56,6 @@ export function PropertyFormStep4({
             </label>
           </div>
         </div>
-
-        {/* Documents Section */}
-        <DocumentManager
-          displayDocuments={displayDocuments}
-          onDocumentsChange={setDisplayDocuments}
-        />
-
-        {documentsError && (
-          <p className="text-red-500 text-sm mt-1">{documentsError}</p>
-        )}
 
         <div className="flex justify-between pt-4">
           <Button color="alternative" onClick={onBack}>

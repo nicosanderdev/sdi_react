@@ -115,18 +115,17 @@ INSERT INTO public."Plans" (
 ('f9a0b1c2-d3e4-4f56-a789-b1c2d3e4f567'::uuid, 2, 'Inmobiliaria - SummerRent', 199, 'USD', 999999, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 2.5, NULL, 8, 5, NULL, 'SummerRent'::"PropertyType")
 ON CONFLICT ("Id") DO NOTHING;
 
--- ============================================================================
 -- SECTION 3: STORAGE BUCKETS
 -- ============================================================================
 
--- Create property-images bucket if it doesn't exist
+-- Create property_images bucket if it doesn't exist
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('property-images', 'property-images', true)
+VALUES ('property_images', 'property_images', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Create property-documents bucket if it doesn't exist
+-- Create property_documents bucket if it doesn't exist
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('property-documents', 'property-documents', true)
+VALUES ('property_documents', 'property_documents', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Create avatars bucket if it doesn't exist
