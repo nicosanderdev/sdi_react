@@ -173,11 +173,12 @@ export function ReportsAndMetrics() {
             ))}
           </Dropdown>
 
-          <Button
+          {/* <Button
             onClick={reactToPrintFn} >
             <DownloadIcon size={18} className="mr-2" />
             <span>Exportar</span>
-          </Button>
+          </Button>*/}
+          
         </div>
       </div>
 

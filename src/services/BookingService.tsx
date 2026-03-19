@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 import { SdiApiResponse } from '../models/SdiApiResponse';
-import { Booking, BookingStatus, BookingForm, ValidationStatus } from '../models/calendar/CalendarSync';
+import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
 // Extended Booking interface with member information
 export interface BookingWithMember extends Booking {
@@ -20,6 +20,13 @@ export interface BookingWithMemberAndProperty extends BookingWithMember {
   EstateProperty?: {
     Id: string;
     Title?: string;
+    StreetName?: string;
+    HouseNumber?: string;
+    Neighborhood?: string;
+    City?: string;
+    State?: string;
+    ZipCode?: string;
+    Country?: string;
   };
 }
 
@@ -42,6 +49,19 @@ export interface BookingValidationResult {
   isValid: boolean;
   conflicts: BookingWithMember[];
   message?: string;
+}
+
+function buildEstatePropertyTitle(ep: BookingWithMemberAndProperty['EstateProperty'] | null | undefined): string | undefined {
+  if (!ep) return undefined;
+
+  const street = [ep.StreetName, ep.HouseNumber].filter(Boolean).join(' ').trim();
+  const location = [ep.Neighborhood, ep.City, ep.State].filter(Boolean).join(', ').trim();
+  const zipCountry = [ep.ZipCode, ep.Country].filter(Boolean).join(' ').trim();
+
+  const suffix = [location, zipCountry].filter(Boolean).join(' - ').trim();
+  const title = street ? (suffix ? `${street} - ${suffix}` : street) : (suffix || undefined);
+
+  return title || undefined;
 }
 
 class BookingService {
@@ -117,7 +137,13 @@ class BookingService {
           ),
           EstateProperty:EstateProperties(
             Id,
-            Title
+            StreetName,
+            HouseNumber,
+            Neighborhood,
+            City,
+            State,
+            ZipCode,
+            Country
           )
         `)
         .eq('IsDeleted', false)
@@ -127,7 +153,19 @@ class BookingService {
 
       return {
         succeeded: true,
-        data: (data || []) as BookingWithMemberAndProperty[]
+        data: (data || []).map((booking: any) => {
+          const ep = booking.EstateProperty;
+          if (!ep) return booking;
+
+          const Title = buildEstatePropertyTitle(ep);
+          return {
+            ...booking,
+            EstateProperty: {
+              ...ep,
+              Title
+            }
+          };
+        }) as BookingWithMemberAndProperty[]
       };
     } catch (error: any) {
       return {
@@ -158,7 +196,13 @@ class BookingService {
           ),
           EstateProperty:EstateProperties(
             Id,
-            Title
+            StreetName,
+            HouseNumber,
+            Neighborhood,
+            City,
+            State,
+            ZipCode,
+            Country
           )
         `)
         .eq('IsDeleted', false)
@@ -168,7 +212,19 @@ class BookingService {
 
       return {
         succeeded: true,
-        data: (data || []) as BookingWithMemberAndProperty[]
+        data: (data || []).map((booking: any) => {
+          const ep = booking.EstateProperty;
+          if (!ep) return booking;
+
+          const Title = buildEstatePropertyTitle(ep);
+          return {
+            ...booking,
+            EstateProperty: {
+              ...ep,
+              Title
+            }
+          };
+        }) as BookingWithMemberAndProperty[]
       };
     } catch (error: any) {
       return {
@@ -339,11 +395,25 @@ class BookingService {
             Email,
             Phone,
             AvatarUrl
+          ),
+          EstateProperty:EstateProperties(
+            Id,
+            StreetName,
+            HouseNumber,
+            Neighborhood,
+            City,
+            State,
+            ZipCode,
+            Country
           )
         `)
         .single();
 
       if (error) throw error;
+
+      if (data?.EstateProperty) {
+        data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
+      }
 
       return {
         succeeded: true,

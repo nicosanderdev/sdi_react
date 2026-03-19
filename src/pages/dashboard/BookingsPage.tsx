@@ -586,14 +586,14 @@ export default function BookingsPage() {
           {confirmModal?.action === 'reject' ? 'Rechazar reserva' : 'Cancelar reserva'}
         </ModalHeader>
         <ModalBody>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-gray-600 dark:text-gray-300 mx-auto text-center">
             Esta acción no se puede deshacer. El usuario que realizó la reserva será notificado.
           </p>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2 mx-auto text-center">
             ¿Deseas continuar?
           </p>
         </ModalBody>
-        <ModalFooter>
+        <ModalFooter className='flex justify-center gap-2'>
           <Button color="green" onClick={() => setConfirmModal(null)}>
             No, volver
           </Button>
