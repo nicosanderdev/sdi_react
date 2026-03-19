@@ -19,7 +19,16 @@ import {
 } from 'lucide-react';
 import { Button, Card, Label, TextInput, Textarea, Select, Modal, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
 import BookingService, { BookingWithMember, BookingFormData } from '../../../services/BookingService';
-import { BookingStatus, BOOKING_STATUS_NAMES, Currency, CURRENCY_NAMES, CURRENCY_SYMBOLS } from '../../../models/calendar/CalendarSync';
+import { BookingStatus, Currency, CURRENCY_NAMES, CURRENCY_SYMBOLS } from '../../../models/calendar/CalendarSync';
+
+/** Etiquetas de estado en español (panel solo usado en reservas por propiedad) */
+const BOOKING_STATUS_ES: Record<BookingStatus, string> = {
+  [BookingStatus.Pending]: 'Pendiente',
+  [BookingStatus.Confirmed]: 'Confirmada',
+  [BookingStatus.Cancelled]: 'Cancelada',
+  [BookingStatus.Completed]: 'Completada',
+  [BookingStatus.NoShow]: 'No se presentó'
+};
 
 interface BookingDetailsPanelProps {
   propertyId: string;
@@ -193,10 +202,10 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
       }
 
       if (!result?.succeeded) {
-        setErrors([result?.errorMessage || 'Error saving booking']);
+        setErrors([result?.errorMessage || 'Error al guardar la reserva']);
       }
     } catch (error: any) {
-      setErrors([error.message || 'Error saving booking']);
+      setErrors([error.message || 'Error al guardar la reserva']);
     } finally {
       setIsSaving(false);
     }
@@ -213,10 +222,10 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
         setShowDeleteModal(false);
         onCancel();
       } else {
-        setErrors([result.errorMessage || 'Error deleting booking']);
+        setErrors([result.errorMessage || 'Error al eliminar la reserva']);
       }
     } catch (error: any) {
-      setErrors([error.message || 'Error deleting booking']);
+      setErrors([error.message || 'Error al eliminar la reserva']);
     }
   };
 
@@ -229,10 +238,10 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
       if (result.succeeded && result.data) {
         onBookingChange(result.data);
       } else {
-        setErrors([result.errorMessage || 'Error updating status']);
+        setErrors([result.errorMessage || 'Error al actualizar el estado']);
       }
     } catch (error: any) {
-      setErrors([error.message || 'Error updating status']);
+      setErrors([error.message || 'Error al actualizar el estado']);
     }
   };
 
@@ -283,11 +292,11 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                   <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 mb-1">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Reserva {isCheckIn ? '(Check-in)' : isCheckOut ? '(Check-out)' : ''}
+                          Reserva {isCheckIn ? '(Entrada)' : isCheckOut ? '(Salida)' : ''}
                         </span>
                         <div className={`px-2 py-1 text-xs rounded-full flex items-center space-x-1 ${statusDisplay.bgColor}`}>
                           <StatusIcon className={`h-3 w-3 ${statusDisplay.color}`} />
-                          <span className={statusDisplay.color}>{BOOKING_STATUS_NAMES[booking.Status]}</span>
+                          <span className={statusDisplay.color}>{BOOKING_STATUS_ES[booking.Status]}</span>
                         </div>
                       </div>
 
@@ -374,7 +383,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                 <StatusIcon className={`h-5 w-5 ${getStatusDisplay(selectedBooking.Status).color}`} />
               </div>
               <div>
-                <p className="font-medium">{BOOKING_STATUS_NAMES[selectedBooking.Status]}</p>
+                <p className="font-medium">{BOOKING_STATUS_ES[selectedBooking.Status]}</p>
                 {!isEditing && (
                   <Select
                     value={selectedBooking.Status.toString()}
@@ -382,7 +391,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                     className="mt-1"
                     sizing="sm"
                   >
-                  {Object.entries(BOOKING_STATUS_NAMES).map(([value, label]) => (
+                  {Object.entries(BOOKING_STATUS_ES).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                   </Select>
@@ -396,7 +405,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
             {/* Dates */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="checkInDate">Check-in</Label>
+                <Label htmlFor="checkInDate">Entrada</Label>
                 <TextInput
                   id="checkInDate"
                   type="date"
@@ -407,7 +416,7 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
                 />
               </div>
               <div>
-                <Label htmlFor="checkOutDate">Check-out</Label>
+                <Label htmlFor="checkOutDate">Salida</Label>
                 <TextInput
                   id="checkOutDate"
                   type="date"

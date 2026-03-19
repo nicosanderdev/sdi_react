@@ -43,67 +43,79 @@ export interface Listing {
 }
 
 export interface PropertyData {
+  // Mirrors `public.get_admin_property_detail` (returns TABLE(...)) shape.
   id: string;
+
   // address
-  streetName: string;
-  houseNumber: string;
-  neighborhood?: string;
+  street_name: string;
+  house_number: string;
+  neighborhood?: string | null;
   city: string;
   state: string;
-  zipCode: string;
+  zip_code: string;
   country: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  // description
-  title: string;
-  type?: 'house' | 'apartment' | 'land' | 'small_farm' | 'farm';
-  areaValue: number;
-  areaUnit: 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi';
+  location_latitude: number;
+  location_longitude: number;
+
+  // structural
+  category: number;
+  area_value: number;
+  area_unit: number;
   bedrooms: number;
   bathrooms: number;
-  hasGarage: boolean;
-  garageSpaces: number;
-  // end-purpose type and structural/infrastructure flags
-  propertyType?: PropertyType;
-  hasLaundryRoom?: boolean;
-  hasPool?: boolean;
-  hasBalcony?: boolean;
-  isFurnished?: boolean;
-  capacity?: number;
-  // other info
-  //relationships
+  garage_spaces: number;
+
+  // infrastructure
+  hasLaundryRoom: boolean;
+  hasPool: boolean;
+  hasBalcony: boolean;
+  isFurnished: boolean;
+  capacity: number;
+
+  // location and view categories
+  location_category: number;
+  view_type: number;
+
+  // relationships
+  owner_id: string;
+
+  // real estate extension
+  allowsFinancing: boolean;
+  isNewConstruction: boolean;
+  hasMortgage: boolean;
+  hoaFees: number;
+  minContractMonths: number;
+  requiresGuarantee: boolean;
+  guaranteeType?: string | null;
+  allowsPets: boolean;
+
+  // event venue extension
+  maxGuests: number;
+  hasCatering: boolean;
+  hasSoundSystem: boolean;
+  closingHour?: string | null;
+  allowedEventsDescription?: string | null;
+
+  // summer rent extension
+  minStayDays: number;
+  maxStayDays: number;
+  leadTimeDays: number;
+  bufferDays: number;
+
+  // audit
+  isDeleted: boolean;
+  created: string;
+  createdBy?: string | null;
+  lastModified: string;
+  lastModifiedBy?: string | null;
+
+  // Optional fields used elsewhere in the app (not returned by the RPC).
   mainImageId?: string;
-  propertyImages: PropertyImage[];
+  propertyImages?: PropertyImage[];
   propertyDocuments?: PropertyDocument[];
-  propertyVideos: PropertyVideo[];
-  amenities: Amenity[];
-  locationCategory?: LocationCategory;
-  viewType?: ViewType;
-  // estate property values
-  description?: string;
-  availableFrom: Date;
-  availableFromText: string;
-  ownerId?: string;
-  // price and status
-  currency?: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
-  salePrice?: string;
-  rentPrice?: string;
-  hasCommonExpenses?: boolean;
-  commonExpensesValue?: string;
-  isElectricityIncluded?: boolean;
-  isWaterIncluded?: boolean;
-  isPriceVisible?: boolean;
-  status?: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
-  isActive?: boolean;
-  isPropertyVisible?: boolean;
-  blockedForBooking?: boolean;
-  created: Date;
-  visits?: number;
-  
-  // Version history
+  propertyVideos?: PropertyVideo[];
+  amenities?: Amenity[];
+
   estatePropertyValues?: EstatePropertyValues[];
-  // Listings history (one active per type, others historical)
   listings?: Listing[];
 }

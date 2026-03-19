@@ -14,8 +14,7 @@ import {
   Card,
   Button,
   Alert,
-  Spinner,
-  Collapsible
+  Spinner
 } from 'flowbite-react';
 import { supabase } from '../../../config/supabase';
 
@@ -45,14 +44,14 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
       // For now, we'll generate a simple URL format
       // In a real implementation, this would come from the database
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('Not authenticated');
+      if (!user.user) throw new Error('No autenticado');
 
       // Retrieve export token via RPC backed by SummerRentExtension
       const { data, error } = await supabase.rpc('get_property_ical_export_token', {
         property_id: propertyId
       });
 
-      if (error || !data) throw error || new Error('Failed to load export token');
+      if (error || !data) throw error || new Error('No se pudo cargar el token de exportación');
 
       const token = data as string;
 
@@ -61,7 +60,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
 
       setExportData({ url, token });
     } catch (error: any) {
-      setError(error.message || 'Failed to load export URL');
+      setError(error.message || 'No se pudo cargar la URL de exportación');
     } finally {
       setIsLoading(false);
     }
@@ -80,7 +79,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (error: any) {
-      setError('Failed to copy to clipboard');
+      setError('No se pudo copiar al portapapeles');
     }
   };
 
@@ -94,7 +93,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
         property_id: propertyId
       });
 
-      if (error || !data) throw error || new Error('Failed to regenerate token');
+      if (error || !data) throw error || new Error('No se pudo regenerar el token');
 
       const newToken = data as string;
 
@@ -103,7 +102,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
 
       setExportData({ url: newUrl, token: newToken });
     } catch (error: any) {
-      setError(error.message || 'Failed to regenerate URL');
+      setError(error.message || 'No se pudo regenerar la URL');
     } finally {
       setIsRegenerating(false);
     }
@@ -119,7 +118,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
       <Card>
         <div className="flex justify-center items-center py-8">
           <Spinner size="lg" />
-          <span className="ml-2">Loading export URL...</span>
+          <span className="ml-2">Cargando URL de exportación...</span>
         </div>
       </Card>
     );
@@ -132,10 +131,10 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white flex items-center">
             <ExternalLink className="mr-2 h-5 w-5" />
-            Export Calendar to External Platforms
+            Exportar calendario a plataformas externas
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Use this URL to sync your bookings to Airbnb, Booking.com, and other platforms
+            Usa esta URL para sincronizar tus reservas con Airbnb, Booking.com y otras plataformas
           </p>
         </div>
 
@@ -150,7 +149,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Calendar Export URL
+              URL de exportación del calendario
             </label>
             <div className="flex space-x-2">
               <div className="flex-1">
@@ -172,17 +171,17 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
                 ) : (
                   <Copy className="h-4 w-4 mr-2" />
                 )}
-                {copySuccess ? 'Copied!' : 'Copy'}
+                {copySuccess ? '¡Copiado!' : 'Copiar'}
               </Button>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              This URL contains your availability data in iCal format
+              Esta URL contiene tus datos de disponibilidad en formato iCal
             </p>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Security:</strong> Keep this URL private. Anyone with this URL can view your availability.
+              <strong>Seguridad:</strong> mantén esta URL privada. Cualquiera con el enlace puede ver tu disponibilidad.
             </div>
             <Button
               size="sm"
@@ -196,7 +195,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Regenerate URL
+              Regenerar URL
             </Button>
           </div>
         </div>
@@ -204,7 +203,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
         {/* Platform Instructions */}
         <div className="space-y-3">
           <h4 className="text-md font-medium text-gray-900 dark:text-white">
-            How to Connect
+            Cómo conectar
           </h4>
 
           {/* Airbnb Instructions */}
@@ -227,16 +226,16 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             {expandedInstructions === 'airbnb' && (
               <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-3">
-                  <li>Go to your Airbnb account and select your listing</li>
-                  <li>Navigate to <strong>Calendar</strong> → <strong>Availability Settings</strong></li>
-                  <li>Scroll down to <strong>Import Calendar</strong></li>
-                  <li>Select <strong>iCal</strong> as the calendar type</li>
-                  <li>Paste the URL above into the <strong>Calendar Address (URL)</strong> field</li>
-                  <li>Click <strong>Import</strong> to save</li>
+                  <li>Entra en tu cuenta de Airbnb y selecciona tu anuncio</li>
+                  <li>Ve a <strong>Calendario</strong> → <strong>Configuración de disponibilidad</strong></li>
+                  <li>Baja hasta <strong>Importar calendario</strong></li>
+                  <li>Elige <strong>iCal</strong> como tipo de calendario</li>
+                  <li>Pega la URL de arriba en el campo <strong>Dirección del calendario (URL)</strong></li>
+                  <li>Pulsa <strong>Importar</strong> para guardar</li>
                 </ol>
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>Tip:</strong> Airbnb may take a few minutes to sync. Check back in your calendar to confirm the import worked.
+                    <strong>Consejo:</strong> Airbnb puede tardar unos minutos en sincronizar. Revisa el calendario para confirmar que la importación funcionó.
                   </p>
                 </div>
               </div>
@@ -263,16 +262,16 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             {expandedInstructions === 'booking' && (
               <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-3">
-                  <li>Log in to your Booking.com extranet</li>
-                  <li>Go to <strong>Calendar</strong> → <strong>Import/Export Calendar</strong></li>
-                  <li>Find the <strong>iCal Import</strong> section</li>
-                  <li>Paste the URL above into the designated field</li>
-                  <li>Click <strong>Import</strong> or <strong>Save</strong></li>
-                  <li>Wait for the system to process and sync your calendar</li>
+                  <li>Inicia sesión en el extranet de Booking.com</li>
+                  <li>Ve a <strong>Calendario</strong> → <strong>Importar/Exportar calendario</strong></li>
+                  <li>Busca la sección <strong>Importación iCal</strong></li>
+                  <li>Pega la URL de arriba en el campo indicado</li>
+                  <li>Pulsa <strong>Importar</strong> o <strong>Guardar</strong></li>
+                  <li>Espera a que el sistema procese y sincronice tu calendario</li>
                 </ol>
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <p className="text-xs text-blue-800 dark:text-blue-300">
-                    <strong>Tip:</strong> Booking.com syncs may take up to 24 hours. Check your calendar settings to confirm the connection.
+                    <strong>Consejo:</strong> la sincronización en Booking.com puede tardar hasta 24 horas. Comprueba la configuración del calendario para confirmar la conexión.
                   </p>
                 </div>
               </div>
@@ -287,7 +286,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             >
               <div className="flex items-center space-x-3">
                 <ExternalLink className="h-5 w-5 text-gray-500" />
-                <span className="font-medium text-gray-900 dark:text-white">Other Platforms</span>
+                <span className="font-medium text-gray-900 dark:text-white">Otras plataformas</span>
               </div>
               {expandedInstructions === 'other' ? (
                 <ChevronDown className="h-4 w-4 text-gray-500" />
@@ -299,15 +298,15 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             {expandedInstructions === 'other' && (
               <div className="px-4 pb-4 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                  <p className="mb-2">Most booking platforms support iCal import. Look for:</p>
+                  <p className="mb-2">La mayoría de plataformas admiten importación iCal. Busca:</p>
                   <ul className="list-disc list-inside space-y-1 ml-4">
-                    <li>Calendar sync or import settings</li>
-                    <li>iCal, .ics, or calendar feed options</li>
-                    <li>URL-based import functionality</li>
+                    <li>Ajustes de sincronización o importación de calendario</li>
+                    <li>Opciones iCal, .ics o feed de calendario</li>
+                    <li>Importación mediante URL</li>
                   </ul>
                   <p className="mt-3">
-                    If your platform asks for a username/password, iCal URLs typically don't support authentication.
-                    The URL above provides read-only access to your availability data.
+                    Si la plataforma pide usuario y contraseña, las URLs iCal normalmente no usan autenticación.
+                    La URL anterior ofrece acceso de solo lectura a tu disponibilidad.
                   </p>
                 </div>
               </div>
@@ -319,10 +318,10 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
         <Alert color="warning" className="border-yellow-200 dark:border-yellow-800">
           <AlertTriangle className="h-4 w-4 mr-2" />
           <div>
-            <p className="font-medium">Important Security Note</p>
+            <p className="font-medium">Aviso importante de seguridad</p>
             <p className="text-sm mt-1">
-              This iCal URL contains your availability information. Never share it publicly or post it online.
-              If you suspect the URL has been compromised, use the "Regenerate URL" button to create a new secure URL.
+              Esta URL iCal contiene información de tu disponibilidad. No la compartas públicamente ni la publiques en internet.
+              Si crees que el enlace se ha filtrado, usa «Regenerar URL» para crear uno nuevo.
             </p>
           </div>
         </Alert>

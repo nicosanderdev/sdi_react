@@ -242,20 +242,61 @@ const getPropertyById = async (id: string, params?: PropertyParams): Promise<Pub
     }
 };
 
-// Fetch a single property owned by the user by its ID
+// Fetch a single property owned by the user by its ID (admins: any property)
 const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
     try {
         const userId = await getCurrentUserId();
 
-        // First get the member ID for this user
         const { data: member, error: memberError } = await supabase
             .from('Members')
-            .select('Id')
+            .select('Id, Role')
             .eq('UserId', userId)
             .eq('IsDeleted', false)
             .single();
 
         if (memberError) throw memberError;
+
+        const isAdmin = String(member.Role ?? '').toLowerCase() === 'admin';
+
+        const ownerPropertySelect = `
+        *,
+        RealEstateExtension(*),
+        Owners!inner(OwnerType, MemberId, CompanyId),
+        Listings(*),
+        PropertyImages(*),
+        PropertyDocuments(*),
+        PropertyVideos(*),
+        EstatePropertyAmenity(Amenities(*))
+      `;
+
+        if (isAdmin) {
+            const { data, error } = await supabase
+                .from('EstateProperties')
+                .select(`
+        *,
+        RealEstateExtension(*),
+        Owners(OwnerType, MemberId, CompanyId),
+        Listings(*),
+        PropertyImages(*),
+        PropertyDocuments(*),
+        PropertyVideos(*),
+        EstatePropertyAmenity(Amenities(*))
+      `)
+                .eq('Id', id)
+                .eq('IsDeleted', false)
+                .eq('Owners.IsDeleted', false)
+                .single();
+
+            if (error) {
+                if (error.code === 'PGRST116') {
+                    console.warn(`Property ${id} not found for admin user ${userId}`);
+                    throw new Error('Property not found');
+                }
+                throw error;
+            }
+
+            return mapDbToPropertyData(data);
+        }
 
         // Get all company IDs for this member
         const { data: userCompanies, error: companiesError } = await supabase
@@ -268,30 +309,18 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
 
-        // Build unified query that checks both member and company ownership
         let query = supabase
             .from('EstateProperties')
-            .select(`
-        *,
-        RealEstateExtension(*),
-        Owners!inner(OwnerType, MemberId, CompanyId),
-        Listings(*),
-        PropertyImages(*),
-        PropertyDocuments(*),
-        PropertyVideos(*),
-        EstatePropertyAmenity(Amenities(*))
-      `)
+            .select(ownerPropertySelect)
             .eq('Id', id)
             .eq('IsDeleted', false)
             .eq('Owners.IsDeleted', false);
 
-        // Check both member ownership and company ownership in a single query
         if (companyIds.length > 0) {
             query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
                 .eq('Owners.MemberId', member.Id)
                 .in('Owners.CompanyId', companyIds);
         } else {
-            // Only check member ownership if no companies
             query = query.eq('Owners.OwnerType', 'member')
                 .eq('Owners.MemberId', member.Id);
         }
@@ -300,10 +329,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         if (error) {
             if (error.code === 'PGRST116') {
-                // Property not found or access denied - let's get more details
                 console.warn(`Property ${id} not accessible for user ${userId}. Member ID: ${member.Id}, Company IDs: [${companyIds.join(', ')}]`);
 
-                // Check if property exists at all
                 const { data: existsData, error: existsError } = await supabase
                     .from('EstateProperties')
                     .select('Id, OwnerId')
@@ -315,7 +342,6 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
                     console.error(`Property ${id} does not exist in database`);
                     throw new Error('Property not found');
                 } else if (existsData) {
-                    // Property exists, check owner details
                     const { data: ownerData } = await supabase
                         .from('Owners')
                         .select('Id, OwnerType, MemberId, CompanyId')
@@ -477,7 +503,9 @@ const createPropertyWithOwnerUserId = async (
     displayDocuments: DisplayDocument[]
 ): Promise<PropertyData> => {
     try {
-        const areaUnitMapReverse: { [key: number]: PropertyData['areaUnit'] } = {
+        // Reverse UI labels (string) from DB enum codes (number).
+        // These are used for the client-side create/edit flow.
+        const areaUnitMapReverse: Record<number, string> = {
             0: 'm²',
             1: 'ft²',
             2: 'yd²',
@@ -487,13 +515,13 @@ const createPropertyWithOwnerUserId = async (
             6: 'sq_mi',
         };
 
-        const locationCategoryMapReverse: { [key: number]: NonNullable<PropertyData['locationCategory']> } = {
+        const locationCategoryMapReverse: Record<number, string> = {
             0: 'rural',
             1: 'city',
             2: 'near_shore',
         };
 
-        const viewTypeMapReverse: { [key: number]: NonNullable<PropertyData['viewType']> } = {
+        const viewTypeMapReverse: Record<number, string> = {
             0: 'city',
             1: 'mountain',
             2: 'rural',
@@ -894,7 +922,8 @@ const createPropertyWithOwnerUserId = async (
 
             amenities: [],
 
-            created: createdDate,
+            // `PropertyData.created` is modeled as a string (ISO).
+            created: createdDate.toISOString(),
         };
 
     } catch (error: any) {
@@ -1117,7 +1146,8 @@ const updateProperty = async (
             status: result.status,
             isActive: result.isActive,
             isPropertyVisible: result.isPropertyVisible,
-            created: new Date(result.created),
+            // `PropertyData.created` is modeled as a string (ISO).
+            created: new Date(result.created).toISOString(),
             propertyImages: allImages.map(img => ({
                 id: img.id,
                 url: img.url,

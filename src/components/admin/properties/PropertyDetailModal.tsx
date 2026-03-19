@@ -1,12 +1,9 @@
 // src/components/admin/properties/PropertyDetailModal.tsx
 import React from 'react';
-import { Modal, Button, Badge, Tabs, Card } from 'flowbite-react';
+import { Modal, Button, Tabs, Card, ModalHeader, ModalBody, TabItem, ModalFooter } from 'flowbite-react';
 import {
-  CalendarIcon,
   MapPinIcon,
   HomeIcon,
-  DollarSignIcon,
-  EyeIcon,
   EyeOffIcon,
   XCircleIcon,
   ClockIcon,
@@ -22,36 +19,6 @@ interface PropertyDetailModalProps {
   hook: UseAdminPropertiesReturn;
 }
 
-const getStatusBadgeColor = (status: string) => {
-  switch (status) {
-    case 'sale': return 'success';
-    case 'rent': return 'info';
-    case 'reserved': return 'warning';
-    case 'sold': return 'gray';
-    case 'unavailable': return 'failure';
-    default: return 'gray';
-  }
-};
-
-const getVisibilityBadgeColor = (isVisible: boolean) => {
-  return isVisible ? 'success' : 'failure';
-};
-
-const getActivityBadgeColor = (isActive: boolean) => {
-  return isActive ? 'success' : 'warning';
-};
-
-const getStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    sale: 'En venta',
-    rent: 'En alquiler',
-    reserved: 'Reservado',
-    sold: 'Vendido',
-    unavailable: 'No disponible',
-  };
-  return labels[status] ?? status;
-};
-
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return 'Nunca';
   return new Date(dateString).toLocaleDateString('es-ES', {
@@ -63,24 +30,11 @@ const formatDate = (dateString: string | null): string => {
   });
 };
 
-const formatCurrency = (amount: number | null, currency: number): string => {
-  if (amount === null) return 'No definido';
-
-  const currencySymbols: { [key: number]: string } = {
-    0: '$', // USD
-    1: '$', // UYU
-    2: 'R$', // BRL
-    3: '€', // EUR
-    4: '£', // GBP
-  };
-
-  const symbol = currencySymbols[currency] || '$';
-  return `${symbol}${amount.toLocaleString()}`;
-};
-
-const getPropertyTypeLabel = (type: number): string => {
-  const types = ['Casa', 'Apartamento', 'Comercial', 'Terreno', 'Otro'];
-  return types[type] || 'Desconocido';
+const getPropertyTypeLabel = (category: number): string => {
+  // Mirrors `get_admin_property_detail` mapping from SQL:
+  // 0: Casa, 1: Apartamento, 2: Terreno, 3: Chacra, 4: Campo
+  const categories = ['Casa', 'Apartamento', 'Terreno', 'Chacra', 'Campo'];
+  return categories[category] || 'Desconocido';
 };
 
 const getAreaUnitLabel = (unit: number): string => {
@@ -134,6 +88,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
   const handleMarkInvalid = () => handleQuickAction(() => markPropertyInvalid(selectedProperty.id, 'Marked as invalid by admin'));
   const handleDelete = () => openDeleteConfirmModal(selectedProperty);
 
+  const derivedTitle = `${selectedProperty.street_name} ${selectedProperty.house_number}`;
+
   return (
     <Modal
       show={detailModalOpen}
@@ -141,57 +97,45 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
       size="4xl"
       className="h-full"
     >
-      <Modal.Header>
+      <ModalHeader>
         <div className="flex items-center space-x-3">
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
             <HomeIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {selectedProperty.title}
+              {derivedTitle}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {selectedProperty.city}, {selectedProperty.state}
             </p>
           </div>
         </div>
-      </Modal.Header>
+      </ModalHeader>
 
-      <Modal.Body>
+      <ModalBody>
         {propertyDetailLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
         ) : (
-          <Tabs aria-label="Pestañas de detalles de la propiedad" style="underline">
+          <Tabs aria-label="Pestañas de detalles de la propiedad" className='underline'>
             {/* Overview Tab */}
-            <Tabs.Item active title="Resumen" icon={HomeIcon}>
+            <TabItem active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
                   <h4 className="text-md font-semibold mb-4">Acciones rápidas</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProperty.isPropertyVisible ? (
-                      <Button
-                        size="sm"
-                        color="gray"
-                        onClick={handleHide}
-                        className="flex items-center space-x-2"
-                      >
-                        <EyeOffIcon className="w-4 h-4" />
-                        <span>Ocultar propiedad</span>
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        color="gray"
-                        disabled
-                        className="flex items-center space-x-2 opacity-50 cursor-not-allowed"
-                      >
-                        <EyeOffIcon className="w-4 h-4" />
-                        <span>Ya oculto</span>
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      color="gray"
+                      onClick={handleHide}
+                      className="flex items-center space-x-2"
+                    >
+                      <EyeOffIcon className="w-4 h-4" />
+                      <span>Ocultar propiedad</span>
+                    </Button>
 
                     <Button
                       size="sm"
@@ -215,37 +159,6 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </Card>
 
-                {/* Property Status */}
-                <Card>
-                  <h4 className="text-md font-semibold mb-4">Estado de la propiedad</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Estado</p>
-                      <Badge color={getStatusBadgeColor(selectedProperty.status.toString())} className="mt-1">
-                        {getStatusLabel(selectedProperty.status.toString())}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Visibilidad</p>
-                      <Badge color={getVisibilityBadgeColor(selectedProperty.isPropertyVisible)} className="mt-1">
-                        {selectedProperty.isPropertyVisible ? 'Visible' : 'Oculto'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Actividad</p>
-                      <Badge color={getActivityBadgeColor(selectedProperty.isActive)} className="mt-1">
-                        {selectedProperty.isActive ? 'Activo' : 'Inactivo'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Destacado</p>
-                      <Badge color={selectedProperty.isFeatured ? 'success' : 'gray'} className="mt-1">
-                        {selectedProperty.isFeatured ? 'Sí' : 'No'}
-                      </Badge>
-                    </div>
-                  </div>
-                </Card>
-
                 {/* Basic Information */}
                 <Card>
                   <h4 className="text-md font-semibold mb-4">Información básica</h4>
@@ -254,19 +167,19 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Tipo: {getPropertyTypeLabel(selectedProperty.type)}
+                          Tipo: {getPropertyTypeLabel(selectedProperty.category)}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <MapPinIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Ubicación: {selectedProperty.streetName} {selectedProperty.houseNumber}, {selectedProperty.city}, {selectedProperty.state}
+                          Ubicación: {selectedProperty.street_name} {selectedProperty.house_number}, {selectedProperty.city}, {selectedProperty.state}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Tamaño: {selectedProperty.areaValue} {getAreaUnitLabel(selectedProperty.areaUnit)}
+                          Tamaño: {selectedProperty.area_value} {getAreaUnitLabel(selectedProperty.area_unit)}
                         </span>
                       </div>
                     </div>
@@ -280,7 +193,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Garaje: {selectedProperty.hasGarage ? `${selectedProperty.garageSpaces} espacios` : 'No'}
+                          Garaje: {selectedProperty.garage_spaces > 0 ? `${selectedProperty.garage_spaces} espacios` : 'No'}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -293,49 +206,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </Card>
 
-                {/* Pricing */}
-                {(selectedProperty.salePrice || selectedProperty.rentPrice) && (
-                  <Card>
-                    <h4 className="text-md font-semibold mb-4">Precios</h4>
-                    <div className="space-y-2">
-                      {selectedProperty.salePrice && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Precio de venta: {formatCurrency(selectedProperty.salePrice, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                      {selectedProperty.rentPrice && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Precio de alquiler: {formatCurrency(selectedProperty.rentPrice, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                      {selectedProperty.hasCommonExpenses && selectedProperty.commonExpensesValue && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Gastos comunes: {formatCurrency(selectedProperty.commonExpensesValue, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                )}
-
                 {/* Dates */}
                 <Card>
                   <h4 className="text-md font-semibold mb-4">Fechas importantes</h4>
                   <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Disponible desde: {formatDate(selectedProperty.availableFrom)}
-                      </span>
-                    </div>
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
@@ -351,31 +225,23 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </div>
                 </Card>
               </div>
-            </Tabs.Item>
+            </TabItem>
 
             {/* Owner Tab */}
-            <Tabs.Item title="Propietario" icon={UserIcon}>
+            <TabItem title="Propietario" icon={UserIcon}>
               <Card>
                 <h4 className="text-md font-semibold mb-4">Información del propietario</h4>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Nombre</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Correo electrónico</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">ID del propietario</p>
-                    <p className="text-sm font-mono text-gray-600 dark:text-gray-300">{selectedProperty.ownerId}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">ID del propietario</p>
+                        <p className="text-sm font-mono text-gray-600 dark:text-gray-300">{selectedProperty.owner_id}</p>
                   </div>
                 </div>
               </Card>
-            </Tabs.Item>
+            </TabItem>
 
             {/* Analytics / Views Tab */}
-            <Tabs.Item title="Visitas" icon={BarChart3Icon}>
+            <TabItem title="Visitas" icon={BarChart3Icon}>
               <div className="space-y-6">
                 {loadingViews && loadingViewsBySource ? (
                   <div className="flex justify-center py-8">
@@ -422,30 +288,30 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                   </>
                 )}
               </div>
-            </Tabs.Item>
+            </TabItem>
 
             {/* Description Tab */}
-            {selectedProperty.description && (
-              <Tabs.Item title="Descripción" icon={HomeIcon}>
+            {selectedProperty.allowedEventsDescription && (
+              <TabItem title="Descripción" icon={HomeIcon}>
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Descripción de la propiedad</h4>
+                  <h4 className="text-md font-semibold mb-4">Descripción de eventos</h4>
                   <div className="prose dark:prose-invert max-w-none">
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                      {selectedProperty.description}
+                      {selectedProperty.allowedEventsDescription}
                     </p>
                   </div>
                 </Card>
-              </Tabs.Item>
+              </TabItem>
             )}
           </Tabs>
         )}
-      </Modal.Body>
+      </ModalBody>
 
-      <Modal.Footer>
+      <ModalFooter>
         <Button color="gray" onClick={closeDetailModal}>
           Cerrar
         </Button>
-      </Modal.Footer>
+      </ModalFooter>
     </Modal>
   );
 };

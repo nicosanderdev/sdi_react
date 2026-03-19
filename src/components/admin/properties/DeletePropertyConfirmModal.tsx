@@ -51,6 +51,10 @@ export const DeletePropertyConfirmModal: React.FC<DeletePropertyConfirmModalProp
 
   if (!propertyToDelete) return null;
 
+  const propertyTitle = 'title' in propertyToDelete
+    ? propertyToDelete.title
+    : `${propertyToDelete.street_name} ${propertyToDelete.house_number}`;
+
   return (
     <Modal show={deleteConfirmModalOpen} onClose={handleClose} size="lg">
       <Modal.Header>
@@ -71,7 +75,7 @@ export const DeletePropertyConfirmModal: React.FC<DeletePropertyConfirmModalProp
           <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Propiedad a eliminar:</h3>
             <div className="space-y-1 text-sm">
-              <p><strong>Título:</strong> {propertyToDelete.title}</p>
+              <p><strong>Título:</strong> {propertyTitle}</p>
               <p><strong>Propietario:</strong> {(propertyToDelete as any).ownerName || 'Desconocido'}</p>
               <p><strong>Ubicación:</strong> {propertyToDelete.city}, {propertyToDelete.state}</p>
               <p><strong>Estado:</strong> {(propertyToDelete as any).status || 'Desconocido'}</p>
