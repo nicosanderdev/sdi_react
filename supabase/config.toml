@@ -365,6 +365,11 @@ allow_dynamic_registration = false
 [functions.create-member]
 verify_jwt = false
 
+# Guest OTP request flow should not require JWT verification.
+# Avoid local edge runtime ES256/CryptoKey verification crash before handler execution.
+[functions.booking-send-otp]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

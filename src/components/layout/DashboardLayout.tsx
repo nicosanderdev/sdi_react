@@ -14,7 +14,7 @@ export function DashboardLayout() {
           <DashboardSidebar />
           <div className="flex flex-col flex-1 overflow-hidden">
             <HeaderLayout />
-            <main className="flex-1 overflow-y-auto p-6">
+            <main data-testid="dashboard-content" className="flex-1 overflow-y-auto p-6">
               <Outlet />
             </main>
           </div>
