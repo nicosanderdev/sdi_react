@@ -301,6 +301,7 @@ export function LoginPage() {
           </form>
         )}
 
+        {/* 
         <div className="my-6 space-y-3">
           <Button
             onClick={handleGoogleLogin}
@@ -320,7 +321,7 @@ export function LoginPage() {
             <FacebookIcon />
             Continuar con Facebook
           </Button>
-        </div>
+        </div> */}
       </AuthCard>
     </PublicLayout>
   );
