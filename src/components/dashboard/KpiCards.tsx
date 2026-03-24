@@ -43,15 +43,17 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
 
   if (loading) {
     return (
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${className}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 ${className}`}>
         {Array.from({ length: 8 }).map((_, index) => (
-          <div key={index} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm p-4 md:p-6 animate-pulse">
-            <div className="flex items-start justify-between mb-4">
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+          <div
+            key={index}
+            className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm p-3 md:p-4 animate-pulse"
+          >
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-[4.5rem]"></div>
+              <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-md shrink-0"></div>
             </div>
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-2"></div>
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+            <div className="h-9 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
           </div>
         ))}
       </div>
@@ -74,7 +76,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
   ];
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 ${className}`}>
       {kpiCards.map((card, index) => (
         <DashboardStatCard
           key={index}
@@ -82,6 +84,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
           value={card.value}
           icon={card.icon}
           trend={card.trend}
+          density="compact"
         />
       ))}
     </div>

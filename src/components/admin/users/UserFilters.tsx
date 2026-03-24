@@ -92,7 +92,7 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
         </div>
 
         {/* Filter Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           {/* Subscription Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -142,18 +142,18 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
           </div>
 
           {/* Registration Date Range */}
-          <div>
+          <div className="min-w-0 md:col-span-2 xl:col-span-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Fecha de registro
             </label>
-            <div className="flex space-x-2">
+            <div className="flex w-full min-w-0 flex-wrap items-end gap-2">
               <TextInput
                 type="date"
                 placeholder="Desde"
                 value={registrationDateFrom}
                 onChange={(e) => setRegistrationDateFrom(e.target.value)}
                 onBlur={handleDateChange}
-                className="flex-1"
+                className="min-w-0 flex-1 basis-[min(100%,10rem)]"
               />
               <TextInput
                 type="date"
@@ -161,14 +161,14 @@ export const UserFilters: React.FC<UserFiltersProps> = ({ hook }) => {
                 value={registrationDateTo}
                 onChange={(e) => setRegistrationDateTo(e.target.value)}
                 onBlur={handleDateChange}
-                className="flex-1"
+                className="min-w-0 flex-1 basis-[min(100%,10rem)]"
               />
               {(registrationDateFrom || registrationDateTo) && (
                 <Button
                   size="sm"
                   color="gray"
                   onClick={clearDateFilters}
-                  className="p-2"
+                  className="shrink-0 p-2"
                 >
                   <XIcon className="w-4 h-4" />
                 </Button>

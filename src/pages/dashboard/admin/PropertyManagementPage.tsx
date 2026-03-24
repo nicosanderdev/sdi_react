@@ -28,31 +28,6 @@ const PropertyManagementPage = () => {
     fetchProperties();
   };
 
-  // #region agent log
-  fetch('http://127.0.0.1:7410/ingest/8cfc8ae1-a75f-4ac9-842a-c9e78ca77428', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Debug-Session-Id': '200f5b',
-    },
-    body: JSON.stringify({
-      sessionId: '200f5b',
-      runId: 'admin-prop-pre-fix-2',
-      hypothesisId: 'H-component-types',
-      location: 'PropertyManagementPage.tsx:33',
-      message: 'Component types in PropertyManagementPage render',
-      data: {
-        PropertyStatisticsType: typeof PropertyStatistics,
-        PropertyFiltersType: typeof PropertyFilters,
-        PropertyManagementTableType: typeof PropertyManagementTable,
-        PropertyDetailModalType: typeof PropertyDetailModal,
-        DeletePropertyConfirmModalType: typeof DeletePropertyConfirmModal,
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion agent log
-
   return (
     <div className="space-y-6">
       {/* Page Header */}

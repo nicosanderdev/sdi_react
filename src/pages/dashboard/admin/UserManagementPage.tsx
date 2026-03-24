@@ -7,6 +7,8 @@ import { useAdminUsers } from '../../../hooks/useAdminUsers';
 import { UserFilters } from '../../../components/admin/users/UserFilters';
 import { UserManagementTable } from '../../../components/admin/users/UserManagementTable';
 import { UserDetailModal } from '../../../components/admin/users/UserDetailModal';
+import { UserViewModal } from '../../../components/admin/users/UserViewModal';
+import { UserEditModal } from '../../../components/admin/users/UserEditModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
 import { UserStatistics } from '../../../components/admin/users/UserStatistics';
 
@@ -21,6 +23,7 @@ const UserManagementPage: React.FC = () => {
     totalPages,
     loading,
     error,
+    actionError,
     fetchUsers,
   } = hook;
 
@@ -54,6 +57,14 @@ const UserManagementPage: React.FC = () => {
         <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
           <div className="text-red-800 dark:text-red-200">
             <strong>Error:</strong> {error}
+          </div>
+        </Card>
+      )}
+
+      {actionError && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="text-amber-900 dark:text-amber-100">
+            <strong>Acción:</strong> {actionError}
           </div>
         </Card>
       )}
@@ -160,6 +171,8 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Modals */}
+      <UserViewModal hook={hook} />
+      <UserEditModal hook={hook} />
       <UserDetailModal hook={hook} />
       <DeleteUserConfirmModal hook={hook} />
     </div>
