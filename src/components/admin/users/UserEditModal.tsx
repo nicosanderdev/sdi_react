@@ -61,73 +61,75 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ hook }) => {
     <Modal show={editModalOpen} onClose={closeEditModal} size="md">
       <ModalHeader>Editar usuario</ModalHeader>
       <ModalBody>
-        {editUserLoading ? (
-          <div className="flex justify-center py-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900 dark:border-white" />
-          </div>
-        ) : editModalError && !editUser ? (
-          <p className="text-red-600 dark:text-red-400">{editModalError}</p>
-        ) : editUser ? (
-          <form id="admin-user-edit-form" onSubmit={handleSubmit} className="space-y-4">
-            {(editModalError || clientError) && (
-              <Alert color="failure">{clientError || editModalError}</Alert>
-            )}
-            <div>
-              <Label htmlFor="edit-first-name" className="mb-1 block">
-                Nombre
-              </Label>
-              <TextInput
-                id="edit-first-name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                disabled={editSubmitting}
-              />
+        <div data-testid="admin-edit-user-modal">
+          {editUserLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900 dark:border-white" />
             </div>
-            <div>
-              <Label htmlFor="edit-last-name" className="mb-1 block">
-                Apellido
-              </Label>
-              <TextInput
-                id="edit-last-name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                disabled={editSubmitting}
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-phone" className="mb-1 block">
-                Teléfono
-              </Label>
-              <TextInput
-                id="edit-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={editSubmitting}
-                color={editFieldErrors.phone ? 'failure' : 'gray'}
-              />
-              {editFieldErrors.phone && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{editFieldErrors.phone}</p>
+          ) : editModalError && !editUser ? (
+            <p className="text-red-600 dark:text-red-400">{editModalError}</p>
+          ) : editUser ? (
+            <form id="admin-user-edit-form" onSubmit={handleSubmit} className="space-y-4">
+              {(editModalError || clientError) && (
+                <Alert color="failure">{clientError || editModalError}</Alert>
               )}
-            </div>
-            <div>
-              <Label htmlFor="edit-email" className="mb-1 block">
-                Correo electrónico
-              </Label>
-              <TextInput
-                id="edit-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={editSubmitting}
-                required
-                color={editFieldErrors.email ? 'failure' : 'gray'}
-              />
-              {editFieldErrors.email && (
-                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{editFieldErrors.email}</p>
-              )}
-            </div>
-          </form>
-        ) : null}
+              <div>
+                <Label htmlFor="edit-first-name" className="mb-1 block">
+                  Nombre
+                </Label>
+                <TextInput
+                  id="edit-first-name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={editSubmitting}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-last-name" className="mb-1 block">
+                  Apellido
+                </Label>
+                <TextInput
+                  id="edit-last-name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={editSubmitting}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-phone" className="mb-1 block">
+                  Teléfono
+                </Label>
+                <TextInput
+                  id="edit-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={editSubmitting}
+                  color={editFieldErrors.phone ? 'failure' : 'gray'}
+                />
+                {editFieldErrors.phone && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{editFieldErrors.phone}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="edit-email" className="mb-1 block">
+                  Correo electrónico
+                </Label>
+                <TextInput
+                  id="edit-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={editSubmitting}
+                  required
+                  color={editFieldErrors.email ? 'failure' : 'gray'}
+                />
+                {editFieldErrors.email && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{editFieldErrors.email}</p>
+                )}
+              </div>
+            </form>
+          ) : null}
+        </div>
       </ModalBody>
       <ModalFooter>
         <Button color="gray" onClick={closeEditModal} disabled={editSubmitting}>

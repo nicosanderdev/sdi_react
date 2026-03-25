@@ -1,12 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Read environment variables from file.
+ * Load env for E2E (e.g. SUPABASE_SERVICE_ROLE_KEY, ADMIN_USER_*).
  * https://github.com/motdotla/dotenv
  */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 /**
  * See https://playwright.dev/docs/test-configuration.

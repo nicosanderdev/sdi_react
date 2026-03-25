@@ -26,6 +26,19 @@ export const TEST_USERS = {
 };
 
 /**
+ * Log in as the seeded admin without writing storage state (safe for parallel workers).
+ */
+export async function loginAsAdmin(page: Page): Promise<void> {
+  const user = TEST_USERS.admin;
+  await page.goto('/login', { waitUntil: 'load' });
+  await page.waitForSelector('form', { timeout: 10000 });
+  await page.fill('input[name="email"]', user.email);
+  await page.fill('input[name="password"]', user.password);
+  await page.click('button[type="submit"]:has-text("Iniciar Sesión")');
+  await page.waitForURL('**/dashboard*', { timeout: 30000 });
+}
+
+/**
  * Login to the application and save authentication state
  * Customize this function based on your authentication flow
  */
@@ -36,8 +49,7 @@ export async function loginAndSaveState(page: Page, context: BrowserContext, use
 
   // Navigate to login page
   console.log('📍 Navigating to /login');
-  await page.goto('/login');
-  await page.waitForLoadState('networkidle');
+  await page.goto('/login', { waitUntil: 'load' });
   console.log(`📍 Current URL after navigation: ${page.url()}`);
 
   // Wait for login form to be visible - using the actual form structure
@@ -105,7 +117,7 @@ export async function setupAuthenticatedContext(context: BrowserContext, userTyp
 
       // Test if auth state is still valid by navigating to dashboard
       console.log('🧪 Testing auth state validity by navigating to /dashboard');
-      await page.goto('/dashboard', { waitUntil: 'networkidle' });
+      await page.goto('/dashboard', { waitUntil: 'load' });
       console.log(`📍 Navigation completed, current URL: ${page.url()}`);
 
       // Check if we were redirected to login (auth state expired)

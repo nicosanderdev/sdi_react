@@ -87,7 +87,10 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
 
   if (loading && users.length === 0) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div
+        className="flex justify-center items-center py-12"
+        data-testid="admin-users-table"
+      >
         <Loader2Icon className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
@@ -95,14 +98,14 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
 
   if (users.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12" data-testid="admin-users-table">
         <p className="text-gray-500 dark:text-gray-400">No se encontraron usuarios con los filtros actuales.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" data-testid="admin-users-table">
       <Table hoverable>
         <TableHead>
           <TableHeadCell className="w-16">Avatar</TableHeadCell>

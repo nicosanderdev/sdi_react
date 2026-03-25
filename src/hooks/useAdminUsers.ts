@@ -89,7 +89,7 @@ export interface UseAdminUsersReturn {
 
 const defaultFilters: UserFilters = {
   page: 1,
-  limit: 20,
+  limit: 10,
 };
 
 const defaultSortConfig: SortConfig = {
@@ -103,7 +103,7 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [totalUsers, setTotalUsers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
 
   // Loading states
   const [loading, setLoading] = useState(false);

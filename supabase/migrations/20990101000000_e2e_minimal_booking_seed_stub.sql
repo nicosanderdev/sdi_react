@@ -1,0 +1,67 @@
+-- STUB: Do not run blindly. Rename timestamp or merge into your migration set after editing.
+-- Admin reservations E2E fallback when TS cannot insert minimal EstateProperties/Bookings
+-- (schema variants, extra NOT NULL columns, triggers). Align with tasks/task-context.txt.
+--
+-- Option A — Implement SECURITY DEFINER RPC and call from Playwright:
+--   create or replace function public.e2e_seed_booking(
+--     p_status integer,
+--     p_check_in date,
+--     p_check_out date,
+--     p_notes text
+--   ) returns uuid ...
+--
+-- Option B — One-off INSERT templates (fill FKs from your environment):
+
+-- Minimal EstateProperties (no Title column; see tasks/task-context.txt)
+-- insert into public."EstateProperties" (
+--   "Id", "StreetName", "HouseNumber", "City", "State", "ZipCode", "Country",
+--   "LocationLatitude", "LocationLongitude",
+--   "Bedrooms", "Bathrooms", "HasGarage", "GarageSpaces",
+--   "IsDeleted", "OwnerId"
+-- ) values (
+--   gen_random_uuid(),
+--   'E2E', '1', 'Montevideo', 'Montevideo', '11000', 'UY',
+--   -34.9011, -56.1645,
+--   1, 1, false, 0,
+--   false, '<owner-uuid>'
+-- );
+
+-- Bookings
+-- insert into public."Bookings" (
+--   "EstatePropertyId", "GuestId", "CheckInDate", "CheckOutDate",
+--   "Status", "GuestCount", "Notes"
+-- ) values (
+--   '<estate-property-uuid>', null, '2026-06-01', '2026-06-03',
+--   0, 2, 'e2e-manual-seed'
+-- );
+
+-- ---------------------------------------------------------------------------
+-- Optional: Listings row if your environment expects a listing per property.
+-- Uncomment and set enum/numeric defaults to match public."ListingType", etc.
+-- Unique active listing per (EstatePropertyId, ListingType) — only one active row.
+--
+-- insert into public."Listings" (
+--   "EstatePropertyId",
+--   "ListingType",
+--   "AvailableFrom",
+--   "Currency",
+--   "HasCommonExpenses",
+--   "IsPriceVisible",
+--   "Status",
+--   "IsActive",
+--   "IsPropertyVisible",
+--   "IsFeatured",
+--   "Title"
+-- ) values (
+--   '<estate-property-uuid>',
+--   'SummerRent'::public."ListingType",
+--   now(),
+--   0,
+--   false,
+--   true,
+--   1,
+--   true,
+--   true,
+--   false,
+--   'E2E listing title'
+-- );

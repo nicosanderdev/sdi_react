@@ -1,5 +1,5 @@
 // src/pages/dashboard/admin/UserManagementPage.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, Card } from 'flowbite-react';
 import { RefreshCwIcon } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
@@ -11,9 +11,11 @@ import { UserViewModal } from '../../../components/admin/users/UserViewModal';
 import { UserEditModal } from '../../../components/admin/users/UserEditModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
 import { UserStatistics } from '../../../components/admin/users/UserStatistics';
+import { CreateUserModal } from '../../../components/admin/users/CreateUserModal';
 
 const UserManagementPage: React.FC = () => {
   const hook = useAdminUsers();
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
 
   const {
     users,
@@ -29,6 +31,10 @@ const UserManagementPage: React.FC = () => {
 
   const handleRefresh = () => {
     fetchUsers();
+  };
+
+  const handleCreateUserSuccess = async () => {
+    await fetchUsers();
   };
 
   return (
@@ -106,6 +112,16 @@ const UserManagementPage: React.FC = () => {
 
       {/* Users Table */}
       <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h3>
+          <Button
+            color="green"
+            data-testid="admin-users-create-button"
+            onClick={() => setCreateUserModalOpen(true)}
+          >
+            Crear usuario
+          </Button>
+        </div>
         <UserManagementTable hook={hook} />
       </Card>
 
@@ -146,7 +162,7 @@ const UserManagementPage: React.FC = () => {
                   return (
                     <Button
                       key={pageNum}
-                      color={pageNum === currentPage ? 'blue' : 'light'}
+                      color={pageNum === currentPage ? 'green' : 'light'}
                       size="sm"
                       disabled={loading}
                       onClick={() => hook.setPage(pageNum)}
@@ -175,6 +191,11 @@ const UserManagementPage: React.FC = () => {
       <UserEditModal hook={hook} />
       <UserDetailModal hook={hook} />
       <DeleteUserConfirmModal hook={hook} />
+      <CreateUserModal
+        open={createUserModalOpen}
+        onClose={() => setCreateUserModalOpen(false)}
+        onCreateSuccess={handleCreateUserSuccess}
+      />
     </div>
   );
 };
