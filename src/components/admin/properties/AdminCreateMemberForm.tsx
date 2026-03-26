@@ -66,9 +66,20 @@ function mapCreateMemberErrorToSpanish(rawMessage: string): string {
 interface AdminCreateMemberFormProps {
   onSubmitSuccess: (userId: string) => void;
   onCancel?: () => void;
+  submitLabel?: string;
+  submittingLabel?: string;
+  cancelLabel?: string;
+  hideExtendedFields?: boolean;
 }
 
-export function AdminCreateMemberForm({ onSubmitSuccess, onCancel }: AdminCreateMemberFormProps) {
+export function AdminCreateMemberForm({
+  onSubmitSuccess,
+  onCancel,
+  submitLabel = 'Crear miembro',
+  submittingLabel = 'Creando...',
+  cancelLabel = 'Cancelar',
+  hideExtendedFields = false,
+}: AdminCreateMemberFormProps) {
   const [apiError, setApiError] = useState<string | null>(null);
 
   const {
@@ -194,39 +205,43 @@ export function AdminCreateMemberForm({ onSubmitSuccess, onCancel }: AdminCreate
         <TextInput id="phone" {...register('phone')} className="mt-1" placeholder="Opcional" />
       </div>
 
-      <div>
-        <Label htmlFor="title" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Título / Cargo</Label>
-        <TextInput id="title" {...register('title')} className="mt-1" placeholder="Opcional" />
-      </div>
+      {!hideExtendedFields && (
+        <>
+          <div>
+            <Label htmlFor="title" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Título / Cargo</Label>
+            <TextInput id="title" {...register('title')} className="mt-1" placeholder="Opcional" />
+          </div>
 
-      <div>
-        <Label htmlFor="street" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Dirección (calle)</Label>
-        <TextInput id="street" {...register('street')} className="mt-1" placeholder="Opcional" />
-      </div>
-      <div>
-        <Label htmlFor="street2" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Dirección línea 2</Label>
-        <TextInput id="street2" {...register('street2')} className="mt-1" placeholder="Opcional" />
-      </div>
+          <div>
+            <Label htmlFor="street" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Dirección (calle)</Label>
+            <TextInput id="street" {...register('street')} className="mt-1" placeholder="Opcional" />
+          </div>
+          <div>
+            <Label htmlFor="street2" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Dirección línea 2</Label>
+            <TextInput id="street2" {...register('street2')} className="mt-1" placeholder="Opcional" />
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div>
-          <Label htmlFor="city" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Ciudad</Label>
-          <TextInput id="city" {...register('city')} className="mt-1" placeholder="Opcional" />
-        </div>
-        <div>
-          <Label htmlFor="state" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Estado / Provincia</Label>
-          <TextInput id="state" {...register('state')} className="mt-1" placeholder="Opcional" />
-        </div>
-        <div>
-          <Label htmlFor="postalCode" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Código postal</Label>
-          <TextInput id="postalCode" {...register('postalCode')} className="mt-1" placeholder="Opcional" />
-        </div>
-      </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="city" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Ciudad</Label>
+              <TextInput id="city" {...register('city')} className="mt-1" placeholder="Opcional" />
+            </div>
+            <div>
+              <Label htmlFor="state" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Estado / Provincia</Label>
+              <TextInput id="state" {...register('state')} className="mt-1" placeholder="Opcional" />
+            </div>
+            <div>
+              <Label htmlFor="postalCode" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Código postal</Label>
+              <TextInput id="postalCode" {...register('postalCode')} className="mt-1" placeholder="Opcional" />
+            </div>
+          </div>
 
-      <div>
-        <Label htmlFor="country" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">País</Label>
-        <TextInput id="country" {...register('country')} className="mt-1" placeholder="Opcional" />
-      </div>
+          <div>
+            <Label htmlFor="country" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">País</Label>
+            <TextInput id="country" {...register('country')} className="mt-1" placeholder="Opcional" />
+          </div>
+        </>
+      )}
 
       <div>
         <Label htmlFor="role" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Rol</Label>
@@ -235,11 +250,11 @@ export function AdminCreateMemberForm({ onSubmitSuccess, onCancel }: AdminCreate
 
       <div className="flex flex-wrap gap-2 pt-2">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Creando...' : 'Crear miembro'}
+          {isSubmitting ? submittingLabel : submitLabel}
         </Button>
         {onCancel && (
           <Button type="button" color="light" onClick={onCancel}>
-            Cancelar
+            {cancelLabel}
           </Button>
         )}
       </div>

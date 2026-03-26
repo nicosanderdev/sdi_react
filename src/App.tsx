@@ -7,6 +7,7 @@ import { PaymentProvider } from './contexts/PaymentContext';
 // Public pages
 import { HomePage } from './pages/public/HomePage';
 import { ContactPage } from './pages/public/ContactPage';
+import { AboutPage } from './pages/public/AboutPage';
 import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
@@ -96,11 +97,12 @@ export function App() {
           {/* Public Routes (No Authentication Required) */}
           <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
           <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
+          <Route path="/about" element={<PublicRoute><AboutPage /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
-          <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
+          {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
           

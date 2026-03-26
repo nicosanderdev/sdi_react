@@ -22,6 +22,8 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     displayDocuments,
     onDocumentsChange
 }) => {
+    const safeDisplayDocuments = Array.isArray(displayDocuments) ? displayDocuments : [];
+
     const docFileInputRef = useRef<HTMLInputElement>(null);
 
     // --- Document Handlers ---
@@ -36,7 +38,7 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
             source: 'new',
             file: file
         }));
-        onDocumentsChange([...displayDocuments, ...newDisplayDocuments]);
+        onDocumentsChange([...safeDisplayDocuments, ...newDisplayDocuments]);
     };
 
     const handleDocFileChange = (e: React.ChangeEvent<HTMLInputElement>) => 
@@ -50,11 +52,11 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
     const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => e.preventDefault();
 
     const handleDeleteDocument = (key: string) => {
-        onDocumentsChange(displayDocuments.filter(doc => doc.key !== key));
+        onDocumentsChange(safeDisplayDocuments.filter(doc => doc.key !== key));
     };
 
     const handleDocumentTitleChange = (key: string, newTitle: string) => {
-        onDocumentsChange(displayDocuments.map(doc =>
+        onDocumentsChange(safeDisplayDocuments.map(doc =>
             doc.key === key ? { ...doc, name: newTitle } : doc
         ));
     };
@@ -89,9 +91,9 @@ export const DocumentManager: React.FC<DocumentManagerProps> = ({
                 </div>
             </div>
 
-            {displayDocuments.length > 0 && (
+            {safeDisplayDocuments.length > 0 && (
                 <div className="mt-6 space-y-3">
-                    {displayDocuments.map((doc) => (
+                    {safeDisplayDocuments.map((doc) => (
                         <div key={doc.key} className="flex items-center gap-4 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
                             <FileText className="w-6 h-6 text-primary-500 dark:text-primary-400 flex-shrink-0" />
                             <p className="text-md font-semibold text-gray-800 dark:text-gray-200">.pdf</p>

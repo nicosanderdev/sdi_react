@@ -13,7 +13,15 @@ import {
 } from 'lucide-react';
 import { Button, Card, Badge } from 'flowbite-react';
 import { SyncOrchestratorService } from '../../../services/CalendarSyncService';
-import { SyncStatusResponse, SyncStatus, PlatformType, PLATFORM_NAMES } from '../../../models/calendar/CalendarSync';
+import { SyncStatusResponse, SyncStatus, PlatformType } from '../../../models/calendar/CalendarSync';
+
+const NOMBRE_PLATAFORMA: Record<PlatformType, string> = {
+  [PlatformType.GoogleCalendar]: 'Google Calendar (ICS)',
+  [PlatformType.AppleCalendar]: 'Apple Calendar (ICS)',
+  [PlatformType.AirbnbICal]: 'Airbnb iCal',
+  [PlatformType.BookingComICal]: 'Booking.com iCal',
+  [PlatformType.OtherICal]: 'Otro iCal'
+};
 
 interface SyncStatusBarProps {
   propertyId: string;
@@ -53,10 +61,10 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
         setSyncStatus(result.data);
         setError(null);
       } else {
-        setError(result.errorMessage || 'Failed to load sync status');
+        setError(result.errorMessage || 'No se pudo cargar el estado de sincronización');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load sync status');
+      setError(err.message || 'No se pudo cargar el estado de sincronización');
     } finally {
       setIsLoading(false);
     }
@@ -116,11 +124,11 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
         if (result.succeeded) {
           await loadSyncStatus(); // Refresh status immediately
         } else {
-          setError(result.errorMessage || 'Sync failed');
+          setError(result.errorMessage || 'Error de sincronización');
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Sync failed');
+      setError(err.message || 'Error de sincronización');
     } finally {
       setInternalIsSyncing(false);
     }
@@ -235,7 +243,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
               {activeIntegrations.map((integration) => (
                 <Badge key={integration.integrationId} color="success" className="flex items-center space-x-1">
                   {getPlatformIcon(integration.platformType)}
-                  <span>{PLATFORM_NAMES[integration.platformType]}</span>
+                  <span>{NOMBRE_PLATAFORMA[integration.platformType]}</span>
                 </Badge>
               ))}
             </div>

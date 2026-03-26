@@ -114,7 +114,7 @@ export function PropertyEditPage() {
                 country: payload.country,
                 location: payload.location,
                 title: payload.title,
-                type: payload.type as 'house' | 'apartment' | 'commercial' | 'land' | 'other',
+                type: payload.type as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
                 areaValue: payload.areaValue,
                 areaUnit: payload.areaUnit as 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi',
                 bedrooms: payload.bedrooms,

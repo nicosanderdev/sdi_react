@@ -208,7 +208,7 @@ export function LoginPage() {
         )}
 
         {loginStep === 'credentials' ? (
-          <form onSubmit={handleSubmitCredentials} className="space-y-6">
+          <form data-testid="login-form" onSubmit={handleSubmitCredentials} className="space-y-6">
             <div>
               <TextInput
                 type="email"
@@ -280,7 +280,7 @@ export function LoginPage() {
             </Button>
                 </form>
         ) : (
-          <form ref={twoFaFormRef} onSubmit={handleSubmit2FA} className="space-y-8">
+          <form data-testid="login-form" ref={twoFaFormRef} onSubmit={handleSubmit2FA} className="space-y-8">
             <div>
               <TwoFactorInput
                 length={6}
@@ -301,6 +301,7 @@ export function LoginPage() {
           </form>
         )}
 
+        {/* 
         <div className="my-6 space-y-3">
           <Button
             onClick={handleGoogleLogin}
@@ -320,7 +321,7 @@ export function LoginPage() {
             <FacebookIcon />
             Continuar con Facebook
           </Button>
-        </div>
+        </div> */}
       </AuthCard>
     </PublicLayout>
   );

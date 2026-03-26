@@ -85,6 +85,28 @@ export interface AdminActivityParams extends AdminMetricsParams {
 }
 
 class AdminService {
+  /** Properties no longer have Created/LastModified on EstateProperties after listing refactor; use Listings. */
+  private async countDistinctPropertiesWithListingsModifiedSince(sinceIso: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('Listings')
+      .select('EstatePropertyId')
+      .eq('IsDeleted', false)
+      .gte('LastModified', sinceIso);
+    if (error) throw error;
+    return new Set((data ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)).size;
+  }
+
+  private async countDistinctPropertiesWithListingCreatedBetween(startIso: string, endIso: string): Promise<number> {
+    const { data, error } = await supabase
+      .from('Listings')
+      .select('EstatePropertyId')
+      .eq('IsDeleted', false)
+      .gte('Created', startIso)
+      .lte('Created', endIso);
+    if (error) throw error;
+    return new Set((data ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)).size;
+  }
+
   /**
    * Fetch admin metrics summary
    */
@@ -135,19 +157,12 @@ class AdminService {
 
       if (activeUsers7dError) throw activeUsers7dError;
 
-      // Get active properties (created within last 30 days)
-      const { count: activeProperties30d } = await supabase
-        .from('EstateProperties')
-        .select('Id', { count: 'exact', head: true })
-        .eq('IsDeleted', false)
-        .gte('LastModified', thirtyDaysAgo.toISOString());
-
-      // Get active properties within 7 days
-      const { count: activeProperties7d } = await supabase
-        .from('EstateProperties')
-        .select('Id', { count: 'exact', head: true })
-        .eq('IsDeleted', false)
-        .gte('LastModified', sevenDaysAgo.toISOString());
+      const activeProperties30d = await this.countDistinctPropertiesWithListingsModifiedSince(
+        thirtyDaysAgo.toISOString()
+      );
+      const activeProperties7d = await this.countDistinctPropertiesWithListingsModifiedSince(
+        sevenDaysAgo.toISOString()
+      );
 
       // Get new users within the period
       const { count: newUsers } = await supabase
@@ -157,13 +172,10 @@ class AdminService {
         .gte('Created', startDate.toISOString())
         .lte('Created', endDate.toISOString());
 
-      // Get new properties within the period
-      const { count: newProperties } = await supabase
-        .from('EstateProperties')
-        .select('Id', { count: 'exact', head: true })
-        .eq('IsDeleted', false)
-        .gte('Created', startDate.toISOString())
-        .lte('Created', endDate.toISOString());
+      const newProperties = await this.countDistinctPropertiesWithListingCreatedBetween(
+        startDate.toISOString(),
+        endDate.toISOString()
+      );
 
       // For pending approvals and flags, we'll return 0 since these tables may not exist yet
       // These would need to be implemented based on the actual schema
@@ -176,7 +188,7 @@ class AdminService {
         activeProperties7d: activeProperties7d || 0,
         activeProperties30d: activeProperties30d || 0,
         newUsers: newUsers || 0,
-        newProperties: newProperties || 0,
+        newProperties,
         pendingApprovals: 0, // Placeholder
         flagsOpen: 0, // Placeholder
         failedJobs: 0 // Placeholder
@@ -225,9 +237,8 @@ class AdminService {
 
       if (userError) throw userError;
 
-      // Get property creation data aggregated by date
       const { data: propertyData, error: propertyError } = await supabase
-        .from('EstateProperties')
+        .from('Listings')
         .select('Created')
         .eq('IsDeleted', false)
         .gte('Created', startDate.toISOString())
@@ -246,9 +257,8 @@ class AdminService {
         dateMap.set(date, existing);
       });
 
-      // Process property data
-      propertyData?.forEach(property => {
-        const date = new Date(property.Created).toISOString().split('T')[0]; // YYYY-MM-DD format
+      propertyData?.forEach(listing => {
+        const date = new Date(listing.Created).toISOString().split('T')[0];
         const existing = dateMap.get(date) || { users: 0, properties: 0 };
         existing.properties++;
         dateMap.set(date, existing);
@@ -338,25 +348,33 @@ class AdminService {
       }
 
       if (typesToFetch.includes('properties')) {
-        // Get recent properties
-        const { data: properties, error: propertiesError } = await supabase
-          .from('EstateProperties')
-          .select('Id, Title, Created, LastModified')
+        const { data: listings, error: listingsError } = await supabase
+          .from('Listings')
+          .select('EstatePropertyId, Title, Created, LastModified')
           .eq('IsDeleted', false)
           .gte('Created', startDate.toISOString())
           .lte('Created', endDate.toISOString())
           .order('Created', { ascending: false })
-          .limit(limit);
+          .limit(Math.max(limit * 4, 40));
 
-        if (propertiesError) throw propertiesError;
+        if (listingsError) throw listingsError;
 
-        activityData.properties = properties?.map(property => ({
-          id: property.Id,
-          title: property.Title,
-          createdAt: property.Created,
-          updatedAt: property.LastModified,
-          status: 'active' // All properties from this query are active
-        })) || [];
+        const seen = new Set<string>();
+        const properties: AdminActivityItem[] = [];
+        for (const row of listings ?? []) {
+          const pid = row.EstatePropertyId as string;
+          if (seen.has(pid)) continue;
+          seen.add(pid);
+          properties.push({
+            id: pid,
+            title: row.Title as string,
+            createdAt: row.Created as string,
+            updatedAt: row.LastModified as string,
+            status: 'active'
+          });
+          if (properties.length >= limit) break;
+        }
+        activityData.properties = properties;
       }
 
       if (typesToFetch.includes('flags')) {
@@ -371,25 +389,66 @@ class AdminService {
   }
 
   /**
-   * Fetch admin dashboard stats for executive overview.
-   * Merges in property views summary from get_admin_property_views_summary when available.
+   * When get_admin_dashboard_stats RPC is missing or fails, compose KPIs from listing-aware metrics.
    */
-  async getDashboardStats(): Promise<AdminDashboardStats> {
-    const { data, error } = await supabase.rpc('get_admin_dashboard_stats', {
-      period: '30d'
-    });
+  private async buildDashboardStatsFallback(): Promise<AdminDashboardStats> {
+    const [summary30d, summary7d, usersHead, propsHead, active30Rpc] = await Promise.all([
+      this.getMetricsSummary({ range: '30d' }),
+      this.getMetricsSummary({ range: '7d' }),
+      supabase.from('Members').select('Id', { count: 'exact', head: true }).eq('IsDeleted', false),
+      supabase.from('EstateProperties').select('Id', { count: 'exact', head: true }).eq('IsDeleted', false),
+      supabase.rpc('get_active_users_count', { days_back: 30 })
+    ]);
 
-    if (error) {
-      throw new Error(`Failed to fetch admin dashboard stats: ${error.message}`);
-    }
+    if (usersHead.error) throw usersHead.error;
+    if (propsHead.error) throw propsHead.error;
+    if (active30Rpc.error) throw active30Rpc.error;
 
-    const stats = data as AdminDashboardStats;
+    const usersCount = usersHead.count ?? 0;
+    const propertiesCount = propsHead.count ?? 0;
+    const activeUsers = (active30Rpc.data as number) ?? 0;
+    const inactiveUsers = Math.max(0, usersCount - activeUsers);
 
-    const { data: viewsSummary } = await supabase.rpc('get_admin_property_views_summary', {
-      p_period_7d: 'last7days',
-      p_period_30d: 'last30days'
-    });
+    const { data: activeListRows, error: activeListErr } = await supabase
+      .from('Listings')
+      .select('EstatePropertyId')
+      .eq('IsDeleted', false)
+      .eq('IsActive', true)
+      .eq('IsPropertyVisible', true);
 
+    if (activeListErr) throw activeListErr;
+    const activeProperties = new Set(
+      (activeListRows ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)
+    ).size;
+    const archivedProperties = Math.max(0, propertiesCount - activeProperties);
+    const avgPU = usersCount > 0 ? propertiesCount / usersCount : 0;
+
+    return {
+      propertiesCount,
+      usersCount,
+      activeUsers,
+      inactiveUsers,
+      activeProperties,
+      archivedProperties,
+      subscriptionStats: { withoutSubscription: 0, active: 0, expired: 0 },
+      mrr: 0,
+      growth: {
+        newUsers7d: summary7d.newUsers,
+        newUsers30d: summary30d.newUsers,
+        newProperties7d: summary7d.newProperties,
+        newProperties30d: summary30d.newProperties
+      },
+      usageStats: {
+        avgPropertiesPerUser: avgPU,
+        usersWithoutProperties: 0
+      }
+    };
+  }
+
+  private mergeViewsSummary(
+    stats: AdminDashboardStats,
+    viewsSummary: unknown
+  ): AdminDashboardStats {
     if (viewsSummary && typeof viewsSummary === 'object') {
       const v = viewsSummary as { totalPropertyViews?: number; viewsLast7Days?: number; viewsLast30Days?: number };
       return {
@@ -399,7 +458,38 @@ class AdminService {
         viewsLast30Days: v.viewsLast30Days ?? stats.viewsLast30Days
       };
     }
+    return stats;
+  }
 
+  /**
+   * Fetch admin dashboard stats for executive overview.
+   * Merges in property views summary from get_admin_property_views_summary when available.
+   */
+  async getDashboardStats(): Promise<AdminDashboardStats> {
+    const { data, error } = await supabase.rpc('get_admin_dashboard_stats', {
+      period: '30d'
+    });
+
+    if (!error && data != null) {
+      let stats = data as AdminDashboardStats;
+      const { data: viewsSummary, error: viewsErr } = await supabase.rpc('get_admin_property_views_summary', {
+        p_period_7d: 'last7days',
+        p_period_30d: 'last30days'
+      });
+      if (!viewsErr) {
+        stats = this.mergeViewsSummary(stats, viewsSummary);
+      }
+      return stats;
+    }
+
+    let stats = await this.buildDashboardStatsFallback();
+    const { data: viewsSummary, error: viewsErr } = await supabase.rpc('get_admin_property_views_summary', {
+      p_period_7d: 'last7days',
+      p_period_30d: 'last30days'
+    });
+    if (!viewsErr) {
+      stats = this.mergeViewsSummary(stats, viewsSummary);
+    }
     return stats;
   }
 }

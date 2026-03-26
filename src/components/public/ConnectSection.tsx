@@ -1,25 +1,27 @@
 import React from 'react';
 import { Network, Users, Shield, MessageCircle } from 'lucide-react';
 import { PublicSection } from './PublicSection';
-import { FeatureCard } from './FeatureCard';
 
 export function ConnectSection() {
   const features = [
     {
       icon: <Network className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Red conectada',
-      description: 'Tus propiedades lleguen a más personas sin duplicar esfuerzos.'
+      title: 'Operación conectada',
+      description:
+        'Sincroniza listados, disponibilidad y comunicación entre ambos portales sin procesos manuales repetidos.',
     },
     {
       icon: <Shield className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Seguridad garantizada',
-      description: 'Tu sitio esté siempre actualizado, seguro y optimizado.'
+      title: 'Confianza y control',
+      description:
+        'Mantén la información de tus inmuebles y venues ordenada, con trazabilidad y accesos seguros para tu equipo.',
     },
     {
       icon: <MessageCircle className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Comunicación directa',
-      description: 'Los usuarios encuentren lo que buscan y se comuniquen directamente contigo.'
-    }
+      title: 'Canal directo con interesados',
+      description:
+        'Gestiona consultas y reservas con mensajería integrada para responder con rapidez a huéspedes y organizadores.',
+    },
   ];
 
   return (
@@ -27,11 +29,11 @@ export function ConnectSection() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         <div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-            Conectamos inmobiliarias con compradores reales
+            Diseñado para arrendadores y gestores de espacios
           </h2>
           <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
-            Nuestro sistema funciona como una red de sitios inmobiliarios
-            conectados por una misma API, lo que permite que:
+            Tanto si administras casas por temporadas como salones o venues para eventos, la plataforma concentra la
+            gestión para que escales sin perder el control:
           </p>
 
           <div className="space-y-4">
@@ -58,18 +60,12 @@ export function ConnectSection() {
             <Users className="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Para quienes buscan su próxima casa
+            Una experiencia clara para quienes reservan
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed">
-            Nuestro buscador permite a cualquier persona explorar casas,
-            departamentos o terrenos en venta y en alquiler. Cada propiedad
-            muestra información clara y completa, con enlaces directos al
-            sitio de la inmobiliaria que la gestiona.
+            Cada portal orienta a huéspedes o a organizadores de eventos con información precisa sobre la propiedad
+            o el venue, condiciones de alquiler y vías de contacto directas con quien gestiona el anuncio.
           </p>
-          {/* COMMENTED OUT: for reuse in new project managing public view */}
-          {/* <a href="/search" className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
-            Explorar propiedades
-          </a> */}
         </div>
       </div>
     </PublicSection>

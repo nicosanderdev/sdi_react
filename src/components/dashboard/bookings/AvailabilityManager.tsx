@@ -12,7 +12,14 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { Button, Card, Select, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
-import { AvailabilityBlock, BlockType, SourceType, BLOCK_TYPE_NAMES } from '../../../models/calendar/CalendarSync';
+import { AvailabilityBlock, BlockType, SourceType } from '../../../models/calendar/CalendarSync';
+
+const TIPO_BLOQUEO_ES: Record<BlockType, string> = {
+  [BlockType.Availability]: 'Disponibilidad',
+  [BlockType.Booking]: 'Reserva',
+  [BlockType.OwnerBlock]: 'Bloqueo del propietario',
+  [BlockType.ExternalBlock]: 'Calendario externo'
+};
 import { CalendarSyncService } from '../../../services/CalendarSyncService';
 
 interface AvailabilityManagerProps {
@@ -274,7 +281,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <Badge className={getBlockTypeColor(block.BlockType)}>
-                      {BLOCK_TYPE_NAMES[block.BlockType]}
+                      {TIPO_BLOQUEO_ES[block.BlockType]}
                     </Badge>
                     <span className="font-medium text-gray-900 dark:text-gray-100">{block.Title || 'Sin título'}</span>
                   </div>
@@ -355,7 +362,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 value={blockFormData.blockType.toString()}
                 onChange={(e) => handleFormChange('blockType', parseInt(e.target.value) as BlockType)}
               >
-                {Object.entries(BLOCK_TYPE_NAMES)
+                {Object.entries(TIPO_BLOQUEO_ES)
                   .filter(([key]) => parseInt(key) !== BlockType.Availability && parseInt(key) !== BlockType.Booking)
                   .map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>

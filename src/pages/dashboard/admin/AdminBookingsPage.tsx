@@ -66,7 +66,8 @@ function BookingRow({
   onReject,
   onCancel,
   showActions,
-  showCancel
+  showCancel,
+  rowTestId
 }: {
   booking: BookingWithMemberAndProperty;
   onAccept: (id: string) => void;
@@ -74,6 +75,7 @@ function BookingRow({
   onCancel?: (id: string) => void;
   showActions: boolean;
   showCancel?: boolean;
+  rowTestId?: string;
 }) {
   const guest = booking.Guest;
   const guestName = guest
@@ -87,7 +89,10 @@ function BookingRow({
       : '—';
 
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 py-3">
+    <div
+      className="flex flex-wrap items-start justify-between gap-4 py-3"
+      data-testid={rowTestId}
+    >
       <div className="space-y-2 min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
@@ -359,7 +364,7 @@ export function AdminBookingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="admin-bookings-page">
       <DashboardPageTitle title="Reservas (Administrador)" />
 
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -373,6 +378,7 @@ export function AdminBookingsPage() {
           />
         </div>
         <div className="flex items-center gap-3">
+          <div data-testid="admin-bookings-status-filter">
           <Select
             value={statusFilter}
             onChange={(e) =>
@@ -385,6 +391,7 @@ export function AdminBookingsPage() {
             <option value="rejected">Rechazadas / Canceladas</option>
             <option value="past">Pasadas</option>
           </Select>
+          </div>
           {(searchQuery.trim() !== '' || statusFilter !== 'all') && (
             <Button
               color="light"
@@ -435,6 +442,7 @@ export function AdminBookingsPage() {
                   <BookingRow
                     key={b.Id}
                     booking={b}
+                    rowTestId={`reservation-${b.Id}`}
                     onAccept={handleAccept}
                     onReject={(id) =>
                       setConfirmModal({ bookingId: id, action: 'reject' })
@@ -474,6 +482,7 @@ export function AdminBookingsPage() {
                   <BookingRow
                     key={b.Id}
                     booking={b}
+                    rowTestId={`reservation-${b.Id}`}
                     onAccept={handleAccept}
                     onReject={handleReject}
                     onCancel={(id) =>
@@ -515,6 +524,7 @@ export function AdminBookingsPage() {
                   <BookingRow
                     key={b.Id}
                     booking={b}
+                    rowTestId={`reservation-${b.Id}`}
                     onAccept={handleAccept}
                     onReject={handleReject}
                     showActions={false}
@@ -552,6 +562,7 @@ export function AdminBookingsPage() {
                   <BookingRow
                     key={b.Id}
                     booking={b}
+                    rowTestId={`reservation-${b.Id}`}
                     onAccept={handleAccept}
                     onReject={handleReject}
                     showActions={false}
@@ -564,7 +575,10 @@ export function AdminBookingsPage() {
       )}
 
       {actionId && (
-        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black/20 flex items-center justify-center z-50"
+          data-testid="admin-bookings-action-overlay"
+        >
           <Spinner size="xl" />
         </div>
       )}
@@ -578,19 +592,20 @@ export function AdminBookingsPage() {
           {confirmModal?.action === 'reject' ? 'Rechazar reserva' : 'Cancelar reserva'}
         </ModalHeader>
         <ModalBody>
-          <p className="text-gray-600 dark:text-gray-300">
+          <p className="text-gray-600 dark:text-gray-300 mx-auto text-center">
             Esta acción no se puede deshacer. El usuario que realizó la reserva será notificado.
           </p>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2 mx-auto text-center">
             ¿Deseas continuar?
           </p>
         </ModalBody>
-        <ModalFooter>
+        <ModalFooter className='flex justify-center gap-2'  >
           <Button color="green" onClick={() => setConfirmModal(null)}>
             No, volver
           </Button>
           <Button
             color="red"
+            data-testid="admin-bookings-modal-confirm"
             onClick={() => {
               if (!confirmModal) return;
               const { bookingId, action } = confirmModal;

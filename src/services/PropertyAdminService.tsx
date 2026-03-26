@@ -1,5 +1,6 @@
 // src/services/PropertyAdminService.tsx
 import { supabase } from '../config/supabase';
+import { PropertyData } from '../models/properties';
 
 // Property status types (matching enum values from database)
 export type PropertyStatus = 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
@@ -26,6 +27,9 @@ export interface AdminPropertyListItem {
   lastModified: string;
 }
 
+// Admin detail payload mirrors `public.get_admin_property_detail`, which matches `PropertyData`.
+export type AdminPropertyDetail = PropertyData;
+
 export interface PropertyListResponse {
   properties: AdminPropertyListItem[];
   total: number;
@@ -48,46 +52,6 @@ export interface PropertyStatistics {
   neverPublished: number;
   activeProperties: number;
   archivedProperties: number;
-}
-
-export interface AdminPropertyDetail {
-  id: string;
-  title: string;
-  streetName: string;
-  houseNumber: string;
-  neighborhood: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  country: string;
-  locationLatitude: number;
-  locationLongitude: number;
-  type: number;
-  areaValue: number;
-  areaUnit: number;
-  bedrooms: number;
-  bathrooms: number;
-  hasGarage: boolean;
-  garageSpaces: number;
-  description: string;
-  availableFrom: string;
-  currency: number;
-  salePrice: number | null;
-  rentPrice: number | null;
-  hasCommonExpenses: boolean;
-  commonExpensesValue: number | null;
-  isElectricityIncluded: boolean | null;
-  isWaterIncluded: boolean | null;
-  isPriceVisible: boolean;
-  status: number;
-  isActive: boolean;
-  isPropertyVisible: boolean;
-  isFeatured: boolean;
-  ownerId: string;
-  ownerName: string;
-  ownerEmail: string;
-  created: string;
-  lastModified: string;
 }
 
 export interface ActionResult {
@@ -150,7 +114,7 @@ class PropertyAdminService {
   /**
    * Fetch detailed property information for admin
    */
-  async getPropertyDetail(propertyId: string): Promise<AdminPropertyDetail | null> {
+  async getPropertyDetail(propertyId: string): Promise<PropertyData | null> {
     const { data, error } = await supabase.rpc('get_admin_property_detail', { p_property_id: propertyId });
 
     if (error) {
@@ -161,47 +125,8 @@ class PropertyAdminService {
       return null;
     }
 
-    const property = data[0];
-
-    return {
-      id: property.id,
-      title: property.title,
-      streetName: property.street_name,
-      houseNumber: property.house_number,
-      neighborhood: property.neighborhood,
-      city: property.city,
-      state: property.state,
-      zipCode: property.zip_code,
-      country: property.country,
-      locationLatitude: property.location_latitude,
-      locationLongitude: property.location_longitude,
-      type: property.type,
-      areaValue: property.area_value,
-      areaUnit: property.area_unit,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      hasGarage: property.has_garage,
-      garageSpaces: property.garage_spaces,
-      description: property.description,
-      availableFrom: property.available_from,
-      currency: property.currency,
-      salePrice: property.sale_price,
-      rentPrice: property.rent_price,
-      hasCommonExpenses: property.has_common_expenses,
-      commonExpensesValue: property.common_expenses_value,
-      isElectricityIncluded: property.is_electricity_included,
-      isWaterIncluded: property.is_water_included,
-      isPriceVisible: property.is_price_visible,
-      status: property.status,
-      isActive: property.is_active,
-      isPropertyVisible: property.is_property_visible,
-      isFeatured: property.is_featured,
-      ownerId: property.owner_id,
-      ownerName: property.owner_name,
-      ownerEmail: property.owner_email,
-      created: property.created,
-      lastModified: property.last_modified,
-    };
+    // Supabase RPC returns columns matching the `PropertyData` field names.
+    return data[0] as PropertyData;
   }
 
   /**

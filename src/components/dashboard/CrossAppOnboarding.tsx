@@ -1,17 +1,16 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from 'flowbite-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import {
-  hasUsedApp,
-  recordAppUsed,
-  currentUserHasOwnerRecord,
-  APP_NAMES,
-} from '../../services/UserAppsService';
+import { recordAppUsed, currentUserHasOwnerRecord, APP_NAMES, getUserApps } from '../../services/UserAppsService';
 
 const HOST_ONBOARDING_DISMISSED_KEY = 'crossAppHostOnboardingDismissed';
+
+function getHostDismissedKeyForUser(userId: string) {
+  return `${HOST_ONBOARDING_DISMISSED_KEY}:${userId}`;
+}
 
 export function CrossAppOnboarding() {
   const { user: supabaseUser } = useAuth();
@@ -22,21 +21,44 @@ export function CrossAppOnboarding() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [showHostOnboarding, setShowHostOnboarding] = useState(false);
   const [checked, setChecked] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   const runChecks = useCallback(async () => {
     if (!supabaseUser?.id) return;
     setLoading(true);
     try {
-      const hasUsedAdminApp = await hasUsedApp(APP_NAMES.ADMIN_APP, supabaseUser.id);
-      if (!hasUsedAdminApp) {
+      const userId = supabaseUser.id;
+
+      // Fetch all app usage once so we can reason about cross-app usage.
+      const userApps = await getUserApps(userId);
+      const hasUsedAdminApp = userApps.some((r) => r.AppName === APP_NAMES.ADMIN_APP);
+      const hasUsedOtherApp = userApps.some(
+        (r) => r.AppName === APP_NAMES.RENTALS_APP || r.AppName === APP_NAMES.VENUES_APP
+      );
+
+      const hasOwner = await currentUserHasOwnerRecord(userId);
+      const hostDismissed =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem(getHostDismissedKeyForUser(userId))
+          : null;
+
+      console.debug('CrossAppOnboarding runChecks:', {
+        userId,
+        hasUsedAdminApp,
+        hasUsedOtherApp,
+        hasOwner,
+        hostDismissed,
+      });
+
+      // Welcome modal: only when user has used another app but not the admin app yet.
+      if (!hasUsedAdminApp && hasUsedOtherApp) {
         setShowWelcome(true);
         setChecked(true);
         return;
       }
-      const hasOwner = await currentUserHasOwnerRecord(supabaseUser.id);
-      const dismissed = sessionStorage.getItem(HOST_ONBOARDING_DISMISSED_KEY);
-      if (!hasOwner && !dismissed) {
+
+      // Host onboarding: no owner record and user hasn't dismissed it yet.
+      if (!hasOwner && !hostDismissed) {
         setShowHostOnboarding(true);
       }
     } catch (e) {
@@ -58,9 +80,19 @@ export function CrossAppOnboarding() {
     try {
       const ok = await recordAppUsed(APP_NAMES.ADMIN_APP, supabaseUser.id);
       if (ok) {
-        const hasOwner = await currentUserHasOwnerRecord(supabaseUser.id);
-        const dismissed = sessionStorage.getItem(HOST_ONBOARDING_DISMISSED_KEY);
-        if (!hasOwner && !dismissed) {
+        const userId = supabaseUser.id;
+        const hasOwner = await currentUserHasOwnerRecord(userId);
+        const hostDismissed =
+          typeof window !== 'undefined'
+            ? window.localStorage.getItem(getHostDismissedKeyForUser(userId))
+            : null;
+        console.debug('CrossAppOnboarding handleWelcomeContinue:', {
+          userId,
+          ok,
+          hasOwner,
+          hostDismissed,
+        });
+        if (!hasOwner && !hostDismissed) {
           setShowHostOnboarding(true);
         }
       }
@@ -75,7 +107,12 @@ export function CrossAppOnboarding() {
   };
 
   const handleMaybeLater = () => {
-    sessionStorage.setItem(HOST_ONBOARDING_DISMISSED_KEY, '1');
+    if (supabaseUser?.id && typeof window !== 'undefined') {
+      window.localStorage.setItem(getHostDismissedKeyForUser(supabaseUser.id), '1');
+      console.debug('CrossAppOnboarding handleMaybeLater: set host dismissed flag', {
+        userId: supabaseUser.id,
+      });
+    }
     setShowHostOnboarding(false);
   };
 

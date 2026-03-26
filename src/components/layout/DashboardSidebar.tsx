@@ -8,10 +8,7 @@ import {
   SettingsIcon,
   LogOutIcon,
   TriangleAlert,
-  Heart as HeartIcon,
   Crown,
-  Shield,
-  FileText,
   BoxesIcon,
   CalendarCheck,
   type LucideIcon
@@ -97,7 +94,6 @@ export function DashboardSidebar() {
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
     { id: 'company', label: 'Empresa', icon: BoxesIcon, path: '/dashboard/company' },
     { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' }
-
   ];
 
   const handleLogout = async () => {

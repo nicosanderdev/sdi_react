@@ -1,43 +1,40 @@
-import React from 'react';
-import { Button, Checkbox, Label, Radio } from 'flowbite-react';
+import React, { useState } from 'react';
+import { Button, Radio } from 'flowbite-react';
 import { useFormContext } from 'react-hook-form';
-import { DocumentManager } from './DocumentManager';
-import { DisplayDocument } from './DocumentManager';
 import type { PropertyCreationFormData } from './PropertyCreationWizard';
+import { ListingInformationForm } from './ListingInformationForm';
 
 interface PropertyFormStep4Props {
   onSubmit: (e: React.FormEvent) => void;
   onBack: () => void;
   isSubmitting: boolean;
-  displayDocuments: DisplayDocument[];
-  setDisplayDocuments: React.Dispatch<React.SetStateAction<DisplayDocument[]>>;
 }
 
 export function PropertyFormStep4({ 
   onSubmit, 
   onBack, 
-  isSubmitting,
-  displayDocuments,
-  setDisplayDocuments
+  isSubmitting
 }: PropertyFormStep4Props) {
-  const { register, watch, setValue } = useFormContext<PropertyCreationFormData>();
+  const { register, watch } = useFormContext<PropertyCreationFormData>();
   const publishMode = watch('publishMode');
-  const listingTypes = watch('listingTypes') || [];
+  const propertyType = watch('propertyType');
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
 
-  const toggleListingType = (type: 'SummerRent' | 'EventVenue' | 'AnnualRent' | 'RealEstate') => {
-    if (listingTypes.includes(type as any)) {
-      setValue(
-        'listingTypes',
-        listingTypes.filter((t: any) => t !== type)
-      );
-    } else {
-      setValue('listingTypes', [...listingTypes, type as any]);
-    }
+  const handleSubmitWithValidation = (e: React.FormEvent) => {
+    // Require documents for RealEstate-type properties, per flow definition.
+    // NOTE: Validation of required documents for RealEstate is now handled earlier
+    // in the flow alongside the documents upload UI.
+    setDocumentsError(null);
+    onSubmit(e);
   };
 
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl mx-auto">
+    <form onSubmit={handleSubmitWithValidation} className="max-w-4xl mx-auto">
       <div className="space-y-8">
+        {/* Listing information section */}
+        <ListingInformationForm />
+
+        {/* Publish mode */}
         <div className="border border-gray-200 rounded-lg p-4 space-y-4">
           <h3 className="text-lg font-semibold mb-2">Publicación</h3>
           <div className="flex flex-col md:flex-row gap-4">
@@ -58,30 +55,7 @@ export function PropertyFormStep4({
               <span>Publicar ahora</span>
             </label>
           </div>
-
-          <div className="mt-4 space-y-2">
-            <Label className="font-medium">Tipos de listado a crear</Label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {['RealEstate', 'AnnualRent', 'SummerRent', 'EventVenue'].map((lt) => (
-                <label key={lt} className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={listingTypes.includes(lt as any)}
-                    onChange={() =>
-                      toggleListingType(lt as 'SummerRent' | 'EventVenue' | 'AnnualRent' | 'RealEstate')
-                    }
-                  />
-                  <span>{lt}</span>
-                </label>
-              ))}
-            </div>
-          </div>
         </div>
-
-        {/* Documents Section */}
-        <DocumentManager
-          displayDocuments={displayDocuments}
-          onDocumentsChange={setDisplayDocuments}
-        />
 
         <div className="flex justify-between pt-4">
           <Button color="alternative" onClick={onBack}>

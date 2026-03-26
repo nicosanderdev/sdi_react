@@ -87,7 +87,7 @@ export function HeaderLayout() {
                 arrowIcon={false}
                 inline
                 label={
-                <div className="flex items-center space-x-3 w-56">
+                <div data-testid="user-menu-trigger" className="flex items-center space-x-3 w-56">
                   {userProfile?.avatarUrl ? (
                     <Avatar
                       alt="User settings"
@@ -130,7 +130,7 @@ export function HeaderLayout() {
                 <DropdownItem onClick={() => navigate('/dashboard/profile')}>Perfil</DropdownItem>
                 <DropdownItem onClick={() => navigate('/dashboard/settings')}>Configuración</DropdownItem>
                 <DropdownDivider />
-                <DropdownItem onClick={handleLogout}>Cerrar Sesión</DropdownItem>
+                <DropdownItem data-testid="logout-button" onClick={handleLogout}>Cerrar Sesión</DropdownItem>
               </Dropdown>
             </div>
           </div>

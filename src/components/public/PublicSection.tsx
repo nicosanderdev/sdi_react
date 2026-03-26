@@ -9,7 +9,7 @@ interface PublicSectionProps {
 export function PublicSection({ children, className = '', background = 'white' }: PublicSectionProps) {
   const getBackgroundClasses = () => {
     switch (background) {
-      case 'gray':
+    case 'gray':
         return 'bg-gray-50 dark:bg-gray-800';
       case 'gradient':
         return 'bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800';

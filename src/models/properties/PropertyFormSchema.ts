@@ -19,9 +19,6 @@ export const propertyFormBaseSchema = z.object({
   ),
   // description
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
-  type: z.enum(['house', 'apartment', 'commercial', 'land', 'other'], {
-    errorMap: () => ({ message: 'El tipo de propiedad es requerido.' }),
-  }),
   // end-purpose for this property (optional on create)
   propertyType: z
     .enum(['SummerRent', 'EventVenue', 'RealEstate'])
@@ -43,39 +40,49 @@ export const propertyFormBaseSchema = z.object({
 
   // --- Values (Step 3) ---
   description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
-  availableFrom: z.string().min(1, 'La fecha de disponibilidad es requerida.'),
-  // price and status
+  // price and publication fields are handled in later steps / extensions
+  availableFrom: z.string().optional(),
   listingType: z
     .enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate'])
     .optional() as z.ZodType<ListingType | undefined>,
-  currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']),
+  currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']).optional(),
   salePrice: z.string().optional(),
   rentPrice: z.string().optional(),
-  hasCommonExpenses: z.boolean(),
+  hasCommonExpenses: z.boolean().optional(),
   commonExpensesValue: z.string().optional(),
-  isElectricityIncluded: z.boolean(),
-  isWaterIncluded: z.boolean(),
-  isPriceVisible: z.boolean(),
-  status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']),
-  isActive: z.boolean(),
-  isPropertyVisible: z.boolean(),
+  isElectricityIncluded: z.boolean().optional(),
+  isWaterIncluded: z.boolean().optional(),
+  isPriceVisible: z.boolean().optional(),
+  status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']).optional(),
+  isActive: z.boolean().optional(),
+  isPropertyVisible: z.boolean().optional(),
 
   // --- Amenities ---
   amenities: z.array(z.string()).optional(),
+  // --- Extension-specific fields (RealEstate, SummerRent, EventVenue) ---
+  // RealEstateExtension-like fields
+  allowsFinancing: z.boolean().optional(),
+  isNewConstruction: z.boolean().optional(),
+  hasMortgage: z.boolean().optional(),
+  hoaFees: z.coerce.number().optional(),
+  minContractMonths: z.coerce.number().int().optional(),
+  requiresGuarantee: z.boolean().optional(),
+  guaranteeType: z.string().optional(),
+  allowsPets: z.boolean().optional(),
+  // EventVenueExtension-like fields
+  maxGuests: z.coerce.number().int().optional(),
+  hasCatering: z.boolean().optional(),
+  hasSoundSystem: z.boolean().optional(),
+  closingHour: z.string().optional(),
+  allowedEventsDescription: z.string().optional(),
+  // SummerRentExtension-like fields
+  minStayDays: z.coerce.number().int().optional(),
+  maxStayDays: z.coerce.number().int().optional(),
+  leadTimeDays: z.coerce.number().int().optional(),
+  bufferDays: z.coerce.number().int().optional(),
 });
 
-export const propertyFormSchema = propertyFormBaseSchema
-  .refine(data => data.salePrice || data.rentPrice, {
-    message: 'Debes especificar un precio de venta o de alquiler.',
-    path: ['salePrice'],
-  })
-  .refine(
-    data => !data.hasCommonExpenses || (data.hasCommonExpenses && data.commonExpensesValue),
-    {
-      message: 'Debes especificar el monto de los gastos comunes.',
-      path: ['commonExpensesValue'],
-    }
-  );
+export const propertyFormSchema = propertyFormBaseSchema;
 
 export type PropertyFormData = z.infer<typeof propertyFormSchema>;
 

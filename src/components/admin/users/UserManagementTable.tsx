@@ -1,12 +1,7 @@
 // src/components/admin/users/UserManagementTable.tsx
 import React from 'react';
 import { Button, Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
-import {
-  ChevronUpIcon,
-  ChevronDownIcon,
-  EyeIcon,
-  Loader2Icon
-} from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
 import { UserListItem, SubscriptionTier } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn, SortField } from '../../../hooks/useAdminUsers';
 import { UserActionsMenu } from './UserActionsMenu';
@@ -61,15 +56,13 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
     loading,
     sortConfig,
     setSorting,
-    fetchUserDetail,
+    openUserView,
+    openUserEdit,
+    openDeleteConfirmModal,
   } = hook;
 
   const handleSort = (field: SortField) => {
     setSorting(field);
-  };
-
-  const handleViewUser = (user: UserListItem) => {
-    fetchUserDetail(user.id);
   };
 
   const SortableHeader: React.FC<{
@@ -94,7 +87,10 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
 
   if (loading && users.length === 0) {
     return (
-      <div className="flex justify-center items-center py-12">
+      <div
+        className="flex justify-center items-center py-12"
+        data-testid="admin-users-table"
+      >
         <Loader2Icon className="w-8 h-8 animate-spin text-gray-400" />
       </div>
     );
@@ -102,14 +98,14 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
 
   if (users.length === 0) {
     return (
-      <div className="text-center py-12">
+      <div className="text-center py-12" data-testid="admin-users-table">
         <p className="text-gray-500 dark:text-gray-400">No se encontraron usuarios con los filtros actuales.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" data-testid="admin-users-table">
       <Table hoverable>
         <TableHead>
           <TableHeadCell className="w-16">Avatar</TableHeadCell>
@@ -120,12 +116,11 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
           <SortableHeader field="subscription">Suscripción</SortableHeader>
           <SortableHeader field="registrationDate">Registrado</SortableHeader>
           <SortableHeader field="lastLogin">Último acceso</SortableHeader>
-          <TableHeadCell>Acciones</TableHeadCell>
+          <TableHeadCell className="min-w-[280px]">Acciones</TableHeadCell>
         </TableHead>
         <TableBody className="divide-y">
           {users.map((user) => (
             <TableRow key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-              {/* Avatar */}
               <TableCell>
                 <Avatar
                   img={user.avatarUrl || undefined}
@@ -135,17 +130,14 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                 />
               </TableCell>
 
-              {/* Name */}
               <TableCell className="font-medium text-gray-900 dark:text-white">
                 {getFullName(user)}
               </TableCell>
 
-              {/* Email */}
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {user.email}
               </TableCell>
 
-              {/* Role */}
               <TableCell>
                 <Badge
                   color={user.role === 'admin' ? 'purple' : 'gray'}
@@ -155,7 +147,6 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                 </Badge>
               </TableCell>
 
-              {/* Account Status */}
               <TableCell>
                 <Badge
                   color={getStatusBadgeColor(user.accountStatus)}
@@ -165,7 +156,6 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                 </Badge>
               </TableCell>
 
-              {/* Subscription */}
               <TableCell>
                 <div className="space-y-1">
                   <Badge
@@ -180,28 +170,38 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                 </div>
               </TableCell>
 
-              {/* Registration Date */}
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {formatDate(user.registrationDate)}
               </TableCell>
 
-              {/* Last Login */}
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {formatDate(user.lastLogin)}
               </TableCell>
 
-              {/* Actions */}
               <TableCell>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-1">
                   <Button
-                    size="sm"
+                    size="xs"
                     color="light"
-                    onClick={() => handleViewUser(user)}
-                    className="p-2"
+                    onClick={() => openUserView(user.id)}
                   >
-                    <EyeIcon className="w-4 h-4" />
+                    Ver
                   </Button>
-
+                  <Button
+                    size="xs"
+                    color="light"
+                    onClick={() => openUserEdit(user.id)}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    size="xs"
+                    color="red"
+                    outline
+                    onClick={() => openDeleteConfirmModal(user)}
+                  >
+                    <Trash2Icon className="w-4 h-4" />
+                  </Button>
                   <UserActionsMenu user={user} hook={hook} />
                 </div>
               </TableCell>

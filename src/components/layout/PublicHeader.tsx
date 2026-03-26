@@ -1,18 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
-import { CustomDarkThemeToggle } from "../ui/CustomDarkThemeToggle";
 import { LogOut } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 export function PublicHeader() {
   const { user: supabaseUser, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    if (!supabaseUser) setLoggingOut(false);
-  }, [supabaseUser]);
 
   useEffect(() => {
     if (!supabaseUser) setLoggingOut(false);
@@ -27,9 +23,9 @@ export function PublicHeader() {
   };
 
   const showGuestMenu = loggingOut || !supabaseUser;
+  const path = location.pathname;
 
   const getUserNavigation = () => {
-    // While auth state is loading, avoid flashing incorrect buttons
     if (loading) {
       return null;
     }
@@ -63,10 +59,10 @@ export function PublicHeader() {
             <span className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-white">SGI</span>
           </NavbarBrand>
           <NavbarToggle />
-          <CustomDarkThemeToggle className="mr-3" />
           <NavbarCollapse>
-            <NavbarLink href="/" active className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Inicio</NavbarLink>
-            <NavbarLink href="/contact" className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Contacto</NavbarLink>
+            <NavbarLink href="/" active={path === '/'} className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Inicio</NavbarLink>
+            <NavbarLink href="/about" active={path === '/about'} className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Sobre nosotros</NavbarLink>
+            <NavbarLink href="/contact" active={path === '/contact'} className="text-gray-900 dark:text-white hover:text-green-600 dark:hover:text-green-400">Contacto</NavbarLink>
             <React.Fragment key={supabaseUser?.id ?? 'guest'}>
               {getUserNavigation()}
             </React.Fragment>

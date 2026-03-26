@@ -1,6 +1,5 @@
-interface SdiApiResponse {
-  success: boolean;
+export interface SdiApiResponse<T = unknown> {
+  succeeded: boolean;
+  data?: T;
   errorMessage?: string;
 }
-
-export default SdiApiResponse;

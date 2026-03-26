@@ -25,8 +25,7 @@ const AdminDashboardPage: React.FC = () => {
     refetch
   } = useAdminDashboardData();
 
-
-  const handleExport = () => {
+  /* const handleExport = () => {
     // Basic export functionality - in a real implementation, this would generate CSV/PDF
     const data = {
       dashboardStats,
@@ -47,7 +46,7 @@ const AdminDashboardPage: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
+  };*/
 
   const ErrorAlert = ({ error, onRetry }: { error: string; onRetry?: () => void }) => (
     <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
@@ -87,18 +86,6 @@ const AdminDashboardPage: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Métricas de la plataforma y estado operativo
             </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {/* Export Button */}
-            <button
-              onClick={handleExport}
-              disabled={isLoading}
-              className="flex items-center space-x-2 px-4 py-2 bg-[#62B6CB] text-white rounded-md text-sm hover:bg-[#5ca4b8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              <span>Exportar</span>
-            </button>
           </div>
         </div>
 

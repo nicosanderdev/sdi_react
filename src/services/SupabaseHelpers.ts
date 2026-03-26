@@ -577,9 +577,22 @@ export const fillDateRange = (
   return filledData;
 };
 
-// Enum reverse mappings (DB integer -> string)
+// PropertyCategory mapping (DB enum -> UI string)
+const propertyCategoryDbToUi: { [key: string]: string } = {
+  Casa: 'house',
+  Apartamento: 'apartment',
+  Terreno: 'land',
+  Chacra: 'small_farm',
+  Campo: 'farm',
+};
+
+// Enum reverse mappings (DB integer -> UI string). Kept for RPCs that still use integers.
 const propertyTypeMapReverse: { [key: number]: string } = {
-  0: 'house', 1: 'apartment', 2: 'commercial', 3: 'land', 4: 'other'
+  0: 'house',
+  1: 'apartment',
+  2: 'land',
+  3: 'small_farm',
+  4: 'farm',
 };
 
 const areaUnitMapReverse: { [key: number]: string } = {
@@ -594,9 +607,13 @@ const statusMapReverse: { [key: number]: string } = {
   0: 'sale', 1: 'rent', 2: 'reserved', 3: 'sold', 4: 'unavailable'
 };
 
-// Forward mappings for consistency (string -> integer)
+// Forward mappings for consistency (UI string -> integer)
 export const propertyTypeMapForward: { [key: string]: number } = {
-  house: 0, apartment: 1, commercial: 2, land: 3, other: 4
+  house: 0,
+  apartment: 1,
+  land: 2,
+  small_farm: 3,
+  farm: 4,
 };
 
 export const areaUnitMapForward: { [key: string]: number } = {
@@ -676,7 +693,9 @@ export const mapDbToPropertyData = (
       lng: property.LocationLongitude
     },
     title: property.Title,
-    type: (propertyTypeMapReverse[property.PropertyType] || 'other') as 'house' | 'apartment' | 'commercial' | 'land' | 'other',
+    type: (propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
+      propertyTypeMapReverse[(property as any).Type] ||
+      'house') as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
     areaValue: property.AreaValue,
     areaUnit: (areaUnitMapReverse[property.AreaUnit] || 'm²') as 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi',
     bedrooms: property.Bedrooms,
@@ -763,7 +782,10 @@ export const mapDbToPublicProperty = (
       lng: property.LocationLongitude
     },
     title: property.Title,
-    type: propertyTypeMapReverse[property.PropertyType] || 'other',
+    type:
+      propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
+      propertyTypeMapReverse[(property as any).Type] ||
+      'house',
     areaValue: property.AreaValue,
     areaUnit: property.AreaUnit === 0 ? 'sqm' : 'sqft', // Simplified for public view
     bedrooms: property.Bedrooms,

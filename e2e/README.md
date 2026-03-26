@@ -41,6 +41,10 @@ TEST_USER_PASSWORD=testpassword123
 # Admin user credentials (if available)
 ADMIN_USER_EMAIL=admin@testcompany.com
 ADMIN_USER_PASSWORD=adminpassword123
+
+# Admin reservations e2e — use service role only in Playwright/CI, never in Vite client code
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 Or run the migration `20251222100000_add_test_users_for_e2e.sql` which creates:
@@ -76,6 +80,13 @@ npx playwright show-report
 - **Data Validation**: Ensures geocoding works and forms validate properly
 - **Success Verification**: Confirms properties are created and success messages appear
 - **Multiple Scenarios**: Tests different property types (apartment, house, commercial)
+
+### Admin reservations (`e2e/admin-reservations.spec.ts`)
+
+- Logs in as admin, opens **`/dashboard/admin/bookings`**, and asserts **Aceptar** / **Rechazar** / **Cancelar** flows.
+- Each test **inserts its own row** in `Bookings` via `@supabase/supabase-js` and **`SUPABASE_SERVICE_ROLE_KEY`** (see `e2e/utils/supabase-service.ts`, `e2e/fixtures/reservation-seed.ts`). Column shapes follow **`tasks/task-context.txt`** (no `Title` on `EstateProperties`; titles are on `Listings` if you use listings in product data).
+- **Reject** and **Cancel** both set booking status to **Cancelled** in the app (badge **Cancelled**, not a separate “Rejected” enum).
+- Requires **`.env.local`** (or CI secrets) with `SUPABASE_SERVICE_ROLE_KEY` and `VITE_SUPABASE_URL` or `SUPABASE_URL`. If minimal `EstateProperties` insert fails on your branch schema, edit and apply the stub under **`supabase/migrations/20990101000000_e2e_minimal_booking_seed_stub.sql`**.
 
 ### Bookings & Receipts Tests
 - **Bookings management**: `e2e/bookings-and-receipts.spec.ts` uses the basic test user to:
@@ -147,6 +158,7 @@ Example GitHub Actions:
   env:
     VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
     VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 ```
 
 ## Troubleshooting

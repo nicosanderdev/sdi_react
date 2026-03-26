@@ -2,13 +2,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import propertyAdminService, {
   AdminPropertyListItem,
-  AdminPropertyDetail,
   PropertyFilters,
   PropertyListResponse,
   ActionResult,
   PropertyStatistics,
   PropertyStatus,
 } from '../services/PropertyAdminService';
+import { PropertyData } from '../models/properties';
 
 // Sorting options
 export type SortField = 'title' | 'ownerName' | 'status' | 'city' | 'createdAt' | 'lastModified';
@@ -22,7 +22,7 @@ export interface SortConfig {
 export interface UseAdminPropertiesReturn {
   // Data
   properties: AdminPropertyListItem[];
-  selectedProperty: AdminPropertyDetail | null;
+  selectedProperty: PropertyData | null;
   statistics: PropertyStatistics | null;
   totalProperties: number;
   currentPage: number;
@@ -48,7 +48,7 @@ export interface UseAdminPropertiesReturn {
   // Modal states
   detailModalOpen: boolean;
   deleteConfirmModalOpen: boolean;
-  propertyToDelete: AdminPropertyListItem | AdminPropertyDetail | null;
+  propertyToDelete: AdminPropertyListItem | PropertyData | null;
 
   // Actions
   setPage: (page: number) => void;
@@ -67,7 +67,7 @@ export interface UseAdminPropertiesReturn {
   deleteProperty: (propertyId: string, reason: string) => Promise<void>;
 
   // Modal actions
-  openDeleteConfirmModal: (property: AdminPropertyListItem | AdminPropertyDetail) => void;
+  openDeleteConfirmModal: (property: AdminPropertyListItem | PropertyData) => void;
   closeDeleteConfirmModal: () => void;
   confirmDeleteProperty: (reason: string) => Promise<void>;
 }
@@ -93,7 +93,7 @@ const defaultStatistics: PropertyStatistics = {
 export const useAdminProperties = (): UseAdminPropertiesReturn => {
   // Data state
   const [properties, setProperties] = useState<AdminPropertyListItem[]>([]);
-  const [selectedProperty, setSelectedProperty] = useState<AdminPropertyDetail | null>(null);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null);
   const [statistics, setStatistics] = useState<PropertyStatistics | null>(null);
   const [totalProperties, setTotalProperties] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,7 +118,7 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
   // Modal states
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
-  const [propertyToDelete, setPropertyToDelete] = useState<AdminPropertyListItem | null>(null);
+  const [propertyToDelete, setPropertyToDelete] = useState<AdminPropertyListItem | PropertyData | null>(null);
 
   // Computed values
   const totalPages = Math.ceil(totalProperties / pageSize);
@@ -272,7 +272,7 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
     ), [handleAction]);
 
   // Modal actions
-  const openDeleteConfirmModal = useCallback((property: AdminPropertyListItem | AdminPropertyDetail) => {
+  const openDeleteConfirmModal = useCallback((property: AdminPropertyListItem | PropertyData) => {
     setPropertyToDelete(property);
     setDeleteConfirmModalOpen(true);
   }, []);

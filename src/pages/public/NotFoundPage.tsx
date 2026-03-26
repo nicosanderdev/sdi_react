@@ -1,4 +1,3 @@
-import React from 'react';
 import { SearchX, Home } from 'lucide-react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
@@ -33,9 +32,8 @@ export function NotFoundPage() {
           {/* Call to Action Button */}
           <Button
             href="/"
-            color="success"
+            color="green"
             size="lg"
-            className="bg-green-600 hover:bg-green-700"
           >
             <Home className="w-5 h-5 mr-2" />
             Volver al inicio

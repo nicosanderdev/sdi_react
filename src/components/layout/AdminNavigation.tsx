@@ -27,11 +27,11 @@ export function AdminNavigation() {
 
   const adminNavItems: NavItem[] = [
     { id: 'admin-dashboard', label: 'Dashboard global', icon: BarChartIcon, path: '/dashboard/admin/dashboard' },
-    { id: 'admin-properties', label: 'Propiedades (admin)', icon: BuildingIcon, path: '/dashboard/admin/properties' },
-    { id: 'admin-bookings', label: 'Reservas (admin)', icon: CalendarCheck, path: '/dashboard/admin/bookings' },
+    { id: 'admin-properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/admin/properties' },
+    { id: 'admin-bookings', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/admin/bookings' },
     { id: 'admin-users', label: 'Usuarios', icon: UserIcon, path: '/dashboard/admin/users' },
-    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' },
-    { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
+    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' }
+    // { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
   ];
 
   return (
