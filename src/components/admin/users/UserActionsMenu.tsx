@@ -1,7 +1,7 @@
 // src/components/admin/users/UserActionsMenu.tsx
 import React, { useState } from 'react';
-import { Button, Dropdown } from 'flowbite-react';
-import { MoreHorizontalIcon, Loader2Icon } from 'lucide-react';
+import { Button, Dropdown, DropdownDivider, DropdownItem } from 'flowbite-react';
+import { MoreHorizontalIcon, Loader2Icon, FileTextIcon } from 'lucide-react';
 import { UserListItem } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 
@@ -17,8 +17,7 @@ export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) 
     suspendUser,
     reactivateUser,
     resetOnboarding,
-    forceLogout,
-    openDeleteConfirmModal,
+    forceLogout
   } = hook;
 
   const handleAction = async (action: () => Promise<void>) => {
@@ -34,13 +33,12 @@ export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) 
   const handleReactivate = () => handleAction(() => reactivateUser(user.id));
   const handleResetOnboarding = () => handleAction(() => resetOnboarding(user.id));
   const handleForceLogout = () => handleAction(() => forceLogout(user.id, 'Forced logout by admin'));
-  const handleDelete = () => openDeleteConfirmModal(user);
 
   return (
     <Dropdown
       label=""
       renderTrigger={() => (
-        <Button size="sm" color="light" className="p-2" disabled={loading}>
+        <Button size="xs" color="light" className="p-2" disabled={loading} title="Más acciones">
           {loading ? (
             <Loader2Icon className="w-4 h-4 animate-spin" />
           ) : (
@@ -49,35 +47,21 @@ export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) 
         </Button>
       )}
     >
-      {/* View Details - This would typically open the detail modal */}
-      {/* The view action is handled in the table component */}
-
-      {/* Account Status Actions */}
       {user.accountStatus === 'active' ? (
-        <Dropdown.Item onClick={handleSuspend}>
-          Suspend User
-        </Dropdown.Item>
+        <DropdownItem onClick={handleSuspend}>
+          Suspender usuario
+        </DropdownItem>
       ) : (
-        <Dropdown.Item onClick={handleReactivate}>
-          Reactivate User
-        </Dropdown.Item>
+        <DropdownItem onClick={handleReactivate}>
+          Reactivar usuario
+        </DropdownItem>
       )}
-
-      {/* Onboarding Actions */}
-      <Dropdown.Item onClick={handleResetOnboarding}>
-        Reset Onboarding
-      </Dropdown.Item>
-
-      {/* Force Logout */}
-      <Dropdown.Item onClick={handleForceLogout}>
-        Force Logout
-      </Dropdown.Item>
-
-      {/* Delete User */}
-      <Dropdown.Divider />
-      <Dropdown.Item onClick={handleDelete} className="text-red-600 hover:text-red-700">
-        Delete User
-      </Dropdown.Item>
+      <DropdownItem onClick={handleResetOnboarding}>
+        Reiniciar onboarding
+      </DropdownItem>
+      <DropdownItem onClick={handleForceLogout}>
+        Cerrar sesión forzada
+      </DropdownItem>
     </Dropdown>
   );
 };

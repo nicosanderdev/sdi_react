@@ -22,6 +22,8 @@ export function PropertyFormMap({
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const isInternalUpdateRef = useRef(false);
 
+  const effectiveLocation = location ?? { lat: -34.9011, lng: -56.1645 };
+
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -31,8 +33,11 @@ export function PropertyFormMap({
       const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
       mapboxgl.accessToken = mapboxToken;
 
-      // Default to Montevideo center if no location is set
-      const defaultLocation = location.lat === 0 && location.lng === 0 ? [-34.9011, -56.1645] : [location.lng, location.lat];
+      // Default to Montevideo center if no location is set or location is (0,0)
+      const defaultLocation =
+        !location || (location.lat === 0 && location.lng === 0)
+          ? [-34.9011, -56.1645]
+          : [location.lng, location.lat];
 
       mapInstanceRef.current = new mapboxgl.Map({
         container: mapRef.current,
@@ -102,6 +107,10 @@ export function PropertyFormMap({
   }, []);
 
   useEffect(() => {
+    if (!location) {
+      return;
+    }
+
     if (mapInstanceRef.current && markerRef.current && !isInternalUpdateRef.current) {
       const newLngLat = [location.lng, location.lat] as mapboxgl.LngLatLike;
       const currentCenter = mapInstanceRef.current.getCenter();

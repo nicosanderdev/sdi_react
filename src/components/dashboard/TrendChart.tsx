@@ -3,11 +3,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DashboardChartCard } from './DashboardChartCard';
 import { AdminMetricsTimeseries } from '../../services/AdminService';
 
+/** Extended point for optional sessions/bookings (for future wiring) */
+export type TrendChartDataPoint = AdminMetricsTimeseries & { sessions?: number; bookings?: number };
+
 interface TrendChartProps {
-  data: AdminMetricsTimeseries[];
+  data: TrendChartDataPoint[];
   loading?: boolean;
   className?: string;
 }
+
+const CHART_TITLE = 'Tendencias de usuarios y propiedades';
 
 export const TrendChart: React.FC<TrendChartProps> = ({
   data,
@@ -16,7 +21,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 }) => {
   if (loading) {
     return (
-      <DashboardChartCard title="User & Property Trends" className={className}>
+      <DashboardChartCard title={CHART_TITLE} className={className}>
         <div className="h-80 animate-pulse">
           <div className="flex justify-between items-end h-full space-x-2">
             {Array.from({ length: 10 }).map((_, index) => (
@@ -32,28 +37,27 @@ export const TrendChart: React.FC<TrendChartProps> = ({
     );
   }
 
-  // Handle null or empty data
   if (!data || data.length === 0) {
     return (
-      <DashboardChartCard title="User & Property Trends" className={className}>
+      <DashboardChartCard title={CHART_TITLE} className={className}>
         <div className="h-80 flex items-center justify-center">
           <div className="text-center text-gray-500 dark:text-gray-400">
-            <div className="text-lg font-medium mb-2">No data available</div>
-            <div className="text-sm">Chart data will appear once metrics are collected</div>
+            <div className="text-lg font-medium mb-2">Sin datos disponibles</div>
+            <div className="text-sm">Los datos del gráfico aparecerán cuando se recopilen métricas</div>
           </div>
         </div>
       </DashboardChartCard>
     );
   }
 
-  // Process data for chart display
   const chartData = data.map(item => ({
     ...item,
+    sessions: item.sessions ?? 0,
+    bookings: item.bookings ?? 0,
     dateLabel: new Date(item.date).toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric'
     }),
-    // Format for better tooltip display
     fullDate: new Date(item.date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
@@ -81,7 +85,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
   };
 
   return (
-    <DashboardChartCard title="User & Property Trends" className={className}>
+    <DashboardChartCard title={CHART_TITLE} className={className}>
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -108,7 +112,7 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             <Line
               type="monotone"
               dataKey="users"
-              name="Users"
+              name="Usuarios"
               stroke="#1B4965"
               strokeWidth={2.5}
               dot={{ r: 3, fill: '#1B4965', strokeWidth: 1, stroke: '#FDFFFC' }}
@@ -117,11 +121,29 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             <Line
               type="monotone"
               dataKey="properties"
-              name="Properties"
+              name="Propiedades"
               stroke="#62B6CB"
               strokeWidth={2.5}
               dot={{ r: 3, fill: '#62B6CB', strokeWidth: 1, stroke: '#FDFFFC' }}
               activeDot={{ r: 5, fill: '#62B6CB', strokeWidth: 2, stroke: '#FDFFFC' }}
+            />
+            <Line
+              type="monotone"
+              dataKey="sessions"
+              name="Sesiones"
+              stroke="#B565A7"
+              strokeWidth={2}
+              dot={{ r: 2, fill: '#B565A7', strokeWidth: 1, stroke: '#FDFFFC' }}
+              activeDot={{ r: 4, fill: '#B565A7', strokeWidth: 2, stroke: '#FDFFFC' }}
+            />
+            <Line
+              type="monotone"
+              dataKey="bookings"
+              name="Reservas"
+              stroke="#5FA8D3"
+              strokeWidth={2}
+              dot={{ r: 2, fill: '#5FA8D3', strokeWidth: 1, stroke: '#FDFFFC' }}
+              activeDot={{ r: 4, fill: '#5FA8D3', strokeWidth: 2, stroke: '#FDFFFC' }}
             />
           </LineChart>
         </ResponsiveContainer>

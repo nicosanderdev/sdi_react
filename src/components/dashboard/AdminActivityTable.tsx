@@ -32,10 +32,15 @@ export const AdminActivityTable: React.FC<AdminActivityTableProps> = ({
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+  const tabLabels: Record<ActivityType, string> = {
+    users: 'usuarios',
+    properties: 'propiedades',
+    flags: 'reportes'
+  };
   const tabs = [
-    { key: 'users' as const, label: 'Recent Users', icon: User, count: data?.users?.length || 0 },
-    { key: 'properties' as const, label: 'Recent Properties', icon: Building, count: data?.properties?.length || 0 },
-    { key: 'flags' as const, label: 'Open Flags', icon: Flag, count: data?.flags?.length || 0 }
+    { key: 'users' as const, label: 'Usuarios recientes', icon: User, count: data?.users?.length || 0 },
+    { key: 'properties' as const, label: 'Propiedades recientes', icon: Building, count: data?.properties?.length || 0 },
+    { key: 'flags' as const, label: 'Reportes abiertos', icon: Flag, count: data?.flags?.length || 0 }
   ];
 
   // Combine and prepare data for current tab
@@ -133,7 +138,7 @@ export const AdminActivityTable: React.FC<AdminActivityTableProps> = ({
 
   if (loading) {
     return (
-      <DashboardChartCard title="Recent Activity" className={className}>
+      <DashboardChartCard title="Actividad reciente" className={className}>
         <div className="animate-pulse">
           <div className="flex space-x-2 mb-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -151,8 +156,7 @@ export const AdminActivityTable: React.FC<AdminActivityTableProps> = ({
   }
 
   return (
-    <DashboardChartCard title="Recent Activity" className={className}>
-      {/* Tab Navigation */}
+    <DashboardChartCard title="Actividad reciente" className={className}>
       <div className="flex space-x-1 mb-6 border-b border-gray-200 dark:border-gray-700">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -176,54 +180,54 @@ export const AdminActivityTable: React.FC<AdminActivityTableProps> = ({
         })}
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <thead className="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort(activeTab === 'properties' ? 'title' : 'name')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{activeTab === 'properties' ? 'Title' : 'Name'}</span>
-                  {getSortIcon(activeTab === 'properties' ? 'title' : 'name')}
-                </div>
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('createdAt')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>Created</span>
-                  {getSortIcon('createdAt')}
-                </div>
-              </th>
-              <th
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => handleSort('updatedAt')}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>Updated</span>
-                  {getSortIcon('updatedAt')}
-                </div>
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-            {tableData.length === 0 ? (
+      <div className="max-h-[400px] overflow-y-auto">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
               <tr>
-                <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
-                  No {activeTab} to display
-                </td>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => handleSort(activeTab === 'properties' ? 'title' : 'name')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>{activeTab === 'properties' ? 'Título' : 'Nombre'}</span>
+                    {getSortIcon(activeTab === 'properties' ? 'title' : 'name')}
+                  </div>
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => handleSort('createdAt')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Creado</span>
+                    {getSortIcon('createdAt')}
+                  </div>
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+                  onClick={() => handleSort('updatedAt')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Actualizado</span>
+                    {getSortIcon('updatedAt')}
+                  </div>
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Estado
+                </th>
               </tr>
-            ) : (
+            </thead>
+            <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+              {tableData.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                    No hay {tabLabels[activeTab]} para mostrar
+                  </td>
+                </tr>
+              ) : (
               tableData.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -252,9 +256,10 @@ export const AdminActivityTable: React.FC<AdminActivityTableProps> = ({
                   </td>
                 </tr>
               ))
-            )}
-          </tbody>
-        </table>
+              ) }
+            </tbody>
+          </table>
+        </div>
       </div>
     </DashboardChartCard>
   );

@@ -84,7 +84,7 @@ const PropertyBookingsPage: React.FC = () => {
     } catch (error: any) {
       setState(prev => ({
         ...prev,
-        error: error.message || 'Failed to load bookings data',
+        error: error.message || 'No se pudieron cargar los datos de reservas',
         isLoading: false
       }));
     }
@@ -181,7 +181,7 @@ const PropertyBookingsPage: React.FC = () => {
     } catch (error: any) {
       setState(prev => ({
         ...prev,
-        error: error.message || 'Sync failed'
+        error: error.message || 'Error de sincronización'
       }));
     } finally {
       setState(prev => ({ ...prev, isSyncing: false }));
@@ -306,10 +306,10 @@ const PropertyBookingsPage: React.FC = () => {
           <div className="flex">
             <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium">Error loading booking data</p>
+              <p className="font-medium">Error al cargar los datos de reservas</p>
               <p className="text-sm mt-1">{state.error}</p>
               <p className="text-sm mt-2 text-red-600 dark:text-red-400">
-                If this persists, please contact support or try refreshing the page.
+                Si el problema continúa, contacta a soporte o intenta actualizar la página.
               </p>
             </div>
           </div>
@@ -326,7 +326,7 @@ const PropertyBookingsPage: React.FC = () => {
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          📅 Manage Bookings
+          📅 Gestionar reservas
         </button>
         <button
           onClick={() => switchViewMode('calendar-sync')}
@@ -336,7 +336,7 @@ const PropertyBookingsPage: React.FC = () => {
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
           }`}
         >
-          🔄 Calendar Sync
+          🔄 Sincronización de calendario
         </button>
       </div>
 

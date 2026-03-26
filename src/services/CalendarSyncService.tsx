@@ -709,32 +709,19 @@ export class CalendarSyncService {
    */
   static async getPropertyExportUrl(propertyId: string): Promise<SdiApiResponse<string>> {
     try {
-      // Get or create export token for the property
-      const { data: property } = await supabase
-        .from('EstateProperties')
-        .select('ICalExportToken')
-        .eq('Id', propertyId)
-        .single()
+      // Call RPC that manages SummerRentExtension iCal token
+      const { data, error } = await supabase.rpc('get_property_ical_export_token', {
+        property_id: propertyId
+      })
 
-      if (!property) {
+      if (error || !data) {
         return {
           succeeded: false,
-          errorMessage: 'Property not found'
+          errorMessage: error?.message || 'Failed to resolve export token'
         }
       }
 
-      let exportToken = property.ICalExportToken
-
-      // Generate token if it doesn't exist
-      if (!exportToken) {
-        exportToken = crypto.randomUUID()
-        const { error } = await supabase
-          .from('EstateProperties')
-          .update({ ICalExportToken: exportToken })
-          .eq('Id', propertyId)
-
-        if (error) throw error
-      }
+      const exportToken = data as string
 
       // Construct the export URL
       const baseUrl = supabase.supabaseUrl.replace('/v1', '') // Remove /v1 if present
@@ -757,19 +744,13 @@ export class CalendarSyncService {
    */
   static async regenerateExportToken(propertyId: string): Promise<SdiApiResponse<string>> {
     try {
-      // Generate new token
-      const newToken = crypto.randomUUID()
+      const { data, error } = await supabase.rpc('regenerate_property_ical_export_token', {
+        property_id: propertyId
+      })
 
-      const { error } = await supabase
-        .from('EstateProperties')
-        .update({
-          ICalExportToken: newToken,
-          LastModified: new Date().toISOString(),
-          LastModifiedBy: (await supabase.auth.getUser()).data.user?.id
-        })
-        .eq('Id', propertyId)
+      if (error || !data) throw error || new Error('No token returned')
 
-      if (error) throw error
+      const newToken = data as string
 
       // Return the new export URL
       const baseUrl = supabase.supabaseUrl.replace('/v1', '') // Remove /v1 if present

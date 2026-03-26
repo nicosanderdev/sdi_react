@@ -8,22 +8,19 @@ import {
   SettingsIcon,
   LogOutIcon,
   TriangleAlert,
-  Heart as HeartIcon,
   Crown,
-  Shield,
-  FileText,
   BoxesIcon,
   CalendarCheck,
   type LucideIcon
 } from 'lucide-react';
 import { AdminNavigation } from './AdminNavigation';
-import authService from '../../services/AuthService';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, fetchNotificationCounts, RootState } from '../../store';
 import { Button, Modal, ModalBody, ModalHeader, Sidebar, SidebarItem, SidebarItemGroup, SidebarItems, SidebarLogo } from 'flowbite-react';
 import { hasRole } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Custom sidebar theme to match the green app theme
 const customSidebarTheme = {
@@ -80,6 +77,7 @@ export function DashboardSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = user ? hasRole(user, Roles.Admin) : false;
+  const { logout } = useAuth();
 
   useEffect(() => {
     if (status === 'idle') {
@@ -90,22 +88,18 @@ export function DashboardSidebar() {
   const navItems: NavItem[] = [
     { id: 'dashboard', label: 'Panel', icon: HomeIcon, path: '/dashboard' },
     { id: 'properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/properties' },
-    { id: 'reservas', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/bookings', badgeCount: counts?.pendingBookings && counts.pendingBookings > 0 ? counts.pendingBookings : undefined },
+    { id: 'bookings', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/bookings', badgeCount: counts?.pendingBookings && counts.pendingBookings > 0 ? counts.pendingBookings : undefined },
     { id: 'messages', label: 'Mensajes', icon: MessageSquareIcon, path: '/dashboard/messages', badgeCount: counts?.inbox && counts.inbox > 0 ? counts.inbox : undefined },
     { id: 'reports', label: 'Reportes', icon: BarChartIcon, path: '/dashboard/reports' },
     { id: 'profile', label: 'Mi Perfil', icon: UserIcon, path: '/dashboard/profile' },
     { id: 'company', label: 'Empresa', icon: BoxesIcon, path: '/dashboard/company' },
     { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' }
-
   ];
 
-  // Admin gets profile and messages items in addition to admin navigation
-  const adminPersonalItems = navItems.filter(item => item.id === 'profile' || item.id === 'messages');
-
-
   const handleLogout = async () => {
-    await authService.logout();
-    navigate('/login');
+    await logout();
+
+    navigate('/');
   };
 
   return (
@@ -124,28 +118,11 @@ export function DashboardSidebar() {
         </SidebarLogo>
         <SidebarItems>
           {isAdmin ? (
-            // Admin navigation with personal items
+            // Admin navigation only (no Panel, Profile, Messages)
             <SidebarItemGroup>
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Administración
               </div>
-              {adminPersonalItems.map(item => (
-                <SidebarItem
-                  key={item.id}
-                  onClick={() => navigate(item.path)}
-                  icon={item.icon}
-                  label={item.badgeCount !== undefined ? String(item.badgeCount) : undefined}
-                  active={item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path))}
-                  className="hover:bg-green-50 dark:hover:bg-green-900/20"
-                  style={{
-                    backgroundColor: (item.path === location.pathname || (item.path !== '/dashboard' && location.pathname.startsWith(item.path)))
-                      ? 'rgb(240 253 244)'
-                      : undefined
-                  }}
-                >
-                  {item.label}
-                </SidebarItem>
-              ))}
               <AdminNavigation />
             </SidebarItemGroup>
           ) : (
@@ -181,14 +158,16 @@ export function DashboardSidebar() {
             <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               General
             </div>
-            <SidebarItem
-              onClick={() => navigate('/dashboard/settings')}
-              icon={SettingsIcon}
-              className="hover:bg-green-50 dark:hover:bg-green-900/20"
-              active={location.pathname === '/dashboard/settings'}
-            >
-              Configuración
-            </SidebarItem>
+            {!isAdmin && (
+              <SidebarItem
+                onClick={() => navigate('/dashboard/settings')}
+                icon={SettingsIcon}
+                className="hover:bg-green-50 dark:hover:bg-green-900/20"
+                active={location.pathname === '/dashboard/settings'}
+              >
+                Configuración
+              </SidebarItem>
+            )}
             <SidebarItem
               icon={LogOutIcon}
               onClick={() => setIsLogoutModalOpen(true)}

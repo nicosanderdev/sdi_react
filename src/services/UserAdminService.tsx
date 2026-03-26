@@ -34,7 +34,7 @@ export interface UserListItem {
   lastName: string | null;
   email: string;
   avatarUrl: string | null;
-  roles: string[];
+  role: string;
   subscriptionStatus: SubscriptionStatus;
   subscriptionTier: number | null;
   subscriptionExpiresAt: string | null;
@@ -77,7 +77,7 @@ export interface UserDetail {
   state: string | null;
   postalCode: string | null;
   country: string | null;
-  roles: string[];
+  role: string;
   subscriptionStatus: SubscriptionStatus;
   subscriptionTier: number | null;
   subscriptionExpiresAt: string | null;
@@ -107,6 +107,23 @@ export interface ActionResult {
   success: boolean;
   message: string;
 }
+
+export interface AdminUpdateUserProfilePayload {
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
+export interface AdminUpdateUserProfileResult {
+  success: boolean;
+  message: string;
+  fieldErrors?: { email?: string; phone?: string };
+}
+
+/** Row shown in the admin table or full detail modal; both carry member id and auth user id. */
+export type AdminUserDeletable = UserListItem | UserDetail;
 
 class UserAdminService {
   /**
@@ -147,7 +164,7 @@ class UserAdminService {
       lastName: user.last_name,
       email: user.email,
       avatarUrl: user.avatar_url,
-      roles: user.roles || [],
+      role: user.role ?? user.roles?.[0] ?? 'user',
       subscriptionStatus: user.subscription_status,
       subscriptionTier: user.subscription_tier,
       subscriptionExpiresAt: user.subscription_expires_at,
@@ -196,7 +213,7 @@ class UserAdminService {
       state: user.state,
       postalCode: user.postal_code,
       country: user.country,
-      roles: user.roles || [],
+      role: user.role ?? user.roles?.[0] ?? 'user',
       subscriptionStatus: user.subscription_status,
       subscriptionTier: user.subscription_tier,
       subscriptionExpiresAt: user.subscription_expires_at,
@@ -303,6 +320,80 @@ class UserAdminService {
     }
 
     return data as ActionResult;
+  }
+
+  /**
+   * Update member + auth user via admin edge function (requires deployed admin-update-user + RPC).
+   */
+  async updateAdminUserProfile(
+    payload: AdminUpdateUserProfilePayload,
+  ): Promise<AdminUpdateUserProfileResult> {
+    const { data, error } = await supabase.functions.invoke('admin-update-user', {
+      body: {
+        memberId: payload.memberId,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phone: payload.phone || null,
+      },
+    });
+
+    const body = data as {
+      success?: boolean;
+      message?: string;
+      fieldErrors?: { email?: string; phone?: string };
+      error?: string;
+    } | null;
+
+    if (body && body.success === false && (body.message || body.fieldErrors)) {
+      return {
+        success: false,
+        message: body.message || 'Update rejected',
+        fieldErrors: body.fieldErrors,
+      };
+    }
+
+    if (error) {
+      throw new Error(error.message || 'Failed to update user');
+    }
+
+    if (body?.error && body.success !== true) {
+      throw new Error(body.error);
+    }
+
+    if (body?.success === true) {
+      return { success: true, message: body.message || 'Updated' };
+    }
+
+    return {
+      success: false,
+      message: body?.message || 'Unexpected response from admin-update-user',
+      fieldErrors: body?.fieldErrors,
+    };
+  }
+
+  /**
+   * Ban auth user after soft delete (requires deployed admin-ban-user).
+   */
+  async banAuthUserAfterSoftDelete(authUserId: string): Promise<ActionResult> {
+    const { data, error } = await supabase.functions.invoke('admin-ban-user', {
+      body: { userId: authUserId },
+    });
+
+    const res = data as { success?: boolean; message?: string; error?: string } | null;
+
+    if (error) {
+      throw new Error(error.message || 'Failed to ban auth user');
+    }
+
+    if (res?.error) {
+      return { success: false, message: res.error };
+    }
+
+    return {
+      success: res?.success === true,
+      message: res?.message || (res?.success ? 'Banned' : 'Ban failed'),
+    };
   }
 
   /**

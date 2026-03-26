@@ -39,7 +39,7 @@ interface UserCompaniesRow {
   Id: string;
   MemberId: string;
   CompanyId: string;
-  Role: number;
+  Role: string | number;
   AddedBy: string;
   JoinedAt: string;
   IsDeleted: boolean;
@@ -353,7 +353,7 @@ export const mapDbToProfile = (
       country: member.Country || ''
     },
     companies,
-    roles: member.Role ? [member.Role] : []
+    role: member.Role ? String(member.Role).toLowerCase() : 'user'
   };
 };
 
@@ -374,7 +374,8 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     isActive: subscription.Plans.IsActive,
     publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
     totalProperties: subscription.Plans.MaxProperties || 0,
-    bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined
+    bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
+    propertyType: subscription.Plans.PropertyType as any
   };
 
   return {
@@ -390,7 +391,9 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     currentPeriodEnd: new Date(subscription.CurrentPeriodEnd),
     cancelAtPeriodEnd: subscription.CancelAtPeriodEnd,
     createdAt: new Date(subscription.CreatedAt),
-    updatedAt: new Date(subscription.UpdatedAt)
+    updatedAt: new Date(subscription.UpdatedAt),
+    propertyType: plan.propertyType,
+    propertyTypes: plan.propertyType ? [plan.propertyType] : []
   };
 };
 
@@ -432,21 +435,45 @@ export const mapDbToCompanyUser = (userCompany: UserCompaniesRow & { Members: Me
 };
 
 /**
- * Maps role number from UserCompanies to string role
+ * Maps role value from UserCompanies to string role.
+ * Supports both numeric (legacy) and string-based roles.
  */
-export const mapRoleNumberToString = (roleNumber: number): string => {
-  // TODO: Define the role number to string mapping based on your enum
-  // For now, return the number as string
-  return roleNumber.toString();
+export const mapRoleNumberToString = (role: number | string): string => {
+  if (typeof role === 'string') {
+    const normalized = role.trim().toLowerCase();
+    if (normalized === 'admin') return 'Admin';
+    if (normalized === 'manager') return 'Manager';
+    if (normalized === 'member') return 'Member';
+
+    // If it's a numeric string like "2" or "1", fall through to numeric mapping
+    const parsed = parseInt(role, 10);
+    if (!isNaN(parsed)) {
+      role = parsed;
+    } else {
+      return 'Member';
+    }
+  }
+
+  switch (role) {
+    case 2:
+      return 'Admin';
+    case 1:
+      return 'Manager';
+    default:
+      return 'Member';
+  }
 };
 
 /**
- * Maps string role to role number for UserCompanies
+ * Maps string role to role number for UserCompanies (for legacy numeric storage).
  */
 export const mapRoleStringToNumber = (roleString: string): number => {
-  // TODO: Define the string role to number mapping based on your enum
-  // For now, try to parse as number
-  const parsed = parseInt(roleString);
+  const normalized = roleString.trim().toLowerCase();
+  if (normalized === 'admin') return 2;
+  if (normalized === 'manager') return 1;
+  if (normalized === 'member') return 0;
+
+  const parsed = parseInt(roleString, 10);
   return isNaN(parsed) ? 0 : parsed;
 };
 
@@ -550,9 +577,22 @@ export const fillDateRange = (
   return filledData;
 };
 
-// Enum reverse mappings (DB integer -> string)
+// PropertyCategory mapping (DB enum -> UI string)
+const propertyCategoryDbToUi: { [key: string]: string } = {
+  Casa: 'house',
+  Apartamento: 'apartment',
+  Terreno: 'land',
+  Chacra: 'small_farm',
+  Campo: 'farm',
+};
+
+// Enum reverse mappings (DB integer -> UI string). Kept for RPCs that still use integers.
 const propertyTypeMapReverse: { [key: number]: string } = {
-  0: 'house', 1: 'apartment', 2: 'commercial', 3: 'land', 4: 'other'
+  0: 'house',
+  1: 'apartment',
+  2: 'land',
+  3: 'small_farm',
+  4: 'farm',
 };
 
 const areaUnitMapReverse: { [key: number]: string } = {
@@ -567,9 +607,13 @@ const statusMapReverse: { [key: number]: string } = {
   0: 'sale', 1: 'rent', 2: 'reserved', 3: 'sold', 4: 'unavailable'
 };
 
-// Forward mappings for consistency (string -> integer)
+// Forward mappings for consistency (UI string -> integer)
 export const propertyTypeMapForward: { [key: string]: number } = {
-  house: 0, apartment: 1, commercial: 2, land: 3, other: 4
+  house: 0,
+  apartment: 1,
+  land: 2,
+  small_farm: 3,
+  farm: 4,
 };
 
 export const areaUnitMapForward: { [key: string]: number } = {
@@ -649,7 +693,9 @@ export const mapDbToPropertyData = (
       lng: property.LocationLongitude
     },
     title: property.Title,
-    type: (propertyTypeMapReverse[property.PropertyType] || 'other') as 'house' | 'apartment' | 'commercial' | 'land' | 'other',
+    type: (propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
+      propertyTypeMapReverse[(property as any).Type] ||
+      'house') as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
     areaValue: property.AreaValue,
     areaUnit: (areaUnitMapReverse[property.AreaUnit] || 'm²') as 'm²' | 'ft²' | 'yd²' | 'acres' | 'hectares' | 'sq_km' | 'sq_mi',
     bedrooms: property.Bedrooms,
@@ -736,7 +782,10 @@ export const mapDbToPublicProperty = (
       lng: property.LocationLongitude
     },
     title: property.Title,
-    type: propertyTypeMapReverse[property.PropertyType] || 'other',
+    type:
+      propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
+      propertyTypeMapReverse[(property as any).Type] ||
+      'house',
     areaValue: property.AreaValue,
     areaUnit: property.AreaUnit === 0 ? 'sqm' : 'sqft', // Simplified for public view
     bedrooms: property.Bedrooms,

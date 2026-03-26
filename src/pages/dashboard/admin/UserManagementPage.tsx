@@ -1,16 +1,21 @@
 // src/pages/dashboard/admin/UserManagementPage.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Button, Card } from 'flowbite-react';
-import { RefreshCwIcon, UsersIcon } from 'lucide-react';
+import { RefreshCwIcon } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminUsers } from '../../../hooks/useAdminUsers';
 import { UserFilters } from '../../../components/admin/users/UserFilters';
 import { UserManagementTable } from '../../../components/admin/users/UserManagementTable';
 import { UserDetailModal } from '../../../components/admin/users/UserDetailModal';
+import { UserViewModal } from '../../../components/admin/users/UserViewModal';
+import { UserEditModal } from '../../../components/admin/users/UserEditModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
+import { UserStatistics } from '../../../components/admin/users/UserStatistics';
+import { CreateUserModal } from '../../../components/admin/users/CreateUserModal';
 
 const UserManagementPage: React.FC = () => {
   const hook = useAdminUsers();
+  const [createUserModalOpen, setCreateUserModalOpen] = useState(false);
 
   const {
     users,
@@ -20,11 +25,16 @@ const UserManagementPage: React.FC = () => {
     totalPages,
     loading,
     error,
+    actionError,
     fetchUsers,
   } = hook;
 
   const handleRefresh = () => {
     fetchUsers();
+  };
+
+  const handleCreateUserSuccess = async () => {
+    await fetchUsers();
   };
 
   return (
@@ -44,7 +54,7 @@ const UserManagementPage: React.FC = () => {
           className="flex items-center space-x-2"
         >
           <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
+          <span>Actualizar</span>
         </Button>
       </div>
 
@@ -57,6 +67,17 @@ const UserManagementPage: React.FC = () => {
         </Card>
       )}
 
+      {actionError && (
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
+          <div className="text-amber-900 dark:text-amber-100">
+            <strong>Acción:</strong> {actionError}
+          </div>
+        </Card>
+      )}
+
+      {/* Statistics */}
+      <UserStatistics hook={hook} />
+
       {/* Filters */}
       <UserFilters hook={hook} />
 
@@ -65,25 +86,25 @@ const UserManagementPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total de usuarios</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {totalUsers.toLocaleString()}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Showing</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Mostrando</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                {users.length} of {totalUsers}
+                {users.length} de {totalUsers}
               </p>
             </div>
           </div>
 
           <div className="text-right">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
+              Página {currentPage} de {totalPages}
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {pageSize} per page
+              {pageSize} por página
             </p>
           </div>
         </div>
@@ -91,6 +112,16 @@ const UserManagementPage: React.FC = () => {
 
       {/* Users Table */}
       <Card>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">User Management</h3>
+          <Button
+            color="green"
+            data-testid="admin-users-create-button"
+            onClick={() => setCreateUserModalOpen(true)}
+          >
+            Crear usuario
+          </Button>
+        </div>
         <UserManagementTable hook={hook} />
       </Card>
 
@@ -100,7 +131,7 @@ const UserManagementPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Page {currentPage} of {totalPages}
+                Página {currentPage} de {totalPages}
               </span>
             </div>
 
@@ -111,7 +142,7 @@ const UserManagementPage: React.FC = () => {
                 disabled={currentPage === 1 || loading}
                 onClick={() => hook.setPage(currentPage - 1)}
               >
-                Previous
+                Anterior
               </Button>
 
               {/* Page numbers */}
@@ -131,7 +162,7 @@ const UserManagementPage: React.FC = () => {
                   return (
                     <Button
                       key={pageNum}
-                      color={pageNum === currentPage ? 'blue' : 'light'}
+                      color={pageNum === currentPage ? 'green' : 'light'}
                       size="sm"
                       disabled={loading}
                       onClick={() => hook.setPage(pageNum)}
@@ -148,7 +179,7 @@ const UserManagementPage: React.FC = () => {
                 disabled={currentPage === totalPages || loading}
                 onClick={() => hook.setPage(currentPage + 1)}
               >
-                Next
+                Siguiente
               </Button>
             </div>
           </div>
@@ -156,8 +187,15 @@ const UserManagementPage: React.FC = () => {
       )}
 
       {/* Modals */}
+      <UserViewModal hook={hook} />
+      <UserEditModal hook={hook} />
       <UserDetailModal hook={hook} />
       <DeleteUserConfirmModal hook={hook} />
+      <CreateUserModal
+        open={createUserModalOpen}
+        onClose={() => setCreateUserModalOpen(false)}
+        onCreateSuccess={handleCreateUserSuccess}
+      />
     </div>
   );
 };

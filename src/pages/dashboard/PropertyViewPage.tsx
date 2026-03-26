@@ -73,11 +73,11 @@ const BooleanField: React.FC<{ label: string; value: boolean; icon: React.ReactN
 );
 
 const propertyTypeMap: Record<string, string> = {
-    'House': 'Casa',
-    'Apartment': 'Apartamento',
-    'Commercial': 'Local Comercial',
-    'Land': 'Terreno',
-    'Other': 'Otro',
+    house: 'Casa',
+    apartment: 'Apartamento',
+    land: 'Terreno',
+    small_farm: 'Chacra',
+    farm: 'Campo',
 };
 
 const propertyStatusMap: Record<string, string> = {

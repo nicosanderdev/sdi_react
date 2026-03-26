@@ -2,6 +2,9 @@ import React from 'react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
 
+const PLATFORM_NAME = 'SGI';
+const CONTACT_EMAIL = 'info@inmogestion.com';
+
 export function TermsAndConditionsPage() {
   const lastUpdatedDate = new Date().toLocaleDateString('es-ES', {
     year: 'numeric',
@@ -12,7 +15,6 @@ export function TermsAndConditionsPage() {
   return (
     <PublicLayout>
       <PublicSection background="white">
-        {/* Page Header */}
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
             Términos y Condiciones de Uso
@@ -22,81 +24,145 @@ export function TermsAndConditionsPage() {
           </p>
         </div>
 
-        {/* Page Content */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 md:p-12">
           <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300">
             <p>
-              Bienvenido a InmoGestión. Estos términos y condiciones describen las reglas y regulaciones para el uso del sitio web y los servicios de InmoGestión, ubicados en [TuDominio.com].
+              Bienvenido a {PLATFORM_NAME}. Estos términos regulan el acceso y uso del sitio web de la plataforma, las
+              aplicaciones asociadas y los servicios de software ofrecidos para la gestión de portales de alquiler
+              (viviendas por temporadas y espacios para eventos) y sus propiedades.
             </p>
             <p>
-              Al acceder a este sitio web, asumimos que aceptas estos términos y condiciones. No continúes usando InmoGestión si no estás de acuerdo con todos los términos y condiciones establecidos en esta página.
+              Al utilizar el servicio, declaras haber leído y aceptado estas condiciones. Si no estás de acuerdo, no
+              utilices la plataforma ni crees una cuenta de usuario.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">1. Descripción del Servicio</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">1. Descripción del servicio</h2>
             <p>
-              InmoGestión ("la Plataforma", "el Servicio") es una aplicación de software como servicio (SaaS) que permite a los usuarios (principalmente agencias inmobiliarias y agentes) cargar, gestionar y publicar información sobre propiedades inmobiliarias. El Servicio incluye la capacidad de crear un sitio web público personalizado y listar propiedades en nuestro portal de búsqueda centralizado.
+              {PLATFORM_NAME} («la Plataforma») es una solución de tipo software como servicio (SaaS) que permite a
+              empresas y profesionales cargar, organizar y publicar información sobre propiedades destinadas al alquiler
+              temporal de viviendas y al alquiler de espacios para eventos. Las funcionalidades pueden incluir, entre
+              otras, la gestión de fichas, disponibilidad, comunicación con interesados y herramientas operativas asociadas
+              a los portales gestionados mediante la Plataforma.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">2. Cuentas de Usuario</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">2. Anuncios y datos de propiedad</h2>
             <p>
-              Para acceder a las funciones de gestión, debes registrarte y crear una cuenta. Eres responsable de mantener la confidencialidad de tu contraseña y cuenta. Aceptas notificarnos inmediatamente sobre cualquier uso no autorizado de tu cuenta. Eres el único responsable de toda la actividad que ocurra bajo tu cuenta. Debes proporcionar información precisa, actual y completa durante el proceso de registro.
+              Eres responsable de la exactitud, legalidad y actualización de cada anuncio y de los datos asociados
+              (descripciones, fotografías, vídeos, direcciones aproximadas o exactas, precios, tasas, disponibilidad,
+              reglas de la casa o del venue, aforos y restricciones).
+            </p>
+            <p>
+              Solo puedes publicar propiedades o espacios sobre los que tengas derecho a comercializar o alquilar, o
+              para los que cuentes con la autorización expresa del titular. Las imágenes y textos deben corresponder al
+              inmueble o espacio ofrecido y no inducir a error sobre sus características esenciales.
+            </p>
+            <p>
+              Debes mantener coherencia entre lo anunciado en la Plataforma y las condiciones reales del alquiler
+              (incluidas políticas de cancelación o depósitos cuando aplique). Cualquier omisión grave o información
+              fraudulenta puede motivar la retirada del contenido o la suspensión de la cuenta.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">3. Contenido del Usuario</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">3. Uso de los portales</h2>
             <p>
-              Tú retienes todos los derechos de propiedad sobre el contenido que cargas en la Plataforma, incluyendo datos de propiedades, descripciones, fotografías, videos y otros materiales ("Contenido del Usuario").
+              La Plataforma puede dar soporte a uno o más portales orientados a verticales distintas (por ejemplo,
+              alquiler de casas temporales frente a alquiler de espacios para eventos). Te comprometes a clasificar y
+              describir cada listado de forma adecuada al tipo de portal y de público al que va dirigido.
             </p>
             <p>
-              Sin embargo, al cargar Contenido del Usuario, nos otorgas una licencia mundial, no exclusiva, libre de regalías y transferible para usar, reproducir, distribuir, mostrar y ejecutar dicho contenido en conexión con la prestación de los Servicios. Esto incluye, entre otros, la publicación de tus propiedades en tu sitio web personalizado y en nuestro portal de búsqueda público.
+              No utilizarás las herramientas de publicación para mezclar ofertas incompatibles con el uso declarado del
+              portal (por ejemplo, anunciar en el portal de eventos bienes claramente exclusivos de otro vertical sin
+              adecuación ni autorización, cuando la Plataforma lo requiera), ni para eludir las normas internas de uso
+              que se te comuniquen razonablemente.
             </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">4. Cuentas de usuario y seguridad</h2>
             <p>
-              Tú eres el único responsable de tu Contenido del Usuario y de las consecuencias de publicarlo. Garantizas que:
+              El registro exige datos veraces. Mantienes la confidencialidad de tus credenciales y notificas de forma
+              inmediata cualquier uso no autorizado de tu cuenta. Toda actividad realizada con tu usuario se presume
+              imputable a ti o a tu organización, salvo que demuestres lo contrario de manera fehaciente.
             </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">5. Contenido del usuario y licencia</h2>
+            <p>
+              Conservas los derechos sobre el contenido que cargues (fichas, imágenes, textos, etc.). Nos concedes una
+              licencia no exclusiva, mundial y gratuita para alojar, reproducir, mostrar y distribuir dicho contenido en la
+              medida necesaria para prestar el servicio (incluida su publicación en los portales y canales habilitados).
+            </p>
+            <p>Garantizas que tu contenido:</p>
             <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>Eres el propietario del contenido o tienes las licencias, derechos y permisos necesarios para usarlo y autorizarnos a usarlo.</li>
-              <li>La información proporcionada es precisa, veraz y no engañosa.</li>
-              <li>El contenido no infringe los derechos de autor, marcas registradas, privacidad u otros derechos de terceros.</li>
+              <li>No infringe derechos de terceros ni obligaciones contractuales que te afecten.</li>
+              <li>No es ilícito, difamatorio, engañoso ni contrario a la buena fe comercial.</li>
+              <li>Cumple la normativa aplicable en materia de publicidad, vivienda turística, eventos y protección de datos.</li>
             </ul>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">4. Uso Aceptable</h2>
-            <p>
-              Aceptas no utilizar el Servicio para ningún propósito ilegal o no autorizado. Te comprometes a no:
-            </p>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">6. Responsabilidades del usuario</h2>
+            <p>Te obligas a:</p>
             <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>Cargar contenido fraudulento, falso, ilegal o que infrinja la ley.</li>
-              <li>Intentar obtener acceso no autorizado a nuestros sistemas informáticos o realizar cualquier actividad que interrumpa, disminuya la calidad o interfiera con el rendimiento del Servicio.</li>
-              <li>Utilizar el Servicio para enviar spam o mensajes no solicitados.</li>
-              <li>Hacerte pasar por otra persona o entidad.</li>
+              <li>Utilizar la Plataforma conforme a la ley y a estos términos.</li>
+              <li>No introducir malware ni intentar acceder de forma no autorizada a sistemas o datos de otros usuarios.</li>
+              <li>No enviar spam ni usar la mensajería o los formularios para fines ajenos a la gestión legítima de reservas y consultas.</li>
+              <li>Respectar la normativa local aplicable a alquileres temporales, eventos, seguridad, licencias y tributos que correspondan a tu actividad.</li>
+            </ul>
+            <p>
+              Eres el único responsable frente a terceros (huéspedes, organizadores, administraciones u otros) por los
+              contratos y obligaciones que derives de tus anuncios. La Plataforma no actúa como arrendador ni como
+              intermediario obligatorio en cada operación concreta, salvo que se indique expresamente otra cosa en un
+              acuerdo comercial específico.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">7. Uso aceptable y contenido prohibido</h2>
+            <p>Queda prohibido, entre otros usos:</p>
+            <ul className="list-disc list-inside space-y-2 pl-4">
+              <li>Publicar bienes o servicios ilícitos, o anuncios con fines fraudulentos.</li>
+              <li>Suplantar identidades o manipular reseñas o métricas de forma deshonesta.</li>
+              <li>Extracción masiva automatizada de datos de la Plataforma sin autorización (scraping no permitido).</li>
             </ul>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">5. Propiedad Intelectual</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">8. Propiedad intelectual</h2>
             <p>
-              El Servicio y su contenido original (excluyendo el Contenido del Usuario), características y funcionalidades son y seguirán siendo propiedad exclusiva de InmoGestión y sus licenciantes. El Servicio está protegido por derechos de autor, marcas registradas y otras leyes de [Tu País] y países extranjeros.
+              El software, el diseño de la interfaz, la documentación y el resto de componentes propios de {PLATFORM_NAME}{' '}
+              (excluido tu contenido) están protegidos por la legislación aplicable en materia de propiedad intelectual e
+              industrial.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">6. Terminación</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">9. Terminación</h2>
             <p>
-              Podemos terminar o suspender tu cuenta de inmediato, sin previo aviso ni responsabilidad, por cualquier motivo, incluido, entre otros, el incumplimiento de estos Términos. Tras la terminación, tu derecho a utilizar el Servicio cesará de inmediato. Si deseas cancelar tu cuenta, puedes simplemente dejar de usar el Servicio o contactarnos.
+              Podemos suspender o cancelar el acceso a la cuenta si incumples estos términos o por requerimientos legales.
+              Puedes dejar de usar el servicio en cualquier momento; las obligaciones que por su naturaleza deban
+              sobrevivir (limitaciones de responsabilidad, indemnidad cuando proceda, propiedad intelectual) permanecerán
+              vigentes en la medida permitida por la ley.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">7. Limitación de Responsabilidad</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">10. Limitación de responsabilidad</h2>
             <p>
-              El Servicio se proporciona "TAL CUAL" y "SEGÚN DISPONIBILIDAD". InmoGestión no garantiza que el servicio sea ininterrumpido, seguro o libre de errores. En ningún caso InmoGestión, ni sus directores, empleados o socios, serán responsables de daños indirectos, incidentales, especiales, consecuentes o punitivos, incluida la pérdida de beneficios, datos o buena voluntad, que resulten de tu acceso o uso del Servicio.
+              El servicio se presta «tal cual» y «según disponibilidad». Salvo que la legislación imperativa exija otra
+              cosa, {PLATFORM_NAME} no será responsable por daños indirectos, lucro cesante o pérdida de datos derivados
+              del uso o la imposibilidad de uso de la Plataforma. No garantizamos resultados comerciales concretos ni la
+              continuidad ininterrumpida del servicio.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">8. Cambios en los Términos</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">11. Cambios en los términos</h2>
             <p>
-              Nos reservamos el derecho, a nuestra entera discreción, de modificar o reemplazar estos Términos en cualquier momento. Si una revisión es material, intentaremos proporcionar un aviso de al menos 30 días antes de que los nuevos términos entren en vigor. Lo que constituye un cambio material se determinará a nuestra entera discreción.
+              Podemos actualizar estos términos. Los cambios relevantes se comunicarán por medios razonables (por
+              ejemplo, aviso en la Plataforma o por correo electrónico). El uso continuado tras la entrada en vigor de
+              las modificaciones implica la aceptación actualizada, salvo que la ley exija un procedimiento distinto.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">9. Ley Aplicable</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">12. Ley aplicable y jurisdicción</h2>
             <p>
-              Estos Términos se regirán e interpretarán de acuerdo con las leyes de [Tu Provincia/Estado, Tu País], sin tener en cuenta sus disposiciones sobre conflictos de leyes.
+              Estos términos se rigen por la legislación española, sin perjuicio de normas imperativas que, en su caso,
+              resulten aplicables a consumidores residentes en otros países. Para cualquier controversia, las partes se
+              someten a los juzgados y tribunales de España, salvo que la ley establezca otra competencia indisponible
+              para el usuario.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">10. Contacto</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">13. Contacto</h2>
             <p>
-              Si tienes alguna pregunta sobre estos Términos, por favor contáctanos en <a href="mailto:contacto@inmogestion.com" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline">contacto@inmogestion.com</a>.
+              Para consultas sobre estos términos, escríbenos a{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline">
+                {CONTACT_EMAIL}
+              </a>{' '}
+              o utiliza el formulario de contacto en el sitio web.
             </p>
           </div>
         </div>

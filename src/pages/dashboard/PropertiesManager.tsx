@@ -13,12 +13,14 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 
-const TABS = [
+type PropertyPurposeType = 'RealEstate' | 'AnnualRent' | 'EventVenue' | 'SummerRent';
+
+const TABS: { id: 'all' | PropertyPurposeType; label: string }[] = [
   { id: 'all', label: 'Todas' },
-  { id: 'sale', label: 'En Venta' },
-  { id: 'rent', label: 'En Alquiler' },
-  { id: 'reserved', label: 'Reservadas' },
-  { id: 'archived', label: 'Archivadas' }
+  { id: 'RealEstate', label: 'En Venta' },
+  { id: 'AnnualRent', label: 'En Alquiler' },
+  { id: 'EventVenue', label: 'Locales' },
+  { id: 'SummerRent', label: 'Alquileres de verano' }
 ];
 
 const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
@@ -29,7 +31,7 @@ const PropertiesManagerComponent = () => {
   const [allProperties, setAllProperties] = useState<PropertyData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<'all' | PropertyPurposeType>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddProperty, setShowAddProperty] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -115,11 +117,20 @@ const PropertiesManagerComponent = () => {
     fetchProperties();
   }, [company]);
 
+  const inferPropertyPurposeType = (property: PropertyData): PropertyPurposeType => {
+    // Temporary mapping based on current status values.
+    // As Listings-based types (SummerRent, EventVenue, etc.) become available,
+    // this can be refined to use listingType instead.
+    if (property.status === 'sale') return 'RealEstate';
+    if (property.status === 'rent') return 'AnnualRent';
+    return 'RealEstate';
+  };
+
   const filteredProperties = useMemo(() => {
     let properties = [...allProperties];
 
     if (activeTab !== 'all') {
-      properties = properties.filter(p => p.status && p.status.toLowerCase() === activeTab.toLowerCase());
+      properties = properties.filter(p => inferPropertyPurposeType(p) === activeTab);
     }
 
     if (searchTerm.trim() !== '') {

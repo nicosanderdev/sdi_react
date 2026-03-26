@@ -1,12 +1,9 @@
 // src/components/admin/properties/PropertyDetailModal.tsx
 import React from 'react';
-import { Modal, ModalBody, ModalHeader, ModalFooter, Button, Badge, Tabs, TabItem, Card } from 'flowbite-react';
+import { Modal, Button, Tabs, Card, ModalHeader, ModalBody, TabItem, ModalFooter } from 'flowbite-react';
 import {
-  CalendarIcon,
   MapPinIcon,
   HomeIcon,
-  DollarSignIcon,
-  EyeIcon,
   EyeOffIcon,
   XCircleIcon,
   ClockIcon,
@@ -22,28 +19,9 @@ interface PropertyDetailModalProps {
   hook: UseAdminPropertiesReturn;
 }
 
-const getStatusBadgeColor = (status: string) => {
-  switch (status) {
-    case 'sale': return 'success';
-    case 'rent': return 'info';
-    case 'reserved': return 'warning';
-    case 'sold': return 'gray';
-    case 'unavailable': return 'failure';
-    default: return 'gray';
-  }
-};
-
-const getVisibilityBadgeColor = (isVisible: boolean) => {
-  return isVisible ? 'success' : 'failure';
-};
-
-const getActivityBadgeColor = (isActive: boolean) => {
-  return isActive ? 'success' : 'warning';
-};
-
 const formatDate = (dateString: string | null): string => {
-  if (!dateString) return 'Never';
-  return new Date(dateString).toLocaleDateString('en-US', {
+  if (!dateString) return 'Nunca';
+  return new Date(dateString).toLocaleDateString('es-ES', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -52,24 +30,11 @@ const formatDate = (dateString: string | null): string => {
   });
 };
 
-const formatCurrency = (amount: number | null, currency: number): string => {
-  if (amount === null) return 'Not set';
-
-  const currencySymbols: { [key: number]: string } = {
-    0: '$', // USD
-    1: '$', // UYU
-    2: 'R$', // BRL
-    3: '€', // EUR
-    4: '£', // GBP
-  };
-
-  const symbol = currencySymbols[currency] || '$';
-  return `${symbol}${amount.toLocaleString()}`;
-};
-
-const getPropertyTypeLabel = (type: number): string => {
-  const types = ['House', 'Apartment', 'Commercial', 'Land', 'Other'];
-  return types[type] || 'Unknown';
+const getPropertyTypeLabel = (category: number): string => {
+  // Mirrors `get_admin_property_detail` mapping from SQL:
+  // 0: Casa, 1: Apartamento, 2: Terreno, 3: Chacra, 4: Campo
+  const categories = ['Casa', 'Apartamento', 'Terreno', 'Chacra', 'Campo'];
+  return categories[category] || 'Desconocido';
 };
 
 const getAreaUnitLabel = (unit: number): string => {
@@ -123,6 +88,8 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
   const handleMarkInvalid = () => handleQuickAction(() => markPropertyInvalid(selectedProperty.id, 'Marked as invalid by admin'));
   const handleDelete = () => openDeleteConfirmModal(selectedProperty);
 
+  const derivedTitle = `${selectedProperty.street_name} ${selectedProperty.house_number}`;
+
   return (
     <Modal
       show={detailModalOpen}
@@ -137,7 +104,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {selectedProperty.title}
+              {derivedTitle}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {selectedProperty.city}, {selectedProperty.state}
@@ -152,35 +119,23 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
         ) : (
-          <Tabs aria-label="Property details tabs" style="underline">
+          <Tabs aria-label="Pestañas de detalles de la propiedad" className='underline'>
             {/* Overview Tab */}
-            <TabItem active title="Overview" icon={HomeIcon}>
+            <TabItem active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Quick Actions</h4>
+                  <h4 className="text-md font-semibold mb-4">Acciones rápidas</h4>
                   <div className="flex flex-wrap gap-2">
-                    {selectedProperty.isPropertyVisible ? (
-                      <Button
-                        size="sm"
-                        color="gray"
-                        onClick={handleHide}
-                        className="flex items-center space-x-2"
-                      >
-                        <EyeOffIcon className="w-4 h-4" />
-                        <span>Hide Property</span>
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        color="gray"
-                        disabled
-                        className="flex items-center space-x-2 opacity-50 cursor-not-allowed"
-                      >
-                        <EyeOffIcon className="w-4 h-4" />
-                        <span>Already Hidden</span>
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      color="gray"
+                      onClick={handleHide}
+                      className="flex items-center space-x-2"
+                    >
+                      <EyeOffIcon className="w-4 h-4" />
+                      <span>Ocultar propiedad</span>
+                    </Button>
 
                     <Button
                       size="sm"
@@ -189,7 +144,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       className="flex items-center space-x-2"
                     >
                       <XCircleIcon className="w-4 h-4" />
-                      <span>Mark Invalid</span>
+                      <span>Marcar como inválido</span>
                     </Button>
 
                     <Button
@@ -199,63 +154,32 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       className="flex items-center space-x-2"
                     >
                       <XCircleIcon className="w-4 h-4" />
-                      <span>Delete Property</span>
+                      <span>Eliminar propiedad</span>
                     </Button>
-                  </div>
-                </Card>
-
-                {/* Property Status */}
-                <Card>
-                  <h4 className="text-md font-semibold mb-4">Property Status</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
-                      <Badge color={getStatusBadgeColor(selectedProperty.status.toString())} className="mt-1">
-                        {selectedProperty.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Visibility</p>
-                      <Badge color={getVisibilityBadgeColor(selectedProperty.isPropertyVisible)} className="mt-1">
-                        {selectedProperty.isPropertyVisible ? 'Visible' : 'Hidden'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Activity</p>
-                      <Badge color={getActivityBadgeColor(selectedProperty.isActive)} className="mt-1">
-                        {selectedProperty.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Featured</p>
-                      <Badge color={selectedProperty.isFeatured ? 'success' : 'gray'} className="mt-1">
-                        {selectedProperty.isFeatured ? 'Yes' : 'No'}
-                      </Badge>
-                    </div>
                   </div>
                 </Card>
 
                 {/* Basic Information */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Basic Information</h4>
+                  <h4 className="text-md font-semibold mb-4">Información básica</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Type: {getPropertyTypeLabel(selectedProperty.type)}
+                          Tipo: {getPropertyTypeLabel(selectedProperty.category)}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <MapPinIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Location: {selectedProperty.streetName} {selectedProperty.houseNumber}, {selectedProperty.city}, {selectedProperty.state}
+                          Ubicación: {selectedProperty.street_name} {selectedProperty.house_number}, {selectedProperty.city}, {selectedProperty.state}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Size: {selectedProperty.areaValue} {getAreaUnitLabel(selectedProperty.areaUnit)}
+                          Tamaño: {selectedProperty.area_value} {getAreaUnitLabel(selectedProperty.area_unit)}
                         </span>
                       </div>
                     </div>
@@ -263,78 +187,39 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Bedrooms: {selectedProperty.bedrooms}, Bathrooms: {selectedProperty.bathrooms}
+                          Habitaciones: {selectedProperty.bedrooms}, Baños: {selectedProperty.bathrooms}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <HomeIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Garage: {selectedProperty.hasGarage ? `${selectedProperty.garageSpaces} spaces` : 'No'}
+                          Garaje: {selectedProperty.garage_spaces > 0 ? `${selectedProperty.garage_spaces} espacios` : 'No'}
                         </span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <UserIcon className="w-4 h-4 text-gray-400" />
                         <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Capacity: {selectedProperty.capacity} people
+                          Capacidad: {selectedProperty.capacity} personas
                         </span>
                       </div>
                     </div>
                   </div>
                 </Card>
 
-                {/* Pricing */}
-                {(selectedProperty.salePrice || selectedProperty.rentPrice) && (
-                  <Card>
-                    <h4 className="text-md font-semibold mb-4">Pricing</h4>
-                    <div className="space-y-2">
-                      {selectedProperty.salePrice && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Sale Price: {formatCurrency(selectedProperty.salePrice, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                      {selectedProperty.rentPrice && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Rent Price: {formatCurrency(selectedProperty.rentPrice, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                      {selectedProperty.hasCommonExpenses && selectedProperty.commonExpensesValue && (
-                        <div className="flex items-center space-x-2">
-                          <DollarSignIcon className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-300">
-                            Common Expenses: {formatCurrency(selectedProperty.commonExpensesValue, selectedProperty.currency)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                )}
-
                 {/* Dates */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Important Dates</h4>
+                  <h4 className="text-md font-semibold mb-4">Fechas importantes</h4>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <CalendarIcon className="w-4 h-4 text-gray-400" />
+                      <ClockIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Available From: {formatDate(selectedProperty.availableFrom)}
+                        Creado: {formatDate(selectedProperty.created)}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Created: {formatDate(selectedProperty.created)}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <ClockIcon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600 dark:text-gray-300">
-                        Last Modified: {formatDate(selectedProperty.lastModified)}
+                        Última modificación: {formatDate(selectedProperty.lastModified)}
                       </span>
                     </div>
                   </div>
@@ -343,21 +228,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             </TabItem>
 
             {/* Owner Tab */}
-            <TabItem title="Owner" icon={UserIcon}>
+            <TabItem title="Propietario" icon={UserIcon}>
               <Card>
-                <h4 className="text-md font-semibold mb-4">Owner Information</h4>
+                <h4 className="text-md font-semibold mb-4">Información del propietario</h4>
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Name</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Email</p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{selectedProperty.ownerEmail}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Owner ID</p>
-                    <p className="text-sm font-mono text-gray-600 dark:text-gray-300">{selectedProperty.ownerId}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">ID del propietario</p>
+                        <p className="text-sm font-mono text-gray-600 dark:text-gray-300">{selectedProperty.owner_id}</p>
                   </div>
                 </div>
               </Card>
@@ -414,13 +291,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             </TabItem>
 
             {/* Description Tab */}
-            {selectedProperty.description && (
-              <TabItem title="Description" icon={HomeIcon}>
+            {selectedProperty.allowedEventsDescription && (
+              <TabItem title="Descripción" icon={HomeIcon}>
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Property Description</h4>
+                  <h4 className="text-md font-semibold mb-4">Descripción de eventos</h4>
                   <div className="prose dark:prose-invert max-w-none">
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                      {selectedProperty.description}
+                      {selectedProperty.allowedEventsDescription}
                     </p>
                   </div>
                 </Card>
@@ -432,7 +309,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
       <ModalFooter>
         <Button color="gray" onClick={closeDetailModal}>
-          Close
+          Cerrar
         </Button>
       </ModalFooter>
     </Modal>

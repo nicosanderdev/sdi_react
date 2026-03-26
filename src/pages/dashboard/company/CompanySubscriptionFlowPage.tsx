@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../store/store';
-import { Card, Button, Spinner, Alert } from 'flowbite-react';
+import { Card, Button, Spinner, Alert, Select } from 'flowbite-react';
 import {
     Building2,
     Crown,
@@ -43,12 +43,22 @@ export function CompanySubscriptionFlowPage() {
     const [error, setError] = useState<string | null>(null);
     const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
 
-    // Load company info when user has company membership
+    const hasMultipleCompanies = companyIds.length > 1;
+    const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+
+    // Initialize selected company when membership info is available
     useEffect(() => {
-        if (hasCompanyMembership && companyIds.length > 0) {
-            loadCompanyInfo();
+        if (hasCompanyMembership && companyIds.length > 0 && !selectedCompanyId) {
+            setSelectedCompanyId(companyIds[0]);
         }
-    }, [hasCompanyMembership, companyIds]);
+    }, [hasCompanyMembership, companyIds, selectedCompanyId]);
+
+    // Load company info when user has company membership and a company is selected
+    useEffect(() => {
+        if (hasCompanyMembership && selectedCompanyId) {
+            loadCompanyInfo(selectedCompanyId);
+        }
+    }, [hasCompanyMembership, selectedCompanyId]);
 
     // Load company subscription when company info is available
     useEffect(() => {
@@ -57,11 +67,11 @@ export function CompanySubscriptionFlowPage() {
         }
     }, [companyInfo]);
 
-    const loadCompanyInfo = async () => {
+    const loadCompanyInfo = async (companyId?: string) => {
         try {
             setIsLoadingCompany(true);
             setError(null);
-            const info = await companyService.getCompanyInfo();
+            const info = await companyService.getCompanyInfo(companyId);
             setCompanyInfo(info);
         } catch (err: any) {
             setError(err.message || 'Error loading company information');
@@ -151,7 +161,7 @@ export function CompanySubscriptionFlowPage() {
                         <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">Necesitas una Empresa</h3>
                         <p className="text-gray-600 mb-6">
-                            Para suscribirte a un plan de empresa, primero necesitas crear o unirte a una empresa.
+                            No perteneces a ninguna empresa actualmente. Para suscribirte a un plan de empresa, primero necesitas crear una empresa.
                         </p>
                         <Button
                             onClick={() => setShowCreateCompanyModal(true)}
@@ -160,6 +170,37 @@ export function CompanySubscriptionFlowPage() {
                             <Plus className="w-5 h-5" />
                             <span>Crear Empresa</span>
                         </Button>
+                    </div>
+                </Card>
+            )}
+
+            {/* Company selection and current company info */}
+            {hasCompanyMembership && !isLoadingCompany && companyInfo && (
+                <Card className="mb-6">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h2 className="text-lg font-semibold">Empresa seleccionada</h2>
+                            <p className="text-gray-600">
+                                {companyInfo.name}
+                            </p>
+                        </div>
+                        {hasMultipleCompanies && (
+                            <div className="w-full md:w-64">
+                                <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">
+                                    Selecciona empresa
+                                </label>
+                                <Select
+                                    value={selectedCompanyId ?? ''}
+                                    onChange={(e) => setSelectedCompanyId(e.target.value)}
+                                >
+                                    {companyIds.map((id, index) => (
+                                        <option key={id} value={id}>
+                                            {`Empresa ${index + 1}`}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </div>
+                        )}
                     </div>
                 </Card>
             )}

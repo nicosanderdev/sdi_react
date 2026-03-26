@@ -7,6 +7,7 @@ import { PaymentProvider } from './contexts/PaymentContext';
 // Public pages
 import { HomePage } from './pages/public/HomePage';
 import { ContactPage } from './pages/public/ContactPage';
+import { AboutPage } from './pages/public/AboutPage';
 import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
@@ -48,11 +49,13 @@ import { CompanyManagementPage } from './pages/dashboard/company/CompanyManageme
 import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySubscriptionFlowPage';
 
 // Admin pages
-import { AdminSubscriptionsPage } from './pages/dashboard/admin/AdminSubscriptionsPage';
-import { AdminInvoicesPage } from './pages/dashboard/admin/AdminInvoicesPage';
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
 import UserManagementPage from './pages/dashboard/admin/UserManagementPage';
 import PropertyManagementPage from './pages/dashboard/admin/PropertyManagementPage';
+import { AdminCreatePropertyPage } from './pages/dashboard/admin/AdminCreatePropertyPage';
+import { AdminConfigPage } from './pages/dashboard/admin/AdminConfigPage';
+import { AdminLogsPage } from './pages/dashboard/admin/AdminLogsPage';
+import { AdminBookingsPage } from './pages/dashboard/admin/AdminBookingsPage';
 
 // Payment pages
 import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
@@ -94,11 +97,12 @@ export function App() {
           {/* Public Routes (No Authentication Required) */}
           <Route path="/" element={<PublicRoute><HomePage /></PublicRoute>} />
           <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
+          <Route path="/about" element={<PublicRoute><AboutPage /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
-          <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
+          {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
           
@@ -134,15 +138,12 @@ export function App() {
 
             {/* Admin Routes */}
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
-            <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
-            <Route path="admin/subscriptions" element={<AdminOnlyRoute><AdminSubscriptionsPage /></AdminOnlyRoute>} />
             <Route path="admin/properties" element={<AdminOnlyRoute><PropertyManagementPage /></AdminOnlyRoute>} />
-            <Route path="admin/config" element={<AdminOnlyRoute><div>Platform Configuration Page</div></AdminOnlyRoute>} />
-            <Route path="admin/logs" element={<AdminOnlyRoute><div>Logs & Audit Page</div></AdminOnlyRoute>} />
-            <Route path="admin/support" element={<AdminOnlyRoute><div>Support & Operations Page</div></AdminOnlyRoute>} />
-            <Route path="admin/tools" element={<AdminOnlyRoute><div>Technical Tools Page</div></AdminOnlyRoute>} />
-            <Route path="admin/security" element={<AdminOnlyRoute><div>Security Dashboard Page</div></AdminOnlyRoute>} />
-            <Route path="admin/invoices" element={<AdminOnlyRoute><AdminInvoicesPage /></AdminOnlyRoute>} />
+            <Route path="admin/properties/create" element={<AdminOnlyRoute><AdminCreatePropertyPage /></AdminOnlyRoute>} />
+            <Route path="admin/config" element={<AdminOnlyRoute><AdminConfigPage /></AdminOnlyRoute>} />
+            <Route path="admin/logs" element={<AdminOnlyRoute><AdminLogsPage /></AdminOnlyRoute>} />
+            <Route path="admin/bookings" element={<AdminOnlyRoute><AdminBookingsPage /></AdminOnlyRoute>} />
+            <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
           </Route>
 
           {/* Company Routes */}

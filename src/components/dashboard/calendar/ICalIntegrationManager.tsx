@@ -31,8 +31,13 @@ import {
   SyncStatus,
   PLATFORM_NAMES,
   PLATFORM_ICONS,
-  SYNC_STATUS_NAMES
 } from '../../../models/calendar/CalendarSync';
+
+const ESTADO_SYNC_ES: Record<SyncStatus, string> = {
+  [SyncStatus.Idle]: 'En espera',
+  [SyncStatus.Syncing]: 'Sincronizando',
+  [SyncStatus.Error]: 'Error'
+};
 
 interface ICalIntegrationManagerProps {
   propertyId: string;
@@ -89,10 +94,10 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
         );
         setIntegrations(iCalIntegrations);
       } else {
-        setError(response.errorMessage || 'Failed to load integrations');
+        setError(response.errorMessage || 'No se pudieron cargar las integraciones');
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to load integrations');
+      setError(error.message || 'No se pudieron cargar las integraciones');
     } finally {
       setIsLoading(false);
     }
@@ -107,13 +112,13 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
     const errors: Partial<IntegrationFormData> = {};
 
     if (!formData.calendarName.trim()) {
-      errors.calendarName = 'Calendar name is required';
+      errors.calendarName = 'El nombre del calendario es obligatorio';
     }
 
     if (!formData.iCalUrl.trim()) {
-      errors.iCalUrl = 'iCal URL is required';
+      errors.iCalUrl = 'La URL del calendario iCal es obligatoria';
     } else if (!formData.iCalUrl.startsWith('https://')) {
-      errors.iCalUrl = 'iCal URL must start with https://';
+      errors.iCalUrl = 'La URL debe comenzar con https://';
     }
 
     setFormErrors(errors);
@@ -181,10 +186,10 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
         await loadIntegrations();
         onSyncCompleted?.();
       } else {
-        setError(response.errorMessage || 'Failed to save integration');
+        setError(response.errorMessage || 'No se pudo guardar la integración');
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to save integration');
+      setError(error.message || 'No se pudo guardar la integración');
     } finally {
       setIsSubmitting(false);
     }
@@ -226,10 +231,10 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
         onSyncCompleted?.();
         setDeleteConfirmIntegration(null);
       } else {
-        setError(response.errorMessage || 'Failed to delete integration');
+        setError(response.errorMessage || 'No se pudo eliminar la integración');
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to delete integration');
+      setError(error.message || 'No se pudo eliminar la integración');
     }
   };
 
@@ -256,7 +261,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error('Sync failed');
+        throw new Error('Error de sincronización');
       }
 
       // Start cooldown (5 minutes)
@@ -284,7 +289,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       await loadIntegrations();
       onSyncCompleted?.();
     } catch (error: any) {
-      setError(error.message || 'Sync failed');
+      setError(error.message || 'Error de sincronización');
     } finally {
       setSyncingIntegrations(prev => {
         const newSet = new Set(prev);
@@ -310,21 +315,21 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
 
   // Format last sync time
   const formatLastSync = (lastSyncAt?: string) => {
-    if (!lastSyncAt) return 'Never';
+    if (!lastSyncAt) return 'Nunca';
 
     const date = new Date(lastSyncAt);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMinutes = Math.floor(diffMs / (1000 * 60));
 
-    if (diffMinutes < 1) return 'Just now';
-    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffMinutes < 1) return 'Ahora mismo';
+    if (diffMinutes < 60) return `hace ${diffMinutes} min`;
 
     const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffHours < 24) return `hace ${diffHours} h`;
 
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
+    return `hace ${diffDays} días`;
   };
 
   // Get cooldown time remaining
@@ -333,7 +338,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
     if (!cooldown || cooldown.canSync) return null;
 
     const remaining = Math.ceil((cooldown.cooldownEnd - Date.now()) / (1000 * 60));
-    return `${remaining}m`;
+    return `${remaining} min`;
   };
 
   // Cleanup timers on unmount
@@ -352,7 +357,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       <Card>
         <div className="flex justify-center items-center py-8">
           <Spinner size="lg" />
-          <span className="ml-2">Loading calendar integrations...</span>
+          <span className="ml-2">Cargando integraciones de calendario...</span>
         </div>
       </Card>
     );
@@ -363,10 +368,10 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-            External Calendar Imports
+            Importar calendarios externos
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Sync availability from Airbnb, Booking.com, and other platforms
+            Sincroniza la disponibilidad desde Airbnb, Booking.com y otras plataformas
           </p>
         </div>
         <Button
@@ -377,7 +382,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
           className="flex items-center"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Add External Calendar
+          Cal. externo
         </Button>
       </div>
 
@@ -391,9 +396,9 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       {integrations.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <ExternalLink className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p className="text-lg font-medium mb-2">No external calendars connected</p>
+          <p className="text-lg font-medium mb-2">No hay calendarios externos conectados</p>
           <p className="text-sm mb-4">
-            Connect your Airbnb or Booking.com calendar to automatically sync availability
+            Conecta el calendario de Airbnb o Booking.com para sincronizar la disponibilidad automáticamente
           </p>
           <Button
             onClick={() => {
@@ -403,7 +408,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             color="primary"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Your First Calendar
+            Añadir tu primer calendario
           </Button>
         </div>
       ) : (
@@ -423,14 +428,14 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                       {integration.ExternalCalendarName}
                     </h4>
                     <Badge color={getStatusBadgeColor(integration.SyncStatus)}>
-                      {SYNC_STATUS_NAMES[integration.SyncStatus]}
+                      {ESTADO_SYNC_ES[integration.SyncStatus]}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {PLATFORM_NAMES[integration.PlatformType]}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    Last sync: {formatLastSync(integration.LastSyncAt)}
+                    Última sincronización: {formatLastSync(integration.LastSyncAt)}
                   </p>
                 </div>
               </div>
@@ -438,14 +443,14 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
               <div className="flex items-center space-x-2">
                 <Tooltip content={
                   integration.LastError ? `Error: ${integration.LastError}` :
-                  integration.SyncStatus === SyncStatus.Error ? 'Sync failed' : ''
+                  integration.SyncStatus === SyncStatus.Error ? 'Error de sincronización' : ''
                 }>
                   {integration.SyncStatus === SyncStatus.Error && (
                     <AlertCircle className="h-4 w-4 text-red-500" />
                   )}
                 </Tooltip>
 
-                <Tooltip content="Edit integration">
+                <Tooltip content="Editar integración">
                   <Button
                     size="sm"
                     color="gray"
@@ -457,8 +462,8 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
 
                 <Tooltip content={
                   syncCooldowns[integration.Id]?.canSync === false
-                    ? `Sync available in ${getCooldownTime(integration.Id)}`
-                    : 'Sync now'
+                    ? `Sincronización disponible en ${getCooldownTime(integration.Id)}`
+                    : 'Sincronizar ahora'
                 }>
                   <Button
                     size="sm"
@@ -476,7 +481,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                   </Button>
                 </Tooltip>
 
-                <Tooltip content="Delete integration">
+                <Tooltip content="Eliminar integración">
                   <Button
                     size="sm"
                     color="failure"
@@ -501,13 +506,13 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
         size="lg"
       >
         <Modal.Header>
-          {editingIntegration ? 'Edit Calendar Integration' : 'Add External Calendar'}
+          {editingIntegration ? 'Editar integración de calendario' : 'Añadir calendario externo'}
         </Modal.Header>
         <form onSubmit={handleSubmit}>
           <Modal.Body>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="platformType" value="Platform" />
+                <Label htmlFor="platformType" value="Plataforma" />
                 <Select
                   id="platformType"
                   value={formData.platformType}
@@ -530,11 +535,11 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="calendarName" value="Calendar Name" />
+                <Label htmlFor="calendarName" value="Nombre del calendario" />
                 <TextInput
                   id="calendarName"
                   type="text"
-                  placeholder="e.g., My Airbnb Listing"
+                  placeholder="Ej.: Mi anuncio en Airbnb"
                   value={formData.calendarName}
                   onChange={(e) => setFormData(prev => ({
                     ...prev,
@@ -547,7 +552,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="icalUrl" value="iCal Feed URL" />
+                <Label htmlFor="icalUrl" value="URL del feed iCal" />
                 <TextInput
                   id="icalUrl"
                   type="url"
@@ -558,11 +563,11 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                     iCalUrl: e.target.value
                   }))}
                   color={formErrors.iCalUrl ? 'failure' : 'gray'}
-                  helperText={formErrors.iCalUrl || "Must be a valid HTTPS URL"}
+                  helperText={formErrors.iCalUrl || 'Debe ser una URL HTTPS válida'}
                   required
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Find this URL in your platform's calendar export settings
+                  Encuentra esta URL en la configuración de exportación de calendario de tu plataforma
                 </p>
               </div>
             </div>
@@ -575,7 +580,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                 resetForm();
               }}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button
               type="submit"
@@ -589,7 +594,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
               ) : (
                 <Plus className="mr-2 h-4 w-4" />
               )}
-              {editingIntegration ? 'Update' : 'Test & Save'}
+              {editingIntegration ? 'Actualizar' : 'Probar y guardar'}
             </Button>
           </Modal.Footer>
         </form>
@@ -602,21 +607,21 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
         size="md"
       >
         <Modal.Header>
-          Delete Calendar Integration
+          Eliminar integración de calendario
         </Modal.Header>
         <Modal.Body>
           <div className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Are you sure?
+              ¿Estás seguro?
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              This will permanently delete the integration for{' '}
+              Se eliminará de forma permanente la integración de{' '}
               <strong>{deleteConfirmIntegration?.ExternalCalendarName}</strong>{' '}
-              and remove all associated availability blocks.
+              y todos los bloques de disponibilidad asociados.
             </p>
             <p className="text-sm text-gray-500">
-              This action cannot be undone.
+              Esta acción no se puede deshacer.
             </p>
           </div>
         </Modal.Body>
@@ -625,7 +630,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             color="gray"
             onClick={() => setDeleteConfirmIntegration(null)}
           >
-            Cancel
+            Cancelar
           </Button>
           <Button
             color="failure"
@@ -633,7 +638,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             className="flex items-center"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete Integration
+            Eliminar integración
           </Button>
         </Modal.Footer>
       </Modal>

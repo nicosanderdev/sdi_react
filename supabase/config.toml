@@ -360,6 +360,23 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Disable runtime JWT verification for create-member to avoid ES256/CryptoKey bug in edge runtime.
+# Auth is enforced inside the function via _shared/auth (admin-only).
+[functions.create-member]
+verify_jwt = false
+
+# Admin user profile sync; auth enforced in handler (same pattern as create-member).
+[functions.admin-update-user]
+verify_jwt = false
+
+[functions.admin-ban-user]
+verify_jwt = false
+
+# Guest OTP request flow should not require JWT verification.
+# Avoid local edge runtime ES256/CryptoKey verification crash before handler execution.
+[functions.booking-send-otp]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

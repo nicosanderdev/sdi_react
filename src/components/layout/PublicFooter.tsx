@@ -44,15 +44,15 @@ export function PublicFooter() {
               <div>
                 <FooterTitle title="Plataforma" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
-                  <FooterLink href="/pricing" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Planes y Precios</FooterLink>
+                  <FooterLink href="/pricing" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Planes y precios</FooterLink>
+                  <FooterLink href="/about" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Sobre nosotros</FooterLink>
                   <FooterLink href="/contact" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Contacto</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>
                 <FooterTitle title="Recursos" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
-                  <FooterLink href="/demo" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Demo</FooterLink>
-                  <FooterLink href="/register" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Registro</FooterLink>
+                  <FooterLink href="/contact" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Solicitar demostración</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>
