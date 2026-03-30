@@ -4,9 +4,9 @@ import {
   UserIcon,
   BuildingIcon,
   BarChartIcon,
-  SettingsIcon,
   FileText,
   CalendarCheck,
+  Receipt,
   type LucideIcon
 } from 'lucide-react';
 
@@ -29,6 +29,7 @@ export function AdminNavigation() {
     { id: 'admin-dashboard', label: 'Dashboard global', icon: BarChartIcon, path: '/dashboard/admin/dashboard' },
     { id: 'admin-properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/admin/properties' },
     { id: 'admin-bookings', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/admin/bookings' },
+    { id: 'admin-payments', label: 'Gestión de pagos', icon: Receipt, path: '/dashboard/admin/payments' },
     { id: 'admin-users', label: 'Usuarios', icon: UserIcon, path: '/dashboard/admin/users' },
     { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' }
     // { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
