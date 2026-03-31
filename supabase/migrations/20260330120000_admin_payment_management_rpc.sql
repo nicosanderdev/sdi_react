@@ -1,6 +1,9 @@
 -- Admin Payment Management RPCs
 -- Artifact file (not auto-applied in this task).
 
+ALTER TABLE public."BookingReceipts"
+  ALTER COLUMN "SubscriptionId" DROP NOT NULL;
+
 CREATE OR REPLACE FUNCTION public.admin_generate_booking_receipt(
   p_booking_ids uuid[]
 ) RETURNS uuid
@@ -20,7 +23,6 @@ DECLARE
   v_company_id uuid;
   v_owner_debug text;
   v_currency_code text;
-  v_subscription_id uuid;
   v_receipt_id uuid;
   v_total_amount numeric := 0;
 BEGIN
@@ -114,24 +116,6 @@ BEGIN
     RAISE EXCEPTION 'Selected bookings contain invalid owner principal mapping. principals=%', v_owner_debug;
   END IF;
 
-  SELECT s."Id"
-  INTO v_subscription_id
-  FROM public."Subscriptions" s
-  JOIN public."Owners" o ON o."Id" = s."OwnerId"
-  WHERE s."IsDeleted" = false
-    AND o."IsDeleted" = false
-    AND o."OwnerType" = v_owner_type
-    AND (
-      (v_member_id IS NOT NULL AND o."MemberId" = v_member_id)
-      OR (v_company_id IS NOT NULL AND o."CompanyId" = v_company_id)
-    )
-  ORDER BY s."Created" DESC
-  LIMIT 1;
-
-  IF v_subscription_id IS NULL THEN
-    RAISE EXCEPTION 'No active subscription found for selected bookings';
-  END IF;
-
   IF EXISTS (
     SELECT 1
     FROM public."Bookings" b
@@ -153,7 +137,8 @@ BEGIN
     COALESCE(SUM(COALESCE(b."TotalAmount", 0)), 0)
   INTO v_currency_code, v_total_amount
   FROM public."Bookings" b
-  WHERE b."Id" = ANY(p_booking_ids);
+  WHERE b."Id" = ANY(p_booking_ids)
+  GROUP BY b."Currency";
 
   INSERT INTO public."BookingReceipts" (
     "SubscriptionId",
@@ -166,7 +151,7 @@ BEGIN
     "LastModifiedBy"
   )
   VALUES (
-    v_subscription_id,
+    NULL,
     v_total_amount,
     v_currency_code,
     now() + interval '7 days',
@@ -190,6 +175,145 @@ BEGIN
   WHERE b."Id" = ANY(p_booking_ids);
 
   RETURN v_receipt_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_get_booking_receipts(
+  p_owner_name text DEFAULT NULL,
+  p_owner_email text DEFAULT NULL,
+  p_due_date_from date DEFAULT NULL,
+  p_due_date_to date DEFAULT NULL,
+  p_status int DEFAULT NULL
+) RETURNS TABLE (
+  id uuid,
+  user_name text,
+  user_email text,
+  amount numeric,
+  currency text,
+  item_count int,
+  created timestamptz,
+  due_date timestamptz,
+  status int,
+  paid_at timestamptz,
+  items jsonb
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_current_user uuid;
+  v_is_admin boolean := false;
+BEGIN
+  v_current_user := auth.uid();
+  IF v_current_user IS NULL THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1
+    FROM public."Members" m
+    WHERE m."UserId" = v_current_user
+      AND m."IsDeleted" = false
+      AND m."Role" = 'admin'
+  )
+  INTO v_is_admin;
+
+  IF NOT v_is_admin THEN
+    RAISE EXCEPTION 'Forbidden: admin only';
+  END IF;
+
+  RETURN QUERY
+  WITH receipt_base AS (
+    SELECT
+      br."Id" AS id,
+      br."Amount" AS amount,
+      br."Currency" AS currency,
+      br."Status" AS status,
+      br."Created" AS created,
+      br."DueDate" AS due_date,
+      br."PaidAt" AS paid_at
+    FROM public."BookingReceipts" br
+    WHERE br."IsDeleted" = false
+      AND (p_status IS NULL OR br."Status" = p_status)
+      AND (p_due_date_from IS NULL OR br."DueDate"::date >= p_due_date_from)
+      AND (p_due_date_to IS NULL OR br."DueDate"::date <= p_due_date_to)
+  ),
+  receipt_owner AS (
+    SELECT DISTINCT ON (rb.id)
+      rb.id,
+      CASE
+        WHEN o."OwnerType" = 'member' THEN CONCAT_WS(' ', m."FirstName", m."LastName")
+        WHEN o."OwnerType" = 'company' THEN c."Name"
+        ELSE NULL
+      END AS user_name,
+      CASE
+        WHEN o."OwnerType" = 'member' THEN m."Email"
+        WHEN o."OwnerType" = 'company' THEN c."BillingEmail"
+        ELSE NULL
+      END AS user_email
+    FROM receipt_base rb
+    LEFT JOIN public."BookingReceiptItems" bri
+      ON bri."BookingReceiptId" = rb.id
+    LEFT JOIN public."Bookings" b
+      ON b."Id" = bri."BookingId"
+    LEFT JOIN public."EstateProperties" ep
+      ON ep."Id" = b."EstatePropertyId"
+    LEFT JOIN public."Owners" o
+      ON o."Id" = ep."OwnerId"
+      AND o."IsDeleted" = false
+    LEFT JOIN public."Members" m
+      ON m."Id" = o."MemberId"
+      AND m."IsDeleted" = false
+    LEFT JOIN public."Companies" c
+      ON c."Id" = o."CompanyId"
+      AND c."IsDeleted" = false
+    ORDER BY rb.id, bri."Id" ASC
+  ),
+  filtered_receipts AS (
+    SELECT rb.*
+    FROM receipt_base rb
+    JOIN receipt_owner ro ON ro.id = rb.id
+    WHERE (p_owner_name IS NULL OR COALESCE(ro.user_name, '') ILIKE ('%' || p_owner_name || '%'))
+      AND (p_owner_email IS NULL OR COALESCE(ro.user_email, '') ILIKE ('%' || p_owner_email || '%'))
+  )
+  SELECT
+    fr.id,
+    COALESCE(ro.user_name, 'Sin propietario')::text AS user_name,
+    COALESCE(ro.user_email, '')::text AS user_email,
+    COALESCE(fr.amount, 0)::numeric AS amount,
+    COALESCE(fr.currency, 'USD')::text AS currency,
+    (
+      SELECT COUNT(*)
+      FROM public."BookingReceiptItems" bri
+      WHERE bri."BookingReceiptId" = fr.id
+    )::int AS item_count,
+    fr.created::timestamptz,
+    fr.due_date::timestamptz,
+    COALESCE(fr.status, 0)::int AS status,
+    fr.paid_at::timestamptz,
+    COALESCE(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'id', bri."Id",
+            'bookingId', bri."BookingId",
+            'amount', COALESCE(bri."Amount", 0),
+            'bookingCheckInDate', b."CheckInDate",
+            'bookingCheckOutDate', b."CheckOutDate"
+          )
+          ORDER BY b."CheckInDate" ASC NULLS LAST
+        )
+        FROM public."BookingReceiptItems" bri
+        LEFT JOIN public."Bookings" b
+          ON b."Id" = bri."BookingId"
+        WHERE bri."BookingReceiptId" = fr.id
+      ),
+      '[]'::jsonb
+    )::jsonb AS items
+  FROM filtered_receipts fr
+  LEFT JOIN receipt_owner ro ON ro.id = fr.id
+  ORDER BY fr.created DESC;
 END;
 $$;
 

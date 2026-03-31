@@ -10,8 +10,11 @@ export function AdminPaymentsPage() {
     activeSection,
     setActiveSection,
     filters,
+    receiptFilters,
     updateFilters,
     resetFilters,
+    updateReceiptFilters,
+    resetReceiptFilters,
     bookings,
     receipts,
     loadingBookings,
@@ -29,9 +32,8 @@ export function AdminPaymentsPage() {
   } = useAdminPayments();
 
   useEffect(() => {
-    loadBookings();
     loadReceipts();
-  }, [loadBookings, loadReceipts]);
+  }, [loadReceipts]);
 
   return (
     <div className="space-y-6" data-testid="admin-payments-page">
@@ -68,9 +70,17 @@ export function AdminPaymentsPage() {
           <TabItem active={activeSection === 'receipts'} title="Recibos (Gestión y seguimiento)">
             <ReceiptsManagementSection
               receipts={receipts}
+              ownerName={receiptFilters.ownerName}
+              ownerEmail={receiptFilters.ownerEmail}
+              dueDateFrom={receiptFilters.dueDateFrom}
+              dueDateTo={receiptFilters.dueDateTo}
+              status={receiptFilters.status}
               loading={loadingReceipts}
               error={receiptsError}
               updatingReceiptId={updatingReceiptId}
+              onChangeFilter={updateReceiptFilters}
+              onResetFilters={resetReceiptFilters}
+              onApplyFilters={loadReceipts}
               onRefresh={loadReceipts}
               onUpdateStatus={setReceiptStatus}
             />

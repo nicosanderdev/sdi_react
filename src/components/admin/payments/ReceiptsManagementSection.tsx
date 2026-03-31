@@ -1,13 +1,28 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
-import { AdminReceiptRow } from '../../../services/PaymentsAdminService';
+import { Alert, Badge, Button, Card, Label, Select, Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput } from 'flowbite-react';
+import { Search } from 'lucide-react';
+import { AdminReceiptRow, ReceiptFilterStatus } from '../../../services/PaymentsAdminService';
 import { ReceiptDetailsModal } from './ReceiptDetailsModal';
 
 interface Props {
   receipts: AdminReceiptRow[];
+  ownerName: string;
+  ownerEmail: string;
+  dueDateFrom: string;
+  dueDateTo: string;
+  status: ReceiptFilterStatus;
   loading: boolean;
   error: string | null;
   updatingReceiptId: string | null;
+  onChangeFilter: (patch: Partial<{
+    ownerName: string;
+    ownerEmail: string;
+    dueDateFrom: string;
+    dueDateTo: string;
+    status: ReceiptFilterStatus;
+  }>) => void;
+  onResetFilters: () => void;
+  onApplyFilters: () => void;
   onRefresh: () => void;
   onUpdateStatus: (receiptId: string, isPaid: boolean) => Promise<void>;
 }
@@ -28,9 +43,17 @@ function statusBadge(status: number) {
 
 export function ReceiptsManagementSection({
   receipts,
+  ownerName,
+  ownerEmail,
+  dueDateFrom,
+  dueDateTo,
+  status,
   loading,
   error,
   updatingReceiptId,
+  onChangeFilter,
+  onResetFilters,
+  onApplyFilters,
   onRefresh,
   onUpdateStatus
 }: Props) {
@@ -39,10 +62,64 @@ export function ReceiptsManagementSection({
   return (
     <div className="space-y-4">
       <Card>
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Gestiona recibos ya generados y su estado de pago.
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <Label htmlFor="receipts-owner-name-filter">Nombre del propietario</Label>
+            <TextInput
+              id="receipts-owner-name-filter"
+              icon={Search}
+              placeholder="Nombre del propietario"
+              value={ownerName}
+              onChange={(event) => onChangeFilter({ ownerName: event.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="receipts-owner-email-filter">Email del propietario</Label>
+            <TextInput
+              id="receipts-owner-email-filter"
+              placeholder="Email del propietario"
+              value={ownerEmail}
+              onChange={(event) => onChangeFilter({ ownerEmail: event.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="receipts-status-filter">Estado de pago</Label>
+            <Select
+              id="receipts-status-filter"
+              value={status}
+              onChange={(event) => onChangeFilter({ status: event.target.value as ReceiptFilterStatus })}
+            >
+              <option value="all">Todos</option>
+              <option value="paid">Pagado</option>
+              <option value="unpaid">Pendiente</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="receipts-due-date-from">Vence desde</Label>
+            <TextInput
+              id="receipts-due-date-from"
+              type="date"
+              value={dueDateFrom}
+              onChange={(event) => onChangeFilter({ dueDateFrom: event.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="receipts-due-date-to">Vence hasta</Label>
+            <TextInput
+              id="receipts-due-date-to"
+              type="date"
+              value={dueDateTo}
+              onChange={(event) => onChangeFilter({ dueDateTo: event.target.value })}
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-4">
+          <Button color="green" onClick={onApplyFilters}>
+            Aplicar filtros
+          </Button>
+          <Button color="alternative" onClick={onResetFilters}>
+            Limpiar
+          </Button>
           <Button color="light" onClick={onRefresh}>
             Recargar
           </Button>
@@ -94,26 +171,26 @@ export function ReceiptsManagementSection({
                       <TableCell>{statusBadge(receipt.status)}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button size="xs" color="light" onClick={() => setSelectedReceipt(receipt)}>
+                          <Button size="xs" color="alternative" onClick={() => setSelectedReceipt(receipt)}>
                             Ver detalle
                           </Button>
                           {receipt.status === 1 ? (
                             <Button
                               size="xs"
-                              color="warning"
+                              color="red"
                               disabled={updatingReceiptId === receipt.id}
                               onClick={() => onUpdateStatus(receipt.id, false)}
                             >
-                              Mark Unpaid
+                              Marcar como no pagado
                             </Button>
                           ) : (
                             <Button
                               size="xs"
-                              color="success"
+                              color="green"
                               disabled={updatingReceiptId === receipt.id}
                               onClick={() => onUpdateStatus(receipt.id, true)}
                             >
-                              Mark Paid
+                              Marcar como pagado
                             </Button>
                           )}
                         </div>

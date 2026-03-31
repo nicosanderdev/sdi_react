@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import paymentsAdminService, {
   AdminPaymentBookingRow,
   AdminReceiptRow,
-  PaymentFilterStatus
+  PaymentFilterStatus,
+  ReceiptFilterStatus
 } from '../services/PaymentsAdminService';
 
 interface BookingFiltersState {
@@ -12,6 +13,14 @@ interface BookingFiltersState {
   toDate: string;
 }
 
+interface ReceiptFiltersState {
+  ownerName: string;
+  ownerEmail: string;
+  dueDateFrom: string;
+  dueDateTo: string;
+  status: ReceiptFilterStatus;
+}
+
 const defaultFilters: BookingFiltersState = {
   userSearch: '',
   paymentStatus: 'all',
@@ -19,9 +28,18 @@ const defaultFilters: BookingFiltersState = {
   toDate: ''
 };
 
+const defaultReceiptFilters: ReceiptFiltersState = {
+  ownerName: '',
+  ownerEmail: '',
+  dueDateFrom: '',
+  dueDateTo: '',
+  status: 'all'
+};
+
 export function useAdminPayments() {
   const [activeSection, setActiveSection] = useState<'bookings' | 'receipts'>('bookings');
   const [filters, setFilters] = useState<BookingFiltersState>(defaultFilters);
+  const [receiptFilters, setReceiptFilters] = useState<ReceiptFiltersState>(defaultReceiptFilters);
   const [bookings, setBookings] = useState<AdminPaymentBookingRow[]>([]);
   const [receipts, setReceipts] = useState<AdminReceiptRow[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -43,6 +61,12 @@ export function useAdminPayments() {
 
   const loadBookings = useCallback(async () => {
     const searchTerm = filters.userSearch.trim();
+    if (!searchTerm) {
+      setBookings([]);
+      setBookingsError(null);
+      return;
+    }
+
     setBookingsError(null);
 
     setLoadingBookings(true);
@@ -66,7 +90,7 @@ export function useAdminPayments() {
     setLoadingReceipts(true);
     setReceiptsError(null);
     try {
-      const data = await paymentsAdminService.getReceipts();
+      const data = await paymentsAdminService.getReceipts(receiptFilters);
       setReceipts(data);
     } catch (error: any) {
       setReceiptsError(error.message || 'Error al cargar recibos');
@@ -74,7 +98,7 @@ export function useAdminPayments() {
     } finally {
       setLoadingReceipts(false);
     }
-  }, []);
+  }, [receiptFilters]);
 
   const updateFilters = useCallback((patch: Partial<BookingFiltersState>) => {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -84,6 +108,14 @@ export function useAdminPayments() {
     setFilters(defaultFilters);
     setBookings([]);
     setBookingsError(null);
+  }, []);
+
+  const updateReceiptFilters = useCallback((patch: Partial<ReceiptFiltersState>) => {
+    setReceiptFilters((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const resetReceiptFilters = useCallback(() => {
+    setReceiptFilters(defaultReceiptFilters);
   }, []);
 
   const generateReceipt = useCallback(async () => {
@@ -124,8 +156,11 @@ export function useAdminPayments() {
     activeSection,
     setActiveSection,
     filters,
+    receiptFilters,
     updateFilters,
     resetFilters,
+    updateReceiptFilters,
+    resetReceiptFilters,
     bookings,
     receipts,
     loadingBookings,

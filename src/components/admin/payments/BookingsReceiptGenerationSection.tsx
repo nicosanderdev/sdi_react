@@ -99,10 +99,14 @@ export function BookingsReceiptGenerationSection(props: Props) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 pt-4">
-          <Button color="primary" onClick={onApplyFilters}>
+          <Button 
+          color="green" 
+          onClick={onApplyFilters}>
             Aplicar filtros
           </Button>
-          <Button color="light" onClick={onResetFilters}>
+          <Button 
+          color="alternative" 
+          onClick={onResetFilters}>
             Limpiar
           </Button>
         </div>

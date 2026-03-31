@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase';
 
 export type PaymentFilterStatus = 'all' | 'paid' | 'unpaid';
+export type ReceiptFilterStatus = 'all' | 'paid' | 'unpaid';
 
 export interface AdminPaymentBookingRow {
   id: string;
@@ -31,6 +32,7 @@ export interface AdminReceiptRow {
   currency: string;
   itemCount: number;
   created: string;
+  dueDate: string;
   status: number;
   paidAt: string | null;
   items: AdminReceiptItemRow[];
@@ -41,6 +43,14 @@ export interface BookingFiltersInput {
   paymentStatus: PaymentFilterStatus;
   fromDate: string;
   toDate: string;
+}
+
+export interface ReceiptFiltersInput {
+  ownerName: string;
+  ownerEmail: string;
+  dueDateFrom: string;
+  dueDateTo: string;
+  status: ReceiptFilterStatus;
 }
 
 function mapCurrencyCode(currency: number): string {
@@ -350,87 +360,46 @@ class PaymentsAdminService {
     });
   }
 
-  async getReceipts(): Promise<AdminReceiptRow[]> {
-    const { data, error } = await supabase
-      .from('BookingReceipts')
-      .select(`
-        Id,
-        Amount,
-        Currency,
-        Status,
-        Created,
-        PaidAt,
-        BookingReceiptItems(
-          Id,
-          BookingId,
-          Amount,
-          Bookings:Bookings!FK_BookingReceiptItems_Bookings_BookingId(
-            Id,
-            CheckInDate,
-            CheckOutDate,
-            EstatePropertyId
-          )
-        )
-      `)
-      .eq('IsDeleted', false)
-      .order('Created', { ascending: false })
-      .limit(200);
+  async getReceipts(filters?: Partial<ReceiptFiltersInput>): Promise<AdminReceiptRow[]> {
+    const statusFilter = filters?.status ?? 'all';
+    const p_status = statusFilter === 'paid' ? 1 : statusFilter === 'unpaid' ? 0 : null;
+    const p_owner_name = filters?.ownerName?.trim() || null;
+    const p_owner_email = filters?.ownerEmail?.trim() || null;
+    const p_due_date_from = filters?.dueDateFrom?.trim() || null;
+    const p_due_date_to = filters?.dueDateTo?.trim() || null;
+
+    const { data, error } = await supabase.rpc('admin_get_booking_receipts', {
+      p_owner_name,
+      p_owner_email,
+      p_due_date_from,
+      p_due_date_to,
+      p_status
+    });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    const estatePropertyIds = Array.from(
-      new Set(
-        (data ?? [])
-          .flatMap((row: any) => row.BookingReceiptItems ?? [])
-          .map((item: any) => item.Bookings?.EstatePropertyId)
-          .filter((value: string | null) => Boolean(value))
-      )
-    ) as string[];
-
-    const { data: estateProperties, error: estatePropertiesError } =
-      estatePropertyIds.length > 0
-        ? await supabase
-            .from('EstateProperties')
-            .select('Id,OwnerId')
-            .eq('IsDeleted', false)
-            .in('Id', estatePropertyIds)
-        : { data: [], error: null };
-
-    if (estatePropertiesError) {
-      throw new Error(estatePropertiesError.message);
-    }
-
-    const ownerIdByPropertyId = new Map<string, string>(
-      (estateProperties ?? [])
-        .filter((property: any) => Boolean(property.OwnerId))
-        .map((property: any) => [property.Id, property.OwnerId])
-    );
-    const ownerIdentityByOwnerId = await buildOwnerIdentityByOwnerId(Array.from(ownerIdByPropertyId.values()));
-
     return (data ?? []).map((row: any) => {
-      const firstBooking = row.BookingReceiptItems?.[0]?.Bookings;
-      const firstOwnerId = ownerIdByPropertyId.get(firstBooking?.EstatePropertyId ?? '');
-      const ownerIdentity = firstOwnerId ? ownerIdentityByOwnerId.get(firstOwnerId) : undefined;
-      const items: AdminReceiptItemRow[] = (row.BookingReceiptItems ?? []).map((item: any) => ({
-        id: item.Id,
-        bookingId: item.BookingId,
-        amount: Number(item.Amount ?? 0),
-        bookingCheckInDate: item.Bookings?.CheckInDate ?? '',
-        bookingCheckOutDate: item.Bookings?.CheckOutDate ?? ''
+      const items: AdminReceiptItemRow[] = (row.items ?? []).map((item: any) => ({
+        id: item.id,
+        bookingId: item.bookingId,
+        amount: Number(item.amount ?? 0),
+        bookingCheckInDate: item.bookingCheckInDate ?? '',
+        bookingCheckOutDate: item.bookingCheckOutDate ?? ''
       }));
 
       return {
-        id: row.Id,
-        userName: ownerIdentity?.name ?? 'Sin propietario',
-        userEmail: ownerIdentity?.email ?? '',
-        amount: Number(row.Amount ?? 0),
-        currency: row.Currency ?? mapCurrencyCode(0),
-        itemCount: items.length,
-        created: row.Created,
-        status: Number(row.Status ?? 0),
-        paidAt: row.PaidAt ?? null,
+        id: row.id,
+        userName: row.user_name ?? 'Sin propietario',
+        userEmail: row.user_email ?? '',
+        amount: Number(row.amount ?? 0),
+        currency: row.currency ?? mapCurrencyCode(0),
+        itemCount: Number(row.item_count ?? items.length),
+        created: row.created,
+        dueDate: row.due_date,
+        status: Number(row.status ?? 0),
+        paidAt: row.paid_at ?? null,
         items
       };
     });
