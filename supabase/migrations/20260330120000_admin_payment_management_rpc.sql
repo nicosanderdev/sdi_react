@@ -347,6 +347,15 @@ BEGIN
     RAISE EXCEPTION 'Forbidden: admin only';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public."BookingReceipts" br
+    WHERE br."Id" = p_receipt_id
+      AND br."IsDeleted" = false
+  ) THEN
+    RAISE EXCEPTION 'Receipt not found';
+  END IF;
+
   UPDATE public."BookingReceipts"
   SET
     "Status" = CASE WHEN p_is_paid THEN 1 ELSE 0 END,
@@ -355,10 +364,6 @@ BEGIN
     "LastModifiedBy" = v_current_user::text
   WHERE "Id" = p_receipt_id
     AND "IsDeleted" = false;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Receipt not found';
-  END IF;
 
   UPDATE public."Bookings" b
   SET
@@ -369,4 +374,167 @@ BEGIN
   WHERE bri."BookingReceiptId" = p_receipt_id
     AND bri."BookingId" = b."Id";
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_admin_logs_for_date(p_date date)
+RETURNS TABLE (
+  event_type text,
+  action text,
+  at timestamp with time zone,
+  target_id uuid,
+  target_display text,
+  performed_by_display text,
+  details jsonb
+)
+LANGUAGE sql
+SET search_path TO 'public'
+AS $$
+  SELECT event_type, action, at, target_id, target_display, performed_by_display, details
+  FROM (
+    -- User events
+    SELECT
+      'user'::text AS event_type,
+      mah."ActionType"::text AS action,
+      mah."PerformedAt" AS at,
+      mah."MemberId" AS target_id,
+      TRIM(COALESCE(t."FirstName", '') || ' ' || COALESCE(t."LastName", ''))
+        || COALESCE(' <' || NULLIF(TRIM(t."Email"), '') || '>', '') AS target_display,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(p."FirstName", '') || ' ' || COALESCE(p."LastName", '')), ''),
+        NULLIF(TRIM(p."Email"), ''),
+        mah."PerformedBy"::text,
+        'Unknown User'
+      ) AS performed_by_display,
+      mah."ActionDetails" AS details
+    FROM public."MemberActionHistory" mah
+    JOIN public."Members" t ON t."Id" = mah."MemberId" AND t."IsDeleted" = false
+    LEFT JOIN public."Members" p ON p."Id" = mah."PerformedBy" AND p."IsDeleted" = false
+    WHERE mah."IsDeleted" = false
+      AND mah."PerformedAt" >= p_date::timestamptz
+      AND mah."PerformedAt" < (p_date + interval '1 day')::timestamptz
+
+    UNION ALL
+
+    -- Property events
+    SELECT
+      'property'::text AS event_type,
+      pma."ActionType"::text AS action,
+      pma."PerformedAt" AS at,
+      pma."PropertyId" AS target_id,
+      COALESCE(ll."Title", '') AS target_display,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(m."FirstName", '') || ' ' || COALESCE(m."LastName", '')), ''),
+        NULLIF(TRIM(m."Email"), ''),
+        pma."PerformedBy"::text,
+        'Unknown User'
+      ) AS performed_by_display,
+      jsonb_build_object('reason', pma."Reason") AS details
+    FROM public."PropertyModerationActions" pma
+    JOIN public."EstateProperties" ep
+      ON ep."Id" = pma."PropertyId" AND ep."IsDeleted" = false
+    LEFT JOIN LATERAL (
+      SELECT l."Title"
+      FROM public."Listings" l
+      WHERE l."EstatePropertyId" = pma."PropertyId" AND l."IsDeleted" = false
+      ORDER BY l."Created" DESC
+      LIMIT 1
+    ) ll ON true
+    LEFT JOIN public."Members" m
+      ON m."UserId" = pma."PerformedBy" AND m."IsDeleted" = false
+    WHERE pma."IsDeleted" = false
+      AND pma."PerformedAt" >= p_date::timestamptz
+      AND pma."PerformedAt" < (p_date + interval '1 day')::timestamptz
+
+    UNION ALL
+
+    -- Booking created
+    SELECT
+      'booking'::text AS event_type,
+      'created'::text AS action,
+      b."Created" AS at,
+      b."Id" AS target_id,
+      'Booking ' || b."Id"::text AS target_display,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(mc_id."FirstName", '') || ' ' || COALESCE(mc_id."LastName", '')), ''),
+        NULLIF(TRIM(mc_id."Email"), ''),
+        NULLIF(TRIM(COALESCE(mc_user."FirstName", '') || ' ' || COALESCE(mc_user."LastName", '')), ''),
+        NULLIF(TRIM(mc_user."Email"), ''),
+        NULLIF(b."CreatedBy", ''),
+        'Unknown User'
+      ) AS performed_by_display,
+      jsonb_build_object('estatePropertyId', b."EstatePropertyId", 'checkIn', b."CheckInDate", 'checkOut', b."CheckOutDate") AS details
+    FROM public."Bookings" b
+    LEFT JOIN public."Members" mc_id
+      ON mc_id."Id"::text = b."CreatedBy" AND mc_id."IsDeleted" = false
+    LEFT JOIN public."Members" mc_user
+      ON mc_user."UserId"::text = b."CreatedBy" AND mc_user."IsDeleted" = false
+    WHERE b."IsDeleted" = false
+      AND b."Created" >= p_date::timestamptz
+      AND b."Created" < (p_date + interval '1 day')::timestamptz
+
+    UNION ALL
+
+    -- Booking updated
+    SELECT
+      'booking'::text AS event_type,
+      'updated'::text AS action,
+      b."LastModified" AS at,
+      b."Id" AS target_id,
+      'Booking ' || b."Id"::text AS target_display,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(mu_id."FirstName", '') || ' ' || COALESCE(mu_id."LastName", '')), ''),
+        NULLIF(TRIM(mu_id."Email"), ''),
+        NULLIF(TRIM(COALESCE(mu_user."FirstName", '') || ' ' || COALESCE(mu_user."LastName", '')), ''),
+        NULLIF(TRIM(mu_user."Email"), ''),
+        NULLIF(b."LastModifiedBy", ''),
+        'Unknown User'
+      ) AS performed_by_display,
+      jsonb_build_object('estatePropertyId', b."EstatePropertyId", 'checkIn', b."CheckInDate", 'checkOut', b."CheckOutDate") AS details
+    FROM public."Bookings" b
+    LEFT JOIN public."Members" mu_id
+      ON mu_id."Id"::text = b."LastModifiedBy" AND mu_id."IsDeleted" = false
+    LEFT JOIN public."Members" mu_user
+      ON mu_user."UserId"::text = b."LastModifiedBy" AND mu_user."IsDeleted" = false
+    WHERE b."IsDeleted" = false
+      AND b."LastModified" >= p_date::timestamptz
+      AND b."LastModified" < (p_date + interval '1 day')::timestamptz
+      AND b."LastModified" <> b."Created"
+
+    UNION ALL
+
+    -- Receipt marked as paid (derived from existing receipt state updates)
+    SELECT
+      'booking'::text AS event_type,
+      'RECEIPT_MARKED_AS_PAID'::text AS action,
+      br."LastModified" AS at,
+      br."Id" AS target_id,
+      'Receipt ' || br."Id"::text AS target_display,
+      COALESCE(
+        NULLIF(TRIM(COALESCE(rm_id."FirstName", '') || ' ' || COALESCE(rm_id."LastName", '')), ''),
+        NULLIF(TRIM(rm_id."Email"), ''),
+        NULLIF(TRIM(COALESCE(rm_user."FirstName", '') || ' ' || COALESCE(rm_user."LastName", '')), ''),
+        NULLIF(TRIM(rm_user."Email"), ''),
+        NULLIF(br."LastModifiedBy", ''),
+        'Unknown User'
+      ) AS performed_by_display,
+      jsonb_build_object(
+        'receiptId', br."Id",
+        'bookingIds', COALESCE((
+          SELECT jsonb_agg(bri."BookingId" ORDER BY bri."BookingId")
+          FROM public."BookingReceiptItems" bri
+          WHERE bri."BookingReceiptId" = br."Id"
+        ), '[]'::jsonb)
+      ) AS details
+    FROM public."BookingReceipts" br
+    LEFT JOIN public."Members" rm_id
+      ON rm_id."Id"::text = br."LastModifiedBy" AND rm_id."IsDeleted" = false
+    LEFT JOIN public."Members" rm_user
+      ON rm_user."UserId"::text = br."LastModifiedBy" AND rm_user."IsDeleted" = false
+    WHERE br."IsDeleted" = false
+      AND br."Status" = 1
+      AND br."PaidAt" IS NOT NULL
+      AND br."LastModified" >= p_date::timestamptz
+      AND br."LastModified" < (p_date + interval '1 day')::timestamptz
+  ) logs
+  ORDER BY at DESC;
 $$;
