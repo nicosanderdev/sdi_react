@@ -87,7 +87,7 @@ export async function currentUserHasOwnerRecord(userId?: string): Promise<boolea
   if (!memberOwnerError && memberOwners?.length) return true;
 
   const { data: companies, error: companiesError } = await supabase
-    .from('UserCompanies')
+    .from('CompanyMembers')
     .select('CompanyId')
     .eq('MemberId', member.Id)
     .eq('IsDeleted', false);

@@ -121,7 +121,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
 
             if (member) {
                 const { data: userCompanies, error: companiesError } = await supabase
-                    .from('UserCompanies')
+                    .from('CompanyMembers')
                     .select('CompanyId')
                     .eq('MemberId', member.Id)
                     .eq('IsDeleted', false);
@@ -345,7 +345,7 @@ const getBillingHistory = async (filters?: {
 
             if (member) {
                 const { data: userCompanies, error: companiesError } = await supabase
-                    .from('UserCompanies')
+                    .from('CompanyMembers')
                     .select('CompanyId')
                     .eq('MemberId', member.Id)
                     .eq('IsDeleted', false);
@@ -586,7 +586,7 @@ const getSubscriptionStatus = async (user?: any): Promise<{
 
         if (member) {
             const { data: userCompanies, error: companiesError } = await supabase
-                .from('UserCompanies')
+                .from('CompanyMembers')
                 .select('CompanyId')
                 .eq('MemberId', member.Id)
                 .eq('IsDeleted', false);

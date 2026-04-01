@@ -300,7 +300,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         // Get all company IDs for this member
         const { data: userCompanies, error: companiesError } = await supabase
-            .from('UserCompanies')
+            .from('CompanyMembers')
             .select('CompanyId')
             .eq('MemberId', member.Id)
             .eq('IsDeleted', false);
@@ -418,7 +418,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
         if (params?.companyId === 'all-companies') {
             // For all companies, get all company IDs for this member
             const { data: userCompanies, error: companiesError } = await supabase
-                .from('UserCompanies')
+                .from('CompanyMembers')
                 .select('CompanyId')
                 .eq('MemberId', member.Id)
                 .eq('IsDeleted', false);
@@ -1284,7 +1284,7 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
 
         // Get company IDs that this user belongs to
         const { data: userCompanies, error: companiesError } = await supabase
-            .from('UserCompanies')
+            .from('CompanyMembers')
             .select('CompanyId')
             .eq('MemberId', member.Id)
             .eq('IsDeleted', false);
