@@ -114,72 +114,93 @@ Deno.serve(async (req) => {
         console.error('Error updating payment intent:', updateIntentError)
       }
 
-      // Create or update subscription
-      const subscriptionData = {
-        OwnerType: paymentIntent.entity_type === 'user' ? 0 : 1, // Assuming 0 = user, 1 = company
-        OwnerId: paymentIntent.entity_id,
-        PlanId: paymentIntent.plan_id,
-        Status: 1, // Assuming 1 = active
-        CurrentPeriodStart: currentPeriodStart,
-        CurrentPeriodEnd: currentPeriodEnd.toISOString(),
-        CancelAtPeriodEnd: false,
-        CreatedAt: now,
-        UpdatedAt: now,
-        ProviderSubscriptionId: dlocalPaymentId,
-        ProviderCustomerId: payload.customer.id,
-        IsDeleted: false
+      // New billing model: map intent to member and create/update MemberPlans + BillingCycles + Invoices
+      let memberId: string | null = null
+      if (paymentIntent.entity_type === 'user') {
+        const { data: member } = await supabase
+          .from('Members')
+          .select('Id')
+          .eq('UserId', paymentIntent.entity_id)
+          .eq('IsDeleted', false)
+          .maybeSingle()
+        memberId = member?.Id ?? null
+      } else {
+        const { data: companyMember } = await supabase
+          .from('CompanyMembers')
+          .select('MemberId')
+          .eq('CompanyId', paymentIntent.entity_id)
+          .eq('IsDeleted', false)
+          .limit(1)
+          .maybeSingle()
+        memberId = companyMember?.MemberId ?? null
       }
 
-      // Check if subscription already exists
-      const { data: existingSubscription } = await supabase
-        .from('Subscriptions')
+      if (!memberId) {
+        return new Response(JSON.stringify({ error: 'No member mapping for payment entity' }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      const { data: existingMemberPlan } = await supabase
+        .from('MemberPlans')
         .select('Id')
-        .eq('OwnerType', subscriptionData.OwnerType)
-        .eq('OwnerId', subscriptionData.OwnerId)
-        .eq('IsDeleted', false)
+        .eq('MemberId', memberId)
+        .eq('IsActive', true)
+        .order('StartDate', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (existingMemberPlan?.Id) {
+        await supabase
+          .from('MemberPlans')
+          .update({
+            PlanId: paymentIntent.plan_id,
+            StartDate: currentPeriodStart,
+            EndDate: currentPeriodEnd.toISOString(),
+            LastModified: now
+          })
+          .eq('Id', existingMemberPlan.Id)
+      } else {
+        await supabase
+          .from('MemberPlans')
+          .insert({
+            MemberId: memberId,
+            PlanId: paymentIntent.plan_id,
+            StartDate: currentPeriodStart,
+            EndDate: currentPeriodEnd.toISOString(),
+            IsActive: true,
+            Created: now,
+            LastModified: now
+          })
+      }
+
+      const { data: cycle } = await supabase
+        .from('BillingCycles')
+        .insert({
+          MemberId: memberId,
+          StartDate: currentPeriodStart,
+          EndDate: currentPeriodEnd.toISOString(),
+          Status: 'closed',
+          TotalAmount: amount / 100,
+          CreatedAt: now,
+          UpdatedAt: now
+        })
+        .select('Id')
         .single()
 
-      if (existingSubscription) {
-        // Update existing subscription
-        const { error: updateSubError } = await supabase
-          .from('Subscriptions')
-          .update(subscriptionData)
-          .eq('Id', existingSubscription.Id)
-
-        if (updateSubError) {
-          console.error('Error updating subscription:', updateSubError)
-        }
-      } else {
-        // Create new subscription
-        const { error: createSubError } = await supabase
-          .from('Subscriptions')
-          .insert(subscriptionData)
-
-        if (createSubError) {
-          console.error('Error creating subscription:', createSubError)
-        }
+      if (cycle?.Id) {
+        await supabase
+          .from('Invoices')
+          .insert({
+            MemberId: memberId,
+            BillingCycleId: cycle.Id,
+            Total: amount / 100,
+            Status: 'paid',
+            CreatedAt: now,
+            UpdatedAt: now
+          })
       }
-
-      // Create invoice record
-      // Note: This assumes you have an Invoices table with appropriate structure
-      const invoiceData = {
-        // Add your invoice fields here based on your schema
-        amount: amount / 100, // Convert from cents if needed
-        currency,
-        status: 'paid',
-        payment_intent_id: paymentIntentId,
-        dlocal_payment_id: dlocalPaymentId,
-        created_at: now
-      }
-
-      // Uncomment when you have the Invoices table
-      // const { error: invoiceError } = await supabase
-      //   .from('Invoices')
-      //   .insert(invoiceData)
-
-      // if (invoiceError) {
-      //   console.error('Error creating invoice:', invoiceError)
-      // }
 
       // Create payment receipt record
       // Note: This assumes you have a PaymentReceipts table
