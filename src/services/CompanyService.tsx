@@ -1,5 +1,3 @@
-// src/services/CompanyService.tsx
-import apiClient from './AxiosClient'; // Keep for file uploads if needed
 import { supabase } from '../config/supabase';
 import { CompanyUser } from '../models/companies/CompanyUser';
 import { CompanyInfo } from '../models/companies/CompanyInfo';
@@ -7,478 +5,238 @@ import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyReq
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
 import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 
-// Company role constants based on Supabase company_roles enum
-// Assuming enum values: 'Admin', 'Manager', 'Member'
-const COMPANY_ROLES = {
-  MEMBER: 'Member',
-  MANAGER: 'Manager',
-  ADMIN: 'Admin'
-} as const;
+const COMPANY_ROLES = { MEMBER: 'Member', ADMIN: 'Admin', MANAGER: 'Manager' } as const;
 
+/** Platform-wide admin (Members.Role), not company role. */
+const isPlatformAdminMember = (member: { Role?: string | null }): boolean =>
+  String(member.Role ?? '').toLowerCase() === 'admin';
+
+/** CompanyMembers.Role: Admin or Manager can invite/remove members (string or legacy numeric). */
+const isElevatedCompanyRole = (role: unknown): boolean => {
+  if (role === null || role === undefined) return false;
+  if (typeof role === 'string') {
+    const r = role.trim();
+    return r === COMPANY_ROLES.ADMIN || r === COMPANY_ROLES.MANAGER;
+  }
+  if (typeof role === 'number') return role === 1 || role === 2;
+  const s = String(role);
+  return s === '1' || s === '2';
+};
+
+export interface AdminCompanyFilters { search?: string; status?: 'active' | 'deleted'; page?: number; limit?: number }
+export interface AdminCompanyListItem { id: string; name: string; billingEmail: string; createdAt: string; isDeleted: boolean; status: 'active' | 'deleted'; membersCount: number }
+export interface AdminCompanyListResponse { companies: AdminCompanyListItem[]; total: number }
+export interface AdminCompanyMetrics { totalCompanies: number; activeCompanies: number; companiesCreatedThisMonth: number }
+export interface AdminCompanyMember { id: string; memberId: string; companyId: string; role: string; joinedAt: string; fullName: string; email: string }
+export interface AdminCompanyDetail { company: CompanyInfo; members: AdminCompanyMember[] }
+export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string }
+export interface AdminUpdateCompanyPayload { name: string; billingEmail: string; description?: string; phone?: string }
+export interface AddCompanyMemberResult { success: boolean; message: string; member?: AdminCompanyMember }
 export type { CompanyUser, CompanyInfo, AddUserToCompanyRequest, UpdateCompanyProfilePayload };
 
-const ENDPOINTS = {
-  COMPANY_INFO: '/company/me',
-  COMPANY_USERS: '/company/me/users',
-  ADD_USER: '/company/me/users',
-  REMOVE_USER: (userId: string) => `/company/me/users/${userId}`,
-  UPDATE_PROFILE: '/company/me/profile',
-  UPLOAD_LOGO: '/company/me/logo',
-  UPLOAD_BANNER: '/company/me/banner',
-  CREATE_COMPANY: '/companies',
-};
+const mapAdminMember = (row: any): AdminCompanyMember => ({
+  id: row.Id,
+  memberId: row.MemberId,
+  companyId: row.CompanyId,
+  role: row.Role,
+  joinedAt: row.JoinedAt,
+  fullName: `${row.Members?.FirstName ?? ''} ${row.Members?.LastName ?? ''}`.trim() || 'Sin nombre',
+  email: row.Members?.Email ?? '',
+});
 
-/**
- * Fetches the current user's company information
- */
 const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
-  try {
-    const userId = await getCurrentUserId();
-
-    const member = await getMemberByUserId(userId);
-    if (!member) {
-      throw new Error('User is not a member of any company');
-    }
-
-    // Get the user's company membership (optionally for a specific company)
-    let query = supabase
-      .from('UserCompanies')
-      .select(`
-        *,
-        Companies!FK_UserCompanies_Companies_CompanyId (*)
-      `)
-      .eq('MemberId', member.Id)
-      .eq('IsDeleted', false);
-
-    if (companyId) {
-      query = query.eq('CompanyId', companyId);
-    } else {
-      query = query.order('JoinedAt', { ascending: true });
-    }
-
-    const { data: userCompany, error: ucError } = await query
-      .limit(1)
-      .single();
-
-    if (ucError) throw ucError;
-
-    // Check if company is deleted
-    if (userCompany.Companies.IsDeleted) {
-      throw new Error('Company has been deleted');
-    }
-
-    if (ucError) {
-      if ((ucError as any).code === 'PGRST116') {
-        throw new Error('User is not a member of any company');
-      }
-      throw ucError;
-    }
-
-    return mapDbToCompany(userCompany.Companies);
-
-  } catch (error: any) {
-    console.error('Error fetching company info:', error.message);
-    throw error;
-  }
+  const member = await getMemberByUserId(await getCurrentUserId());
+  if (!member) throw new Error('User is not a member of any company');
+  let query = supabase
+    .from('CompanyMembers')
+    .select('*, Companies!FK_CompanyMembers_Companies_CompanyId (*)')
+    .eq('MemberId', member.Id)
+    .eq('IsDeleted', false);
+  query = companyId ? query.eq('CompanyId', companyId) : query.order('JoinedAt', { ascending: true });
+  const { data, error } = await query.limit(1).single();
+  if (error) throw error;
+  return mapDbToCompany(data.Companies);
 };
 
-/**
- * Creates a new company and adds the current user as admin
- */
-const createCompany = async (companyData: {
-  name: string;
-  description?: string;
-  billingEmail?: string;
-}): Promise<CompanyInfo> => {
-  try {
-    const userId = await getCurrentUserId();
-    const nowIso = new Date().toISOString();
-
-    // Get current user profile for billing email
-    const { data: userProfile, error: profileError } = await supabase
-      .from('Members')
-      .select('Id')
-      .eq('UserId', userId)
-      .eq('IsDeleted', false)
-      .single();
-
-    if (profileError) throw profileError;
-
-    // Create company
-    const { data: newCompany, error: companyError } = await supabase
-      .from('Companies')
-      .insert({
-        Name: companyData.name,
-        Description: companyData.description || '',
-        BillingContactUserId: userId,
-        BillingEmail: companyData.billingEmail || '', // Will be updated after user provides it
-        CreatedAt: nowIso,
-        LogoUrl: '',
-        BannerUrl: '',
-        Street: '',
-        Street2: '',
-        City: '',
-        State: '',
-        PostalCode: '',
-        Country: '',
-        Phone: '',
-        IsDeleted: false,
-        Created: nowIso,
-        CreatedBy: userId,
-        LastModified: nowIso,
-        LastModifiedBy: userId
-      })
-      .select()
-      .single();
-
-    if (companyError) throw companyError;
-
-    // Add user as Admin to UserCompanies
-    const { error: membershipError } = await supabase
-      .from('UserCompanies')
-      .insert({
-        MemberId: userProfile.Id,
-        CompanyId: newCompany.Id,
-        Role: COMPANY_ROLES.ADMIN, // Admin role from company_roles enum
-        AddedBy: userId,
-        JoinedAt: new Date().toISOString(),
-        IsDeleted: false
-      });
-
-    if (membershipError) throw membershipError;
-
-    return mapDbToCompany(newCompany);
-
-  } catch (error: any) {
-    console.error('Error creating company:', error.message);
-    throw error;
-  }
+const createCompany = async (companyData: { name: string; description?: string; billingEmail?: string }): Promise<CompanyInfo> => {
+  const userId = await getCurrentUserId();
+  const now = new Date().toISOString();
+  const { data: profile, error: profileError } = await supabase.from('Members').select('Id').eq('UserId', userId).eq('IsDeleted', false).single();
+  if (profileError) throw profileError;
+  const { data: company, error: companyError } = await supabase.from('Companies').insert({ Name: companyData.name, Description: companyData.description || '', BillingContactUserId: userId, BillingEmail: companyData.billingEmail || '', CreatedAt: now, IsDeleted: false, Created: now, CreatedBy: userId, LastModified: now, LastModifiedBy: userId }).select('*').single();
+  if (companyError) throw companyError;
+  const { error: memberError } = await supabase.from('CompanyMembers').insert({ MemberId: profile.Id, CompanyId: company.Id, Role: COMPANY_ROLES.ADMIN, AddedBy: userId, JoinedAt: now, IsDeleted: false });
+  if (memberError) throw memberError;
+  return mapDbToCompany(company);
 };
 
-/**
- * Fetches the list of users in the company
- */
 const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[]> => {
-  try {
-    const userId = await getCurrentUserId();
+  const member = await getMemberByUserId(await getCurrentUserId());
+  if (!member) return [];
+  let companyId = companyIdOverride;
+  if (!companyId) {
+    const { data } = await supabase.from('CompanyMembers').select('CompanyId').eq('MemberId', member.Id).eq('IsDeleted', false).limit(1).maybeSingle();
+    companyId = data?.CompanyId;
+  }
+  if (!companyId) return [];
+  const { data, error } = await supabase.from('CompanyMembers').select('*, Members (*)').eq('CompanyId', companyId).eq('IsDeleted', false).eq('Members.IsDeleted', false);
+  if (error) throw error;
+  return (data ?? []).map(mapDbToCompanyUser);
+};
 
-    const member = await getMemberByUserId(userId);
-    if (!member) {
-      return [];
+const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<CompanyUser> => {
+  const actor = await getMemberByUserId(await getCurrentUserId());
+  if (!actor) throw new Error('Insufficient permissions');
+  const { data: actorMembership, error: actorMembershipError } = await supabase
+    .from('CompanyMembers')
+    .select('CompanyId, Role')
+    .eq('MemberId', actor.Id)
+    .eq('IsDeleted', false)
+    .limit(1)
+    .maybeSingle();
+  if (actorMembershipError) throw actorMembershipError;
+  if (!actorMembership || !isElevatedCompanyRole(actorMembership.Role)) throw new Error('Insufficient permissions');
+  const email = request.email.trim().toLowerCase();
+  const { data: targetMember } = await supabase.from('Members').select('Id,FirstName,LastName,Email').eq('Email', email).eq('IsDeleted', false).maybeSingle();
+  if (!targetMember) throw new Error('User does not exist');
+  const { data: existing } = await supabase.from('CompanyMembers').select('Id').eq('CompanyId', actorMembership.CompanyId).eq('MemberId', targetMember.Id).eq('IsDeleted', false).maybeSingle();
+  if (existing) throw new Error('User is already linked to this company');
+  const { data: row, error } = await supabase.from('CompanyMembers').insert({ MemberId: targetMember.Id, CompanyId: actorMembership.CompanyId, Role: COMPANY_ROLES.MEMBER, AddedBy: actor.Id, JoinedAt: new Date().toISOString(), IsDeleted: false }).select('*').single();
+  if (error) throw error;
+  return mapDbToCompanyUser({ ...row, Members: targetMember });
+};
+
+const removeUserFromCompany = async (membershipId: string): Promise<void> => { await supabase.from('CompanyMembers').update({ IsDeleted: true }).eq('Id', membershipId); };
+const updateCompanyProfile = async (_payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => getCompanyInfo();
+const uploadCompanyLogo = async (_formData: FormData): Promise<{ logoUrl: string }> => ({ logoUrl: '' });
+const uploadCompanyBanner = async (_formData: FormData): Promise<{ bannerUrl: string }> => ({ bannerUrl: '' });
+
+const getAdminCompaniesMetrics = async (): Promise<AdminCompanyMetrics> => {
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+  const [all, active, month] = await Promise.all([
+    supabase.from('Companies').select('Id', { count: 'exact', head: true }),
+    supabase.from('Companies').select('Id', { count: 'exact', head: true }).eq('IsDeleted', false),
+    supabase.from('Companies').select('Id', { count: 'exact', head: true }).gte('CreatedAt', monthStart),
+  ]);
+  return { totalCompanies: all.count ?? 0, activeCompanies: active.count ?? 0, companiesCreatedThisMonth: month.count ?? 0 };
+};
+
+const listAdminCompanies = async (filters: AdminCompanyFilters): Promise<AdminCompanyListResponse> => {
+  const page = filters.page ?? 1;
+  const limit = filters.limit ?? 10;
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  let query = supabase.from('Companies').select('Id,Name,BillingEmail,CreatedAt,IsDeleted', { count: 'exact' }).order('CreatedAt', { ascending: false }).range(from, to);
+  if (filters.search?.trim()) query = query.or(`Name.ilike.%${filters.search.trim()}%,BillingEmail.ilike.%${filters.search.trim()}%`);
+  if (filters.status === 'active') query = query.eq('IsDeleted', false);
+  if (filters.status === 'deleted') query = query.eq('IsDeleted', true);
+  const { data, error, count } = await query;
+  if (error) throw error;
+  const companyIds = (data ?? []).map((row: any) => row.Id).filter(Boolean);
+  const memberCountsByCompany = new Map<string, number>();
+  if (companyIds.length > 0) {
+    const { data: companyMembers, error: companyMembersError } = await supabase
+      .from('CompanyMembers')
+      .select('CompanyId')
+      .in('CompanyId', companyIds)
+      .eq('IsDeleted', false);
+    if (companyMembersError) throw companyMembersError;
+    for (const row of companyMembers ?? []) {
+      const companyId = row.CompanyId as string;
+      memberCountsByCompany.set(companyId, (memberCountsByCompany.get(companyId) ?? 0) + 1);
     }
+  }
+  return {
+    companies: (data ?? []).map((row: any) => ({
+      id: row.Id,
+      name: row.Name,
+      billingEmail: row.BillingEmail,
+      createdAt: row.CreatedAt,
+      isDeleted: row.IsDeleted,
+      status: row.IsDeleted ? 'deleted' : 'active',
+      membersCount: memberCountsByCompany.get(row.Id) ?? 0
+    })),
+    total: count ?? 0
+  };
+};
 
-    // Determine which company to load users for
-    let companyId = companyIdOverride;
+const getAdminCompanyDetail = async (companyId: string): Promise<AdminCompanyDetail> => {
+  const { data: company, error: companyError } = await supabase.from('Companies').select('*').eq('Id', companyId).single();
+  if (companyError) throw companyError;
+  const { data: members, error: membersError } = await supabase.from('CompanyMembers').select('*, Members (FirstName, LastName, Email)').eq('CompanyId', companyId).eq('IsDeleted', false);
+  if (membersError) throw membersError;
+  return { company: mapDbToCompany(company), members: (members ?? []).map(mapAdminMember) };
+};
 
-    if (!companyId) {
-      const { data: userCompany, error: ucError } = await supabase
-        .from('UserCompanies')
-        .select('CompanyId')
-        .eq('MemberId', member.Id)
+const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> => createCompany({ name: payload.name, description: payload.description, billingEmail: payload.billingEmail });
+const updateAdminCompany = async (companyId: string, payload: AdminUpdateCompanyPayload): Promise<CompanyInfo> => {
+  const { data, error } = await supabase.from('Companies').update({ Name: payload.name, BillingEmail: payload.billingEmail, Description: payload.description ?? '', Phone: payload.phone ?? '', LastModified: new Date().toISOString(), LastModifiedBy: await getCurrentUserId() }).eq('Id', companyId).select('*').single();
+  if (error) throw error;
+  return mapDbToCompany(data);
+};
+const addMemberToAdminCompanyByEmail = async (companyId: string, email: string): Promise<AddCompanyMemberResult> => {
+  try {
+    const actor = await getMemberByUserId(await getCurrentUserId());
+    if (!actor) return { success: false, message: 'Permisos insuficientes.' };
+
+    let canManage = isPlatformAdminMember(actor);
+    if (!canManage) {
+      const { data: actorCm, error: actorCmError } = await supabase
+        .from('CompanyMembers')
+        .select('CompanyId, Role')
+        .eq('MemberId', actor.Id)
+        .eq('CompanyId', companyId)
         .eq('IsDeleted', false)
-        .order('JoinedAt', { ascending: true })
-        .limit(1)
-        .single();
-
-      if (ucError) {
-        if ((ucError as any).code === 'PGRST116') {
-          return []; // User not in any company
-        }
-        throw ucError;
-      }
-
-      companyId = userCompany.CompanyId;
+        .maybeSingle();
+      if (actorCmError) throw actorCmError;
+      canManage = !!actorCm && isElevatedCompanyRole(actorCm.Role);
     }
+    if (!canManage) return { success: false, message: 'Permisos insuficientes.' };
 
-    if (!companyId) {
-      return [];
-    }
+    const emailNorm = email.trim().toLowerCase();
+    const { data: targetMember, error: targetErr } = await supabase
+      .from('Members')
+      .select('Id,FirstName,LastName,Email')
+      .eq('Email', emailNorm)
+      .eq('IsDeleted', false)
+      .maybeSingle();
+    if (targetErr) throw targetErr;
+    if (!targetMember) return { success: false, message: 'No existe un usuario con ese correo.' };
 
-    // Get all users in this company
-    const { data: companyUsers, error: cuError } = await supabase
-      .from('UserCompanies')
-      .select(`
-        *,
-        Members (*)
-      `)
+    const { data: existing, error: existingErr } = await supabase
+      .from('CompanyMembers')
+      .select('Id')
       .eq('CompanyId', companyId)
+      .eq('MemberId', targetMember.Id)
       .eq('IsDeleted', false)
-      .eq('Members.IsDeleted', false);
+      .maybeSingle();
+    if (existingErr) throw existingErr;
+    if (existing) return { success: false, message: 'El usuario ya está vinculado a esta compañía.' };
 
-    if (cuError) throw cuError;
-
-    return companyUsers?.map(cu => mapDbToCompanyUser(cu)) || [];
-
-  } catch (error: any) {
-    console.error('Error fetching company users:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Adds a user to the company by email
- */
-const addUserToCompany = async (_request: AddUserToCompanyRequest): Promise<CompanyUser> => {
-  try {
-    const currentUserId = await getCurrentUserId();
-
-    // Get the current user's company
-    const { data: userCompany, error: ucError } = await supabase
-      .from('UserCompanies')
-      .select('CompanyId, Role')
-      .eq('MemberId', currentUserId)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (ucError) throw ucError;
-
-    // Check if current user has permission (Admin or Manager can add users)
-    if (userCompany.Role === COMPANY_ROLES.MEMBER) {
-      throw new Error('Insufficient permissions to add users to company');
-    }
-
-    // For now, we'll directly add users if they exist in the system
-    // In a proper implementation, this would create an invite that users accept
-
-    // Note: Invite system not yet implemented - this is a placeholder
-    throw new Error('Invite system not yet implemented. Please contact support to add users.');
-
-  } catch (error: any) {
-    console.error('Error adding user to company:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Removes a user from the company
- */
-const removeUserFromCompany = async (userId: string): Promise<void> => {
-  try {
-    await apiClient.delete(ENDPOINTS.REMOVE_USER(userId));
-  } catch (error: any) {
-    console.error('Error removing user from company:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Updates the company profile information
- */
-const updateCompanyProfile = async (payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => {
-  try {
-    const userId = await getCurrentUserId();
-
-    const member = await getMemberByUserId(userId);
-    if (!member) {
-      throw new Error('Insufficient permissions to update company profile');
-    }
-
-    // Get the user's company
-    const { data: userCompany, error: ucError } = await supabase
-      .from('UserCompanies')
-      .select('CompanyId, Role')
-      .eq('MemberId', member.Id)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (ucError) throw ucError;
-
-    // Check permissions (Admin or Manager can update)
-    if (userCompany.Role === COMPANY_ROLES.MEMBER) {
-      throw new Error('Insufficient permissions to update company profile');
-    }
-
-    // Map payload to database columns
-    const updateData: any = {};
-
-    if (payload.name !== undefined) updateData.Name = payload.name;
-    if (payload.description !== undefined) updateData.Description = payload.description;
-
-    // Address fields
-    if (payload.address) {
-      if (payload.address.street !== undefined) updateData.Street = payload.address.street;
-      if (payload.address.street2 !== undefined) updateData.Street2 = payload.address.street2;
-      if (payload.address.city !== undefined) updateData.City = payload.address.city;
-      if (payload.address.state !== undefined) updateData.State = payload.address.state;
-      if (payload.address.postalCode !== undefined) updateData.PostalCode = payload.address.postalCode;
-      if (payload.address.country !== undefined) updateData.Country = payload.address.country;
-    }
-
-    // Note: logoUrl, bannerUrl, and phone are not in the current payload interface
-    // These would need to be added to UpdateCompanyProfilePayload if needed
-
-    updateData.LastModified = new Date().toISOString();
-    updateData.LastModifiedBy = userId;
-
-    const { data: updatedCompany, error: updateError } = await supabase
-      .from('Companies')
-      .update(updateData)
-      .eq('Id', userCompany.CompanyId)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    return mapDbToCompany(updatedCompany);
-
-  } catch (error: any) {
-    console.error('Error updating company profile:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Uploads a company logo image
- */
-const uploadCompanyLogo = async (formData: FormData): Promise<{ logoUrl: string }> => {
-  try {
-    const userId = await getCurrentUserId();
-    const member = await getMemberByUserId(userId);
-    if (!member) {
-      throw new Error('User is not a member of any company');
-    }
-    const file = formData.get('logo') as File;
-
-    if (!file) {
-      throw new Error('No file provided for upload');
-    }
-
-    // Get user's company
-    const { data: userCompany, error: ucError } = await supabase
-      .from('UserCompanies')
-      .select('CompanyId')
-      .eq('MemberId', member.Id)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (ucError) throw ucError;
-
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `companies/${userCompany.CompanyId}/logo-${Date.now()}.${fileExt}`;
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('company-assets') // Assuming you have a 'company-assets' bucket
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('company-assets')
-      .getPublicUrl(fileName);
-
-    const logoUrl = urlData.publicUrl;
-
-    // Update the company record
-    const { error: updateError } = await supabase
-      .from('Companies')
-      .update({
-        LogoUrl: logoUrl,
-        LastModified: new Date().toISOString(),
-        LastModifiedBy: userId
+    const { data: row, error: insertErr } = await supabase
+      .from('CompanyMembers')
+      .insert({
+        MemberId: targetMember.Id,
+        CompanyId: companyId,
+        Role: COMPANY_ROLES.MEMBER,
+        AddedBy: actor.Id,
+        JoinedAt: new Date().toISOString(),
+        IsDeleted: false,
       })
-      .eq('Id', userCompany.CompanyId);
-
-    if (updateError) throw updateError;
-
-    return { logoUrl };
-
-  } catch (error: any) {
-    console.error('Error uploading company logo:', error.message);
-    throw error;
-  }
-};
-
-/**
- * Uploads a company banner/cover image
- */
-const uploadCompanyBanner = async (formData: FormData): Promise<{ bannerUrl: string }> => {
-  try {
-    const userId = await getCurrentUserId();
-    const member = await getMemberByUserId(userId);
-    if (!member) {
-      throw new Error('User is not a member of any company');
-    }
-    const file = formData.get('banner') as File;
-
-    if (!file) {
-      throw new Error('No file provided for upload');
-    }
-
-    // Get user's company
-    const { data: userCompany, error: ucError } = await supabase
-      .from('UserCompanies')
-      .select('CompanyId')
-      .eq('MemberId', member.Id)
-      .eq('IsDeleted', false)
-      .order('JoinedAt', { ascending: true })
-      .limit(1)
+      .select('*')
       .single();
+    if (insertErr) throw insertErr;
 
-    if (ucError) throw ucError;
-
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `companies/${userCompany.CompanyId}/banner-${Date.now()}.${fileExt}`;
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('company-assets') // Assuming you have a 'company-assets' bucket
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) throw uploadError;
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('company-assets')
-      .getPublicUrl(fileName);
-
-    const bannerUrl = urlData.publicUrl;
-
-    // Update the company record
-    const { error: updateError } = await supabase
-      .from('Companies')
-      .update({
-        BannerUrl: bannerUrl,
-        LastModified: new Date().toISOString(),
-        LastModifiedBy: userId
-      })
-      .eq('Id', userCompany.CompanyId);
-
-    if (updateError) throw updateError;
-
-    return { bannerUrl };
-
+    const detail = await getAdminCompanyDetail(companyId);
+    const added = detail.members.find(m => m.memberId === targetMember.Id);
+    return {
+      success: true,
+      message: 'Usuario agregado correctamente.',
+      member: added,
+    };
   } catch (error: any) {
-    console.error('Error uploading company banner:', error.message);
-    throw error;
+    return { success: false, message: error.message || 'No se pudo agregar el usuario.' };
   }
 };
 
-const companyService = {
-  getCompanyInfo,
-  getCompanyUsers,
-  createCompany,
-  addUserToCompany,
-  removeUserFromCompany,
-  updateCompanyProfile,
-  uploadCompanyLogo,
-  uploadCompanyBanner,
-};
-
-export default companyService;
-
+export default { getCompanyInfo, getCompanyUsers, createCompany, addUserToCompany, removeUserFromCompany, updateCompanyProfile, uploadCompanyLogo, uploadCompanyBanner, getAdminCompaniesMetrics, listAdminCompanies, getAdminCompanyDetail, createAdminCompany, updateAdminCompany, addMemberToAdminCompanyByEmail };

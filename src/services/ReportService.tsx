@@ -129,7 +129,7 @@ const getMonthlySummary = async (params: MonthlySummaryParams): Promise<MonthlyS
 
     // Get accessible company IDs for filtering
     const { data: userCompanies } = await supabase
-      .from('UserCompanies')
+      .from('CompanyMembers')
       .select('CompanyId')
       .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
       .eq('IsDeleted', false);
@@ -217,7 +217,7 @@ const getGeneralTotals = async (): Promise<GeneralTotalsData> => {
 
     // Get accessible company IDs for filtering
     const { data: userCompanies } = await supabase
-      .from('UserCompanies')
+      .from('CompanyMembers')
       .select('CompanyId')
       .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
       .eq('IsDeleted', false);
@@ -507,7 +507,7 @@ const getDailyMessages = async (params: DailyVisitsParams & { companyId?: string
     if (params.companyId) {
       // If specific company requested, validate user has access
       const { data: userCompany } = await supabase
-        .from('UserCompanies')
+        .from('CompanyMembers')
         .select('CompanyId')
         .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
         .eq('CompanyId', params.companyId)
@@ -520,7 +520,7 @@ const getDailyMessages = async (params: DailyVisitsParams & { companyId?: string
     } else {
       // Get all accessible companies for the user
       const { data: userCompanies } = await supabase
-        .from('UserCompanies')
+        .from('CompanyMembers')
         .select('CompanyId')
         .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
         .eq('IsDeleted', false);

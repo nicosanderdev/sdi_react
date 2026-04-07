@@ -57,6 +57,8 @@ import { AdminConfigPage } from './pages/dashboard/admin/AdminConfigPage';
 import { AdminLogsPage } from './pages/dashboard/admin/AdminLogsPage';
 import { AdminBookingsPage } from './pages/dashboard/admin/AdminBookingsPage';
 import { AdminPaymentsPage } from './pages/dashboard/admin/AdminPaymentsPage';
+import { AdminCompaniesPage } from './pages/dashboard/admin/AdminCompaniesPage';
+import { AdminEditCompanyPage } from './pages/dashboard/admin/AdminEditCompanyPage.tsx';
 
 // Payment pages
 import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
@@ -146,6 +148,8 @@ export function App() {
             <Route path="admin/bookings" element={<AdminOnlyRoute><AdminBookingsPage /></AdminOnlyRoute>} />
             <Route path="admin/payments" element={<AdminOnlyRoute><AdminPaymentsPage /></AdminOnlyRoute>} />
             <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
+            <Route path="admin/companies" element={<AdminOnlyRoute><AdminCompaniesPage /></AdminOnlyRoute>} />
+            <Route path="admin/companies/:companyId/edit" element={<AdminOnlyRoute><AdminEditCompanyPage /></AdminOnlyRoute>} />
           </Route>
 
           {/* Company Routes */}

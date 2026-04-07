@@ -128,26 +128,23 @@ INSERT INTO public."Amenities" ("Id", "Name", "IconId", "IsDeleted", "PropertyTy
 
 ON CONFLICT DO NOTHING;
 
--- Insert seed data for Plans table (only if not exists)
--- Plan 1: Inicial (Initial) - Up to 5 published properties, 7 total, Free, 6.5% commission (min USD 9), No extra properties
--- Plan 2: Profesional (Professional) - Up to 10 published properties, 12 total, USD 129/month, 3.5% commission, No extra properties
--- Plan 3: Inmobiliaria (Real Estate) - 10 included published, unlimited total, USD 199/month, 2.5% commission, USD 8 (11-30) / USD 5 (31+)
--- Each plan is duplicated for the four estate property types: RealEstate, AnnualRent, EventVenue, SummerRent
+-- Insert seed data for flexible billing plans.
+-- Uses deterministic IDs and upsert semantics so it can be re-run safely.
 INSERT INTO public."Plans" (
-    "Id", 
-    "Key", 
-    "Name", 
-    "MonthlyPrice", 
-    "Currency", 
-    "MaxProperties", 
-    "MaxUsers", 
-    "MaxStorageMb", 
-    "BillingCycle", 
-    "IsActive", 
-    "IsDeleted", 
-    "Created", 
-    "CreatedBy", 
-    "LastModified", 
+    "Id",
+    "Key",
+    "Name",
+    "MonthlyPrice",
+    "Currency",
+    "MaxProperties",
+    "MaxUsers",
+    "MaxStorageMb",
+    "BillingCycle",
+    "IsActive",
+    "IsDeleted",
+    "Created",
+    "CreatedBy",
+    "LastModified",
     "LastModifiedBy",
     "MaxPublishedProperties",
     "CommissionPercentage",
@@ -157,24 +154,68 @@ INSERT INTO public."Plans" (
     "BookingReceiptMinimumAmount",
     "PropertyType"
 ) VALUES
--- Inicial (Key 0) per property type
-('a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789'::uuid, 0, 'Inicial - RealEstate', 0, 'USD', 7, 1, 50, 1, true, false, NOW(), 'system', NOW(), 'system', 5, 6.5, 9, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
-('d1e2f3a4-b5c6-4789-d012-e3f4a5b6c7d8'::uuid, 0, 'Inicial - AnnualRent', 0, 'USD', 7, 1, 50, 1, true, false, NOW(), 'system', NOW(), 'system', 5, 6.5, 9, NULL, NULL, NULL, 'AnnualRent'::"PropertyType"),
-('e2f3a4b5-c6d7-4890-e123-f4a5b6c7d8e9'::uuid, 0, 'Inicial - EventVenue', 0, 'USD', 7, 1, 50, 1, true, false, NOW(), 'system', NOW(), 'system', 5, 6.5, 9, NULL, NULL, NULL, 'EventVenue'::"PropertyType"),
-('f3a4b5c6-d7e8-4901-f234-a5b6c7d8e9f0'::uuid, 0, 'Inicial - SummerRent', 0, 'USD', 7, 1, 50, 1, true, false, NOW(), 'system', NOW(), 'system', 5, 6.5, 9, NULL, NULL, NULL, 'SummerRent'::"PropertyType"),
+('11111111-1111-4111-8111-111111111111'::uuid, 0, 'Free Plan', 0, 'USD', 3, 1, 100, 1, true, false, NOW(), 'system', NOW(), 'system', 3, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
+('22222222-2222-4222-8222-222222222222'::uuid, 1, 'Starter Plan', 29, 'USD', 25, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 25, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
+('33333333-3333-4333-8333-333333333333'::uuid, 2, 'Pro Plan', 15, 'USD', 200, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 200, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType")
+ON CONFLICT ("Id") DO UPDATE
+SET
+  "Name" = EXCLUDED."Name",
+  "MonthlyPrice" = EXCLUDED."MonthlyPrice",
+  "Currency" = EXCLUDED."Currency",
+  "MaxProperties" = EXCLUDED."MaxProperties",
+  "MaxUsers" = EXCLUDED."MaxUsers",
+  "MaxStorageMb" = EXCLUDED."MaxStorageMb",
+  "BillingCycle" = EXCLUDED."BillingCycle",
+  "IsActive" = EXCLUDED."IsActive",
+  "IsDeleted" = EXCLUDED."IsDeleted",
+  "LastModified" = NOW(),
+  "LastModifiedBy" = 'system',
+  "MaxPublishedProperties" = EXCLUDED."MaxPublishedProperties";
 
--- Profesional (Key 1) per property type
-('b2c3d4e5-f6a7-4890-b123-c4d5e6f7a890'::uuid, 1, 'Profesional - RealEstate', 129, 'USD', 12, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 3.5, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
-('c4d5e6f7-a8b9-4a01-c234-d6e7f8a9b012'::uuid, 1, 'Profesional - AnnualRent', 129, 'USD', 12, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 3.5, NULL, NULL, NULL, NULL, 'AnnualRent'::"PropertyType"),
-('d5e6f7a8-b9c0-4b12-d345-e7f8a9b0c123'::uuid, 1, 'Profesional - EventVenue', 129, 'USD', 12, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 3.5, NULL, NULL, NULL, NULL, 'EventVenue'::"PropertyType"),
-('e6f7a8b9-c0d1-4c23-e456-f8a9b0c1d234'::uuid, 1, 'Profesional - SummerRent', 129, 'USD', 12, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 3.5, NULL, NULL, NULL, NULL, 'SummerRent'::"PropertyType"),
+-- Populate flexible-pricing columns only if they exist (migration-safe seed).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Plans'
+      AND column_name = 'PricingModel'
+  ) THEN
+    UPDATE public."Plans"
+    SET
+      "PricingModel" = 'free',
+      "Price" = 0,
+      "MinMonthlyFee" = 0,
+      "PricePerBooking" = NULL,
+      "ListingLimit" = 3,
+      "DurationDays" = NULL,
+      "IsActiveV2" = true
+    WHERE "Id" = '11111111-1111-4111-8111-111111111111'::uuid;
 
--- Inmobiliaria (Key 2) per property type
-('c3d4e5f6-a7b8-4901-c234-d5e6f7a8b901'::uuid, 2, 'Inmobiliaria - RealEstate', 199, 'USD', 999999, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 2.5, NULL, 8, 5, NULL, 'RealEstate'::"PropertyType"),
-('d7e8f9a0-b1c2-4d34-e567-f9a0b1c2d345'::uuid, 2, 'Inmobiliaria - AnnualRent', 199, 'USD', 999999, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 2.5, NULL, 8, 5, NULL, 'AnnualRent'::"PropertyType"),
-('e8f9a0b1-c2d3-4e45-f678-a0b1c2d3e456'::uuid, 2, 'Inmobiliaria - EventVenue', 199, 'USD', 999999, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 2.5, NULL, 8, 5, NULL, 'EventVenue'::"PropertyType"),
-('f9a0b1c2-d3e4-4f56-a789-b1c2d3e4f567'::uuid, 2, 'Inmobiliaria - SummerRent', 199, 'USD', 999999, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 10, 2.5, NULL, 8, 5, NULL, 'SummerRent'::"PropertyType")
-ON CONFLICT ("Id") DO NOTHING;
+    UPDATE public."Plans"
+    SET
+      "PricingModel" = 'hybrid',
+      "Price" = NULL,
+      "MinMonthlyFee" = 29,
+      "PricePerBooking" = 2.5,
+      "ListingLimit" = 25,
+      "DurationDays" = 30,
+      "IsActiveV2" = true
+    WHERE "Id" = '22222222-2222-4222-8222-222222222222'::uuid;
+
+    UPDATE public."Plans"
+    SET
+      "PricingModel" = 'per_listing',
+      "Price" = 15,
+      "MinMonthlyFee" = NULL,
+      "PricePerBooking" = NULL,
+      "ListingLimit" = 200,
+      "DurationDays" = 30,
+      "IsActiveV2" = true
+    WHERE "Id" = '33333333-3333-4333-8333-333333333333'::uuid;
+  END IF;
+END $$;
 
 -- SECTION 3: STORAGE BUCKETS
 -- ============================================================================

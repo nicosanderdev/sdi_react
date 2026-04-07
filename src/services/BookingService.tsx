@@ -65,6 +65,66 @@ function buildEstatePropertyTitle(ep: BookingWithMemberAndProperty['EstateProper
 }
 
 class BookingService {
+  private static async resolveBillingMemberIdByPropertyId(propertyId: string): Promise<string | null> {
+    const { data: property, error: propertyError } = await supabase
+      .from('EstateProperties')
+      .select('OwnerId')
+      .eq('Id', propertyId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (propertyError) throw propertyError;
+    if (!property?.OwnerId) return null;
+
+    const { data: owner, error: ownerError } = await supabase
+      .from('Owners')
+      .select('OwnerType,MemberId,CompanyId')
+      .eq('Id', property.OwnerId)
+      .eq('IsDeleted', false)
+      .single();
+
+    if (ownerError) throw ownerError;
+    if (!owner) return null;
+
+    if (owner.OwnerType === 'member') {
+      return owner.MemberId ?? null;
+    }
+
+    if (owner.OwnerType === 'company' && owner.CompanyId) {
+      const { data: ownerMap, error: ownerMapError } = await supabase
+        .from('BillingOwnerMemberMap')
+        .select('MemberId')
+        .eq('OwnerId', owner.CompanyId)
+        .eq('IsActive', true)
+        .limit(1);
+
+      if (ownerMapError) throw ownerMapError;
+      return ownerMap?.[0]?.MemberId ?? null;
+    }
+
+    return null;
+  }
+
+  private static async ensureBookingUsageRecord(bookingId: string, propertyId: string): Promise<void> {
+    const memberId = await this.resolveBillingMemberIdByPropertyId(propertyId);
+    if (!memberId) {
+      throw new Error('Unable to resolve billing member for booking usage record');
+    }
+
+    const payload = {
+      MemberId: memberId,
+      Type: 'booking',
+      ReferenceId: bookingId,
+      Amount: null
+    };
+
+    const { error } = await supabase
+      .from('UsageRecords')
+      .upsert(payload, { onConflict: 'MemberId,Type,ReferenceId', ignoreDuplicates: true });
+
+    if (error) throw error;
+  }
+
   /**
    * Get all bookings for a property with optional date range
    */
@@ -103,6 +163,10 @@ class BookingService {
       const { data, error } = await query;
 
       if (error) throw error;
+
+      if (status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+        await this.ensureBookingUsageRecord(data.Id, data.EstatePropertyId);
+      }
 
       return {
         succeeded: true,
@@ -413,6 +477,10 @@ class BookingService {
 
       if (data?.EstateProperty) {
         data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
+      }
+
+      if (updates.status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+        await this.ensureBookingUsageRecord(data.Id, data.EstatePropertyId);
       }
 
       return {

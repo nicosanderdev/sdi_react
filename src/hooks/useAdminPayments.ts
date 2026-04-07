@@ -126,11 +126,11 @@ export function useAdminPayments() {
     setSubmittingReceipt(true);
     setBookingsError(null);
     try {
-      const bookingIds = bookings.map((booking) => booking.id);
-      await paymentsAdminService.generateReceipt(bookingIds);
+      const usageRecordIds = bookings.map((booking) => booking.id);
+      await paymentsAdminService.generateReceipt(usageRecordIds);
       await Promise.all([loadBookings(), loadReceipts()]);
     } catch (error: any) {
-      setBookingsError(error.message || 'No se pudo generar el recibo');
+      setBookingsError(error.message || 'No se pudo generar la factura');
     } finally {
       setSubmittingReceipt(false);
     }
@@ -144,7 +144,7 @@ export function useAdminPayments() {
         await paymentsAdminService.updateReceiptStatus(receiptId, isPaid);
         await Promise.all([loadReceipts(), loadBookings()]);
       } catch (error: any) {
-        setReceiptsError(error.message || 'No se pudo actualizar el estado del recibo');
+        setReceiptsError(error.message || 'No se pudo actualizar el estado de la factura');
       } finally {
         setUpdatingReceiptId(null);
       }

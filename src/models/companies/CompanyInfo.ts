@@ -1,6 +1,8 @@
 export interface CompanyInfo {
   id: string;
   name: string;
+  billingEmail?: string;
+  phone?: string;
   description?: string;
   createdAt: string;
   logoUrl?: string;

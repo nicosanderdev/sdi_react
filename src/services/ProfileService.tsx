@@ -79,9 +79,9 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
       .from('Members')
       .select(`
         *,
-        UserCompanies (
+        CompanyMembers (
           *,
-          Companies!FK_UserCompanies_Companies_CompanyId (*)
+          Companies!FK_CompanyMembers_Companies_CompanyId (*)
         )
       `)
       .eq('UserId', userId)
@@ -114,7 +114,7 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
 
     // Map the joined data to ProfileData
     const member = memberData[0]; // Should be single due to UserId unique constraint
-    return mapDbToProfile(member, (member as any).UserCompanies);
+    return mapDbToProfile(member, (member as any).CompanyMembers);
 
   } catch (error: any) {
     console.error('Error fetching current user profile:', error.message);
@@ -285,14 +285,14 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
     // If companyId is specified, update only that specific UserCompany record
     if (request.companyId) {
       const { data, error } = await supabase
-        .from('UserCompanies')
+        .from('CompanyMembers')
         .update({ Role: roleNumber })
         .eq('MemberId', request.userId)
         .eq('CompanyId', request.companyId)
         .eq('IsDeleted', false)
         .select(`
           *,
-          Companies!FK_UserCompanies_Companies_CompanyId (*)
+          Companies!FK_CompanyMembers_Companies_CompanyId (*)
         `);
 
       if (error) throw error;
@@ -316,13 +316,13 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
 
     // If no companyId specified, update all UserCompany records for this user
     const { data, error } = await supabase
-      .from('UserCompanies')
+      .from('CompanyMembers')
       .update({ Role: roleNumber })
       .eq('MemberId', request.userId)
       .eq('IsDeleted', false)
       .select(`
         *,
-        Companies!FK_UserCompanies_Companies_CompanyId (*)
+        Companies!FK_CompanyMembers_Companies_CompanyId (*)
       `);
 
     if (error) throw error;
