@@ -52,4 +52,3 @@ const notificationsSlice = createSlice({
 });
 
 export default notificationsSlice.reducer;
-

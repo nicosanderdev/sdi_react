@@ -69,6 +69,7 @@ import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
 import { PublicRoute, AdminOnlyRoute, ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AdminRedirectWrapper } from './components/auth/AdminRedirectWrapper';
+import { UserDashboardFeatureGuard } from './components/auth/UserDashboardFeatureGuard';
 
 
 import './config/leafletSetup';
@@ -116,8 +117,8 @@ export function App() {
             <Route path="properties" element={<PropertiesManager />} />
             <Route path="bookings" element={<BookingsPage />} />
             {/* <Route path="favorites" element={<FavoritesPage />} /> */}
-            <Route path="messages" element={<MessageCenter />} />
-            <Route path="reports" element={<ReportsAndMetrics />} />
+            <Route path="messages" element={<UserDashboardFeatureGuard blockedForUsers={['messages']}><MessageCenter /></UserDashboardFeatureGuard>} />
+            <Route path="reports" element={<UserDashboardFeatureGuard blockedForUsers={['reports']}><ReportsAndMetrics /></UserDashboardFeatureGuard>} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
             <Route path="subscription/plans" element={<ChangeSubscriptionPage />} />

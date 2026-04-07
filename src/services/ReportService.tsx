@@ -460,6 +460,10 @@ const normalizeCompanyIdForRpc = (companyId?: string): string | null => {
   return companyId;
 };
 
+const isMissingRpcError = (error: any): boolean => {
+  return error?.code === 'PGRST202';
+};
+
 const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }): Promise<DailyVisit[]> => {
   try {
     const userId = await getCurrentUserId();
@@ -492,77 +496,18 @@ const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }
       visits: item.count
     }));
   } catch (error: any) {
+    if (isMissingRpcError(error)) {
+      // Keep dashboard usable while DB migration with this RPC is applied manually.
+      return [];
+    }
     console.error('Error fetching daily visits:', error.message);
     throw error;
   }
 };
 
-const getDailyMessages = async (params: DailyVisitsParams & { companyId?: string }): Promise<DailyMessage[]> => {
-  try {
-    const userId = await getCurrentUserId();
-    const { startDate, endDate } = parsePeriod(params.period || 'last7days');
-
-    // Get accessible company IDs for filtering (mirror getDailyVisits logic)
-    let companyIds: string[] = [];
-    if (params.companyId) {
-      // If specific company requested, validate user has access
-      const { data: userCompany } = await supabase
-        .from('CompanyMembers')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('CompanyId', params.companyId)
-        .eq('IsDeleted', false)
-        .single();
-
-      if (userCompany) {
-        companyIds = [userCompany.CompanyId];
-      }
-    } else {
-      // Get all accessible companies for the user
-      const { data: userCompanies } = await supabase
-        .from('CompanyMembers')
-        .select('CompanyId')
-        .eq('MemberId', (await supabase.from('Members').select('Id').eq('UserId', userId).single()).data?.Id)
-        .eq('IsDeleted', false);
-
-      companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-    }
-
-    // Call RPC to get per-day counts of new threads/messages received
-    const { data, error } = await supabase.rpc('get_daily_dashboard_messages', {
-      p_period: params.period || 'last7days',
-      p_company_id: params.companyId ? params.companyId : null,
-      p_user_id: userId,
-    });
-
-    if (error) throw error;
-
-    // data is expected to be an array of { date: string, count: number }
-    const rawArray = (data || []) as { date: string; count: number }[];
-
-    const messagesByDate = rawArray.reduce((acc, item) => {
-      const dateKey = new Date(item.date).toISOString().split('T')[0];
-      acc[dateKey] = (acc[dateKey] || 0) + Number(item.count || 0);
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Fill missing dates and format for chart
-    const filledData = fillDateRange(
-      startDate,
-      endDate,
-      (date) => date.toISOString().split('T')[0],
-      Object.entries(messagesByDate).map(([date, count]) => ({ date, count }))
-    );
-
-    return filledData.map(item => ({
-      date: item.date,
-      dayName: new Date(item.date).toLocaleDateString('es-ES', { weekday: 'short' }),
-      messages: item.count,
-    }));
-  } catch (error: any) {
-    console.error('Error fetching daily messages:', error.message);
-    throw error;
-  }
+const getDailyMessages = async (_params: DailyVisitsParams & { companyId?: string }): Promise<DailyMessage[]> => {
+  // Message time-series disabled: avoid get_daily_dashboard_messages (and DB drift) until message metrics ship.
+  return [];
 };
 
 const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: string }): Promise<VisitSource[]> => {
@@ -584,6 +529,10 @@ const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: st
 
     return result;
   } catch (error: any) {
+    if (isMissingRpcError(error)) {
+      // Keep dashboard usable while DB migration with this RPC is applied manually.
+      return [];
+    }
     console.error('Error fetching visits by source:', error.message);
     throw error;
   }

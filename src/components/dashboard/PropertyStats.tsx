@@ -13,7 +13,6 @@ export interface PropertyStatsProps {
 export function PropertyStats({ period = 'last7days', companyId }: PropertyStatsProps) {
   const companyFilter = companyId ? { companyId } : {};
 
-  // --- Data Fetching for Visits Per Day Chart ---
   const {
     data: dailyVisitsData,
     isLoading: isLoadingDailyVisits,
@@ -24,41 +23,17 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
     queryFn: () => reportService.getDailyVisits({ period, ...companyFilter }),
   });
 
-  const {
-    data: dailyMessagesData,
-    isLoading: isLoadingDailyMessages,
-    isError: isErrorDailyMessages,
-    error: errorDailyMessages,
-  } = useQuery({
-    queryKey: ['dailyMessages', period, companyId],
-    queryFn: () => reportService.getDailyMessages({ period, ...companyFilter }),
-  });
-
-  // --- Data Fetching for Visits By Source Chart ---
   const { data: visitsBySourceData, isLoading: isLoadingVisitsBySource, isError: isErrorVisitsBySource, error: errorVisitsBySource } = useQuery({
     queryKey: ['visitsBySource', period, companyId],
     queryFn: () => reportService.getVisitsBySource({ period, ...companyFilter }),
     select: (response) => response
   });
 
-  // Helper for chart loading/error
   const renderChartArea = (isLoading: boolean, isError: boolean, error: any, ChartComponent: any) => {
     if (isLoading) return <p className="text-center text-gray-500">Cargando datos del gráfico...</p>;
     if (isError) return <p className="text-center text-red-500">Error al cargar datos: {error?.message}</p>;
     return ChartComponent;
   };
-
-  const isLoadingDailyLine = isLoadingDailyVisits || isLoadingDailyMessages;
-  const isErrorDailyLine = isErrorDailyVisits || isErrorDailyMessages;
-  const errorDailyLine = errorDailyVisits || errorDailyMessages;
-
-  const combinedDailyData =
-    dailyVisitsData && dailyMessagesData
-      ? dailyVisitsData.map((item, idx) => ({
-          ...item,
-          messages: dailyMessagesData[idx]?.messages ?? 0,
-        }))
-      : dailyVisitsData || [];
 
   const periodLabel = period === 'last7days' ? 'Últimos 7 días' : period === 'last30days' ? 'Últimos 30 días' : period === 'last90days' ? 'Últimos 90 días' : period === 'thisyear' ? 'Este año' : period;
 
@@ -73,13 +48,13 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
         </h3>
         <div className="h-64">
           {renderChartArea(
-            isLoadingDailyLine,
-            isErrorDailyLine,
-            errorDailyLine,
+            isLoadingDailyVisits,
+            isErrorDailyVisits,
+            errorDailyVisits,
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={combinedDailyData || []}>
+              <LineChart data={dailyVisitsData || []}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dayName" /> {/* Assuming API returns 'dayName' */}
+                <XAxis dataKey="dayName" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
@@ -89,15 +64,6 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
                   name="Visitas"
                   stroke="#0f9d58"
                   strokeWidth={2}
-                  activeDot={{ r: 6 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="messages"
-                  name="Mensajes recibidos"
-                  stroke="#E6AF2E"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
@@ -114,7 +80,7 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={visitsBySourceData || []}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="source" /> {/* Assuming API returns 'source' */}
+                <XAxis dataKey="source" />
                 <YAxis />
                 <Tooltip />
                 <Legend />

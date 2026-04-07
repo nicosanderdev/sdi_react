@@ -95,6 +95,9 @@ export function DashboardSidebar() {
     { id: 'company', label: 'Empresa', icon: BoxesIcon, path: '/dashboard/company' },
     { id: 'subscription', label: 'Suscripción', icon: Crown, path: '/dashboard/subscription' }
   ];
+  const visibleNavItems = isAdmin
+    ? navItems
+    : navItems.filter((item) => item.id !== 'messages' && item.id !== 'reports');
 
   const handleLogout = async () => {
     await logout();
@@ -131,7 +134,7 @@ export function DashboardSidebar() {
               <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Menú
               </div>
-              {navItems.map(item => {
+              {visibleNavItems.map(item => {
                 const content = (
                   <SidebarItem
                     key={item.id}
