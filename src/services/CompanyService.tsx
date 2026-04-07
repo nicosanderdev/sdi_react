@@ -5,7 +5,23 @@ import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyReq
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
 import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 
-const COMPANY_ROLES = { MEMBER: 'Member', ADMIN: 'Admin' } as const;
+const COMPANY_ROLES = { MEMBER: 'Member', ADMIN: 'Admin', MANAGER: 'Manager' } as const;
+
+/** Platform-wide admin (Members.Role), not company role. */
+const isPlatformAdminMember = (member: { Role?: string | null }): boolean =>
+  String(member.Role ?? '').toLowerCase() === 'admin';
+
+/** CompanyMembers.Role: Admin or Manager can invite/remove members (string or legacy numeric). */
+const isElevatedCompanyRole = (role: unknown): boolean => {
+  if (role === null || role === undefined) return false;
+  if (typeof role === 'string') {
+    const r = role.trim();
+    return r === COMPANY_ROLES.ADMIN || r === COMPANY_ROLES.MANAGER;
+  }
+  if (typeof role === 'number') return role === 1 || role === 2;
+  const s = String(role);
+  return s === '1' || s === '2';
+};
 
 export interface AdminCompanyFilters { search?: string; status?: 'active' | 'deleted'; page?: number; limit?: number }
 export interface AdminCompanyListItem { id: string; name: string; billingEmail: string; createdAt: string; isDeleted: boolean; status: 'active' | 'deleted'; membersCount: number }
@@ -59,7 +75,7 @@ const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[
   if (!member) return [];
   let companyId = companyIdOverride;
   if (!companyId) {
-    const { data } = await supabase.from('CompanyMembers').select('CompanyId').eq('MemberId', member.Id).eq('IsDeleted', false).limit(1).single();
+    const { data } = await supabase.from('CompanyMembers').select('CompanyId').eq('MemberId', member.Id).eq('IsDeleted', false).limit(1).maybeSingle();
     companyId = data?.CompanyId;
   }
   if (!companyId) return [];
@@ -71,8 +87,15 @@ const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[
 const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<CompanyUser> => {
   const actor = await getMemberByUserId(await getCurrentUserId());
   if (!actor) throw new Error('Insufficient permissions');
-  const { data: actorMembership } = await supabase.from('CompanyMembers').select('CompanyId, Role').eq('MemberId', actor.Id).eq('IsDeleted', false).single();
-  if (!actorMembership || actorMembership.Role === COMPANY_ROLES.MEMBER) throw new Error('Insufficient permissions');
+  const { data: actorMembership, error: actorMembershipError } = await supabase
+    .from('CompanyMembers')
+    .select('CompanyId, Role')
+    .eq('MemberId', actor.Id)
+    .eq('IsDeleted', false)
+    .limit(1)
+    .maybeSingle();
+  if (actorMembershipError) throw actorMembershipError;
+  if (!actorMembership || !isElevatedCompanyRole(actorMembership.Role)) throw new Error('Insufficient permissions');
   const email = request.email.trim().toLowerCase();
   const { data: targetMember } = await supabase.from('Members').select('Id,FirstName,LastName,Email').eq('Email', email).eq('IsDeleted', false).maybeSingle();
   if (!targetMember) throw new Error('User does not exist');
@@ -152,8 +175,68 @@ const updateAdminCompany = async (companyId: string, payload: AdminUpdateCompany
   return mapDbToCompany(data);
 };
 const addMemberToAdminCompanyByEmail = async (companyId: string, email: string): Promise<AddCompanyMemberResult> => {
-  try { await addUserToCompany({ email }); await getAdminCompanyDetail(companyId); return { success: true, message: 'Usuario agregado correctamente.' }; }
-  catch (error: any) { return { success: false, message: error.message || 'No se pudo agregar el usuario.' }; }
+  try {
+    const actor = await getMemberByUserId(await getCurrentUserId());
+    if (!actor) return { success: false, message: 'Permisos insuficientes.' };
+
+    let canManage = isPlatformAdminMember(actor);
+    if (!canManage) {
+      const { data: actorCm, error: actorCmError } = await supabase
+        .from('CompanyMembers')
+        .select('CompanyId, Role')
+        .eq('MemberId', actor.Id)
+        .eq('CompanyId', companyId)
+        .eq('IsDeleted', false)
+        .maybeSingle();
+      if (actorCmError) throw actorCmError;
+      canManage = !!actorCm && isElevatedCompanyRole(actorCm.Role);
+    }
+    if (!canManage) return { success: false, message: 'Permisos insuficientes.' };
+
+    const emailNorm = email.trim().toLowerCase();
+    const { data: targetMember, error: targetErr } = await supabase
+      .from('Members')
+      .select('Id,FirstName,LastName,Email')
+      .eq('Email', emailNorm)
+      .eq('IsDeleted', false)
+      .maybeSingle();
+    if (targetErr) throw targetErr;
+    if (!targetMember) return { success: false, message: 'No existe un usuario con ese correo.' };
+
+    const { data: existing, error: existingErr } = await supabase
+      .from('CompanyMembers')
+      .select('Id')
+      .eq('CompanyId', companyId)
+      .eq('MemberId', targetMember.Id)
+      .eq('IsDeleted', false)
+      .maybeSingle();
+    if (existingErr) throw existingErr;
+    if (existing) return { success: false, message: 'El usuario ya está vinculado a esta compañía.' };
+
+    const { data: row, error: insertErr } = await supabase
+      .from('CompanyMembers')
+      .insert({
+        MemberId: targetMember.Id,
+        CompanyId: companyId,
+        Role: COMPANY_ROLES.MEMBER,
+        AddedBy: actor.Id,
+        JoinedAt: new Date().toISOString(),
+        IsDeleted: false,
+      })
+      .select('*')
+      .single();
+    if (insertErr) throw insertErr;
+
+    const detail = await getAdminCompanyDetail(companyId);
+    const added = detail.members.find(m => m.memberId === targetMember.Id);
+    return {
+      success: true,
+      message: 'Usuario agregado correctamente.',
+      member: added,
+    };
+  } catch (error: any) {
+    return { success: false, message: error.message || 'No se pudo agregar el usuario.' };
+  }
 };
 
 export default { getCompanyInfo, getCompanyUsers, createCompany, addUserToCompany, removeUserFromCompany, updateCompanyProfile, uploadCompanyLogo, uploadCompanyBanner, getAdminCompaniesMetrics, listAdminCompanies, getAdminCompanyDetail, createAdminCompany, updateAdminCompany, addMemberToAdminCompanyByEmail };
