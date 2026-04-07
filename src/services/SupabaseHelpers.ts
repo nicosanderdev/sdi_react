@@ -4,7 +4,7 @@ import { ProfileData, UserCompany } from './ProfileService';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import { CompanyInfo, CompanyUser } from './CompanyService';
-import { PropertyData, PublicProperty } from '../models/properties';
+import { PropertyData, PublicProperty, type PropertyType } from '../models/properties';
 import { PropertyImage, PropertyDocument, PropertyVideo, Amenity } from '../models/properties';
 import { Message, MessageDetail, TabCounts } from './MessageService';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -107,6 +107,7 @@ interface PlansRow {
   LastModified: string;
   LastModifiedBy: string | null;
   BookingReceiptMinimumAmount?: number | null;
+  PropertyType: PropertyType | null;
 }
 
 /**
@@ -145,7 +146,8 @@ interface EstatePropertiesRow {
   Country: string;
   LocationLatitude: number;
   LocationLongitude: number;
-  Title: string;
+  /** Listing title often comes from Listings, not the base row */
+  Title?: string;
   PropertyType: number;
   AreaValue: number;
   AreaUnit: number;
@@ -157,15 +159,13 @@ interface EstatePropertiesRow {
   OwnerId: string;
   MainImageId: string | null;
   IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
 }
 
-interface EstatePropertyValuesRow {
+/** Mirrors Listings row fields used for mapping and sort timestamps */
+interface ListingsRow {
   Id: string;
   EstatePropertyId: string;
+  Title: string;
   Description: string | null;
   AvailableFrom: string;
   Capacity: number;
@@ -187,6 +187,36 @@ interface EstatePropertyValuesRow {
   LastModified: string;
   CreatedBy: string | null;
   LastModifiedBy: string | null;
+}
+
+function getLatestListingRow(property: { Listings?: ListingsRow[] }): ListingsRow | undefined {
+  const listings = property.Listings?.filter((l) => !l.IsDeleted) ?? [];
+  if (listings.length === 0) return undefined;
+  return [...listings].sort(
+    (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
+  )[0];
+}
+
+/**
+ * Property creation timestamp: lives on exactly one extension row (RealEstate, SummerRent, or EventVenue).
+ * EstateProperties has no Created column. Falls back to newest Listings.Created only if extensions are absent.
+ */
+function getEstatePropertyCreatedIso(
+  property: EstatePropertiesRow & {
+    Listings?: ListingsRow[];
+    RealEstateExtension?: { Created?: string } | null;
+    SummerRentExtension?: { Created?: string } | null;
+    EventVenueExtension?: { Created?: string } | null;
+  }
+): string {
+  const re = property.RealEstateExtension?.Created;
+  const sr = property.SummerRentExtension?.Created;
+  const ev = property.EventVenueExtension?.Created;
+  const fromExtension = re || sr || ev;
+  if (fromExtension) return fromExtension;
+  const latest = getLatestListingRow(property);
+  if (latest?.Created) return latest.Created;
+  return new Date(0).toISOString();
 }
 
 interface PropertyImagesRow {
@@ -375,7 +405,7 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
     totalProperties: subscription.Plans.MaxProperties || 0,
     bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
-    propertyType: subscription.Plans.PropertyType as any
+    propertyType: subscription.Plans.PropertyType ?? undefined
   };
 
   return {
@@ -635,17 +665,15 @@ export const statusMapForward: { [key: string]: number } = {
  */
 export const mapDbToPropertyData = (
   property: EstatePropertiesRow & {
-    EstatePropertyValues: EstatePropertyValuesRow[];
+    Listings?: ListingsRow[];
     PropertyImages?: PropertyImagesRow[];
     PropertyDocuments?: PropertyDocumentsRow[];
     PropertyVideos?: PropertyVideosRow[];
+    EstatePropertyAmenity?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PropertyData => {
-  // Get the latest property values (most recent)
-  const latestValues = property.EstatePropertyValues?.sort(
-    (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
-  )[0];
+  const latestListing = getLatestListingRow(property);
 
   const propertyImages: PropertyImage[] = property.PropertyImages?.map(img => ({
     id: img.Id,
@@ -675,7 +703,8 @@ export const mapDbToPropertyData = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
+  const amenityRows = property.EstatePropertyAmenities ?? property.EstatePropertyAmenity;
+  const amenities: Amenity[] = amenityRows?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined
@@ -694,7 +723,7 @@ export const mapDbToPropertyData = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    title: latestListing?.Title ?? property.Title ?? '',
     type: (propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||
       'house') as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
@@ -709,24 +738,24 @@ export const mapDbToPropertyData = (
     propertyDocuments,
     propertyVideos,
     amenities,
-    description: latestValues?.Description || undefined,
-    availableFrom: latestValues ? new Date(latestValues.AvailableFrom) : new Date(),
-    availableFromText: latestValues ? new Date(latestValues.AvailableFrom).toLocaleDateString() : '',
+    description: latestListing?.Description || undefined,
+    availableFrom: latestListing ? new Date(latestListing.AvailableFrom) : new Date(),
+    availableFromText: latestListing ? new Date(latestListing.AvailableFrom).toLocaleDateString() : '',
     ownerId: property.OwnerId,
-    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
-    salePrice: latestValues?.SalePrice?.toString(),
-    rentPrice: latestValues?.RentPrice?.toString(),
-    hasCommonExpenses: latestValues?.HasCommonExpenses || false,
-    commonExpensesValue: latestValues?.CommonExpensesValue?.toString(),
-    isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
-    isWaterIncluded: latestValues?.IsWaterIncluded || false,
-    isPriceVisible: latestValues?.IsPriceVisible || true,
-    status: (statusMapReverse[latestValues?.Status || 0] || 'sale') as 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable',
-    isActive: latestValues?.IsActive || true,
-    isPropertyVisible: latestValues?.IsPropertyVisible || true,
-    blockedForBooking: latestValues?.BlockedForBooking ?? false,
-    created: new Date(property.Created)
-  };
+    currency: (currencyMapReverse[latestListing?.Currency || 0] || 'USD') as 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP',
+    salePrice: latestListing?.SalePrice?.toString(),
+    rentPrice: latestListing?.RentPrice?.toString(),
+    hasCommonExpenses: latestListing?.HasCommonExpenses || false,
+    commonExpensesValue: latestListing?.CommonExpensesValue?.toString(),
+    isElectricityIncluded: latestListing?.IsElectricityIncluded || false,
+    isWaterIncluded: latestListing?.IsWaterIncluded || false,
+    isPriceVisible: latestListing?.IsPriceVisible || true,
+    status: (statusMapReverse[latestListing?.Status || 0] || 'sale') as 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable',
+    isActive: latestListing?.IsActive || true,
+    isPropertyVisible: latestListing?.IsPropertyVisible || true,
+    blockedForBooking: latestListing?.BlockedForBooking ?? false,
+    created: getEstatePropertyCreatedIso(property)
+  } as unknown as PropertyData;
 };
 
 /**
@@ -734,16 +763,14 @@ export const mapDbToPropertyData = (
  */
 export const mapDbToPublicProperty = (
   property: EstatePropertiesRow & {
-    EstatePropertyValues: EstatePropertyValuesRow[];
+    Listings?: ListingsRow[];
     PropertyImages?: PropertyImagesRow[];
     PropertyVideos?: PropertyVideosRow[];
+    EstatePropertyAmenity?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PublicProperty => {
-  // Get the latest property values
-  const latestValues = property.EstatePropertyValues?.sort(
-    (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
-  )[0];
+  const latestListing = getLatestListingRow(property);
 
   const propertyImages: PropertyImage[] = property.PropertyImages?.map(img => ({
     id: img.Id,
@@ -764,7 +791,8 @@ export const mapDbToPublicProperty = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
+  const amenityRowsPublic = property.EstatePropertyAmenities ?? property.EstatePropertyAmenity;
+  const amenities: Amenity[] = amenityRowsPublic?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
     id: epa.Amenities.Id,
     name: epa.Amenities.Name,
     iconId: epa.Amenities.IconId || undefined
@@ -783,7 +811,7 @@ export const mapDbToPublicProperty = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    title: latestListing?.Title ?? property.Title ?? '',
     type:
       propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||
@@ -798,14 +826,14 @@ export const mapDbToPublicProperty = (
     propertyVideos,
     amenities,
     mainImageId: property.MainImageId || '',
-    description: latestValues?.Description || '',
-    salePrice: latestValues?.SalePrice || undefined,
-    rentPrice: latestValues?.RentPrice || undefined,
-    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
-    isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
-    isWaterIncluded: latestValues?.IsWaterIncluded || false,
+    description: latestListing?.Description || '',
+    salePrice: latestListing?.SalePrice || undefined,
+    rentPrice: latestListing?.RentPrice || undefined,
+    currency: (currencyMapReverse[latestListing?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
+    isElectricityIncluded: latestListing?.IsElectricityIncluded || false,
+    isWaterIncluded: latestListing?.IsWaterIncluded || false,
     ownerId: property.OwnerId,
-    blockedForBooking: latestValues?.BlockedForBooking ?? false
+    blockedForBooking: latestListing?.BlockedForBooking ?? false
   };
 };
 

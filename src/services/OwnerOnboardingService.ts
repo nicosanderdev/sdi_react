@@ -34,10 +34,16 @@ export async function getOwnerOnboardingState(
     return null;
   }
 
+  const asIsoOrNull = (v: unknown): string | null => {
+    if (v == null || v === 'null') return null;
+    if (typeof v === 'string') return v;
+    return null;
+  };
+
   return {
     currentStep: data?.current_step ?? 0,
-    completedAt: data?.completed_at ?? null,
-    dismissedAt: data?.dismissed_at ?? null,
+    completedAt: asIsoOrNull(data?.completed_at),
+    dismissedAt: asIsoOrNull(data?.dismissed_at),
     publishedPropertiesCount: data?.published_properties_count ?? 0,
     emailVerified: data?.email_verified ?? false,
     phoneVerified: data?.phone_verified ?? false,

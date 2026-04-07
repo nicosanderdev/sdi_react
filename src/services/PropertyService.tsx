@@ -51,6 +51,8 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
             .select(`
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Listings!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
@@ -75,13 +77,13 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
             query = query.or(`Title.ilike.%${params.filter.searchTerm}%,City.ilike.%${params.filter.searchTerm}%`);
         }
 
-        // Apply date filters
+        // Apply date filters on Listings.Created (ordering / filters); property Created for display comes from extension tables
         if (params?.filter?.createdAfter) {
-            query = query.gte('Created', params.filter.createdAfter.toISOString());
+            query = query.gte('Listings.Created', params.filter.createdAfter.toISOString());
         }
 
         if (params?.filter?.createdBefore) {
-            query = query.lte('Created', params.filter.createdBefore.toISOString());
+            query = query.lte('Listings.Created', params.filter.createdBefore.toISOString());
         }
 
         // Apply pagination
@@ -91,8 +93,8 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
             query = query.range(from, to);
         }
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        // Order by listing creation date (newest first)
+        query = query.order('Created', { ascending: false, referencedTable: 'Listings' });
 
         const { data, error, count } = await query;
 
@@ -128,6 +130,8 @@ const getPropertiesInBounds = async (
             .select(`
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Listings!inner(*),
         PropertyImages(*),
         PropertyVideos(*),
@@ -163,8 +167,8 @@ const getPropertiesInBounds = async (
         const to = from + pageSize - 1;
         query = query.range(from, to);
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        // Order by listing creation date (newest first)
+        query = query.order('Created', { ascending: false, referencedTable: 'Listings' });
 
         const { data, error, count } = await query;
 
@@ -196,7 +200,7 @@ const getUserProperties = async (params?: any): Promise<PropertyDataList> => {
 // Fetch a single property with public info by its ID
 const getPropertyById = async (id: string, params?: PropertyParams): Promise<PublicProperty> => {
     try {
-        let selectFields = '*, Listings!inner(*)';
+        let selectFields = '*, RealEstateExtension(*), SummerRentExtension(*), EventVenueExtension(*), Listings!inner(*)';
 
         // Include related data based on params
         const includes = [];
@@ -261,6 +265,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         const ownerPropertySelect = `
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Owners!inner(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
@@ -275,6 +281,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
                 .select(`
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Owners(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
@@ -403,6 +411,8 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             .select(`
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Owners!inner(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
@@ -458,13 +468,13 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             query = query.or(`Title.ilike.%${params.filter.searchTerm}%,City.ilike.%${params.filter.searchTerm}%`);
         }
 
-        // Apply date filters
+        // Apply date filters on Listings.Created (ordering / filters); property Created for display comes from extension tables
         if (params?.filter?.createdAfter) {
-            query = query.gte('Created', params.filter.createdAfter.toISOString());
+            query = query.gte('Listings.Created', params.filter.createdAfter.toISOString());
         }
 
         if (params?.filter?.createdBefore) {
-            query = query.lte('Created', params.filter.createdBefore.toISOString());
+            query = query.lte('Listings.Created', params.filter.createdBefore.toISOString());
         }
 
         // Apply pagination
@@ -474,8 +484,8 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             query = query.range(from, to);
         }
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        // Order by listing creation date (newest first)
+        query = query.order('Created', { ascending: false, referencedTable: 'Listings' });
 
         const { data, error, count } = await query;
 
@@ -1282,27 +1292,15 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
             return 0;
         }
 
-        // Get company IDs that this user belongs to
-        const { data: userCompanies, error: companiesError } = await supabase
-            .from('CompanyMembers')
-            .select('CompanyId')
-            .eq('MemberId', member.Id)
-            .eq('IsDeleted', false);
-
-        if (companiesError) throw companiesError;
-
-        const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-
-        // Count all active, non-deleted properties owned by this member or their companies
-        const { count, error } = await supabase
-            .from('EstateProperties')
-            .select('*, Owners!inner(OwnerType, MemberId, CompanyId)', { count: 'exact', head: true })
-            .eq('IsDeleted', false)
-            .or(`and(Owners.OwnerType.eq.member,Owners.MemberId.eq.${member.Id}),and(Owners.OwnerType.eq.company,Owners.CompanyId.in.(${companyIds.length > 0 ? companyIds.join(',') : 'null'}))`);
+        // Server-side count matches dashboard accessible-properties logic (see count_member_accessible_properties).
+        const { data, error } = await supabase.rpc('count_member_accessible_properties', {
+            p_member_id: member.Id,
+        });
 
         if (error) throw error;
 
-        return count || 0;
+        const n = data as number | string | null | undefined;
+        return typeof n === 'number' ? n : Number(n ?? 0);
     } catch (error: any) {
         console.log('Error fetching owned properties count:', error.message);
         throw error;
@@ -1327,19 +1325,14 @@ const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
             return 0;
         }
 
-        // Count all visible, active properties owned by this member
-        const { count, error } = await supabase
-            .from('EstateProperties')
-            .select('*, Listings!inner(*)', { count: 'exact', head: true })
-            .eq('OwnerId', member.Id)
-            .eq('IsDeleted', false)
-            .eq('Listings.IsDeleted', false)
-            .eq('Listings.IsPropertyVisible', true)
-            .eq('Listings.IsActive', true);
+        const { data, error } = await supabase.rpc('count_member_published_properties', {
+            p_member_id: member.Id,
+        });
 
         if (error) throw error;
 
-        return count || 0;
+        const n = data as number | string | null | undefined;
+        return typeof n === 'number' ? n : Number(n ?? 0);
     } catch (error: any) {
         console.log('Error fetching published properties count:', error.message);
         throw error;

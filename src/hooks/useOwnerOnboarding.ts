@@ -8,6 +8,36 @@ import type { OwnerOnboardingState } from '../services/OwnerOnboardingService';
 /** Plan key 0 = FREE in DB */
 const PLAN_KEY_FREE = 0;
 
+/** Session-only step persistence: DB only has "NeedsOnboarding" + verification timestamps. */
+const midStepKey = (memberId: string) => `ownerOnboarding.midStep.${memberId}`;
+const postStepKey = (memberId: string) => `ownerOnboarding.postStep.${memberId}`;
+
+function mergeSessionSteps(memberId: string, server: OwnerOnboardingState): OwnerOnboardingState {
+  if (typeof window === 'undefined') return server;
+
+  if (!server.completedAt) {
+    sessionStorage.removeItem(postStepKey(memberId));
+    const mid = sessionStorage.getItem(midStepKey(memberId));
+    if (mid != null) {
+      const m = parseInt(mid, 10);
+      if (!Number.isNaN(m) && m >= 0 && m <= 4) {
+        return { ...server, currentStep: Math.max(server.currentStep, m) };
+      }
+    }
+    return server;
+  }
+
+  sessionStorage.removeItem(midStepKey(memberId));
+  const ps = sessionStorage.getItem(postStepKey(memberId));
+  if (ps != null) {
+    const p = parseInt(ps, 10);
+    if (!Number.isNaN(p) && p >= 5) {
+      return { ...server, currentStep: Math.max(server.currentStep, p) };
+    }
+  }
+  return server;
+}
+
 export interface UseOwnerOnboardingResult {
   /** Current onboarding step (0 = not started, 1 = welcome, 2 = verification, 3 = plan limit, 4 = form, 5 = completed, 6+ = post tips) */
   currentStep: number;
@@ -49,7 +79,7 @@ export function useOwnerOnboarding(): UseOwnerOnboardingResult {
     setError(null);
     try {
       const data = await ownerOnboardingService.getOwnerOnboardingState(memberId);
-      setState(data ?? null);
+      setState(data ? mergeSessionSteps(memberId, data) : null);
     } catch (e: any) {
       console.error('useOwnerOnboarding fetch:', e);
       setError(e?.message ?? 'Failed to load onboarding state');
@@ -67,6 +97,13 @@ export function useOwnerOnboarding(): UseOwnerOnboardingResult {
     async (step: number) => {
       if (!memberId) return false;
       const ok = await ownerOnboardingService.updateOwnerOnboardingStep(memberId, step, false);
+      if (ok && typeof window !== 'undefined') {
+        if (step >= 0 && step < 5) {
+          sessionStorage.setItem(midStepKey(memberId), String(step));
+        } else if (step >= 5) {
+          sessionStorage.setItem(postStepKey(memberId), String(step));
+        }
+      }
       if (ok) await fetchState();
       return ok;
     },
@@ -77,6 +114,10 @@ export function useOwnerOnboarding(): UseOwnerOnboardingResult {
     if (!memberId) return false;
     const current = state?.currentStep ?? 0;
     const ok = await ownerOnboardingService.updateOwnerOnboardingStep(memberId, current, true);
+    if (ok && typeof window !== 'undefined') {
+      sessionStorage.removeItem(midStepKey(memberId));
+      sessionStorage.removeItem(postStepKey(memberId));
+    }
     if (ok) await fetchState();
     return ok;
   }, [memberId, state?.currentStep, fetchState]);
@@ -84,6 +125,9 @@ export function useOwnerOnboarding(): UseOwnerOnboardingResult {
   const complete = useCallback(async () => {
     if (!memberId) return false;
     const ok = await ownerOnboardingService.completeOwnerOnboarding(memberId);
+    if (ok && typeof window !== 'undefined') {
+      sessionStorage.removeItem(midStepKey(memberId));
+    }
     if (ok) await fetchState();
     return ok;
   }, [memberId, fetchState]);
