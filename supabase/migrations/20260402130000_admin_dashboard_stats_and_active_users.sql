@@ -7,6 +7,8 @@ begin;
 -- ---------------------------------------------------------------------------
 -- Active members with auth sign-in within the last N days (admin-only)
 -- ---------------------------------------------------------------------------
+drop function if exists public.get_active_users_count(integer);
+
 create or replace function public.get_active_users_count(days_back integer default 30)
 returns bigint
 language plpgsql
@@ -48,6 +50,8 @@ $$;
 -- ---------------------------------------------------------------------------
 -- Dashboard stats JSON (parity with AdminService.buildDashboardStatsFallback)
 -- ---------------------------------------------------------------------------
+drop function if exists public.get_admin_dashboard_stats(text);
+
 create or replace function public.get_admin_dashboard_stats(period text default '30d')
 returns json
 language plpgsql
