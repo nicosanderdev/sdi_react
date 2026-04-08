@@ -77,10 +77,8 @@ function BookingRow({
   showCancel?: boolean;
   rowTestId?: string;
 }) {
-  const guest = booking.Guest;
-  const guestName = guest
-    ? [guest.FirstName, guest.LastName].filter(Boolean).join(' ') || '—'
-    : '—';
+  const ownerDisplay = booking.PropertyOwnerDisplay;
+  const ownerName = ownerDisplay?.name || '—';
   const currencySym =
     CURRENCY_SYMBOLS[booking.Currency as Currency] ?? '';
   const amount =
@@ -134,21 +132,21 @@ function BookingRow({
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
           <span className="flex items-center gap-1">
             <User className="h-4 w-4" />
-            {guestName}
+            {ownerName}
           </span>
-          {guest?.Email && (
+          {ownerDisplay?.email && (
             <a
-              href={`mailto:${guest.Email}`}
+              href={`mailto:${ownerDisplay.email}`}
               className="flex items-center gap-1 text-green-600 dark:text-green-400 hover:underline"
             >
               <Mail className="h-4 w-4" />
-              {guest.Email}
+              {ownerDisplay.email}
             </a>
           )}
-          {guest?.Phone && (
+          {ownerDisplay?.phone && (
             <span className="flex items-center gap-1">
               <Phone className="h-4 w-4" />
-              {guest.Phone}
+              {ownerDisplay.phone}
             </span>
           )}
         </div>
@@ -226,15 +224,12 @@ export function AdminBookingsPage() {
     if (!query) return bookings;
 
     return bookings.filter((booking) => {
-      const guest = booking.Guest;
-      const guestName = guest
-        ? [guest.FirstName, guest.LastName].filter(Boolean).join(' ')
-        : '';
+      const ownerDisplay = booking.PropertyOwnerDisplay;
       const fields: string[] = [
         booking.EstateProperty?.Title ?? '',
-        guestName,
-        guest?.Email ?? '',
-        guest?.Phone ?? ''
+        ownerDisplay?.name ?? '',
+        ownerDisplay?.email ?? '',
+        ownerDisplay?.phone ?? ''
       ];
 
       try {

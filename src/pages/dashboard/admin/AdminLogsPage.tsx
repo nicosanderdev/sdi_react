@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Card, Datepicker, Spinner, Table } from 'flowbite-react';
+import {
+  Card,
+  Datepicker,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeadCell,
+  TableRow
+} from 'flowbite-react';
 import { Calendar, FileText } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { getLogsForDate, type AdminLogEntry, type AdminLogEventType } from '../../../services/AdminLogsService';
@@ -24,6 +34,7 @@ const ACTION_LABELS: Record<string, string> = {
   mark_spam: 'Marcar spam',
   created: 'Creado',
   updated: 'Actualizado',
+  RECEIPT_MARKED_AS_PAID: 'Recibo marcado como pagado',
 };
 
 function actionLabel(action: string): string {
@@ -104,30 +115,30 @@ export function AdminLogsPage() {
         ) : (
           <div className="overflow-x-auto">
             <Table hoverable>
-              <Table.Head>
-                <Table.HeadCell>Hora</Table.HeadCell>
-                <Table.HeadCell>Tipo</Table.HeadCell>
-                <Table.HeadCell>Acción</Table.HeadCell>
-                <Table.HeadCell>Objetivo</Table.HeadCell>
-                <Table.HeadCell>Realizado por</Table.HeadCell>
-              </Table.Head>
-              <Table.Body className="divide-y">
+              <TableHead>
+                <TableHeadCell>Hora</TableHeadCell>
+                <TableHeadCell>Tipo</TableHeadCell>
+                <TableHeadCell>Acción</TableHeadCell>
+                <TableHeadCell>Objetivo</TableHeadCell>
+                <TableHeadCell>Realizado por</TableHeadCell>
+              </TableHead>
+              <TableBody className="divide-y">
                 {logs.map((entry, index) => (
-                  <Table.Row key={`${entry.at}-${entry.target_id}-${index}`}>
-                    <Table.Cell className="whitespace-nowrap text-gray-600 dark:text-gray-400">
+                  <TableRow key={`${entry.at}-${entry.target_id}-${index}`}>
+                    <TableCell className="whitespace-nowrap text-gray-600 dark:text-gray-400">
                       {format(new Date(entry.at), 'HH:mm:ss')}
-                    </Table.Cell>
-                    <Table.Cell>{EVENT_TYPE_LABELS[entry.event_type] ?? entry.event_type}</Table.Cell>
-                    <Table.Cell>{actionLabel(entry.action)}</Table.Cell>
-                    <Table.Cell className="max-w-xs truncate" title={entry.target_display}>
+                    </TableCell>
+                    <TableCell>{EVENT_TYPE_LABELS[entry.event_type] ?? entry.event_type}</TableCell>
+                    <TableCell>{actionLabel(entry.action)}</TableCell>
+                    <TableCell className="max-w-xs truncate" title={entry.target_display}>
                       {entry.target_display || '—'}
-                    </Table.Cell>
-                    <Table.Cell className="max-w-xs truncate" title={entry.performed_by_display}>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate" title={entry.performed_by_display}>
                       {entry.performed_by_display || '—'}
-                    </Table.Cell>
-                  </Table.Row>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Table.Body>
+              </TableBody>
             </Table>
           </div>
         )}

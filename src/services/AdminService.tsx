@@ -449,8 +449,9 @@ class AdminService {
     stats: AdminDashboardStats,
     viewsSummary: unknown
   ): AdminDashboardStats {
-    if (viewsSummary && typeof viewsSummary === 'object') {
-      const v = viewsSummary as { totalPropertyViews?: number; viewsLast7Days?: number; viewsLast30Days?: number };
+    const row = Array.isArray(viewsSummary) ? viewsSummary[0] : viewsSummary;
+    if (row && typeof row === 'object') {
+      const v = row as { totalPropertyViews?: number; viewsLast7Days?: number; viewsLast30Days?: number };
       return {
         ...stats,
         totalPropertyViews: v.totalPropertyViews ?? stats.totalPropertyViews,

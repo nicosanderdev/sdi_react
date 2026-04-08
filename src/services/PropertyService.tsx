@@ -10,6 +10,7 @@ import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateP
 
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
+import { tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 
 // Import types for Supabase property creation
 import { PropertyFormData } from '../models/properties/PropertyFormSchema';
@@ -300,7 +301,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         // Get all company IDs for this member
         const { data: userCompanies, error: companiesError } = await supabase
-            .from('UserCompanies')
+            .from('CompanyMembers')
             .select('CompanyId')
             .eq('MemberId', member.Id)
             .eq('IsDeleted', false);
@@ -418,7 +419,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
         if (params?.companyId === 'all-companies') {
             // For all companies, get all company IDs for this member
             const { data: userCompanies, error: companiesError } = await supabase
-                .from('UserCompanies')
+                .from('CompanyMembers')
                 .select('CompanyId')
                 .eq('MemberId', member.Id)
                 .eq('IsDeleted', false);
@@ -783,6 +784,11 @@ const createPropertyWithOwnerUserId = async (
 
         if (listingError) throw listingError;
 
+        const publishedOnCreate = (formData.isPropertyVisible ?? true) && (formData.isActive ?? true);
+        if (publishedOnCreate) {
+            await tryRecordListingUsageOnPublish(estatePropertyId);
+        }
+
         // 2) Insert property media rows
         const insertedImageIds: string[] = [];
         for (const img of allImages) {
@@ -968,6 +974,16 @@ const updateProperty = async (
     try {
         const userId = await getCurrentUserId();
 
+        const { data: listingBefore } = await supabase
+            .from('Listings')
+            .select('IsPropertyVisible, IsActive')
+            .eq('EstatePropertyId', id)
+            .eq('IsDeleted', false)
+            .limit(1)
+            .maybeSingle();
+
+        const wasPublished = !!(listingBefore?.IsPropertyVisible && listingBefore?.IsActive);
+
         // Upload new images to Supabase Storage
         const uploadedImages = await Promise.all(
             displayImages
@@ -1110,6 +1126,11 @@ const updateProperty = async (
         });
 
         if (error) throw error;
+
+        const isPublishedNow = !!(formData.isPropertyVisible && formData.isActive);
+        if (!wasPublished && isPublishedNow) {
+            await tryRecordListingUsageOnPublish(id);
+        }
 
         // Convert the returned JSONB to PropertyData format
         const result = data as any;
@@ -1284,7 +1305,7 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
 
         // Get company IDs that this user belongs to
         const { data: userCompanies, error: companiesError } = await supabase
-            .from('UserCompanies')
+            .from('CompanyMembers')
             .select('CompanyId')
             .eq('MemberId', member.Id)
             .eq('IsDeleted', false);

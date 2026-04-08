@@ -35,7 +35,7 @@ interface MembersRow {
   LastModifiedBy: string | null;
 }
 
-interface UserCompaniesRow {
+interface CompanyMembersRow {
   Id: string;
   MemberId: string;
   CompanyId: string;
@@ -329,7 +329,7 @@ export const getMemberByUserId = async (userId: string): Promise<MembersRow | nu
  */
 export const mapDbToProfile = (
   member: MembersRow,
-  userCompanies?: (UserCompaniesRow & { Companies: CompaniesRow })[]
+  userCompanies?: (CompanyMembersRow & { Companies: CompaniesRow })[]
 ): ProfileData => {
   const companies: UserCompany[] = userCompanies?.map(uc => ({
     id: uc.Companies.Id,
@@ -404,6 +404,8 @@ export const mapDbToCompany = (company: CompaniesRow): CompanyInfo => {
   return {
     id: company.Id,
     name: company.Name,
+    billingEmail: company.BillingEmail || undefined,
+    phone: company.Phone || undefined,
     description: company.Description || undefined,
     createdAt: company.CreatedAt,
     logoUrl: company.LogoUrl || undefined,
@@ -420,9 +422,9 @@ export const mapDbToCompany = (company: CompaniesRow): CompanyInfo => {
 };
 
 /**
- * Maps UserCompanies + Members rows to CompanyUser interface
+ * Maps CompanyMembers + Members rows to CompanyUser interface
  */
-export const mapDbToCompanyUser = (userCompany: UserCompaniesRow & { Members: MembersRow }): CompanyUser => {
+export const mapDbToCompanyUser = (userCompany: CompanyMembersRow & { Members: MembersRow }): CompanyUser => {
   return {
     id: userCompany.Members.Id,
     firstName: userCompany.Members.FirstName || '',
@@ -435,7 +437,7 @@ export const mapDbToCompanyUser = (userCompany: UserCompaniesRow & { Members: Me
 };
 
 /**
- * Maps role value from UserCompanies to string role.
+ * Maps role value from CompanyMembers to string role.
  * Supports both numeric (legacy) and string-based roles.
  */
 export const mapRoleNumberToString = (role: number | string): string => {
@@ -465,7 +467,7 @@ export const mapRoleNumberToString = (role: number | string): string => {
 };
 
 /**
- * Maps string role to role number for UserCompanies (for legacy numeric storage).
+ * Maps string role to role number for CompanyMembers (for legacy numeric storage).
  */
 export const mapRoleStringToNumber = (roleString: string): number => {
   const normalized = roleString.trim().toLowerCase();

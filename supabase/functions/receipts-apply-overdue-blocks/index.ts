@@ -118,17 +118,27 @@ Deno.serve(async (req) => {
   const errors: string[] = []
 
   try {
-    const { data: subs, error: subsError } = await supabase
-      .from('Subscriptions')
-      .select('Id, OwnerType, OwnerId, Plans(Key)')
-      .eq('Status', 1)
-      .eq('IsDeleted', false)
-
-    if (subsError) {
-      throw new Error(`Subscriptions: ${subsError.message}`)
+    // Prefer SubscriptionsLegacy after flexible billing rename (20260401113000); fall back to Subscriptions.
+    let subscriptions: SubRow[] = []
+    for (const table of ['SubscriptionsLegacy', 'Subscriptions'] as const) {
+      const { data, error } = await supabase
+        .from(table)
+        .select('Id, OwnerType, OwnerId, Plans(Key)')
+        .eq('Status', 1)
+        .eq('IsDeleted', false)
+      if (!error) {
+        subscriptions = (data ?? []) as SubRow[]
+        break
+      }
+      const msg = error.message ?? ''
+      const missing =
+        error.code === '42P01' ||
+        msg.includes('does not exist') ||
+        msg.includes('schema cache')
+      if (!missing) {
+        throw new Error(`${table}: ${error.message}`)
+      }
     }
-
-    const subscriptions = (subs ?? []) as SubRow[]
     const now = new Date()
 
     for (const sub of subscriptions) {

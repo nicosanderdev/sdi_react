@@ -4,7 +4,6 @@ import { Spinner, Alert, Button, Card } from 'flowbite-react';
 import { AlertCircle, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { CompanyInfoCard } from '../../../components/company/CompanyInfoCard';
 import { CompanyUsersList } from '../../../components/company/CompanyUsersList';
 import { CompanyProfileEditor } from '../../../components/company/CompanyProfileEditor';

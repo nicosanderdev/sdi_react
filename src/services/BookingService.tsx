@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { ensureBookingUsageIfApplicable } from './BillingUsageRecords';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
@@ -27,6 +28,12 @@ export interface BookingWithMemberAndProperty extends BookingWithMember {
     State?: string;
     ZipCode?: string;
     Country?: string;
+  };
+  PropertyOwnerDisplay?: {
+    ownerType: 'member' | 'company';
+    name: string;
+    email?: string;
+    phone?: string;
   };
 }
 
@@ -62,6 +69,28 @@ function buildEstatePropertyTitle(ep: BookingWithMemberAndProperty['EstateProper
   const title = street ? (suffix ? `${street} - ${suffix}` : street) : (suffix || undefined);
 
   return title || undefined;
+}
+
+function mapPropertyOwnerDisplay(owner: any): BookingWithMemberAndProperty['PropertyOwnerDisplay'] | undefined {
+  if (owner?.OwnerType === 'member' && owner?.Member) {
+    const fullName = [owner.Member.FirstName, owner.Member.LastName].filter(Boolean).join(' ').trim();
+    return {
+      ownerType: 'member',
+      name: fullName || '—',
+      email: owner.Member.Email ?? undefined,
+      phone: owner.Member.Phone ?? undefined
+    };
+  }
+
+  if (owner?.OwnerType === 'company' && owner?.Company) {
+    return {
+      ownerType: 'company',
+      name: owner.Company.Name ?? '—',
+      email: owner.Company.BillingEmail ?? undefined
+    };
+  }
+
+  return undefined;
 }
 
 class BookingService {
@@ -126,24 +155,36 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
+            OwnerId,
             StreetName,
             HouseNumber,
             Neighborhood,
             City,
             State,
             ZipCode,
-            Country
+            Country,
+            Owner:Owners(
+              Id,
+              OwnerType,
+              MemberId,
+              CompanyId,
+              Member:Members(
+                Id,
+                UserId,
+                FirstName,
+                LastName,
+                Email,
+                Phone,
+                AvatarUrl
+              ),
+              Company:Companies(
+                Id,
+                Name,
+                BillingEmail
+              )
+            )
           )
         `)
         .eq('IsDeleted', false)
@@ -157,11 +198,36 @@ class BookingService {
           const ep = booking.EstateProperty;
           if (!ep) return booking;
 
+          const owner = ep.Owner;
+          let ownerAsGuest: BookingWithMember['Guest'] | undefined;
+
+          if (owner?.OwnerType === 'member' && owner?.Member) {
+            ownerAsGuest = {
+              Id: owner.Member.Id,
+              UserId: owner.Member.UserId,
+              FirstName: owner.Member.FirstName,
+              LastName: owner.Member.LastName,
+              Email: owner.Member.Email,
+              Phone: owner.Member.Phone,
+              AvatarUrl: owner.Member.AvatarUrl
+            };
+          } else if (owner?.OwnerType === 'company' && owner?.Company) {
+            ownerAsGuest = {
+              Id: owner.Company.Id,
+              UserId: owner.Company.Id,
+              FirstName: owner.Company.Name,
+              LastName: '',
+              Email: owner.Company.BillingEmail
+            };
+          }
+
+          const { Owner: _owner, ...estatePropertyWithoutOwner } = ep;
           const Title = buildEstatePropertyTitle(ep);
           return {
             ...booking,
+            Guest: ownerAsGuest,
             EstateProperty: {
-              ...ep,
+              ...estatePropertyWithoutOwner,
               Title
             }
           };
@@ -185,24 +251,36 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
+            OwnerId,
             StreetName,
             HouseNumber,
             Neighborhood,
             City,
             State,
             ZipCode,
-            Country
+            Country,
+            Owner:Owners(
+              Id,
+              OwnerType,
+              MemberId,
+              CompanyId,
+              Member:Members(
+                Id,
+                UserId,
+                FirstName,
+                LastName,
+                Email,
+                Phone,
+                AvatarUrl
+              ),
+              Company:Companies(
+                Id,
+                Name,
+                BillingEmail
+              )
+            )
           )
         `)
         .eq('IsDeleted', false)
@@ -216,11 +294,16 @@ class BookingService {
           const ep = booking.EstateProperty;
           if (!ep) return booking;
 
+          const owner = ep.Owner;
+          const propertyOwnerDisplay = mapPropertyOwnerDisplay(owner);
+
+          const { Owner: _owner, ...estatePropertyWithoutOwner } = ep;
           const Title = buildEstatePropertyTitle(ep);
           return {
             ...booking,
+            PropertyOwnerDisplay: propertyOwnerDisplay,
             EstateProperty: {
-              ...ep,
+              ...estatePropertyWithoutOwner,
               Title
             }
           };
@@ -413,6 +496,10 @@ class BookingService {
 
       if (data?.EstateProperty) {
         data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
+      }
+
+      if (updates.status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+        await ensureBookingUsageIfApplicable(data.Id, data.EstatePropertyId);
       }
 
       return {

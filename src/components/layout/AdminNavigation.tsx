@@ -3,10 +3,11 @@ import { SidebarItem } from 'flowbite-react';
 import {
   UserIcon,
   BuildingIcon,
+  Building2Icon,
   BarChartIcon,
-  SettingsIcon,
   FileText,
   CalendarCheck,
+  Receipt,
   type LucideIcon
 } from 'lucide-react';
 
@@ -29,7 +30,9 @@ export function AdminNavigation() {
     { id: 'admin-dashboard', label: 'Dashboard global', icon: BarChartIcon, path: '/dashboard/admin/dashboard' },
     { id: 'admin-properties', label: 'Propiedades', icon: BuildingIcon, path: '/dashboard/admin/properties' },
     { id: 'admin-bookings', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/admin/bookings' },
+    { id: 'admin-payments', label: 'Gestión de pagos', icon: Receipt, path: '/dashboard/admin/payments' },
     { id: 'admin-users', label: 'Usuarios', icon: UserIcon, path: '/dashboard/admin/users' },
+    { id: 'admin-companies', label: 'Compañías', icon: Building2Icon, path: '/dashboard/admin/companies' },
     { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' }
     // { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
   ];
@@ -43,11 +46,6 @@ export function AdminNavigation() {
           icon={item.icon}
           active={location.pathname === item.path || location.pathname.startsWith(item.path)}
           className="hover:bg-green-50 dark:hover:bg-green-900/20"
-          style={{
-            backgroundColor: (location.pathname === item.path || location.pathname.startsWith(item.path))
-              ? 'rgb(240 253 244)'
-              : undefined
-          }}
         >
           {item.label}
         </SidebarItem>
