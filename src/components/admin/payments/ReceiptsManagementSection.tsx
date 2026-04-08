@@ -37,8 +37,8 @@ function formatAmount(value: number, currency: string): string {
 }
 
 function statusBadge(status: number) {
-  if (status === 1) return <Badge color="success">Paid</Badge>;
-  return <Badge color="warning">Unpaid</Badge>;
+  if (status === 1) return <Badge color="success">Pagada</Badge>;
+  return <Badge color="warning">No pagada</Badge>;
 }
 
 export function ReceiptsManagementSection({
@@ -83,7 +83,7 @@ export function ReceiptsManagementSection({
             />
           </div>
           <div>
-            <Label htmlFor="receipts-status-filter">Estado de pago</Label>
+            <Label htmlFor="receipts-status-filter">Estado de factura</Label>
             <Select
               id="receipts-status-filter"
               value={status}
@@ -136,25 +136,25 @@ export function ReceiptsManagementSection({
         {loading ? (
           <div className="flex items-center gap-2 py-4">
             <Spinner size="md" />
-            <span>Cargando recibos...</span>
+            <span>Cargando facturas...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table hoverable>
               <TableHead>
-                <TableHeadCell>ID de recibo</TableHeadCell>
+                <TableHeadCell>ID de factura</TableHeadCell>
                 <TableHeadCell>Propietario</TableHeadCell>
                 <TableHeadCell>Monto total</TableHeadCell>
                 <TableHeadCell>Ítems</TableHeadCell>
                 <TableHeadCell>Fecha de creación</TableHeadCell>
-                <TableHeadCell>Estado de pago</TableHeadCell>
+                <TableHeadCell>Estado de factura</TableHeadCell>
                 <TableHeadCell>Acciones</TableHeadCell>
               </TableHead>
               <TableBody className="divide-y">
                 {receipts.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                      No se encontraron recibos.
+                      No se encontraron facturas.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -181,7 +181,7 @@ export function ReceiptsManagementSection({
                               disabled={updatingReceiptId === receipt.id}
                               onClick={() => onUpdateStatus(receipt.id, false)}
                             >
-                              Marcar como no pagado
+                              Marcar como No Pagada
                             </Button>
                           ) : (
                             <Button
@@ -190,7 +190,7 @@ export function ReceiptsManagementSection({
                               disabled={updatingReceiptId === receipt.id}
                               onClick={() => onUpdateStatus(receipt.id, true)}
                             >
-                              Marcar como pagado
+                              Marcar como Pagada
                             </Button>
                           )}
                         </div>

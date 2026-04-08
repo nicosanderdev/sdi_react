@@ -1,5 +1,13 @@
 import { supabase } from '../config/supabase';
 
+/**
+ * Flexible billing (UsageRecords → Invoices). Types still say "Receipt" in places; UI uses "factura".
+ * - getBookings: admin_get_billable_usage (usage ids; not BookingReceipts).
+ * - getReceipts / generateReceipt / updateReceiptStatus: admin_get_invoices, admin_generate_invoice_from_usage, admin_set_invoice_status.
+ * Automatic cycle invoicing (generate_invoice_for_cycle) is separate and unchanged by this module.
+ * Proof-of-payment "recibo" rows are not created here unless optional SQL in the same migration file (20260408120000, section B) is applied.
+ */
+
 export type PaymentFilterStatus = 'all' | 'paid' | 'unpaid';
 export type ReceiptFilterStatus = 'all' | 'paid' | 'unpaid';
 
@@ -79,11 +87,14 @@ class PaymentsAdminService {
         ? 0
         : null;
 
+    const p_only_unbilled = filters.paymentStatus === 'unpaid';
+
     const { data, error } = await supabase.rpc('admin_get_billable_usage', {
       p_user_search: userSearch,
       p_payment_status: paymentStatus,
       p_from_date: filters.fromDate || null,
-      p_to_date: filters.toDate || null
+      p_to_date: filters.toDate || null,
+      p_only_unbilled
     });
 
     if (error) {

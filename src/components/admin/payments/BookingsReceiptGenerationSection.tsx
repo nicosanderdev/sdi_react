@@ -28,11 +28,12 @@ function formatAmount(value: number): string {
   }).format(value || 0);
 }
 
+/** Estado de la factura asociada al uso (0 = sin factura o pendiente, 1 = factura pagada). */
 function renderPaymentStatus(status: number) {
   if (status === 1) {
-    return <Badge color="success">Paid</Badge>;
+    return <Badge color="success">Pagada</Badge>;
   }
-  return <Badge color="warning">Unpaid</Badge>;
+  return <Badge color="warning">Pendiente</Badge>;
 }
 
 export function BookingsReceiptGenerationSection(props: Props) {
@@ -68,7 +69,7 @@ export function BookingsReceiptGenerationSection(props: Props) {
             />
           </div>
           <div>
-            <Label htmlFor="payments-status-filter">Estado de pago</Label>
+            <Label htmlFor="payments-status-filter">Estado de factura</Label>
             <Select
               id="payments-status-filter"
               value={paymentStatus}
@@ -133,13 +134,13 @@ export function BookingsReceiptGenerationSection(props: Props) {
                 <TableHeadCell>Propiedad / Espacio</TableHeadCell>
                 <TableHeadCell>Fechas</TableHeadCell>
                 <TableHeadCell>Monto total</TableHeadCell>
-                <TableHeadCell>Estado de pago</TableHeadCell>
+                <TableHeadCell>Estado de factura</TableHeadCell>
               </TableHead>
               <TableBody className="divide-y">
                 {bookings.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      No bookings found with current filters.
+                      No hay reservas con uso facturable que coincidan con los filtros.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -166,14 +167,15 @@ export function BookingsReceiptGenerationSection(props: Props) {
 
         <div className="pt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium">
-            Monto total a cobrar: <span className="text-primary-700 dark:text-primary-400">{formatAmount(totalToCollect)}</span>
+            Total estimado (usos pendientes de facturar):{' '}
+            <span className="text-primary-700 dark:text-primary-400">{formatAmount(totalToCollect)}</span>
           </p>
           <Button
             color="green"
             disabled={!canGenerateReceipt || submittingReceipt}
             onClick={onGenerateReceipt}
           >
-            {submittingReceipt ? 'Generando...' : 'Generar recibo'}
+            {submittingReceipt ? 'Generando...' : 'Generar Factura'}
           </Button>
         </div>
       </Card>

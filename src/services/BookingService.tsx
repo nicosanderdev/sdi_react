@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import { ensureBookingUsageIfApplicable } from './BillingUsageRecords';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
@@ -27,6 +28,12 @@ export interface BookingWithMemberAndProperty extends BookingWithMember {
     State?: string;
     ZipCode?: string;
     Country?: string;
+  };
+  PropertyOwnerDisplay?: {
+    ownerType: 'member' | 'company';
+    name: string;
+    email?: string;
+    phone?: string;
   };
 }
 
@@ -64,67 +71,29 @@ function buildEstatePropertyTitle(ep: BookingWithMemberAndProperty['EstateProper
   return title || undefined;
 }
 
-class BookingService {
-  private static async resolveBillingMemberIdByPropertyId(propertyId: string): Promise<string | null> {
-    const { data: property, error: propertyError } = await supabase
-      .from('EstateProperties')
-      .select('OwnerId')
-      .eq('Id', propertyId)
-      .eq('IsDeleted', false)
-      .single();
-
-    if (propertyError) throw propertyError;
-    if (!property?.OwnerId) return null;
-
-    const { data: owner, error: ownerError } = await supabase
-      .from('Owners')
-      .select('OwnerType,MemberId,CompanyId')
-      .eq('Id', property.OwnerId)
-      .eq('IsDeleted', false)
-      .single();
-
-    if (ownerError) throw ownerError;
-    if (!owner) return null;
-
-    if (owner.OwnerType === 'member') {
-      return owner.MemberId ?? null;
-    }
-
-    if (owner.OwnerType === 'company' && owner.CompanyId) {
-      const { data: ownerMap, error: ownerMapError } = await supabase
-        .from('BillingOwnerMemberMap')
-        .select('MemberId')
-        .eq('OwnerId', owner.CompanyId)
-        .eq('IsActive', true)
-        .limit(1);
-
-      if (ownerMapError) throw ownerMapError;
-      return ownerMap?.[0]?.MemberId ?? null;
-    }
-
-    return null;
-  }
-
-  private static async ensureBookingUsageRecord(bookingId: string, propertyId: string): Promise<void> {
-    const memberId = await this.resolveBillingMemberIdByPropertyId(propertyId);
-    if (!memberId) {
-      throw new Error('Unable to resolve billing member for booking usage record');
-    }
-
-    const payload = {
-      MemberId: memberId,
-      Type: 'booking',
-      ReferenceId: bookingId,
-      Amount: null
+function mapPropertyOwnerDisplay(owner: any): BookingWithMemberAndProperty['PropertyOwnerDisplay'] | undefined {
+  if (owner?.OwnerType === 'member' && owner?.Member) {
+    const fullName = [owner.Member.FirstName, owner.Member.LastName].filter(Boolean).join(' ').trim();
+    return {
+      ownerType: 'member',
+      name: fullName || '—',
+      email: owner.Member.Email ?? undefined,
+      phone: owner.Member.Phone ?? undefined
     };
-
-    const { error } = await supabase
-      .from('UsageRecords')
-      .upsert(payload, { onConflict: 'MemberId,Type,ReferenceId', ignoreDuplicates: true });
-
-    if (error) throw error;
   }
 
+  if (owner?.OwnerType === 'company' && owner?.Company) {
+    return {
+      ownerType: 'company',
+      name: owner.Company.Name ?? '—',
+      email: owner.Company.BillingEmail ?? undefined
+    };
+  }
+
+  return undefined;
+}
+
+class BookingService {
   /**
    * Get all bookings for a property with optional date range
    */
@@ -164,10 +133,6 @@ class BookingService {
 
       if (error) throw error;
 
-      if (status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
-        await this.ensureBookingUsageRecord(data.Id, data.EstatePropertyId);
-      }
-
       return {
         succeeded: true,
         data: data || []
@@ -190,24 +155,36 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
+            OwnerId,
             StreetName,
             HouseNumber,
             Neighborhood,
             City,
             State,
             ZipCode,
-            Country
+            Country,
+            Owner:Owners(
+              Id,
+              OwnerType,
+              MemberId,
+              CompanyId,
+              Member:Members(
+                Id,
+                UserId,
+                FirstName,
+                LastName,
+                Email,
+                Phone,
+                AvatarUrl
+              ),
+              Company:Companies(
+                Id,
+                Name,
+                BillingEmail
+              )
+            )
           )
         `)
         .eq('IsDeleted', false)
@@ -221,11 +198,36 @@ class BookingService {
           const ep = booking.EstateProperty;
           if (!ep) return booking;
 
+          const owner = ep.Owner;
+          let ownerAsGuest: BookingWithMember['Guest'] | undefined;
+
+          if (owner?.OwnerType === 'member' && owner?.Member) {
+            ownerAsGuest = {
+              Id: owner.Member.Id,
+              UserId: owner.Member.UserId,
+              FirstName: owner.Member.FirstName,
+              LastName: owner.Member.LastName,
+              Email: owner.Member.Email,
+              Phone: owner.Member.Phone,
+              AvatarUrl: owner.Member.AvatarUrl
+            };
+          } else if (owner?.OwnerType === 'company' && owner?.Company) {
+            ownerAsGuest = {
+              Id: owner.Company.Id,
+              UserId: owner.Company.Id,
+              FirstName: owner.Company.Name,
+              LastName: '',
+              Email: owner.Company.BillingEmail
+            };
+          }
+
+          const { Owner: _owner, ...estatePropertyWithoutOwner } = ep;
           const Title = buildEstatePropertyTitle(ep);
           return {
             ...booking,
+            Guest: ownerAsGuest,
             EstateProperty: {
-              ...ep,
+              ...estatePropertyWithoutOwner,
               Title
             }
           };
@@ -249,24 +251,36 @@ class BookingService {
         .from('Bookings')
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
+            OwnerId,
             StreetName,
             HouseNumber,
             Neighborhood,
             City,
             State,
             ZipCode,
-            Country
+            Country,
+            Owner:Owners(
+              Id,
+              OwnerType,
+              MemberId,
+              CompanyId,
+              Member:Members(
+                Id,
+                UserId,
+                FirstName,
+                LastName,
+                Email,
+                Phone,
+                AvatarUrl
+              ),
+              Company:Companies(
+                Id,
+                Name,
+                BillingEmail
+              )
+            )
           )
         `)
         .eq('IsDeleted', false)
@@ -280,11 +294,16 @@ class BookingService {
           const ep = booking.EstateProperty;
           if (!ep) return booking;
 
+          const owner = ep.Owner;
+          const propertyOwnerDisplay = mapPropertyOwnerDisplay(owner);
+
+          const { Owner: _owner, ...estatePropertyWithoutOwner } = ep;
           const Title = buildEstatePropertyTitle(ep);
           return {
             ...booking,
+            PropertyOwnerDisplay: propertyOwnerDisplay,
             EstateProperty: {
-              ...ep,
+              ...estatePropertyWithoutOwner,
               Title
             }
           };
@@ -480,7 +499,7 @@ class BookingService {
       }
 
       if (updates.status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
-        await this.ensureBookingUsageRecord(data.Id, data.EstatePropertyId);
+        await ensureBookingUsageIfApplicable(data.Id, data.EstatePropertyId);
       }
 
       return {

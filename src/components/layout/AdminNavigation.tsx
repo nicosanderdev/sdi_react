@@ -46,11 +46,6 @@ export function AdminNavigation() {
           icon={item.icon}
           active={location.pathname === item.path || location.pathname.startsWith(item.path)}
           className="hover:bg-green-50 dark:hover:bg-green-900/20"
-          style={{
-            backgroundColor: (location.pathname === item.path || location.pathname.startsWith(item.path))
-              ? 'rgb(240 253 244)'
-              : undefined
-          }}
         >
           {item.label}
         </SidebarItem>

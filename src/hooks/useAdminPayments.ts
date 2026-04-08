@@ -36,6 +36,7 @@ const defaultReceiptFilters: ReceiptFiltersState = {
   status: 'all'
 };
 
+/** Admin pagos: facturas = Invoices (RPC admin_*); nombres internos "receipt" = filas de factura hasta renombrar tipos. */
 export function useAdminPayments() {
   const [activeSection, setActiveSection] = useState<'bookings' | 'receipts'>('bookings');
   const [filters, setFilters] = useState<BookingFiltersState>(defaultFilters);
@@ -93,7 +94,7 @@ export function useAdminPayments() {
       const data = await paymentsAdminService.getReceipts(receiptFilters);
       setReceipts(data);
     } catch (error: any) {
-      setReceiptsError(error.message || 'Error al cargar recibos');
+      setReceiptsError(error.message || 'Error al cargar facturas');
       setReceipts([]);
     } finally {
       setLoadingReceipts(false);

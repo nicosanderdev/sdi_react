@@ -1,3 +1,7 @@
+/**
+ * Facturación flexible: UsageRecords → Invoices (RPC admin_*). Distinto de BookingReceipts (comisión/plan).
+ * Tras aplicar migración 20260408120000, la lista "Pendiente" filtra usos sin factura para generar factura.
+ */
 import { useEffect } from 'react';
 import { Card, TabItem, Tabs } from 'flowbite-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
@@ -39,7 +43,7 @@ export function AdminPaymentsPage() {
     <div className="space-y-6" data-testid="admin-payments-page">
       <DashboardPageTitle
         title="Gestión de pagos"
-        subtitle="Genera recibos desde reservas y administra su seguimiento de cobro."
+        subtitle="Agrupa cargas pendientes (uso) en facturas, haz seguimiento del cobro y marca el pago. El recibo de pago es un paso posterior a la factura pagada."
       />
 
       <Card>
@@ -48,7 +52,7 @@ export function AdminPaymentsPage() {
             setActiveSection(activeTab === 0 ? 'bookings' : 'receipts')
           }
         >
-          <TabItem active={activeSection === 'bookings'} title="Reservas (Generación de recibos)">
+          <TabItem active={activeSection === 'bookings'} title="Reservas - Generación de Facturas">
             <BookingsReceiptGenerationSection
               userSearch={filters.userSearch}
               paymentStatus={filters.paymentStatus}
@@ -67,7 +71,7 @@ export function AdminPaymentsPage() {
             />
           </TabItem>
 
-          <TabItem active={activeSection === 'receipts'} title="Recibos (Gestión y seguimiento)">
+          <TabItem active={activeSection === 'receipts'} title="Facturas - Gestión y Seguimiento">
             <ReceiptsManagementSection
               receipts={receipts}
               ownerName={receiptFilters.ownerName}

@@ -19,10 +19,10 @@ function formatAmount(value: number, currency: string): string {
 export function ReceiptDetailsModal({ receipt, open, onClose }: Props) {
   return (
     <Modal show={open} onClose={onClose} size="4xl">
-      <ModalHeader>Detalle de recibo</ModalHeader>
+      <ModalHeader>Detalle de factura</ModalHeader>
       <ModalBody>
         {!receipt ? (
-          <p className="text-sm text-gray-500">No receipt selected.</p>
+          <p className="text-sm text-gray-500">Ninguna factura seleccionada.</p>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -32,15 +32,15 @@ export function ReceiptDetailsModal({ receipt, open, onClose }: Props) {
             <div className="overflow-x-auto">
               <Table>
                 <TableHead>
-                  <TableHeadCell>Booking ID</TableHeadCell>
-                  <TableHeadCell>Amount</TableHeadCell>
-                  <TableHeadCell>Reference</TableHeadCell>
+                  <TableHeadCell>ID de reserva</TableHeadCell>
+                  <TableHeadCell>Monto</TableHeadCell>
+                  <TableHeadCell>Fechas</TableHeadCell>
                 </TableHead>
                 <TableBody className="divide-y">
                   {receipt.items.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} className="text-center py-6 text-gray-500">
-                        No items found.
+                        Sin ítems en esta factura.
                       </TableCell>
                     </TableRow>
                   ) : (
