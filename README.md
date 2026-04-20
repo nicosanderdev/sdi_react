@@ -49,6 +49,86 @@ VITE_TENANT_API_KEY=your-tenant-api-key
 
 The `supabase-trigger.sql` file also includes RLS policies. Make sure to review and adjust them based on your security requirements.
 
+## File storage (Cloudflare R2)
+
+Property images, property documents, and profile avatars are stored in **Cloudflare R2**, not Supabase Storage. The browser calls the Supabase Edge Function **`storage-r2`**, which returns a **presigned PUT** URL; the client uploads the file directly to R2, then stores the **public URL** returned by the function (same pattern as before: full URLs in the database).
+
+### Cloudflare setup
+
+1. In the Cloudflare dashboard, create three **R2 buckets** (the names Cloudflare expects; the app still uses logical names `property_images` / `property_documents` in code and in the Edge API): **`property-images`**, **`property-documents`**, and **`avatars`**.
+2. For each bucket, enable **public access** (for example **R2.dev subdomain** or a **custom domain**) so public URLs resolve in `<img>` and document links. Note the public base URL for each bucket (no trailing slash), for example `https://pub-xxxxx.r2.dev`.
+3. Create an **R2 API token** (S3-compatible) with read/write on these buckets. Copy the **access key id**, **secret access key**, and **S3 API endpoint** (`https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
+4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173` and your production origin), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
+
+### Supabase Edge Function secrets
+
+Set these for **all** environments where `storage-r2` runs (Dashboard → Project Settings → Edge Functions → Secrets, or `supabase secrets set`):
+
+| Secret | Description |
+|--------|-------------|
+| `R2_ENDPOINT` | S3 API endpoint, e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `R2_REGION` | Optional; defaults to `auto` if omitted |
+| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Public URL base for the **`property-images`** R2 bucket (no trailing slash) |
+| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Public URL base for the **`property-documents`** R2 bucket |
+| `R2_PUBLIC_BASE_AVATARS` | Public URL base for the **`avatars`** R2 bucket |
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already available to Edge Functions.
+
+Deploy the function after pulling the code:
+
+```bash
+supabase functions deploy storage-r2
+```
+
+### Breaking changes / behavior notes
+
+- **New uploads** use R2 URLs only. Existing database rows that still point at Supabase Storage are unchanged; re-upload if you need those assets on R2.
+- Profile pictures use the **`avatars`** bucket (the app previously referenced a `profile_pictures` bucket in code; that path is removed).
+
+### Local development
+
+Run Supabase locally with secrets configured (see [Supabase secrets](https://supabase.com/docs/guides/functions/secrets)), then serve functions so `storage-r2` is reachable from the Vite app. Without R2 secrets and bucket CORS, uploads will fail when calling `storage-r2` or when `PUT`ing to R2.
+
+#### MinIO (Docker) instead of R2
+
+You can run [MinIO](https://min.io/) locally as an S3-compatible stand-in for R2. The app already uses path-style URLs and the same bucket names as in production: **`property-images`**, **`property-documents`**, and **`avatars`**.
+
+1. **Start MinIO with API CORS enabled.** The Supabase edge runtime runs in Docker, so the browser will send a cross-origin `PUT` to the presigned URL on MinIO. Open-source MinIO does **not** support per-bucket CORS via `mc cors set`; configure **server-wide** CORS with `MINIO_API_CORS_ALLOW_ORIGIN` (comma-separated origins). Example (adjust ports and origins to match your Vite dev server):
+
+   ```bash
+   docker run -p 9000:9000 -p 9001:9001 \
+     -e "MINIO_ROOT_USER=admin" \
+     -e "MINIO_ROOT_PASSWORD=password" \
+     -e "MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:5173,http://127.0.0.1:5173" \
+     minio/minio server /data --console-address ":9001"
+   ```
+
+   For quick local testing only, you can use `MINIO_API_CORS_ALLOW_ORIGIN=*` instead of listing origins.
+
+2. **Create buckets and public read** (anonymous download, same idea as public R2 buckets for `<img>` and file links). From the repo root on Windows:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-minio-local.ps1
+   ```
+
+   The script uses the MinIO Client (`minio/mc`) in Docker. It targets `http://host.docker.internal:9000` by default (so it can reach MinIO on the host). Override with `-Endpoint`, `-AccessKey`, and `-SecretKey` if needed.
+
+3. **Configure [`supabase/functions/.env`](supabase/functions/.env)** for the edge function (used when serving functions locally). The edge runtime reaches MinIO on the host via **`host.docker.internal`**; the browser should use **`127.0.0.1`** for stable public object URLs.
+
+   | Variable | Example (local MinIO) |
+   |----------|------------------------|
+   | `R2_ENDPOINT` | `http://host.docker.internal:9000` |
+   | `R2_ACCESS_KEY_ID` | Same as `MINIO_ROOT_USER` (e.g. `admin`) |
+   | `R2_SECRET_ACCESS_KEY` | Same as `MINIO_ROOT_PASSWORD` |
+   | `R2_REGION` | `us-east-1` (optional; use if `auto` causes issues) |
+   | `R2_PUBLIC_BASE_PROPERTY_IMAGES` | `http://127.0.0.1:9000/property-images` |
+   | `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | `http://127.0.0.1:9000/property-documents` |
+   | `R2_PUBLIC_BASE_AVATARS` | `http://127.0.0.1:9000/avatars` |
+
+   Restart or reload local edge functions after changing `.env`. Presigned `PUT` URLs use `R2_ENDPOINT`, so the browser must be able to reach that host as well; on Windows, `host.docker.internal` usually works for the upload `PUT` from Chrome or Edge. If uploads fail from the browser, you may need to align the signing host with a reachable hostname (for example by running the edge tooling on the host or adjusting Docker networking).
+
 ## dLocal Go Payment Gateway Integration
 
 This application includes a secure dLocal Go payment gateway integration using Supabase Edge Functions for processing international payments.

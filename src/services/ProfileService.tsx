@@ -1,6 +1,7 @@
 // src/services/profileService.ts
 import apiClient from './AxiosClient'; // Keep for auth-related HTTP calls
 import { supabase } from '../config/supabase';
+import { storageService } from './storage';
 import {
   mapDbToProfile,
   getCurrentUserId,
@@ -199,38 +200,10 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
 
-    // Check if profile_pictures bucket exists
-    const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
-    if (bucketError) {
-      console.warn('Could not verify bucket existence, proceeding with upload:', bucketError.message);
-    } else {
-      const profilePicturesBucket = buckets?.find(bucket => bucket.name === 'profile_pictures');
-      if (!profilePicturesBucket) {
-        console.warn('profile_pictures bucket not found in list, but proceeding with upload attempt');
-      }
-    }
-
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
-      .from('profile_pictures')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: true
-      });
-
-    if (uploadError) {
-      if (uploadError.message?.includes('Bucket not found')) {
-        throw new Error('Profile picture storage is not configured. Please contact an administrator to create the "profile_pictures" bucket.');
-      }
-      throw new Error(`Upload failed: ${uploadError.message}`);
-    }
-
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('profile_pictures')
-      .getPublicUrl(fileName);
-
-    const avatarUrl = urlData.publicUrl;
+    const { publicUrl: avatarUrl } = await storageService.presignAndUpload(file, {
+      bucket: 'avatars',
+      key: fileName,
+    });
 
     // Update the member record with the new avatar URL using RPC function
     // This bypasses RLS policies that might be blocking the direct update

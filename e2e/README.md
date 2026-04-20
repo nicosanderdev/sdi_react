@@ -19,7 +19,19 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 ```
 
-### 3. Database Setup
+### 3. File uploads (Cloudflare R2)
+
+Specs such as `create-property-new-member.spec.ts` and `create-property-existing-member.spec.ts` **upload real image files** through the app. Uploads go to **Cloudflare R2** via the Edge Function **`storage-r2`**, not Supabase Storage.
+
+For those tests to pass you need:
+
+1. **`storage-r2` deployed** (or served locally) on the same Supabase project referenced by `VITE_SUPABASE_URL`.
+2. **Edge Function secrets** for R2 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and the three `R2_PUBLIC_BASE_*` variables) as documented in the root [`README.md`](../README.md) under *File storage (Cloudflare R2)*.
+3. **CORS** on each R2 bucket allowing **PUT** from your test origin (for example the Playwright base URL or `http://localhost:5173`).
+
+If R2 is not configured, image upload steps will fail when the app invokes `storage-r2` or when the browser sends the presigned `PUT` to R2.
+
+### 4. Database Setup
 
 Run the migrations to create test accounts and booking data:
 
@@ -52,7 +64,7 @@ Or run the migration `20251222100000_add_test_users_for_e2e.sql` which creates:
 - **Basic User**: `test@example.com` / `testpassword123`
 - **Company Admin**: `admin@testcompany.com` / `adminpassword123`
 
-### 4. Run Tests
+### 5. Run Tests
 
 ```bash
 # Run all e2e tests

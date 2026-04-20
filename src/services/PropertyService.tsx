@@ -11,6 +11,7 @@ import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateP
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
 import { tryRecordListingUsageOnPublish } from './BillingUsageRecords';
+import { storageService } from './storage';
 
 // Import types for Supabase property creation
 import { PropertyFormData } from '../models/properties/PropertyFormSchema';
@@ -560,7 +561,6 @@ const createPropertyWithOwnerUserId = async (
 
         const memberId = memberRow.Id as string;
 
-        // Upload images to Supabase Storage
         const uploadedImages = await Promise.all(
             displayImages
                 .filter(img => img.source === 'new' && img.file)
@@ -568,24 +568,14 @@ const createPropertyWithOwnerUserId = async (
                     const fileExt = img.file!.name.split('.').pop();
                     const fileName = `properties/temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                    const { error: uploadError } = await supabase.storage
-                        .from('property_images')
-                        .upload(fileName, img.file!, {
-                            cacheControl: '3600',
-                            upsert: true
-                        });
-
-                    if (uploadError) {
-                        throw uploadError;
-                    }
-
-                    const { data: urlData } = supabase.storage
-                        .from('property_images')
-                        .getPublicUrl(fileName);
+                    const { publicUrl } = await storageService.presignAndUpload(img.file!, {
+                        bucket: 'property_images',
+                        key: fileName,
+                    });
 
                     return {
                         id: img.id || crypto.randomUUID(),
-                        url: urlData.publicUrl,
+                        url: publicUrl,
                         altText: img.alt || '',
                         isMain: img.isMain,
                         fileName: img.alt || ''
@@ -606,7 +596,6 @@ const createPropertyWithOwnerUserId = async (
 
         const allImages = [...uploadedImages, ...existingImages];
 
-        // Upload documents to Supabase Storage
         const uploadedDocuments = await Promise.all(
             displayDocuments
                 .filter(doc => doc.source === 'new' && doc.file)
@@ -614,24 +603,14 @@ const createPropertyWithOwnerUserId = async (
                     const fileExt = doc.file!.name.split('.').pop();
                     const fileName = `properties/temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                    const { error: uploadError } = await supabase.storage
-                        .from('property_documents')
-                        .upload(fileName, doc.file!, {
-                            cacheControl: '3600',
-                            upsert: true
-                        });
-
-                    if (uploadError) {
-                        throw uploadError;
-                    }
-
-                    const { data: urlData } = supabase.storage
-                        .from('property_documents')
-                        .getPublicUrl(fileName);
+                    const { publicUrl } = await storageService.presignAndUpload(doc.file!, {
+                        bucket: 'property_documents',
+                        key: fileName,
+                    });
 
                     return {
                         id: doc.id || crypto.randomUUID(),
-                        url: urlData.publicUrl,
+                        url: publicUrl,
                         name: doc.name || '',
                         fileName: doc.fileName || doc.name || '',
                         fileType: doc.fileType || 'pdf'
@@ -984,7 +963,6 @@ const updateProperty = async (
 
         const wasPublished = !!(listingBefore?.IsPropertyVisible && listingBefore?.IsActive);
 
-        // Upload new images to Supabase Storage
         const uploadedImages = await Promise.all(
             displayImages
                 .filter(img => img.source === 'new' && img.file)
@@ -992,22 +970,14 @@ const updateProperty = async (
                     const fileExt = img.file!.name.split('.').pop();
                     const fileName = `properties/temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                    const { error: uploadError } = await supabase.storage
-                        .from('property_images')
-                        .upload(fileName, img.file!, {
-                            cacheControl: '3600',
-                            upsert: true
-                        });
-
-                    if (uploadError) throw uploadError;
-
-                    const { data: urlData } = supabase.storage
-                        .from('property_images')
-                        .getPublicUrl(fileName);
+                    const { publicUrl } = await storageService.presignAndUpload(img.file!, {
+                        bucket: 'property_images',
+                        key: fileName,
+                    });
 
                     return {
                         id: img.id || crypto.randomUUID(),
-                        url: urlData.publicUrl,
+                        url: publicUrl,
                         altText: img.alt || '',
                         isMain: img.isMain,
                         fileName: img.alt || '',
@@ -1030,7 +1000,6 @@ const updateProperty = async (
 
         const allImages = [...uploadedImages, ...existingImages];
 
-        // Upload new documents to Supabase Storage
         const uploadedDocuments = await Promise.all(
             displayDocuments
                 .filter(doc => doc.source === 'new' && doc.file)
@@ -1038,24 +1007,17 @@ const updateProperty = async (
                     const fileExt = doc.file!.name.split('.').pop();
                     const fileName = `properties/temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
 
-                    const { error: uploadError } = await supabase.storage
-                        .from('property_documents')
-                        .upload(fileName, doc.file!, {
-                            cacheControl: '3600',
-                            upsert: true
-                        });
-
-                    if (uploadError) throw uploadError;
-
-                    const { data: urlData } = supabase.storage
-                        .from('property_documents')
-                        .getPublicUrl(fileName);
+                    const { publicUrl } = await storageService.presignAndUpload(doc.file!, {
+                        bucket: 'property_documents',
+                        key: fileName,
+                    });
 
                     return {
                         id: doc.id || crypto.randomUUID(),
-                        url: urlData.publicUrl,
+                        url: publicUrl,
                         name: doc.name || '',
                         fileName: doc.fileName || doc.name || '',
+                        fileType: doc.fileType || 'pdf',
                         isPublic: true
                     };
                 })
