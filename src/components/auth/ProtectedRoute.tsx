@@ -25,6 +25,7 @@ const ProtectedRouteComponent = ({
 }: ProtectedRouteProps) => {
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
+  const userStatus = useSelector((state: RootState) => state.user.status);
 
   // Show loading only while auth state is being determined, not while profile is loading.
   // When we have a session, render children and let the dashboard handle profile loading/null.
@@ -37,10 +38,20 @@ const ProtectedRouteComponent = ({
     return <Navigate to="/login" replace />;
   }
 
-  // If we have a Supabase user but no profile loaded yet, let it pass through
-  // The profile will be loaded by the AuthContext
-  if (supabaseUser && user) {
-    const userRole = user.role ?? getPrimaryRole(user) ?? Roles.User;
+  if (supabaseUser && (userStatus === 'idle' || userStatus === 'loading')) {
+    return <LoadingSpinner />;
+  }
+
+  if (supabaseUser && userStatus === 'failed') {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (supabaseUser && userStatus === 'succeeded') {
+    const userRole = getPrimaryRole(user);
+
+    if (!userRole) {
+      return <Navigate to="/login" replace />;
+    }
 
     if (!allowedRoles.includes(userRole as typeof Roles.Admin | typeof Roles.User)) {
       return <Navigate to={getRedirectPath(user)} replace />;

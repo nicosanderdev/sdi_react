@@ -1,6 +1,6 @@
 // authService.ts
 import { supabase } from '../config/supabase'
-import { AuthError, User as SupabaseUser, Session } from '@supabase/supabase-js'
+import { User as SupabaseUser } from '@supabase/supabase-js'
 
 // --- INTERFACES ---
 
@@ -108,7 +108,7 @@ const mapSupabaseUserToLegacyUser = (supabaseUser: SupabaseUser): User => {
     isEmailConfirmed: supabaseUser.email_confirmed_at ? true : false,
     isAuthenticated: true,
     is2FAEnabled: false, // TODO: Check MFA factors
-    role: 'user' // Actual role loaded from Members via profile
+    role: '' // Role is validated from Members profile after authentication
   }
 }
 
@@ -288,11 +288,11 @@ const resetPassword = async (resetPasswordDto: ResetPasswordPayload): Promise<{ 
  * Note: Supabase handles email confirmation automatically via email links.
  * This function is kept for backward compatibility.
  */
-const confirmEmail = async (token: string): Promise<{ success: boolean; message: string }> => {
+const confirmEmail = async (_token: string): Promise<{ success: boolean; message: string }> => {
   try {
     // Supabase handles email confirmation automatically when user clicks email link
     // This function is mainly for backward compatibility
-    const { data: { session }, error } = await supabase.auth.getSession()
+    const { error } = await supabase.auth.getSession()
 
     if (error) {
       throw error
@@ -554,7 +554,7 @@ const getUserSettings = async (): Promise<UserSettings | null> => {
  * @param payload The payload containing the 2FA code.
  * @returns A promise that resolves with the response data.
  */
-const validate2FaCodePasswordChange = async (payload: TwoFaPayload): Promise<RequestPasswordChangeResponse> => {
+const validate2FaCodePasswordChange = async (_payload: TwoFaPayload): Promise<RequestPasswordChangeResponse> => {
   try {
     // TODO: Implement MFA challenge for password change
     // For now, return success
@@ -570,7 +570,7 @@ const validate2FaCodePasswordChange = async (payload: TwoFaPayload): Promise<Req
  * @param payload The payload containing the recovery code.
  * @returns A promise that resolves with the response data.
  */
-const validateRecoveryPasswordChange = async (payload: ValidateRecoveryPayload): Promise<{ success: boolean }> => {
+const validateRecoveryPasswordChange = async (_payload: ValidateRecoveryPayload): Promise<{ success: boolean }> => {
   try {
     // TODO: Implement recovery codes with Supabase
     // For now, return success
