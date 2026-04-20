@@ -227,10 +227,10 @@ secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
 
 [auth.external.facebook]
-enabled = false
-client_id = ""
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_SECRET)"
-redirect_uri = ""
+redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

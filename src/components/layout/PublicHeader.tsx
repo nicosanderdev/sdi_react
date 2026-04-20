@@ -34,6 +34,7 @@ export function PublicHeader() {
       return (
         <>
           <NavbarLink href="/login">Iniciar Sesión</NavbarLink>
+          <NavbarLink href="/register">Registrarse</NavbarLink>
         </>
       );
     }

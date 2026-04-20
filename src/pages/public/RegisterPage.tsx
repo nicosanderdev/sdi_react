@@ -5,8 +5,6 @@ import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
 import { AuthCard } from '../../components/public/AuthCard';
 import { PublicLayout } from '../../components/layout/PublicLayout';
-import { useAppDispatch } from '../../hooks/reduxHooks';
-import { fetchUserProfile } from '../../store/slices/userSlice';
 import { Button, TextInput, Checkbox } from 'flowbite-react';
 import { supabase } from '../../config/supabase';
 
@@ -25,7 +23,6 @@ const FacebookIcon = () => (
 );
 
 export function RegisterPage() {
-  const dispatch = useAppDispatch();
   const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('initial');
   const [formData, setFormData] = useState({
     firstName: '',
@@ -152,7 +149,6 @@ export function RegisterPage() {
       const response = await AuthService.registerUser(payload);
       if (response.success) {
         console.log('Registration successful');
-        dispatch(fetchUserProfile());
         setView('success');
       } else {
         setView('error');

@@ -11,6 +11,7 @@ import { AboutPage } from './pages/public/AboutPage';
 import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
+import { ResetPasswordPage } from './components/user/ResetPasswordPage';
 
 // New public user pages - COMMENTED OUT: for reuse in new project managing public view
 // import { PublicWelcomePage } from './pages/public/PublicWelcomePage';
@@ -102,6 +103,7 @@ export function App() {
           <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
           <Route path="/about" element={<PublicRoute><AboutPage /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
