@@ -79,9 +79,18 @@ export function PropertyEditPage() {
         enabled: !!propertyId,
     });
 
+    const amenityPropertyType =
+        (property as any)?.listingType === 'AnnualRent'
+            ? 'RealEstate'
+            : (property as any)?.listingType;
+
     const { data: allAmenities, isLoading: isLoadingAmenities } = useQuery({
-        queryKey: ['amenities'],
-        queryFn: () => propertyService.getAmenities(),
+        queryKey: ['amenities', amenityPropertyType],
+        queryFn: () => propertyService.getAmenities(amenityPropertyType),
+        enabled:
+            amenityPropertyType === 'SummerRent' ||
+            amenityPropertyType === 'EventVenue' ||
+            amenityPropertyType === 'RealEstate',
     });
 
     // --- MUTATION HOOK ---

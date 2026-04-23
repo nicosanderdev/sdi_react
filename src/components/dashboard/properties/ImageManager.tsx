@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Upload, Trash2, Star } from 'lucide-react';
 import { Button } from 'flowbite-react';
 
@@ -22,12 +22,6 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
     onImagesChange
 }) => {
     const imageFileInputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        return () => displayImages.forEach(img => {
-            if (img.source === 'new') URL.revokeObjectURL(img.previewUrl);
-        });
-    }, [displayImages]);
 
     // --- Image Handlers ---
     const handleProcessImages = (files: FileList | null) => {

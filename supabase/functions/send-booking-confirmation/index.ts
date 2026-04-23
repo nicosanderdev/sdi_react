@@ -45,17 +45,6 @@ serve(async (req) => {
     // Check if email sending is enabled
     const sendEmailsEnabled = Deno.env.get('SEND_EMAILS_ENABLED') === 'true';
 
-    if (!sendEmailsEnabled) {
-      console.log('Email sending is disabled');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Email sending disabled' }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
-      );
-    }
-
     // Parse request body
     const { bookingId } = await req.json();
 
@@ -306,6 +295,30 @@ serve(async (req) => {
       </html>
     `;
 
+    const fromEmail = 'Holiday Trips <bookings@holidaytrips.com>';
+    const subject = `🎉 Booking Confirmed: ${booking.property.title}`;
+
+    if (!sendEmailsEnabled) {
+      console.log('Dry-run booking confirmation email:', {
+        mode: 'dry-run',
+        from: fromEmail,
+        to: [booking.user.email],
+        subject,
+        htmlLength: emailHtml.length,
+      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Confirmation email simulated (dry-run)',
+          mode: 'dry-run',
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
     // Send email using Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
@@ -327,9 +340,9 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Holiday Trips <bookings@holidaytrips.com>',
+        from: fromEmail,
         to: [booking.user.email],
-        subject: `🎉 Booking Confirmed: ${booking.property.title}`,
+        subject,
         html: emailHtml,
       }),
     });
@@ -353,6 +366,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: 'Confirmation email sent successfully',
+        mode: 'live',
         emailId: emailResult.id
       }),
       {

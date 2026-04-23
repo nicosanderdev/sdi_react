@@ -2,6 +2,7 @@ import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
+import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 import { Button, Label, Select, TextInput, Textarea, Checkbox } from 'flowbite-react';
 import PropertyService from '../../../services/PropertyService';
 import { Amenity } from '../../../models/properties/Amenity';
@@ -24,13 +25,13 @@ export function PropertyFormStep2({
 
   const { data: allAmenities, isLoading: isLoadingAmenities } = useQuery({
     queryKey: ['amenities', propertyType],
-    queryFn: () => PropertyService.getAmenities(),
+    queryFn: () => PropertyService.getAmenities(propertyType),
     enabled: !!propertyType,
   });
 
   const handleAmenityChange = (amenityId: string, isChecked: boolean) => {
     if (isChecked) {
-      setValue('amenities', [...selectedAmenities, amenityId]);
+      setValue('amenities', Array.from(new Set([...selectedAmenities, amenityId])));
     } else {
       setValue('amenities', selectedAmenities.filter(id => id !== amenityId));
     }
@@ -163,7 +164,8 @@ export function PropertyFormStep2({
             <h3 className="text-lg font-semibold">Servicios</h3>
             {propertyType && (
               <span className="text-xs text-gray-500">
-                Para tipo de propiedad: <span className="font-medium">{propertyType}</span>
+                Para tipo de propiedad:{' '}
+                <span className="font-medium">{getPropertyTypeLabelEs(propertyType)}</span>
               </span>
             )}
           </div>

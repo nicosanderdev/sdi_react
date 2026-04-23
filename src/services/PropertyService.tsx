@@ -14,7 +14,7 @@ import { tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
 
 // Import types for Supabase property creation
-import { PropertyFormData } from '../models/properties/PropertyFormSchema';
+import { PropertyFormData, resolveCreationListingType } from '../models/properties/PropertyFormSchema';
 import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 
@@ -38,6 +38,61 @@ const propertyTypeMap: { [key: string]: number } = {
     lot: 2, // Terreno
     small_farm: 3, // Chacra
     farmland: 4, // Campo
+};
+
+type PropertySectionLayoutType = 'split' | 'carousel' | 'stacked';
+type PropertySectionType = 'SummerRent' | 'EventVenue' | 'RealEstate';
+type PropertySectionDisplayVariant = 'default' | 'compact' | 'hero';
+
+interface PropertyContentSectionPayload {
+    name: string;
+    description?: string;
+    propertyType: PropertySectionType;
+    layoutType: PropertySectionLayoutType;
+    displayVariant?: PropertySectionDisplayVariant;
+    imageKeys?: string[];
+}
+
+const persistPropertyContentSections = async (
+    estatePropertyId: string,
+    sections: PropertyContentSectionPayload[] | undefined,
+    imageIdByKey: Record<string, string>
+) => {
+    if (!sections || sections.length === 0) return;
+
+    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
+        const section = sections[sectionIndex];
+        const displayOrder = sectionIndex;
+
+        const { data: sectionId, error: sectionError } = await supabase.rpc('insert_property_details_section', {
+            p_property_id: estatePropertyId,
+            p_name: section.name,
+            p_description: section.description || null,
+            p_property_type: section.propertyType,
+            p_layout_type: section.layoutType,
+            p_layout_config: { displayVariant: section.displayVariant ?? 'default' },
+            p_display_order: displayOrder,
+        });
+
+        if (sectionError) throw sectionError;
+        if (!sectionId) {
+            throw new Error(`Failed to create property content section "${section.name}".`);
+        }
+
+        const uniqueImageKeys = Array.from(new Set(section.imageKeys ?? []));
+        for (let imageOrder = 0; imageOrder < uniqueImageKeys.length; imageOrder += 1) {
+            const imageKey = uniqueImageKeys[imageOrder];
+            const propertyImageId = imageIdByKey[imageKey];
+            if (!propertyImageId) continue;
+
+            const { error: sectionImageError } = await supabase.rpc('insert_property_section_image', {
+                p_section_id: sectionId,
+                p_property_image_id: propertyImageId,
+                p_display_order: imageOrder,
+            });
+            if (sectionImageError) throw sectionImageError;
+        }
+    }
 };
 
 
@@ -575,6 +630,7 @@ const createPropertyWithOwnerUserId = async (
 
                     return {
                         id: img.id || crypto.randomUUID(),
+                        sourceKey: img.key,
                         url: publicUrl,
                         altText: img.alt || '',
                         isMain: img.isMain,
@@ -588,6 +644,7 @@ const createPropertyWithOwnerUserId = async (
             .filter(img => img.source === 'existing')
             .map(img => ({
                 id: img.id || crypto.randomUUID(),
+                sourceKey: img.key,
                 url: img.previewUrl,
                 altText: img.alt || '',
                 isMain: img.isMain,
@@ -724,20 +781,29 @@ const createPropertyWithOwnerUserId = async (
 
         // 1) Insert listing row
         const availableFromDate = formData.availableFrom ? new Date(formData.availableFrom) : new Date();
-        const listingType =
-            (formData.listingType ??
-                (extensionType === 'RealEstate' ? 'RealEstate' : extensionType)) as
-                | 'SummerRent'
-                | 'EventVenue'
-                | 'AnnualRent'
-                | 'RealEstate';
+        const listingType = (formData.listingType ??
+            resolveCreationListingType({
+                propertyType: formData.propertyType,
+                realEstateOfferMode: formData.realEstateOfferMode,
+            }) ??
+            (extensionType === 'RealEstate' ? 'RealEstate' : extensionType)) as
+            | 'SummerRent'
+            | 'EventVenue'
+            | 'AnnualRent'
+            | 'RealEstate';
 
-        const statusKey = ((formData.status ?? 'sale') as string) as keyof typeof propertyStatusMap;
         const currencyKey = ((formData.currency ?? 'USD') as string) as keyof typeof currencyMap;
 
-        const salePriceValue = formData.salePrice ? parseFloat(formData.salePrice) : null;
-        const rentPriceValue = formData.rentPrice ? parseFloat(formData.rentPrice) : null;
-        const commonExpensesValue = formData.commonExpensesValue ? parseFloat(formData.commonExpensesValue) : null;
+        const isSaleListing = listingType === 'RealEstate';
+        const salePriceValue =
+            isSaleListing && formData.salePrice ? parseFloat(formData.salePrice) : null;
+        const rentPriceValue =
+            !isSaleListing && formData.rentPrice ? parseFloat(formData.rentPrice) : null;
+        const rentPricePeriod =
+            !isSaleListing &&
+            (formData.rentPricePeriod === 'PerMonth' || formData.rentPricePeriod === 'PerNight')
+                ? formData.rentPricePeriod
+                : null;
 
         const { error: listingError } = await supabase.rpc('insert_listing', {
             p_estate_property_id: estatePropertyId,
@@ -745,25 +811,27 @@ const createPropertyWithOwnerUserId = async (
             p_title: formData.title,
             p_description: formData.description || null,
             p_available_from: availableFromDate.toISOString(),
-            p_capacity: formData.capacity ?? null,
+            p_capacity: null,
             p_currency: currencyMap[currencyKey] ?? currencyMap.USD,
             p_sale_price: salePriceValue,
             p_rent_price: rentPriceValue,
-            p_has_common_expenses: formData.hasCommonExpenses ?? false,
-            p_common_expenses_value: commonExpensesValue,
-            p_is_electricity_included: formData.isElectricityIncluded ?? false,
-            p_is_water_included: formData.isWaterIncluded ?? false,
+            p_rent_price_period: rentPricePeriod,
+            p_has_common_expenses: null,
+            p_common_expenses_value: null,
+            p_is_electricity_included: null,
+            p_is_water_included: null,
             p_is_price_visible: formData.isPriceVisible ?? true,
-            p_status: propertyStatusMap[statusKey] ?? propertyStatusMap.sale,
-            p_is_active: formData.isActive ?? true,
-            p_is_property_visible: formData.isPropertyVisible ?? true,
+            p_status: null,
+            p_is_active: !!formData.isActive,
+            p_is_property_visible: !!formData.isPropertyVisible,
             p_is_featured: true,
-            p_blocked_for_booking: false,
+            p_blocked_for_booking: formData.blockedForBooking ?? false,
         });
 
         if (listingError) throw listingError;
 
-        const publishedOnCreate = (formData.isPropertyVisible ?? true) && (formData.isActive ?? true);
+        const publishedOnCreate =
+            (formData.isPropertyVisible ?? false) === true && (formData.isActive ?? false) === true;
         if (publishedOnCreate) {
             await tryRecordListingUsageOnPublish(estatePropertyId);
         }
@@ -780,6 +848,19 @@ const createPropertyWithOwnerUserId = async (
             if (imgError) throw imgError;
             insertedImageIds.push(imageId as string);
         }
+
+        const imageIdBySourceKey = allImages.reduce<Record<string, string>>((acc, image, index) => {
+            if (image.sourceKey && insertedImageIds[index]) {
+                acc[image.sourceKey] = insertedImageIds[index];
+            }
+            return acc;
+        }, {});
+
+        await persistPropertyContentSections(
+            estatePropertyId,
+            (formData as any).contentSections as PropertyContentSectionPayload[] | undefined,
+            imageIdBySourceKey
+        );
 
         const docsToInsert = allDocuments.filter(d => !!d.url);
         const insertedDocumentIds: string[] = [];
@@ -843,9 +924,7 @@ const createPropertyWithOwnerUserId = async (
 
         const createdDate = estateResult.created ? new Date(estateResult.created) : new Date();
 
-        const salePriceString = salePriceValue != null ? salePriceValue.toString() : undefined;
         const rentPriceString = rentPriceValue != null ? rentPriceValue.toString() : undefined;
-        const commonExpensesString = commonExpensesValue != null ? commonExpensesValue.toString() : undefined;
 
         return {
             id: estatePropertyId,
@@ -868,14 +947,14 @@ const createPropertyWithOwnerUserId = async (
             availableFrom: availableFromDate,
             availableFromText: availableFromDate.toLocaleDateString(),
             currency: (formData.currency ?? 'USD') as any,
-            salePrice: salePriceString,
+            salePrice: undefined,
             rentPrice: rentPriceString,
-            hasCommonExpenses: formData.hasCommonExpenses ?? false,
-            commonExpensesValue: commonExpensesString,
-            isElectricityIncluded: formData.isElectricityIncluded ?? false,
-            isWaterIncluded: formData.isWaterIncluded ?? false,
+            hasCommonExpenses: false,
+            commonExpensesValue: undefined,
+            isElectricityIncluded: false,
+            isWaterIncluded: false,
             isPriceVisible: formData.isPriceVisible ?? true,
-            status: (formData.status ?? 'sale') as any,
+            status: 'sale' as any,
             isActive: formData.isActive ?? true,
             isPropertyVisible: formData.isPropertyVisible ?? true,
 
@@ -1201,13 +1280,21 @@ const deleteProperty = async (id: string): Promise<void> => {
     }
 };
 
-// Get all amenities for a property
-const getAmenities = async (): Promise<Amenity[]> => {
+// Get amenities for a property type (or all when omitted)
+const getAmenities = async (
+    propertyType?: 'SummerRent' | 'EventVenue' | 'RealEstate'
+): Promise<Amenity[]> => {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('Amenities')
             .select('Id, Name, IconId')
             .eq('IsDeleted', false);
+
+        if (propertyType) {
+            query = query.eq('PropertyType', propertyType);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
