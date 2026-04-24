@@ -160,7 +160,7 @@ export function PropertyCreationWizard({
       const effectivePropertyType: PropertyType =
         (formData.propertyType as PropertyType) || initialContext.availablePropertyTypes[0];
 
-      let mainListingType: ListingType | undefined =
+      const mainListingType: ListingType | undefined =
         (formData.listingType as ListingType | undefined) ??
         resolveCreationListingType({
           propertyType: effectivePropertyType,

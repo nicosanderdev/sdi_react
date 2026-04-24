@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
 import {
@@ -13,6 +13,7 @@ import {
 import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
 import { UseAdminPropertiesReturn, SortField } from '../../../hooks/useAdminProperties';
 import { PropertyActionsMenu } from './PropertyActionsMenu';
+import { EditListingModal } from '../../dashboard/properties/EditListingModal';
 
 interface PropertyManagementTableProps {
   hook: UseAdminPropertiesReturn;
@@ -54,6 +55,7 @@ const formatDate = (dateString: string | null): string => {
 };
 
 export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = ({ hook }) => {
+  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
   const navigate = useNavigate();
   const {
     properties,
@@ -212,13 +214,19 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   >
                     <EyeIcon className="w-4 h-4" />
                   </Button>
-                  <PropertyActionsMenu property={property} hook={hook} />
+                  <PropertyActionsMenu property={property} hook={hook} onEditListing={setEditingListingPropertyId} />
                 </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      <EditListingModal
+        isOpen={!!editingListingPropertyId}
+        propertyId={editingListingPropertyId}
+        onClose={() => setEditingListingPropertyId(null)}
+        onSaved={() => void hook.fetchProperties()}
+      />
     </div>
   );
 };

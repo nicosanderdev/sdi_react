@@ -13,8 +13,7 @@ DECLARE
 BEGIN
     UPDATE public."SummerRentExtension"
     SET "ICalExportToken" = v_new_token
-    WHERE "EstatePropertyId" = property_id
-      AND "IsDeleted" = false;
+    WHERE "EstatePropertyId" = property_id;
 
     RETURN v_new_token;
 END;

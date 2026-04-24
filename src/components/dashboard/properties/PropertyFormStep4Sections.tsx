@@ -3,9 +3,10 @@ import type { DisplayImage } from './ImageManager';
 import { PropertyContentSectionsManager } from './PropertyContentSectionsManager';
 
 interface PropertyFormStep4SectionsProps {
-  onNext: () => void;
+  onNext?: () => void;
   onBack: () => void;
   displayImages: DisplayImage[];
+  hideNextButton?: boolean;
 }
 
 /**
@@ -15,6 +16,7 @@ export function PropertyFormStep4Sections({
   onNext,
   onBack,
   displayImages,
+  hideNextButton = false,
 }: PropertyFormStep4SectionsProps) {
   return (
     <div className="max-w-4xl mx-auto" id="onboarding-form-sections">
@@ -25,9 +27,11 @@ export function PropertyFormStep4Sections({
           <Button color="alternative" onClick={onBack}>
             Atrás
           </Button>
-          <Button id="next-step-button" onClick={onNext}>
-            Siguiente
-          </Button>
+          {!hideNextButton && onNext && (
+            <Button id="next-step-button" onClick={onNext}>
+              Siguiente
+            </Button>
+          )}
         </div>
       </div>
     </div>

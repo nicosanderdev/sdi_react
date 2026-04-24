@@ -109,6 +109,9 @@ export interface PropertyData {
   lastModified: string;
   lastModifiedBy?: string | null;
 
+  /** True when a `SummerRentExtension` row exists (calendar sync / iCal export). */
+  hasSummerRentExtension?: boolean;
+
   // Optional fields used elsewhere in the app (not returned by the RPC).
   mainImageId?: string;
   propertyImages?: PropertyImage[];

@@ -12,6 +12,7 @@ import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
+import { EditListingModal } from '../../components/dashboard/properties/EditListingModal';
 
 type PropertyPurposeType = 'RealEstate' | 'AnnualRent' | 'EventVenue' | 'SummerRent';
 
@@ -40,6 +41,7 @@ const PropertiesManagerComponent = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
   const [showVerificationGateTooltip, setShowVerificationGateTooltip] = useState(false);
+  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
 
   const {
     isEligibleForOnboarding,
@@ -343,9 +345,16 @@ const PropertiesManagerComponent = () => {
             properties={filteredProperties}
             onViewBookings={handleViewBookings}
             onDeleteProperty={handleDeleteRequest}
+            onEditListing={(property) => setEditingListingPropertyId(property.id)}
           />
         )}
       </Card>
+      <EditListingModal
+        isOpen={!!editingListingPropertyId}
+        propertyId={editingListingPropertyId}
+        onClose={() => setEditingListingPropertyId(null)}
+        onSaved={fetchProperties}
+      />
 
       {/* Property Limit Reached Modal */}
       <Modal show={showLimitModal} onClose={() => setShowLimitModal(false)} className='text-gray-800 dark:text-gray-50'>

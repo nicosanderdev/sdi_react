@@ -224,6 +224,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                   <TextInput
                     id={`contentSections.${index}.name`}
                     placeholder="Ej: Sala principal"
+                    className="mt-2"
                     {...register(`contentSections.${index}.name`)}
                   />
                 </div>
@@ -244,6 +245,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                   id={`contentSections.${index}.description`}
                   rows={2}
                   placeholder="Describe brevemente esta sección."
+                  className="mt-2"
                   {...register(`contentSections.${index}.description`)}
                 />
               </div>
@@ -253,6 +255,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                   <Label htmlFor={`contentSections.${index}.layoutType`}>Disposición</Label>
                   <Select
                     id={`contentSections.${index}.layoutType`}
+                    className="mt-2"
                     {...register(`contentSections.${index}.layoutType`, {
                       onChange: e =>
                         enforceLayoutConstraints(index, propertyType, e.target.value as LayoutType),
@@ -269,6 +272,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                   <Label htmlFor={`contentSections.${index}.displayVariant`}>Diseño</Label>
                   <Select
                     id={`contentSections.${index}.displayVariant`}
+                    className="mt-2"
                     {...register(`contentSections.${index}.displayVariant`)}
                   >
                     {variantOptions.map(variant => (

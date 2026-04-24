@@ -1,5 +1,6 @@
-import { supabase } from '../config/supabase'
+import { supabase, supabaseUrl } from '../config/supabase'
 import { SdiApiResponse } from '../models/SdiApiResponse'
+import type { AvailabilityBlock, PropertySyncStatusApiResponse } from '../models/calendar/CalendarSync'
 import { PlatformType, SyncDirection } from '../models/calendar/CalendarSync'
 
 // Types for calendar sync
@@ -49,21 +50,7 @@ export interface SyncStatus {
   latestJob?: SyncJob
 }
 
-export interface AvailabilityBlock {
-  Id: string
-  EstatePropertyId: string
-  IsAvailable: boolean
-  StartDate: string
-  EndDate: string
-  BlockType: number // 0: availability, 1: booking, 2: owner_block, 3: external_block
-  Source: string // 'internal', 'google_calendar', 'ical'
-  ExternalEventId?: string
-  Title?: string
-  Description?: string
-  IsReadOnly: boolean
-  ConflictFlagged: boolean
-  Created: string
-}
+export type { AvailabilityBlock }
 
 // Google Calendar OAuth
 export class GoogleCalendarOAuthService {
@@ -122,7 +109,7 @@ export class ICalSyncService {
    * Get ICS export URL
    */
   static getICSExportUrl(integrationId: string): string {
-    return `${supabase.supabaseUrl}/functions/v1/calendar-sync/ical-sync/export?integrationId=${integrationId}`
+    return `${supabaseUrl}/functions/v1/calendar-sync/ical-sync/export?integrationId=${integrationId}`
   }
 }
 
@@ -153,15 +140,19 @@ export class SyncOrchestratorService {
   }
 
   /**
-   * Get sync status for all integrations of a property
+   * Get sync status for all integrations of a property (edge function expects GET + query param).
    */
-  static async getSyncStatus(propertyId: string): Promise<{ status: SyncStatus[] }> {
-    const { data, error } = await supabase.functions.invoke('calendar-sync/sync-orchestrator/status', {
-      body: { propertyId }
+  static async getSyncStatus(propertyId: string): Promise<PropertySyncStatusApiResponse> {
+    const path = `calendar-sync/sync-orchestrator/status?propertyId=${encodeURIComponent(propertyId)}`
+    const { data, error } = await supabase.functions.invoke(path, {
+      method: 'GET'
     })
 
     if (error) throw error
-    return data
+    if (!data || typeof data !== 'object' || !Array.isArray((data as PropertySyncStatusApiResponse).status)) {
+      throw new Error('Respuesta de estado de sincronización inválida')
+    }
+    return data as PropertySyncStatusApiResponse
   }
 
   /**
@@ -331,12 +322,15 @@ export class CalendarSyncService {
   /**
    * Create availability block
    */
-  static async createAvailabilityBlock(block: Omit<AvailabilityBlock, 'Id' | 'Created' | 'LastModified' | 'LastModifiedBy'>): Promise<SdiApiResponse<AvailabilityBlock>> {
+  static async createAvailabilityBlock(
+    block: Omit<AvailabilityBlock, 'Id' | 'Created' | 'LastModified' | 'LastModifiedBy' | 'IsDeleted' | 'CreatedBy'>
+  ): Promise<SdiApiResponse<AvailabilityBlock>> {
     try {
       const { data, error } = await supabase
         .from('AvailabilityBlocks')
         .insert({
           ...block,
+          IsDeleted: false,
           CreatedBy: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -687,7 +681,7 @@ export class CalendarSyncService {
       }
 
       // Call the sync orchestrator
-      const result = await SyncOrchestratorService.triggerSync(integrationId, 'inbound', 0) // manual sync
+      const result = await SyncOrchestratorService.triggerSync(integrationId, 'inbound')
 
       return {
         succeeded: true,
@@ -724,7 +718,7 @@ export class CalendarSyncService {
       const exportToken = data as string
 
       // Construct the export URL
-      const baseUrl = supabase.supabaseUrl.replace('/v1', '') // Remove /v1 if present
+      const baseUrl = supabaseUrl.replace('/v1', '')
       const exportUrl = `${baseUrl}/functions/v1/ical-export/${propertyId}?token=${exportToken}`
 
       return {
@@ -753,7 +747,7 @@ export class CalendarSyncService {
       const newToken = data as string
 
       // Return the new export URL
-      const baseUrl = supabase.supabaseUrl.replace('/v1', '') // Remove /v1 if present
+      const baseUrl = supabaseUrl.replace('/v1', '')
       const exportUrl = `${baseUrl}/functions/v1/ical-export/${propertyId}?token=${newToken}`
 
       return {

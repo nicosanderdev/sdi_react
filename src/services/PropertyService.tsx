@@ -17,6 +17,7 @@ import { storageService } from './storage';
 import { PropertyFormData, resolveCreationListingType } from '../models/properties/PropertyFormSchema';
 import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
+import type { ListingType } from '../models/properties/PropertyData';
 
 
 // Enum mappings for Supabase PostgreSQL function
@@ -132,13 +133,13 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
             query = query.or(`Title.ilike.%${params.filter.searchTerm}%,City.ilike.%${params.filter.searchTerm}%`);
         }
 
-        // Apply date filters
+        // Apply date filters (timestamps on Listings; EstateProperties has no Created)
         if (params?.filter?.createdAfter) {
-            query = query.gte('Created', params.filter.createdAfter.toISOString());
+            query = query.gte('Listings.Created', params.filter.createdAfter.toISOString());
         }
 
         if (params?.filter?.createdBefore) {
-            query = query.lte('Created', params.filter.createdBefore.toISOString());
+            query = query.lte('Listings.Created', params.filter.createdBefore.toISOString());
         }
 
         // Apply pagination
@@ -148,8 +149,7 @@ const getProperties = async (params?: PropertyParams): Promise<PublicPropertyDat
             query = query.range(from, to);
         }
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        query = query.order('Id', { ascending: false });
 
         const { data, error, count } = await query;
 
@@ -220,8 +220,7 @@ const getPropertiesInBounds = async (
         const to = from + pageSize - 1;
         query = query.range(from, to);
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        query = query.order('Id', { ascending: false });
 
         const { data, error, count } = await query;
 
@@ -318,6 +317,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         const ownerPropertySelect = `
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Owners!inner(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
@@ -332,6 +333,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
                 .select(`
         *,
         RealEstateExtension(*),
+        SummerRentExtension(*),
+        EventVenueExtension(*),
         Owners(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
@@ -455,13 +458,18 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             throw new Error('No member record found for current user');
         }
 
+        const listingsJoin =
+            params?.filter?.createdAfter || params?.filter?.createdBefore
+                ? 'Listings!inner(*)'
+                : 'Listings(*)';
+
         let query = supabase
             .from('EstateProperties')
             .select(`
         *,
         RealEstateExtension(*),
         Owners!inner(OwnerType, MemberId, CompanyId),
-        Listings(*),
+        ${listingsJoin},
         PropertyImages(*),
         PropertyDocuments(*),
         PropertyVideos(*),
@@ -515,13 +523,13 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             query = query.or(`Title.ilike.%${params.filter.searchTerm}%,City.ilike.%${params.filter.searchTerm}%`);
         }
 
-        // Apply date filters
+        // Apply date filters (timestamps on Listings; EstateProperties has no Created)
         if (params?.filter?.createdAfter) {
-            query = query.gte('Created', params.filter.createdAfter.toISOString());
+            query = query.gte('Listings.Created', params.filter.createdAfter.toISOString());
         }
 
         if (params?.filter?.createdBefore) {
-            query = query.lte('Created', params.filter.createdBefore.toISOString());
+            query = query.lte('Listings.Created', params.filter.createdBefore.toISOString());
         }
 
         // Apply pagination
@@ -531,8 +539,7 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             query = query.range(from, to);
         }
 
-        // Order by creation date (newest first)
-        query = query.order('Created', { ascending: false });
+        query = query.order('Id', { ascending: false });
 
         const { data, error, count } = await query;
 
@@ -1022,6 +1029,155 @@ const createPropertyForOwner = async (
     return createPropertyWithOwnerUserId(ownerUserId, formData, displayImages, displayDocuments);
 };
 
+interface FeaturedListingSnapshot {
+    id: string;
+    listingType: ListingType;
+    title: string;
+    description: string;
+    availableFrom: string;
+    currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
+    salePrice: string;
+    rentPrice: string;
+    rentPricePeriod: 'PerNight' | 'PerMonth' | null;
+    isPriceVisible: boolean;
+    isActive: boolean;
+    isPropertyVisible: boolean;
+    blockedForBooking: boolean;
+    status: 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
+}
+
+const currencyMapReverse: Record<number, 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP'> = {
+    0: 'USD',
+    1: 'UYU',
+    2: 'BRL',
+    3: 'EUR',
+    4: 'GBP',
+};
+
+const statusMapReverse: Record<number, 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable'> = {
+    0: 'sale',
+    1: 'rent',
+    2: 'reserved',
+    3: 'sold',
+    4: 'unavailable',
+};
+
+const getFeaturedListingForProperty = async (propertyId: string): Promise<FeaturedListingSnapshot | null> => {
+    const { data, error } = await supabase
+        .from('Listings')
+        .select('Id, ListingType, Title, Description, AvailableFrom, Currency, SalePrice, RentPrice, RentPricePeriod, IsPriceVisible, IsActive, IsPropertyVisible, BlockedForBooking, Status')
+        .eq('EstatePropertyId', propertyId)
+        .eq('IsDeleted', false)
+        .eq('IsFeatured', true)
+        .order('Created', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+        id: data.Id,
+        listingType: data.ListingType as ListingType,
+        title: data.Title ?? '',
+        description: data.Description ?? '',
+        availableFrom: data.AvailableFrom ?? '',
+        currency: currencyMapReverse[data.Currency ?? 0] ?? 'USD',
+        salePrice: data.SalePrice != null ? String(data.SalePrice) : '',
+        rentPrice: data.RentPrice != null ? String(data.RentPrice) : '',
+        rentPricePeriod: data.RentPricePeriod ?? null,
+        isPriceVisible: data.IsPriceVisible ?? true,
+        isActive: data.IsActive ?? true,
+        isPropertyVisible: data.IsPropertyVisible ?? true,
+        blockedForBooking: data.BlockedForBooking ?? false,
+        status: statusMapReverse[data.Status ?? 0] ?? 'sale',
+    };
+};
+
+const updatePropertyWizard = async (
+    id: string,
+    formData: PropertyFormData,
+    displayImages: DisplayImage[],
+    displayDocuments: DisplayDocument[]
+): Promise<PropertyData> => {
+    const featuredListing = await getFeaturedListingForProperty(id);
+    const payload: PropertyFormData = {
+        ...formData,
+        currency: featuredListing?.currency ?? formData.currency ?? 'USD',
+        salePrice: featuredListing?.salePrice ?? formData.salePrice,
+        rentPrice: featuredListing?.rentPrice ?? formData.rentPrice,
+        status: featuredListing?.status ?? formData.status ?? 'sale',
+        isActive: featuredListing?.isActive ?? true,
+        isPropertyVisible: featuredListing?.isPropertyVisible ?? true,
+        isPriceVisible: featuredListing?.isPriceVisible ?? true,
+        blockedForBooking: featuredListing?.blockedForBooking ?? false,
+    };
+    return updateProperty(id, payload, displayImages, displayDocuments);
+};
+
+const addPropertyExtension = async (
+    propertyId: string,
+    extensionType: PropertyType,
+    formData: PropertyFormData
+): Promise<void> => {
+    const { error } = await supabase.rpc('insert_property_extension', {
+        p_property_id: propertyId,
+        p_extension_type: extensionType,
+        p_allows_financing: formData.allowsFinancing ?? null,
+        p_is_new_construction: formData.isNewConstruction ?? null,
+        p_has_mortgage: formData.hasMortgage ?? null,
+        p_hoa_fees: formData.hoaFees ?? null,
+        p_min_contract_months: formData.minContractMonths ?? null,
+        p_requires_guarantee: formData.requiresGuarantee ?? null,
+        p_guarantee_type: formData.guaranteeType ?? null,
+        p_allows_pets: formData.allowsPets ?? null,
+        p_max_guests: formData.maxGuests ?? null,
+        p_has_catering: formData.hasCatering ?? null,
+        p_has_sound_system: formData.hasSoundSystem ?? null,
+        p_closing_hour: formData.closingHour ?? null,
+        p_allowed_events_description: formData.allowedEventsDescription ?? null,
+        p_min_stay_days: formData.minStayDays ?? null,
+        p_max_stay_days: formData.maxStayDays ?? null,
+        p_lead_time_days: formData.leadTimeDays ?? null,
+        p_buffer_days: formData.bufferDays ?? null,
+    });
+    if (error) throw error;
+};
+
+interface CreateListingVersionPayload {
+    listingType: ListingType;
+    title: string;
+    description: string;
+    availableFrom: string | null;
+    currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
+    salePrice: string | null;
+    rentPrice: string | null;
+    rentPricePeriod: 'PerNight' | 'PerMonth' | null;
+    isPriceVisible: boolean;
+    isActive: boolean;
+    isPropertyVisible: boolean;
+    blockedForBooking: boolean;
+}
+
+const createListingVersion = async (propertyId: string, payload: CreateListingVersionPayload): Promise<void> => {
+    const { error } = await supabase.rpc('create_listing_version', {
+        p_estate_property_id: propertyId,
+        p_listing_type: payload.listingType,
+        p_title: payload.title,
+        p_description: payload.description || null,
+        p_available_from: payload.availableFrom,
+        p_currency: currencyMap[payload.currency],
+        p_sale_price: payload.salePrice ? parseFloat(payload.salePrice) : null,
+        p_rent_price: payload.rentPrice ? parseFloat(payload.rentPrice) : null,
+        p_rent_price_period: payload.rentPricePeriod,
+        p_is_price_visible: payload.isPriceVisible,
+        p_is_active: payload.isActive,
+        p_is_property_visible: payload.isPropertyVisible,
+        p_blocked_for_booking: payload.blockedForBooking,
+    });
+    if (error) throw error;
+};
+
 // Update an existing property
 const updateProperty = async (
     id: string,
@@ -1167,6 +1323,28 @@ const updateProperty = async (
         });
 
         if (error) throw error;
+
+        const { error: wizardExtError } = await supabase.rpc('update_estate_property_wizard_extensions', {
+            p_property_id: id,
+            p_allows_financing: formData.allowsFinancing ?? false,
+            p_is_new_construction: formData.isNewConstruction ?? false,
+            p_has_mortgage: formData.hasMortgage ?? false,
+            p_hoa_fees: formData.hoaFees ?? null,
+            p_min_contract_months: formData.minContractMonths ?? null,
+            p_requires_guarantee: formData.requiresGuarantee ?? false,
+            p_guarantee_type: formData.guaranteeType || null,
+            p_allows_pets: formData.allowsPets ?? false,
+            p_min_stay_days: formData.minStayDays ?? null,
+            p_max_stay_days: formData.maxStayDays ?? null,
+            p_lead_time_days: formData.leadTimeDays ?? null,
+            p_buffer_days: formData.bufferDays ?? null,
+            p_max_guests: formData.maxGuests ?? null,
+            p_has_catering: formData.hasCatering ?? false,
+            p_has_sound_system: formData.hasSoundSystem ?? false,
+            p_closing_hour: formData.closingHour || null,
+            p_allowed_events_description: formData.allowedEventsDescription || null,
+        });
+        if (wizardExtError) throw wizardExtError;
 
         const isPublishedNow = !!(formData.isPropertyVisible && formData.isActive);
         if (!wasPublished && isPublishedNow) {
@@ -1426,6 +1604,10 @@ const propertyService = {
     createProperty,
     createPropertyForOwner,
     updateProperty,
+    updatePropertyWizard,
+    addPropertyExtension,
+    getFeaturedListingForProperty,
+    createListingVersion,
     deleteProperty,
     duplicateProperty,
     getAmenities,

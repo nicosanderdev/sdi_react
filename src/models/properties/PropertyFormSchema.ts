@@ -36,6 +36,15 @@ export const propertyContentSectionSchema = z.object({
   imageKeys: z.array(z.string()).default([]),
 });
 
+const locationBaseSchema = z.object({ lat: z.number(), lng: z.number() });
+
+const strictCreateLocationSchema = locationBaseSchema.refine(
+  val => val.lat !== -34.9011 || val.lng !== -56.1645,
+  {
+    message: 'Por favor, confirma la ubicación en el mapa.',
+  }
+);
+
 export const propertyFormBaseSchema = z.object({
   // ESTATE PROPERTY
   // address
@@ -46,12 +55,7 @@ export const propertyFormBaseSchema = z.object({
   state: z.string().min(1, 'El estado/provincia es requerido.'),
   zipCode: z.string().min(1, 'El código postal es requerido.'),
   country: z.string().min(1, 'El país es requerido.'),
-  location: z.object({ lat: z.number(), lng: z.number() }).refine(
-    val => val.lat !== -34.9011 || val.lng !== -56.1645,
-    {
-      message: 'Por favor, confirma la ubicación en el mapa.',
-    }
-  ),
+  location: locationBaseSchema,
   // description
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
   // end-purpose for this property (optional on create)
@@ -123,12 +127,18 @@ export const propertyFormBaseSchema = z.object({
   bufferDays: z.coerce.number().int().optional(),
   // Dynamic details sections for property detail pages.
   contentSections: z.array(propertyContentSectionSchema).default([]),
+  // Edit flow: optional additive extension type.
+  additionalExtensionType: z.enum(['SummerRent', 'EventVenue', 'RealEstate']).optional(),
 });
 
 export const propertyFormSchema = propertyFormBaseSchema;
 
+export const propertyCreateSchema = propertyFormBaseSchema.extend({
+  location: strictCreateLocationSchema,
+});
+
 /** Create wizard + admin create: publishing requires currency and the correct price column. */
-export const propertyCreatePublishSchema = propertyFormBaseSchema
+export const propertyCreatePublishSchema = propertyCreateSchema
   .refine(
     data => {
       if (data.isActive !== true) return true;

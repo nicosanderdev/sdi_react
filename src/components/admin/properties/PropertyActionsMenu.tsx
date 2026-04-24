@@ -10,9 +10,10 @@ import propertyService from '../../../services/PropertyService';
 interface PropertyActionsMenuProps {
   property: AdminPropertyListItem;
   hook: UseAdminPropertiesReturn;
+  onEditListing: (propertyId: string) => void;
 }
 
-export const PropertyActionsMenu: React.FC<PropertyActionsMenuProps> = ({ property, hook }) => {
+export const PropertyActionsMenu: React.FC<PropertyActionsMenuProps> = ({ property, hook, onEditListing }) => {
   const navigate = useNavigate();
   const [duplicating, setDuplicating] = useState(false);
 
@@ -59,6 +60,13 @@ export const PropertyActionsMenu: React.FC<PropertyActionsMenuProps> = ({ proper
         <div className="flex items-center space-x-2">
           <Edit2Icon className="w-4 h-4" />
           <span>Editar propiedad</span>
+        </div>
+      </DropdownItem>
+
+      <DropdownItem onClick={() => onEditListing(property.id)}>
+        <div className="flex items-center space-x-2">
+          <Edit2Icon className="w-4 h-4" />
+          <span>Editar aviso</span>
         </div>
       </DropdownItem>
 

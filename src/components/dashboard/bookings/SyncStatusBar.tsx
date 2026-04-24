@@ -12,8 +12,8 @@ import {
   Smartphone
 } from 'lucide-react';
 import { Button, Card, Badge } from 'flowbite-react';
-import { SyncOrchestratorService } from '../../../services/CalendarSyncService';
-import { SyncStatusResponse, SyncStatus, PlatformType } from '../../../models/calendar/CalendarSync';
+import { CalendarSyncService, SyncOrchestratorService } from '../../../services/CalendarSyncService';
+import { PlatformType, PropertySyncStatusApiResponse } from '../../../models/calendar/CalendarSync';
 
 const NOMBRE_PLATAFORMA: Record<PlatformType, string> = {
   [PlatformType.GoogleCalendar]: 'Google Calendar (ICS)',
@@ -44,7 +44,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   onSync,
   isSyncing: externalIsSyncing = false
 }) => {
-  const [syncStatus, setSyncStatus] = useState<SyncStatusResponse | null>(null);
+  const [syncStatus, setSyncStatus] = useState<PropertySyncStatusApiResponse | null>(null);
   const [syncJobs, setSyncJobs] = useState<SyncJobDisplay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -57,11 +57,11 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   const loadSyncStatus = async () => {
     try {
       const result = await SyncOrchestratorService.getSyncStatus(propertyId);
-      if (result.succeeded && result.data) {
-        setSyncStatus(result.data);
+      if (result.success && Array.isArray(result.status)) {
+        setSyncStatus(result);
         setError(null);
       } else {
-        setError(result.errorMessage || 'No se pudo cargar el estado de sincronización');
+        setError('No se pudo cargar el estado de sincronización');
       }
     } catch (err: any) {
       setError(err.message || 'No se pudo cargar el estado de sincronización');
@@ -75,9 +75,19 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
     if (!isExpanded) return;
 
     try {
-      const result = await SyncOrchestratorService.getSyncJobs(propertyId, 10);
+      const result = await CalendarSyncService.getSyncJobs(propertyId, 10);
       if (result.succeeded && result.data) {
-        setSyncJobs(result.data);
+        setSyncJobs(
+          result.data.map((j) => ({
+            id: j.Id,
+            jobType: j.JobType,
+            status: j.Status,
+            startedAt: j.StartedAt,
+            completedAt: j.CompletedAt,
+            eventsProcessed: j.EventsProcessed,
+            error: j.Error
+          }))
+        );
       }
     } catch (err: any) {
       console.error('Failed to load sync jobs:', err);
@@ -120,12 +130,8 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
       if (onSync) {
         await onSync();
       } else {
-        const result = await SyncOrchestratorService.triggerBulkSync(propertyId);
-        if (result.succeeded) {
-          await loadSyncStatus(); // Refresh status immediately
-        } else {
-          setError(result.errorMessage || 'Error de sincronización');
-        }
+        await SyncOrchestratorService.triggerBulkSync(propertyId);
+        await loadSyncStatus();
       }
     } catch (err: any) {
       setError(err.message || 'Error de sincronización');
@@ -137,24 +143,49 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   // Get status icon and color
   const getStatusDisplay = () => {
     if (isLoading) {
-      return { icon: Loader2, color: 'text-gray-500', bgColor: 'bg-gray-100', text: 'Cargando...' };
+      return {
+        icon: Loader2,
+        color: 'text-gray-500 dark:text-gray-400',
+        bgColor: 'bg-gray-100 dark:bg-gray-800',
+        text: 'Cargando...'
+      };
     }
 
     if (error) {
-      return { icon: AlertCircle, color: 'text-red-600', bgColor: 'bg-red-100', text: 'Error' };
+      return {
+        icon: AlertCircle,
+        color: 'text-red-600 dark:text-red-400',
+        bgColor: 'bg-red-100 dark:bg-red-900/40',
+        text: 'Error'
+      };
     }
 
     if (isSyncing) {
-      return { icon: Loader2, color: 'text-blue-600', bgColor: 'bg-blue-100', text: 'Sincronizando...' };
+      return {
+        icon: Loader2,
+        color: 'text-blue-600 dark:text-blue-400',
+        bgColor: 'bg-blue-100 dark:bg-blue-900/40',
+        text: 'Sincronizando...'
+      };
     }
 
     const hasActiveIntegrations = syncStatus?.status?.some(s => s.isActive) || false;
 
     if (hasActiveIntegrations) {
-      return { icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100', text: 'Sincronizado' };
+      return {
+        icon: CheckCircle,
+        color: 'text-green-600 dark:text-green-400',
+        bgColor: 'bg-green-100 dark:bg-green-900/40',
+        text: 'Sincronizado'
+      };
     }
 
-    return { icon: AlertCircle, color: 'text-gray-500', bgColor: 'bg-gray-100', text: 'No configurado' };
+    return {
+      icon: AlertCircle,
+      color: 'text-gray-500 dark:text-gray-400',
+      bgColor: 'bg-gray-100 dark:bg-gray-800',
+      text: 'No configurado'
+    };
   };
 
   // Get platform icon
@@ -197,8 +228,8 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
 
             {/* Status Text */}
             <div>
-              <h3 className="font-medium text-gray-900">Sincronización de Calendarios</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-medium text-gray-900 dark:text-white">Sincronización de Calendarios</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 {statusDisplay.text}
                 {syncStatus?.status?.some(s => s.lastSyncAt) && (
                   <span className="ml-2">
@@ -238,7 +269,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
         {/* Connected Platforms */}
         {activeIntegrations.length > 0 && (
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Conectado a:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Conectado a:</span>
             <div className="flex space-x-2">
               {activeIntegrations.map((integration) => (
                 <Badge key={integration.integrationId} color="success" className="flex items-center space-x-1">
@@ -257,21 +288,21 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
+          <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm">
             {error}
           </div>
         )}
 
         {/* Expandable Sync History */}
         {isExpanded && (
-          <div className="border-t pt-4">
-            <h4 className="font-medium mb-3">Historial de Sincronización</h4>
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h4 className="font-medium mb-3 text-gray-900 dark:text-white">Historial de Sincronización</h4>
             {syncJobs.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay historial de sincronización disponible.</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">No hay historial de sincronización disponible.</p>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {syncJobs.map((job) => (
-                  <div key={job.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                  <div key={job.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
                     <div className="flex items-center space-x-2">
                       <div className={`w-2 h-2 rounded-full ${
                         job.status === 2 ? 'bg-green-500' :
@@ -283,12 +314,12 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
                          job.jobType === 1 ? 'Programada' : 'Webhook'}
                       </span>
                       {job.eventsProcessed !== undefined && (
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-gray-400">
                           ({job.eventsProcessed} eventos)
                         </span>
                       )}
                     </div>
-                    <div className="text-right text-xs text-gray-600">
+                    <div className="text-right text-xs text-gray-600 dark:text-gray-400">
                       {job.startedAt && formatDistanceToNow(new Date(job.startedAt), { addSuffix: true, locale: es })}
                     </div>
                   </div>
