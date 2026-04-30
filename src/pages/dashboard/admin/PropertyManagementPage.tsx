@@ -1,5 +1,4 @@
 // src/pages/dashboard/admin/PropertyManagementPage.tsx
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from 'flowbite-react';
 import { PlusIcon, RefreshCwIcon } from 'lucide-react';
@@ -7,9 +6,11 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import { useAdminProperties } from '../../../hooks/useAdminProperties';
 import { PropertyFilters } from '../../../components/admin/properties/PropertyFilters';
 import { PropertyManagementTable } from '../../../components/admin/properties/PropertyManagementTable';
+import { PropertyManagementToolbar } from '../../../components/admin/properties/PropertyManagementToolbar';
 import { PropertyStatistics } from '../../../components/admin/properties/PropertyStatistics';
 import { PropertyDetailModal } from '../../../components/admin/properties/PropertyDetailModal';
 import { DeletePropertyConfirmModal } from '../../../components/admin/properties/DeletePropertyConfirmModal';
+import { EditListingModal } from '../../../components/dashboard/properties/EditListingModal';
 
 const PropertyManagementPage = () => {
   const navigate = useNavigate();
@@ -22,6 +23,8 @@ const PropertyManagementPage = () => {
     loading,
     error,
     fetchProperties,
+    editingListingPropertyId,
+    setEditingListingPropertyId,
   } = hook;
 
   const handleRefresh = () => {
@@ -106,6 +109,7 @@ const PropertyManagementPage = () => {
 
       {/* Properties Table */}
       <Card>
+        <PropertyManagementToolbar hook={hook} />
         <PropertyManagementTable hook={hook} />
       </Card>
 
@@ -146,7 +150,7 @@ const PropertyManagementPage = () => {
                   return (
                     <Button
                       key={pageNum}
-                      color={pageNum === currentPage ? 'blue' : 'light'}
+                      color={pageNum === currentPage ? 'green' : 'light'}
                       size="sm"
                       disabled={loading}
                       onClick={() => hook.setPage(pageNum)}
@@ -173,6 +177,12 @@ const PropertyManagementPage = () => {
       {/* Modals */}
       <PropertyDetailModal hook={hook} />
       <DeletePropertyConfirmModal hook={hook} />
+      <EditListingModal
+        isOpen={!!editingListingPropertyId}
+        propertyId={editingListingPropertyId}
+        onClose={() => setEditingListingPropertyId(null)}
+        onSaved={() => void fetchProperties()}
+      />
     </div>
   );
 };

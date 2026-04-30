@@ -7,7 +7,7 @@ import { VideoManager } from './VideoManager';
 import { DocumentManager, DisplayDocument } from './DocumentManager';
 import { DisplayImage } from './ImageManager';
 import { DisplayVideo } from './VideoManager';
-import type { PropertyCreationFormData } from './PropertyCreationWizard';
+import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 
 interface PropertyFormStep3Props {
   onNext: () => void;
@@ -31,7 +31,7 @@ export function PropertyFormStep3({
   displayDocuments,
   setDisplayDocuments
 }: PropertyFormStep3Props) {
-  const { watch } = useFormContext<PropertyCreationFormData>();
+  const { watch } = useFormContext<PropertyFormData>();
   const propertyType = watch('propertyType');
 
   return (
@@ -56,7 +56,7 @@ export function PropertyFormStep3({
             onDocumentsChange={setDisplayDocuments}
           />
         )}
-        
+
         {/* Navigation Buttons */}
         <div className="flex justify-between pt-4">
           <Button color="alternative" onClick={onBack}>

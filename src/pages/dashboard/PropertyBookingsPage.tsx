@@ -8,7 +8,7 @@ import {
   RefreshCw,
   AlertCircle
 } from 'lucide-react';
-import { Button, Card } from 'flowbite-react';
+import { Alert, Button, Card } from 'flowbite-react';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { PropertyData } from '../../models/properties';
 import BookingService, { BookingWithMember } from '../../services/BookingService';
@@ -94,6 +94,14 @@ const PropertyBookingsPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Calendar sync requires SummerRentExtension; avoid stuck sync view without it
+  useEffect(() => {
+    if (!state.property || state.property.hasSummerRentExtension === true) return;
+    setState((prev) =>
+      prev.viewMode === 'calendar-sync' ? { ...prev, viewMode: 'bookings' } : prev
+    );
+  }, [state.property]);
 
   // Handle calendar date/booking selection
   const handleCalendarSelect = useCallback((date: Date, bookings: BookingWithMember[]) => {
@@ -283,6 +291,8 @@ const PropertyBookingsPage: React.FC = () => {
     );
   }
 
+  const hasCalendarSync = state.property.hasSummerRentExtension === true;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -319,6 +329,7 @@ const PropertyBookingsPage: React.FC = () => {
       {/* View Mode Tabs */}
       <div className="flex space-x-1 mb-6 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
         <button
+          type="button"
           onClick={() => switchViewMode('bookings')}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
             state.viewMode === 'bookings'
@@ -329,23 +340,56 @@ const PropertyBookingsPage: React.FC = () => {
           📅 Gestionar reservas
         </button>
         <button
-          onClick={() => switchViewMode('calendar-sync')}
+          type="button"
+          disabled={!hasCalendarSync}
+          title={
+            hasCalendarSync
+              ? undefined
+              : 'Disponible solo si la propiedad tiene la extensión de alquiler de temporada (Summer Rent).'
+          }
+          aria-label={
+            hasCalendarSync
+              ? 'Sincronización de calendario'
+              : 'Sincronización de calendario no disponible: falta la extensión de alquiler de temporada'
+          }
+          onClick={() => hasCalendarSync && switchViewMode('calendar-sync')}
           className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
             state.viewMode === 'calendar-sync'
               ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
               : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-          }`}
+          } ${!hasCalendarSync ? 'opacity-50 cursor-not-allowed hover:text-gray-600 dark:hover:text-gray-400' : ''}`}
         >
           🔄 Sincronización de calendario
         </button>
       </div>
 
+      {!hasCalendarSync && (
+        <Alert color="info">
+          <span className="font-medium">Sincronización de calendario no disponible.</span>
+          <span className="block mt-1 text-sm">
+            La importación y exportación iCal y el panel de sincronización requieren la extensión de{' '}
+            <strong>alquiler de temporada</strong> en esta propiedad. Puedes configurarla desde la edición de la
+            propiedad.
+          </span>
+          <Button
+            color="light"
+            size="xs"
+            className="mt-3"
+            onClick={() => navigate(`/dashboard/property/${propertyId}/edit`)}
+          >
+            Ir a editar propiedad
+          </Button>
+        </Alert>
+      )}
+
       {/* Sync Status Bar */}
-      <SyncStatusBar
-        propertyId={propertyId!}
-        onSync={handleSync}
-        isSyncing={state.isSyncing}
-      />
+      {hasCalendarSync && (
+        <SyncStatusBar
+          propertyId={propertyId!}
+          onSync={handleSync}
+          isSyncing={state.isSyncing}
+        />
+      )}
 
       {/* Main Content */}
       {state.viewMode === 'bookings' ? (
@@ -399,7 +443,7 @@ const PropertyBookingsPage: React.FC = () => {
             />
           </div>
         </div>
-      ) : (
+      ) : hasCalendarSync ? (
         /* Calendar Sync View */
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Import Section */}
@@ -417,7 +461,7 @@ const PropertyBookingsPage: React.FC = () => {
             />
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Action Buttons */}
       {state.hasUnsavedChanges && (

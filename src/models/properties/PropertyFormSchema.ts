@@ -1,6 +1,50 @@
 import { z } from 'zod';
 import type { ListingType, PropertyType } from './PropertyData';
 
+/** When `propertyType` is RealEstate, chooses sale listing vs annual rent listing. */
+export const realEstateOfferModeSchema = z.enum(['sale', 'annual_rent']);
+export type RealEstateOfferMode = z.infer<typeof realEstateOfferModeSchema>;
+
+/** Listing row type for create flow from step 1 property type + RealEstate sub-choice. */
+export function resolveCreationListingType(data: {
+  propertyType?: PropertyType;
+  realEstateOfferMode?: RealEstateOfferMode;
+}): ListingType | undefined {
+  const pt = data.propertyType;
+  if (!pt) return undefined;
+  if (pt === 'SummerRent') return 'SummerRent';
+  if (pt === 'EventVenue') return 'EventVenue';
+  if (pt === 'RealEstate') {
+    return data.realEstateOfferMode === 'annual_rent' ? 'AnnualRent' : 'RealEstate';
+  }
+  return undefined;
+}
+
+export const rentPricePeriodSchema = z.enum(['PerNight', 'PerMonth']);
+export type RentPricePeriod = z.infer<typeof rentPricePeriodSchema>;
+
+export const propertySectionTypeSchema = z.enum(['SummerRent', 'EventVenue', 'RealEstate']);
+export const propertySectionLayoutTypeSchema = z.enum(['split', 'carousel', 'stacked']);
+export const propertySectionDisplayVariantSchema = z.enum(['default', 'compact', 'hero']);
+
+export const propertyContentSectionSchema = z.object({
+  name: z.string().min(1, 'El nombre de la sección es requerido.'),
+  description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
+  propertyType: propertySectionTypeSchema,
+  layoutType: propertySectionLayoutTypeSchema.default('split'),
+  displayVariant: propertySectionDisplayVariantSchema.default('default'),
+  imageKeys: z.array(z.string()).default([]),
+});
+
+const locationBaseSchema = z.object({ lat: z.number(), lng: z.number() });
+
+const strictCreateLocationSchema = locationBaseSchema.refine(
+  val => val.lat !== -34.9011 || val.lng !== -56.1645,
+  {
+    message: 'Por favor, confirma la ubicación en el mapa.',
+  }
+);
+
 export const propertyFormBaseSchema = z.object({
   // ESTATE PROPERTY
   // address
@@ -11,12 +55,7 @@ export const propertyFormBaseSchema = z.object({
   state: z.string().min(1, 'El estado/provincia es requerido.'),
   zipCode: z.string().min(1, 'El código postal es requerido.'),
   country: z.string().min(1, 'El país es requerido.'),
-  location: z.object({ lat: z.number(), lng: z.number() }).refine(
-    val => val.lat !== -34.9011 || val.lng !== -56.1645,
-    {
-      message: 'Por favor, confirma la ubicación en el mapa.',
-    }
-  ),
+  location: locationBaseSchema,
   // description
   title: z.string().min(5, 'El título debe tener al menos 5 caracteres.'),
   // end-purpose for this property (optional on create)
@@ -45,9 +84,13 @@ export const propertyFormBaseSchema = z.object({
   listingType: z
     .enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate'])
     .optional() as z.ZodType<ListingType | undefined>,
+  /** Only used when `propertyType` is RealEstate (step 5: venta vs alquiler anual). */
+  realEstateOfferMode: realEstateOfferModeSchema.optional(),
   currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']).optional(),
   salePrice: z.string().optional(),
   rentPrice: z.string().optional(),
+  /** Nightly/event vs monthly meaning for `RentPrice` (Listings.RentPricePeriod). */
+  rentPricePeriod: rentPricePeriodSchema.optional(),
   hasCommonExpenses: z.boolean().optional(),
   commonExpensesValue: z.string().optional(),
   isElectricityIncluded: z.boolean().optional(),
@@ -56,6 +99,8 @@ export const propertyFormBaseSchema = z.object({
   status: z.enum(['sale', 'rent', 'reserved', 'sold', 'unavailable']).optional(),
   isActive: z.boolean().optional(),
   isPropertyVisible: z.boolean().optional(),
+  isFeatured: z.boolean().optional(),
+  blockedForBooking: z.boolean().optional(),
 
   // --- Amenities ---
   amenities: z.array(z.string()).optional(),
@@ -80,9 +125,64 @@ export const propertyFormBaseSchema = z.object({
   maxStayDays: z.coerce.number().int().optional(),
   leadTimeDays: z.coerce.number().int().optional(),
   bufferDays: z.coerce.number().int().optional(),
+  // Dynamic details sections for property detail pages.
+  contentSections: z.array(propertyContentSectionSchema).default([]),
+  // Edit flow: optional additive extension type.
+  additionalExtensionType: z.enum(['SummerRent', 'EventVenue', 'RealEstate']).optional(),
 });
 
 export const propertyFormSchema = propertyFormBaseSchema;
 
+export const propertyCreateSchema = propertyFormBaseSchema.extend({
+  location: strictCreateLocationSchema,
+});
+
+/** Create wizard + admin create: publishing requires currency and the correct price column. */
+export const propertyCreatePublishSchema = propertyCreateSchema
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      return !!resolveCreationListingType(data);
+    },
+    {
+      message: 'Selecciona el tipo de propiedad antes de publicar.',
+      path: ['propertyType'],
+    }
+  )
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      return !!data.currency;
+    },
+    {
+      message: 'Para publicar, selecciona la moneda.',
+      path: ['currency'],
+    }
+  )
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      if (resolveCreationListingType(data) !== 'RealEstate') return true;
+      return !!String(data.salePrice ?? '').trim();
+    },
+    {
+      message: 'Para publicar, ingresa el precio de venta.',
+      path: ['salePrice'],
+    }
+  )
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      const lt = resolveCreationListingType(data);
+      if (!lt || lt === 'RealEstate') return true;
+      return !!String(data.rentPrice ?? '').trim();
+    },
+    {
+      message: 'Para publicar, ingresa el precio de alquiler.',
+      path: ['rentPrice'],
+    }
+  );
+
+export type PropertyContentSectionFormData = z.infer<typeof propertyContentSectionSchema>;
 export type PropertyFormData = z.infer<typeof propertyFormSchema>;
 

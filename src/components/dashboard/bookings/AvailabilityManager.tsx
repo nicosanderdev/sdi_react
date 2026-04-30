@@ -1,18 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { format, parseISO, isSameDay } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format, parseISO } from 'date-fns';
 import {
-  Lock,
-  Unlock,
   Plus,
   Trash2,
   Edit3,
-  Calendar as CalendarIcon,
-  AlertTriangle,
   CheckCircle
 } from 'lucide-react';
-import { Button, Card, Select, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
+import { Button, Card, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
 import { AvailabilityBlock, BlockType, SourceType } from '../../../models/calendar/CalendarSync';
+import type { SdiApiResponse } from '../../../models/SdiApiResponse';
+import { CalendarSyncService } from '../../../services/CalendarSyncService';
 
 const TIPO_BLOQUEO_ES: Record<BlockType, string> = {
   [BlockType.Availability]: 'Disponibilidad',
@@ -20,7 +17,34 @@ const TIPO_BLOQUEO_ES: Record<BlockType, string> = {
   [BlockType.OwnerBlock]: 'Bloqueo del propietario',
   [BlockType.ExternalBlock]: 'Calendario externo'
 };
-import { CalendarSyncService } from '../../../services/CalendarSyncService';
+
+const inputClass =
+  'w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-400 dark:focus:border-cyan-500 dark:focus:ring-cyan-500';
+
+const blockModalTheme = {
+  content: {
+    base: 'relative h-full w-full p-4 md:h-auto',
+    inner:
+      'relative flex max-h-[90dvh] flex-col rounded-lg border border-gray-200 bg-white shadow dark:border-gray-600 dark:bg-gray-800'
+  },
+  footer: {
+    base: 'flex items-center space-x-2 rounded-b border-t border-gray-200 bg-gray-50 p-6 dark:border-gray-600 dark:bg-gray-900/40',
+    popup: 'border-t'
+  },
+  body: {
+    base: 'flex-1 overflow-auto p-6 dark:bg-gray-800',
+    popup: 'pt-0'
+  },
+  header: {
+    base: 'flex items-start justify-between rounded-t border-b border-gray-200 p-5 dark:border-gray-600 dark:bg-gray-800',
+    popup: 'border-b-0 p-2',
+    title: 'text-xl font-medium text-gray-900 dark:text-white',
+    close: {
+      base: 'ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-600 dark:hover:text-white',
+      icon: 'h-5 w-5'
+    }
+  }
+};
 
 interface AvailabilityManagerProps {
   propertyId: string;
@@ -42,10 +66,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   propertyId,
   availabilityBlocks,
   selectedDate,
-  onDateSelect,
+  onDateSelect: _onDateSelect,
   onAvailabilityChange
 }) => {
-  const [isBlockingMode, setIsBlockingMode] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [editingBlock, setEditingBlock] = useState<AvailabilityBlock | null>(null);
   const [blockFormData, setBlockFormData] = useState<BlockFormData>({
@@ -57,58 +80,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  // Group blocks by date for quick lookup
-  const blocksByDate = useMemo(() => {
-    const grouped: { [key: string]: AvailabilityBlock[] } = {};
-    availabilityBlocks.forEach(block => {
-      const start = parseISO(block.StartDate);
-      const end = parseISO(block.EndDate);
-
-      let current = new Date(start);
-      while (current <= end) {
-        const dateKey = format(current, 'yyyy-MM-dd');
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = [];
-        }
-        grouped[dateKey].push(block);
-        current.setDate(current.getDate() + 1);
-      }
-    });
-    return grouped;
-  }, [availabilityBlocks]);
-
-  // Handle date click in blocking mode
-  const handleDateClick = (date: Date) => {
-    const dateKey = format(date, 'yyyy-MM-dd');
-    const existingBlocks = blocksByDate[dateKey] || [];
-
-    if (existingBlocks.length > 0) {
-      // If there are existing blocks, offer to unblock
-      const block = existingBlocks[0]; // Take the first one
-      setEditingBlock(block);
-      setBlockFormData({
-        startDate: block.StartDate,
-        endDate: block.EndDate,
-        blockType: block.BlockType,
-        title: block.Title || '',
-        description: block.Description || ''
-      });
-      setShowBlockModal(true);
-    } else {
-      // Create new block
-      const dateStr = format(date, 'yyyy-MM-dd');
-      setBlockFormData({
-        startDate: dateStr,
-        endDate: dateStr,
-        blockType: BlockType.OwnerBlock,
-        title: 'Bloqueado por propietario',
-        description: ''
-      });
-      setEditingBlock(null);
-      setShowBlockModal(true);
-    }
-  };
-
   // Save availability block
   const handleSaveBlock = async () => {
     setIsSaving(true);
@@ -116,34 +87,35 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     try {
       const blockData = {
         EstatePropertyId: propertyId,
-        IsAvailable: false, // All blocks in this manager are unavailable
+        IsAvailable: false,
         StartDate: blockFormData.startDate,
         EndDate: blockFormData.endDate,
         BlockType: blockFormData.blockType,
         Source: SourceType.Internal,
         Title: blockFormData.title,
-        Description: blockFormData.description
+        Description: blockFormData.description,
+        IsReadOnly: false,
+        ConflictFlagged: false
       };
 
-      let result;
+      let result: SdiApiResponse<AvailabilityBlock> | undefined;
       if (editingBlock) {
-        // Update existing block
         result = await CalendarSyncService.updateAvailabilityBlock(editingBlock.Id, blockData);
-        if (result.succeeded && result.data) {
+        if (result?.succeeded && result.data) {
+          const row = result.data;
           const updatedBlocks = availabilityBlocks.map(b =>
-            b.Id === editingBlock.Id ? result.data! : b
+            b.Id === editingBlock.Id ? row : b
           );
           onAvailabilityChange(updatedBlocks);
         }
       } else {
-        // Create new block
         result = await CalendarSyncService.createAvailabilityBlock(blockData);
-        if (result.succeeded && result.data) {
+        if (result?.succeeded && result.data) {
           onAvailabilityChange([...availabilityBlocks, result.data]);
         }
       }
 
-      if (result.succeeded) {
+      if (result?.succeeded) {
         setShowBlockModal(false);
         setEditingBlock(null);
       } else {
@@ -156,7 +128,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     }
   };
 
-  // Delete availability block
   const handleDeleteBlock = async () => {
     if (!editingBlock) return;
 
@@ -175,7 +146,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     }
   };
 
-  // Get block type color
   const getBlockTypeColor = (blockType: BlockType) => {
     switch (blockType) {
       case BlockType.OwnerBlock:
@@ -189,7 +159,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     }
   };
 
-  // Get unique blocks (avoid duplicates from date expansion)
   const uniqueBlocks = useMemo(() => {
     const seen = new Set<string>();
     return availabilityBlocks.filter(block => {
@@ -200,43 +169,19 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     });
   }, [availabilityBlocks]);
 
-  // Handle form input changes
   const handleFormChange = (field: keyof BlockFormData, value: any) => {
     setBlockFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <div className="space-y-4">
-      {/* Mode Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            color={isBlockingMode ? "primary" : "alternative"}
-            onClick={() => setIsBlockingMode(!isBlockingMode)}
-          >
-            {isBlockingMode ? (
-              <>
-                <Lock className="h-4 w-4 mr-2" />
-                Modo Bloqueo Activado
-              </>
-            ) : (
-              <>
-                <Unlock className="h-4 w-4 mr-2" />
-                Modo Bloqueo Desactivado
-              </>
-            )}
-          </Button>
-          {isBlockingMode && (
-            <span className="text-sm text-gray-600">
-              Haz clic en las fechas para bloquear/desbloquear disponibilidad
-            </span>
-          )}
-        </div>
-
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {uniqueBlocks.length === 0 ? 'No hay bloqueos creados' : `${uniqueBlocks.length} bloqueo(s)`}
+        </p>
         <Button
           size="sm"
-          color="success"
+          color="alternative"
           onClick={() => {
             setBlockFormData({
               startDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
@@ -254,27 +199,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         </Button>
       </div>
 
-      {/* Instructions */}
-      {isBlockingMode && (
-        <Card className="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-emerald-900 dark:text-emerald-100">Modo de Gestión de Disponibilidad</h4>
-              <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-                • Haz clic en fechas disponibles para bloquearlas<br />
-                • Haz clic en fechas bloqueadas para editarlas<br />
-                • Los bloques se aplicarán a todas las fechas del rango seleccionado
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Current Blocks List */}
       {uniqueBlocks.length > 0 && (
         <Card>
-          <h4 className="font-medium mb-3">Bloqueos Actuales</h4>
+          <h4 className="font-medium mb-3 text-gray-900 dark:text-white">Bloqueos Actuales</h4>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {uniqueBlocks.map((block) => (
               <div key={block.Id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded">
@@ -292,7 +219,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                     }
                   </div>
                   {block.Description && (
-                    <div className="text-sm text-gray-500 dark:text-gray-500 mt-1">{block.Description}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{block.Description}</div>
                   )}
                 </div>
                 <div className="flex space-x-2">
@@ -320,59 +247,58 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         </Card>
       )}
 
-      {/* Block Modal */}
-      <Modal show={showBlockModal} onClose={() => setShowBlockModal(false)}>
+      <Modal show={showBlockModal} onClose={() => setShowBlockModal(false)} theme={blockModalTheme} dismissible>
         <ModalHeader>
           {editingBlock ? 'Editar Bloqueo' : 'Nuevo Bloqueo de Disponibilidad'}
         </ModalHeader>
         <ModalBody>
           <div className="space-y-4">
-            {/* Date Range */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Fecha Inicio
                 </label>
                 <input
                   type="date"
                   value={blockFormData.startDate}
                   onChange={(e) => handleFormChange('startDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Fecha Fin
                 </label>
                 <input
                   type="date"
                   value={blockFormData.endDate}
                   onChange={(e) => handleFormChange('endDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
             </div>
 
-            {/* Block Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Tipo de Bloqueo
               </label>
-              <Select
+              <select
                 value={blockFormData.blockType.toString()}
-                onChange={(e) => handleFormChange('blockType', parseInt(e.target.value) as BlockType)}
+                onChange={(e) => handleFormChange('blockType', parseInt(e.target.value, 10) as BlockType)}
+                className={inputClass}
               >
                 {Object.entries(TIPO_BLOQUEO_ES)
-                  .filter(([key]) => parseInt(key) !== BlockType.Availability && parseInt(key) !== BlockType.Booking)
+                  .filter(([key]) => parseInt(key, 10) !== BlockType.Availability && parseInt(key, 10) !== BlockType.Booking)
                   .map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </Select>
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+              </select>
             </div>
 
-            {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Título
               </label>
               <input
@@ -380,26 +306,25 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 value={blockFormData.title}
                 onChange={(e) => handleFormChange('title', e.target.value)}
                 placeholder="Ej: Mantenimiento, Limpieza..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={inputClass}
               />
             </div>
 
-            {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Descripción (Opcional)
               </label>
               <textarea
                 value={blockFormData.description}
                 onChange={(e) => handleFormChange('description', e.target.value)}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={inputClass}
               />
             </div>
           </div>
         </ModalBody>
         <ModalFooter>
-          <div className="flex justify-between w-full">
+          <div className="flex w-full flex-wrap justify-between gap-2">
             <div>
               {editingBlock && (
                 <Button
@@ -412,27 +337,24 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 </Button>
               )}
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               <Button
-                color="alternative"
+                color="gray"
                 onClick={() => setShowBlockModal(false)}
                 disabled={isSaving}
+                className="border border-gray-300 bg-white text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
               >
                 Cancelar
               </Button>
-              <Button
-                color="primary"
-                onClick={handleSaveBlock}
-                disabled={isSaving}
-              >
+              <Button color="green" onClick={handleSaveBlock} disabled={isSaving}>
                 {isSaving ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />
                     Guardando...
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <CheckCircle className="mr-2 h-4 w-4" />
                     {editingBlock ? 'Actualizar' : 'Crear'} Bloqueo
                   </>
                 )}
@@ -441,16 +363,6 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           </div>
         </ModalFooter>
       </Modal>
-
-      {/* Calendar Overlay for Blocking Mode */}
-      {isBlockingMode && (
-        <div className="relative">
-          <div className="absolute inset-0 bg-blue-500 bg-opacity-10 rounded-lg pointer-events-none"></div>
-          <div className="absolute top-2 left-2 text-blue-700 text-sm font-medium">
-            Modo Bloqueo Activo
-          </div>
-        </div>
-      )}
     </div>
   );
 };

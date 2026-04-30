@@ -1,15 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, Dropdown, DropdownItem } from 'flowbite-react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
 
 import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
+import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
 import PropertyService from '../../../services/PropertyService';
 import { PropertyData, ListingType, PropertyType } from '../../../models/properties';
 import PropertyListingService, { ListingIntentPayload } from '../../../services/PropertyListingService';
@@ -21,9 +21,11 @@ import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
 import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { ErrorDisplay } from '../../ui/ErrorDisplay';
 import {
-  propertyFormBaseSchema,
+  propertyCreatePublishSchema,
   PropertyFormData,
+  resolveCreationListingType,
 } from '../../../models/properties/PropertyFormSchema';
+import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 
 export type PropertyCreationMode = 'user' | 'admin';
 
@@ -47,31 +49,9 @@ export interface PropertyCreationInitialContext {
   ownerUserId?: string;
 }
 
-export const propertyCreationFormSchema = propertyFormBaseSchema
-  .extend({
-    publishMode: z.enum(['draft', 'publish']).default('publish'),
-    // Kept for backward-compatibility, but listing types are now derived
-    // from propertyType + listingType rather than a free-form multi-select.
-    listingTypes: z
-      .array(z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']))
-      .default([]),
-  })
-  .refine(data => data.salePrice || data.rentPrice, {
-    message: 'Debes especificar un precio de venta o de alquiler.',
-    path: ['salePrice'],
-  })
-  .refine(
-    data => !data.hasCommonExpenses || (data.hasCommonExpenses && data.commonExpensesValue),
-    {
-      message: 'Debes especificar el monto de los gastos comunes.',
-      path: ['commonExpensesValue'],
-    }
-  );
+export const propertyCreationFormSchema = propertyCreatePublishSchema;
 
-export type PropertyCreationFormData = PropertyFormData & {
-  publishMode: 'draft' | 'publish';
-  listingTypes: ListingType[];
-};
+export type PropertyCreationFormData = PropertyFormData;
 
 interface PropertyCreationWizardProps {
   initialContext: PropertyCreationInitialContext;
@@ -93,6 +73,7 @@ export function PropertyCreationWizard({
   const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
   const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [propertyTypeLocked, setPropertyTypeLocked] = useState(false);
 
   const { canCreateProperty, isAtPublishedLimit, totalLimit, publishedLimit } = usePropertyQuota();
 
@@ -100,30 +81,37 @@ export function PropertyCreationWizard({
     resolver: zodResolver(propertyCreationFormSchema as any),
     mode: 'onTouched',
     defaultValues: {
-      publishMode: 'publish',
       // Ensure location is always defined when the wizard is used directly
       location: { lat: -34.9011, lng: -56.1645 },
+      contentSections: [],
+      rentPricePeriod: 'PerNight',
+      realEstateOfferMode: 'sale',
+      isActive: true,
+      blockedForBooking: false,
     } as any,
   });
 
-  // Keep listingType aligned with propertyType when appropriate.
-  const watchedPropertyType = methods.watch('propertyType');
-  const watchedListingType = methods.watch('listingType');
+  const { handleSubmit, register, setValue, watch } = methods;
+  const watchedPropertyType = watch('propertyType');
+  const watchedRealEstateOfferMode = watch('realEstateOfferMode');
 
-  if (!watchedListingType && watchedPropertyType) {
-    let inferred: ListingType | undefined;
-    if (watchedPropertyType === 'SummerRent') inferred = 'SummerRent';
-    if (watchedPropertyType === 'EventVenue') inferred = 'EventVenue';
-    if (watchedPropertyType === 'RealEstate') inferred = 'RealEstate';
+  useEffect(() => {
+    const inferred = resolveCreationListingType({
+      propertyType: watchedPropertyType as PropertyType | undefined,
+      realEstateOfferMode: watchedRealEstateOfferMode,
+    });
     if (inferred) {
-      methods.setValue('listingType', inferred, { shouldValidate: false });
+      setValue('listingType', inferred, { shouldValidate: false });
     }
-  }
+  }, [watchedPropertyType, watchedRealEstateOfferMode, setValue]);
 
-  const stepCount = 4;
+  const stepCount = 5;
 
   const handleNext = () => {
-    setCurrentStep(prev => Math.min(prev + 1, stepCount));
+    setCurrentStep(prev => {
+      if (prev === 1) setPropertyTypeLocked(true);
+      return Math.min(prev + 1, stepCount);
+    });
   };
 
   const handleBack = () => {
@@ -139,7 +127,7 @@ export function PropertyCreationWizard({
         throw new Error(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
       }
 
-      const publishNow = formData.publishMode === 'publish';
+      const publishNow = formData.isActive === true;
 
       if (publishNow && isAtPublishedLimit) {
         throw new Error(`Your plan limits have reached. You cannot publish more than ${publishedLimit} properties.`);
@@ -147,7 +135,8 @@ export function PropertyCreationWizard({
 
       const effectiveFormData: any = {
         ...formData,
-        isPropertyVisible: publishNow && !isAtPublishedLimit,
+        isPropertyVisible: publishNow,
+        isActive: publishNow,
       };
 
       let created: PropertyData;
@@ -171,14 +160,12 @@ export function PropertyCreationWizard({
       const effectivePropertyType: PropertyType =
         (formData.propertyType as PropertyType) || initialContext.availablePropertyTypes[0];
 
-      // Primary listing type is determined from listingType (for RealEstate)
-      // or inferred from propertyType for the other extensions.
-      let mainListingType: ListingType | undefined = formData.listingType as ListingType | undefined;
-      if (!mainListingType) {
-        if (effectivePropertyType === 'SummerRent') mainListingType = 'SummerRent';
-        if (effectivePropertyType === 'EventVenue') mainListingType = 'EventVenue';
-        if (effectivePropertyType === 'RealEstate') mainListingType = 'RealEstate';
-      }
+      const mainListingType: ListingType | undefined =
+        (formData.listingType as ListingType | undefined) ??
+        resolveCreationListingType({
+          propertyType: effectivePropertyType,
+          realEstateOfferMode: formData.realEstateOfferMode,
+        });
 
       const listingIntents: ListingIntent[] = mainListingType
         ? [
@@ -222,8 +209,6 @@ export function PropertyCreationWizard({
     }
   };
 
-  const { handleSubmit, register, setValue } = methods;
-
   return (
     <FormProvider {...methods}>
       <Card className="min-h-full">
@@ -260,9 +245,13 @@ export function PropertyCreationWizard({
               {currentStep === 1 && (
                 <div className="mb-6 border border-gray-200 rounded-lg mx-auto max-w-xs p-4">
                   <h2 className="text-sm font-semibold mb-2">Tipo de propiedad</h2>
-                  {initialContext.availablePropertyTypes.length > 1 ||
-                  initialContext.isAdmin ||
-                  initialContext.isAffiliatedUsingAgencyQuota ? (
+                  {propertyTypeLocked ? (
+                    <p className="text-sm text-gray-700">
+                      {getPropertyTypeLabelEs(watchedPropertyType as PropertyType | undefined)}
+                    </p>
+                  ) : initialContext.availablePropertyTypes.length > 1 ||
+                    initialContext.isAdmin ||
+                    initialContext.isAffiliatedUsingAgencyQuota ? (
                     <>
                       <input type="hidden" {...register('propertyType')} />
                       <Dropdown
@@ -270,9 +259,7 @@ export function PropertyCreationWizard({
                         arrowIcon={false}
                         label={
                           <div className="flex w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm hover:bg-gray-50">
-                            <span>
-                              {watchedPropertyType || 'Selecciona el tipo de propiedad'}
-                            </span>
+                            <span>{getPropertyTypeLabelEs(watchedPropertyType as PropertyType | undefined)}</span>
                             <span className="ml-2 text-xs text-gray-400">▼</span>
                           </div>
                         }
@@ -287,14 +274,14 @@ export function PropertyCreationWizard({
                               })
                             }
                           >
-                            {pt}
+                            {getPropertyTypeLabelEs(pt)}
                           </DropdownItem>
                         ))}
                       </Dropdown>
                     </>
                   ) : (
                     <p className="text-sm text-gray-600">
-                      {initialContext.availablePropertyTypes[0]}
+                      {getPropertyTypeLabelEs(initialContext.availablePropertyTypes[0])}
                     </p>
                   )}
                 </div>
@@ -302,7 +289,7 @@ export function PropertyCreationWizard({
               {currentStep > 1 && watchedPropertyType && (
                 <div className="mb-6">
                   <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                    Tipo de propiedad: {watchedPropertyType}
+                    Tipo de propiedad: {getPropertyTypeLabelEs(watchedPropertyType as PropertyType)}
                   </span>
                 </div>
               )}
@@ -329,6 +316,13 @@ export function PropertyCreationWizard({
                 />
               )}
               {currentStep === 4 && (
+                <PropertyFormStep4Sections
+                  onNext={handleNext}
+                  onBack={handleBack}
+                  displayImages={displayImages}
+                />
+              )}
+              {currentStep === 5 && (
                 <PropertyFormStep4
                   onSubmit={handleSubmit(handleSubmitInternal)}
                   onBack={handleBack}

@@ -7,12 +7,14 @@ interface PropertyTableProps {
   properties: PropertyData[];
   onViewBookings: (property: PropertyData) => void;
   onDeleteProperty: (property: PropertyData) => void;
+  onEditListing: (property: PropertyData) => void;
 }
 
 export function PropertyTable({
   properties,
   onViewBookings,
   onDeleteProperty,
+  onEditListing,
 }: PropertyTableProps) {
   const navigate = useNavigate();
 
@@ -139,6 +141,13 @@ export function PropertyTable({
                     onClick={() => handleEditClick(property)}
                     className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Editar Propiedad"
+                  >
+                    <EditIcon size={18} />
+                  </button>
+                  <button
+                    onClick={() => onEditListing(property)}
+                    className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
+                    title="Editar Aviso"
                   >
                     <EditIcon size={18} />
                   </button>

@@ -1,17 +1,17 @@
 // src/hooks/useAdminProperties.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import propertyAdminService, {
   AdminPropertyListItem,
   PropertyFilters,
   PropertyListResponse,
   ActionResult,
   PropertyStatistics,
-  PropertyStatus,
+  DEFAULT_ADMIN_PROPERTY_LOCATION,
 } from '../services/PropertyAdminService';
 import { PropertyData } from '../models/properties';
 
 // Sorting options
-export type SortField = 'title' | 'ownerName' | 'status' | 'city' | 'createdAt' | 'lastModified';
+export type SortField = 'title' | 'ownerName' | 'city' | 'createdAt' | 'lastModified';
 export type SortDirection = 'asc' | 'desc';
 
 export interface SortConfig {
@@ -49,6 +49,11 @@ export interface UseAdminPropertiesReturn {
   detailModalOpen: boolean;
   deleteConfirmModalOpen: boolean;
   propertyToDelete: AdminPropertyListItem | PropertyData | null;
+  editingListingPropertyId: string | null;
+
+  // Table selection (admin list)
+  selectedPropertyIds: string[];
+  primarySelectedProperty: AdminPropertyListItem | null;
 
   // Actions
   setPage: (page: number) => void;
@@ -70,11 +75,17 @@ export interface UseAdminPropertiesReturn {
   openDeleteConfirmModal: (property: AdminPropertyListItem | PropertyData) => void;
   closeDeleteConfirmModal: () => void;
   confirmDeleteProperty: (reason: string) => Promise<void>;
+
+  togglePropertySelection: (propertyId: string) => void;
+  toggleSelectAllOnPage: (pagePropertyIds: string[]) => void;
+  clearPropertySelection: () => void;
+  setEditingListingPropertyId: (propertyId: string | null) => void;
 }
 
 const defaultFilters: PropertyFilters = {
   page: 1,
-  limit: 20,
+  limit: 10,
+  location: DEFAULT_ADMIN_PROPERTY_LOCATION,
 };
 
 const defaultSortConfig: SortConfig = {
@@ -84,8 +95,7 @@ const defaultSortConfig: SortConfig = {
 
 const defaultStatistics: PropertyStatistics = {
   totalProperties: 0,
-  incompleteProperties: 0,
-  neverPublished: 0,
+  unpublishedProperties: 0,
   activeProperties: 0,
   archivedProperties: 0,
 };
@@ -97,7 +107,7 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
   const [statistics, setStatistics] = useState<PropertyStatistics | null>(null);
   const [totalProperties, setTotalProperties] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
 
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -119,6 +129,14 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [propertyToDelete, setPropertyToDelete] = useState<AdminPropertyListItem | PropertyData | null>(null);
+  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+
+  const primarySelectedProperty = useMemo((): AdminPropertyListItem | null => {
+    if (selectedPropertyIds.length !== 1) return null;
+    const id = selectedPropertyIds[0];
+    return properties.find((p) => p.id === id) ?? null;
+  }, [properties, selectedPropertyIds]);
 
   // Computed values
   const totalPages = Math.ceil(totalProperties / pageSize);
@@ -137,6 +155,7 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
 
       setProperties(response.properties);
       setTotalProperties(response.total);
+      setSelectedPropertyIds([]);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch properties');
     } finally {
@@ -282,6 +301,25 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
     return deleteProperty(propertyToDelete.id, reason);
   }, [propertyToDelete, deleteProperty]);
 
+  const togglePropertySelection = useCallback((propertyId: string) => {
+    setSelectedPropertyIds((prev) =>
+      prev.includes(propertyId) ? prev.filter((id) => id !== propertyId) : [...prev, propertyId]
+    );
+  }, []);
+
+  const toggleSelectAllOnPage = useCallback((pagePropertyIds: string[]) => {
+    if (pagePropertyIds.length === 0) return;
+    setSelectedPropertyIds((prev) => {
+      const allIn = pagePropertyIds.every((id) => prev.includes(id));
+      if (allIn) return prev.filter((id) => !pagePropertyIds.includes(id));
+      return [...new Set([...prev, ...pagePropertyIds])];
+    });
+  }, []);
+
+  const clearPropertySelection = useCallback(() => {
+    setSelectedPropertyIds([]);
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     fetchProperties();
@@ -322,6 +360,11 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
     detailModalOpen,
     deleteConfirmModalOpen,
     propertyToDelete,
+    editingListingPropertyId,
+
+    // Table selection
+    selectedPropertyIds,
+    primarySelectedProperty,
 
     // Actions
     setPage,
@@ -343,5 +386,10 @@ export const useAdminProperties = (): UseAdminPropertiesReturn => {
     openDeleteConfirmModal,
     closeDeleteConfirmModal,
     confirmDeleteProperty,
+
+    togglePropertySelection,
+    toggleSelectAllOnPage,
+    clearPropertySelection,
+    setEditingListingPropertyId,
   };
 };

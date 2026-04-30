@@ -235,6 +235,37 @@ export interface SyncResponse {
   message: string
 }
 
+/** Latest job summary returned by sync-orchestrator status (camelCase JSON). */
+export interface OrchestratorLatestSyncJob {
+  id: string
+  jobType: number
+  status: number
+  startedAt?: string
+  completedAt?: string
+  error?: string
+  eventsProcessed?: number
+  created?: string
+}
+
+/** One integration row from GET calendar-sync/sync-orchestrator/status. */
+export interface CalendarIntegrationSyncStatusRow {
+  integrationId: string
+  platformType: PlatformType
+  calendarName?: string
+  isActive: boolean
+  lastSyncAt?: string
+  /** Integration sync state (idle/syncing/error), not the SyncStatus enum name collision. */
+  syncStatus: number
+  latestJob?: OrchestratorLatestSyncJob | null
+}
+
+/** JSON body from sync-orchestrator status endpoint. */
+export interface PropertySyncStatusApiResponse {
+  success: boolean
+  status: CalendarIntegrationSyncStatusRow[]
+}
+
+/** @deprecated Use CalendarIntegrationSyncStatusRow for a single row. */
 export interface SyncStatusResponse {
   integrationId: string
   platformType: PlatformType

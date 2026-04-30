@@ -64,7 +64,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({
     { title: 'Propiedades totales', value: formatNumber(data.propertiesCount), icon: Building, trend: undefined },
     { title: 'Usuarios totales', value: formatNumber(data.usersCount), icon: Users, trend: undefined },
     { title: 'Usuarios activos (30 d)', value: formatNumber(data.activeUsers), icon: UserCheck, trend: undefined },
-    { title: 'Usuarios inactivos', value: formatNumber(data.inactiveUsers), icon: UserCheck, trend: undefined },
+    { title: 'Usuarios inactivos (30 d)', value: formatNumber(data.inactiveUsers), icon: UserCheck, trend: undefined },
     { title: 'Propiedades activas', value: formatNumber(data.activeProperties), icon: Building2, trend: undefined },
     { title: 'Propiedades archivadas', value: formatNumber(data.archivedProperties), icon: Archive, trend: undefined },
     { title: 'Nuevos usuarios (7 d)', value: formatNumber(data.growth.newUsers7d), icon: UserPlus, trend: undefined },

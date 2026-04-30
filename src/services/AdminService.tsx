@@ -85,7 +85,21 @@ export interface AdminActivityParams extends AdminMetricsParams {
 }
 
 class AdminService {
-  /** Properties no longer have Created/LastModified on EstateProperties after listing refactor; use Listings. */
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'string' && error.length > 0) return error;
+    if (error && typeof error === 'object') {
+      const maybeMessage = (error as { message?: unknown }).message;
+      if (typeof maybeMessage === 'string' && maybeMessage.length > 0) return maybeMessage;
+      try {
+        return JSON.stringify(error);
+      } catch {
+        return 'Unknown error';
+      }
+    }
+    return 'Unknown error';
+  }
+
   private async countDistinctPropertiesWithListingsModifiedSince(sinceIso: string): Promise<number> {
     const { data, error } = await supabase
       .from('Listings')
@@ -96,15 +110,66 @@ class AdminService {
     return new Set((data ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)).size;
   }
 
-  private async countDistinctPropertiesWithListingCreatedBetween(startIso: string, endIso: string): Promise<number> {
-    const { data, error } = await supabase
+  private async countPropertiesCreatedBetween(startIso: string, endIso: string): Promise<number> {
+    const { count, error } = await supabase
+      .from('EstateProperties')
+      .select('Id', { count: 'exact', head: true })
+      .eq('IsDeleted', false)
+      .gte('Created', startIso)
+      .lte('Created', endIso);
+    if (!error) return count ?? 0;
+
+    // Backward-compatible fallback for environments where EstateProperties.Created
+    // is not available yet: infer "new properties" from listing creation.
+    const { data: listingRows, error: listingError } = await supabase
       .from('Listings')
       .select('EstatePropertyId')
       .eq('IsDeleted', false)
       .gte('Created', startIso)
       .lte('Created', endIso);
-    if (error) throw error;
-    return new Set((data ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)).size;
+
+    if (listingError) throw listingError;
+    return new Set((listingRows ?? []).map((r: { EstatePropertyId: string }) => r.EstatePropertyId)).size;
+  }
+
+  private async countUsersWithoutProperties(totalUsers: number): Promise<number> {
+    if (totalUsers <= 0) return 0;
+
+    const { data: owners, error: ownersError } = await supabase
+      .from('Owners')
+      .select('Id, MemberId')
+      .eq('IsDeleted', false)
+      .eq('OwnerType', 'member')
+      .not('MemberId', 'is', null);
+
+    if (ownersError) throw ownersError;
+    if (!owners || owners.length === 0) return totalUsers;
+
+    const ownerIdToMemberId = new Map<string, string>();
+    const ownerIds: string[] = [];
+    for (const owner of owners as Array<{ Id: string; MemberId: string | null }>) {
+      if (!owner.MemberId) continue;
+      ownerIds.push(owner.Id);
+      ownerIdToMemberId.set(owner.Id, owner.MemberId);
+    }
+
+    if (ownerIds.length === 0) return totalUsers;
+
+    const { data: properties, error: propertiesError } = await supabase
+      .from('EstateProperties')
+      .select('OwnerId')
+      .eq('IsDeleted', false)
+      .in('OwnerId', ownerIds);
+
+    if (propertiesError) throw propertiesError;
+
+    const membersWithProperties = new Set<string>();
+    for (const property of (properties ?? []) as Array<{ OwnerId: string }>) {
+      const memberId = ownerIdToMemberId.get(property.OwnerId);
+      if (memberId) membersWithProperties.add(memberId);
+    }
+
+    return Math.max(0, totalUsers - membersWithProperties.size);
   }
 
   /**
@@ -172,7 +237,7 @@ class AdminService {
         .gte('Created', startDate.toISOString())
         .lte('Created', endDate.toISOString());
 
-      const newProperties = await this.countDistinctPropertiesWithListingCreatedBetween(
+      const newProperties = await this.countPropertiesCreatedBetween(
         startDate.toISOString(),
         endDate.toISOString()
       );
@@ -193,8 +258,8 @@ class AdminService {
         flagsOpen: 0, // Placeholder
         failedJobs: 0 // Placeholder
       };
-    } catch (error: any) {
-      throw new Error(`Failed to fetch admin metrics summary: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(`Failed to fetch admin metrics summary: ${this.getErrorMessage(error)}`);
     }
   }
 
@@ -422,6 +487,7 @@ class AdminService {
     ).size;
     const archivedProperties = Math.max(0, propertiesCount - activeProperties);
     const avgPU = usersCount > 0 ? propertiesCount / usersCount : 0;
+    const usersWithoutProperties = await this.countUsersWithoutProperties(usersCount);
 
     return {
       propertiesCount,
@@ -440,7 +506,7 @@ class AdminService {
       },
       usageStats: {
         avgPropertiesPerUser: avgPU,
-        usersWithoutProperties: 0
+        usersWithoutProperties
       }
     };
   }

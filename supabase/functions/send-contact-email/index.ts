@@ -45,11 +45,37 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Invalid email format' }, 400);
     }
 
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    const sendEmailsEnabled = Deno.env.get('SEND_EMAILS_ENABLED') === 'true';
     const recipientEmail = Deno.env.get('CONTACT_RECIPIENT_EMAIL');
     const fromEmail = Deno.env.get('CONTACT_FROM_EMAIL') ?? 'Contact Form <onboarding@resend.dev>';
+    const subject = `New contact form message from ${normalizedName}`;
+    const text = [
+      `Name: ${normalizedName}`,
+      `Email: ${normalizedEmail}`,
+      '',
+      'Message:',
+      normalizedMessage,
+    ].join('\n');
 
-    if (!resendApiKey || !recipientEmail) {
+    if (!recipientEmail) {
+      return jsonResponse({ error: 'Function email configuration is missing' }, 500);
+    }
+
+    if (!sendEmailsEnabled) {
+      console.log('Dry-run contact email:', {
+        mode: 'dry-run',
+        from: fromEmail,
+        to: [recipientEmail],
+        reply_to: normalizedEmail,
+        subject,
+        textLength: text.length,
+      });
+      return jsonResponse({ success: true, mode: 'dry-run' });
+    }
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+
+    if (!resendApiKey) {
       return jsonResponse({ error: 'Function email configuration is missing' }, 500);
     }
 
@@ -63,14 +89,8 @@ Deno.serve(async (req) => {
         from: fromEmail,
         to: [recipientEmail],
         reply_to: normalizedEmail,
-        subject: `New contact form message from ${normalizedName}`,
-        text: [
-          `Name: ${normalizedName}`,
-          `Email: ${normalizedEmail}`,
-          '',
-          'Message:',
-          normalizedMessage,
-        ].join('\n'),
+        subject,
+        text,
       }),
     });
 
@@ -80,7 +100,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to send email' }, 502);
     }
 
-    return jsonResponse({ success: true });
+    return jsonResponse({ success: true, mode: 'live' });
   } catch (error) {
     console.error('Unhandled send-contact-email error:', error);
     return jsonResponse({ error: 'Unexpected error sending contact message' }, 500);

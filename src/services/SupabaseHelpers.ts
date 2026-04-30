@@ -5,6 +5,7 @@ import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import { CompanyInfo, CompanyUser } from './CompanyService';
 import { PropertyData, PublicProperty } from '../models/properties';
+import type { ListingType } from '../models/properties/PropertyData';
 import { PropertyImage, PropertyDocument, PropertyVideo, Amenity } from '../models/properties';
 import { Message, MessageDetail, TabCounts } from './MessageService';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -157,10 +158,11 @@ interface EstatePropertiesRow {
   OwnerId: string;
   MainImageId: string | null;
   IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
+  /** Removed from DB in listing refactor; optional on client reads. */
+  Created?: string;
+  LastModified?: string;
+  CreatedBy?: string | null;
+  LastModifiedBy?: string | null;
 }
 
 interface EstatePropertyValuesRow {
@@ -633,6 +635,11 @@ export const statusMapForward: { [key: string]: number } = {
 /**
  * Maps database rows to PropertyData interface (full property data for owners)
  */
+function firstRelationRow<T>(rel: T | T[] | null | undefined): T | undefined {
+  if (rel == null) return undefined;
+  return Array.isArray(rel) ? rel[0] : rel;
+}
+
 export const mapDbToPropertyData = (
   property: EstatePropertiesRow & {
     EstatePropertyValues: EstatePropertyValuesRow[];
@@ -642,6 +649,52 @@ export const mapDbToPropertyData = (
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PropertyData => {
+  const raw = property as any;
+  const listingRows: any[] = Array.isArray(raw.Listings) ? raw.Listings : [];
+  const activeListingRows = listingRows.filter((l: any) => !l.IsDeleted);
+  const activeListingTypes = [...new Set(activeListingRows.map((l: any) => l.ListingType as string))] as ListingType[];
+  const sortedForFeatured = [...activeListingRows].sort((a: any, b: any) => {
+    if (!!a.IsFeatured !== !!b.IsFeatured) return a.IsFeatured ? -1 : 1;
+    return new Date(b.Created || 0).getTime() - new Date(a.Created || 0).getTime();
+  });
+  const featuredListing = sortedForFeatured[0];
+  const listingType = featuredListing?.ListingType as ListingType | undefined;
+
+  const re = firstRelationRow(raw.RealEstateExtension);
+  const sr = firstRelationRow(raw.SummerRentExtension);
+  const ev = firstRelationRow(raw.EventVenueExtension);
+
+  const extensionFormFields: Record<string, unknown> = {};
+  if (re) {
+    extensionFormFields.allowsFinancing = !!re.AllowsFinancing;
+    extensionFormFields.isNewConstruction = !!re.IsNewConstruction;
+    extensionFormFields.hasMortgage = !!re.HasMortgage;
+    extensionFormFields.hoaFees = re.HoaFees != null ? Number(re.HoaFees) : undefined;
+    extensionFormFields.minContractMonths =
+      re.MinContractMonths != null && re.MinContractMonths !== '' ? Number(re.MinContractMonths) : undefined;
+    extensionFormFields.requiresGuarantee = !!re.RequiresGuarantee;
+    extensionFormFields.guaranteeType = re.GuaranteeType ?? '';
+    extensionFormFields.allowsPets = !!re.AllowsPets;
+  }
+  if (sr) {
+    extensionFormFields.minStayDays =
+      sr.MinStayDays != null && sr.MinStayDays !== '' ? Number(sr.MinStayDays) : undefined;
+    extensionFormFields.maxStayDays =
+      sr.MaxStayDays != null && sr.MaxStayDays !== '' ? Number(sr.MaxStayDays) : undefined;
+    extensionFormFields.leadTimeDays =
+      sr.LeadTimeDays != null && sr.LeadTimeDays !== '' ? Number(sr.LeadTimeDays) : undefined;
+    extensionFormFields.bufferDays =
+      sr.BufferDays != null && sr.BufferDays !== '' ? Number(sr.BufferDays) : undefined;
+  }
+  if (ev) {
+    extensionFormFields.maxGuests =
+      ev.MaxGuests != null && ev.MaxGuests !== '' ? Number(ev.MaxGuests) : undefined;
+    extensionFormFields.hasCatering = !!ev.HasCatering;
+    extensionFormFields.hasSoundSystem = !!ev.HasSoundSystem;
+    extensionFormFields.closingHour = ev.ClosingHour ?? '';
+    extensionFormFields.allowedEventsDescription = ev.AllowedEventsDescription ?? '';
+  }
+
   // Get the latest property values (most recent)
   const latestValues = property.EstatePropertyValues?.sort(
     (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
@@ -675,11 +728,16 @@ export const mapDbToPropertyData = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
-    id: epa.Amenities.Id,
-    name: epa.Amenities.Name,
-    iconId: epa.Amenities.IconId || undefined
-  })) || [];
+  const epaSource =
+    raw.EstatePropertyAmenity ?? property.EstatePropertyAmenities ?? [];
+  const epaList = Array.isArray(epaSource) ? epaSource : [epaSource];
+  const amenities: Amenity[] = epaList
+    .filter((epa: any) => epa?.Amenities)
+    .map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
+      id: epa.Amenities.Id,
+      name: epa.Amenities.Name,
+      iconId: epa.Amenities.IconId || undefined
+    }));
 
   return {
     id: property.Id,
@@ -725,8 +783,25 @@ export const mapDbToPropertyData = (
     isActive: latestValues?.IsActive || true,
     isPropertyVisible: latestValues?.IsPropertyVisible || true,
     blockedForBooking: latestValues?.BlockedForBooking ?? false,
-    created: new Date(property.Created)
-  };
+    created: (() => {
+      const ep = property as EstatePropertiesRow & { Created?: string };
+      if (ep.Created) return new Date(ep.Created);
+      const times = activeListingRows
+        .map((l: any) => (l?.Created ? new Date(l.Created).getTime() : NaN))
+        .filter((t: number) => !Number.isNaN(t));
+      if (times.length > 0) return new Date(Math.min(...times));
+      return new Date();
+    })(),
+    listings: activeListingRows.map((l: any) => ({
+      id: l.Id,
+      listingType: l.ListingType,
+      isFeatured: !!l.IsFeatured,
+    })),
+    activeListingTypes,
+    listingType,
+    hasSummerRentExtension: !!sr,
+    ...extensionFormFields,
+  } as PropertyData;
 };
 
 /**

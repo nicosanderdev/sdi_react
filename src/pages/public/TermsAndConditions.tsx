@@ -2,7 +2,7 @@ import React from 'react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
 
-const PLATFORM_NAME = 'SGI';
+const PLATFORM_NAME = 'Los Horneros';
 const CONTACT_EMAIL = 'info@inmogestion.com';
 
 export function TermsAndConditionsPage() {
