@@ -54,6 +54,17 @@ interface PropertyContentSectionPayload {
     imageKeys?: string[];
 }
 
+const isMissingPropertySectionRpcError = (error: any): boolean => {
+    if (!error) return false;
+    const code = String(error.code ?? '');
+    const message = String(error.message ?? '');
+    if (code !== 'PGRST202') return false;
+    return (
+        message.includes('insert_property_details_section') ||
+        message.includes('insert_property_section_image')
+    );
+};
+
 const persistPropertyContentSections = async (
     estatePropertyId: string,
     sections: PropertyContentSectionPayload[] | undefined,
@@ -75,7 +86,17 @@ const persistPropertyContentSections = async (
             p_display_order: displayOrder,
         });
 
-        if (sectionError) throw sectionError;
+        if (sectionError) {
+            console.error('[PropertyService] Failed to persist content section', {
+                estatePropertyId,
+                sectionIndex,
+                sectionName: section.name,
+                code: sectionError.code,
+                message: sectionError.message,
+                details: sectionError.details,
+            });
+            throw sectionError;
+        }
         if (!sectionId) {
             throw new Error(`Failed to create property content section "${section.name}".`);
         }
@@ -91,7 +112,19 @@ const persistPropertyContentSections = async (
                 p_property_image_id: propertyImageId,
                 p_display_order: imageOrder,
             });
-            if (sectionImageError) throw sectionImageError;
+            if (sectionImageError) {
+                console.error('[PropertyService] Failed to persist content section image', {
+                    estatePropertyId,
+                    sectionIndex,
+                    sectionId,
+                    imageOrder,
+                    propertyImageId,
+                    code: sectionImageError.code,
+                    message: sectionImageError.message,
+                    details: sectionImageError.details,
+                });
+                throw sectionImageError;
+            }
         }
     }
 };
@@ -1003,6 +1036,12 @@ const createPropertyWithOwnerUserId = async (
         // Handle quota limit errors specifically
         if (error.message && error.message.includes('Property limit exceeded')) {
             throw new Error(error.message);
+        }
+
+        if (isMissingPropertySectionRpcError(error)) {
+            throw new Error(
+                'La propiedad no pudo terminar de guardarse porque faltan RPCs de secciones (insert_property_details_section / insert_property_section_image). Aplica la migracion correspondiente y vuelve a intentar.'
+            );
         }
 
         throw new Error(error.message || 'Failed to create property with Supabase');
