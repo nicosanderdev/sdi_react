@@ -1,34 +1,18 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
 import {
   ChevronUpIcon,
   ChevronDownIcon,
-  EyeIcon,
-  CalendarIcon,
   Loader2Icon,
-  HomeIcon
+  HomeIcon,
 } from 'lucide-react';
 import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
 import { UseAdminPropertiesReturn, SortField } from '../../../hooks/useAdminProperties';
-import { PropertyActionsMenu } from './PropertyActionsMenu';
-import { EditListingModal } from '../../dashboard/properties/EditListingModal';
 
 interface PropertyManagementTableProps {
   hook: UseAdminPropertiesReturn;
 }
-
-const getStatusBadgeColor = (status: string) => {
-  switch (status) {
-    case 'sale': return 'success';
-    case 'rent': return 'info';
-    case 'reserved': return 'warning';
-    case 'sold': return 'gray';
-    case 'unavailable': return 'failure';
-    default: return 'gray';
-  }
-};
 
 const getVisibilityBadgeColor = (isVisible: boolean) => {
   return isVisible ? 'success' : 'failure';
@@ -38,39 +22,45 @@ const getActivityBadgeColor = (isActive: boolean) => {
   return isActive ? 'success' : 'warning';
 };
 
-const getStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    sale: 'En venta',
-    rent: 'En alquiler',
-    reserved: 'Reservado',
-    sold: 'Vendido',
-    unavailable: 'No disponible',
-  };
-  return labels[status] ?? status;
-};
-
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return 'Nunca';
   return new Date(dateString).toLocaleDateString();
 };
 
+const splitTypeSummary = (summary: string | null): string[] => {
+  if (!summary?.trim()) return [];
+  return summary
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
 export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = ({ hook }) => {
-  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const {
     properties,
     loading,
     sortConfig,
     setSorting,
     fetchPropertyDetail,
+    selectedPropertyIds,
+    togglePropertySelection,
+    toggleSelectAllOnPage,
   } = hook;
+
+  const pageIds = useMemo(() => properties.map((p) => p.id), [properties]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedPropertyIds.includes(id));
+  const somePageSelected = pageIds.some((id) => selectedPropertyIds.includes(id));
+
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el) {
+      el.indeterminate = somePageSelected && !allPageSelected;
+    }
+  }, [somePageSelected, allPageSelected]);
 
   const handleSort = (field: SortField) => {
     setSorting(field);
-  };
-
-  const handleViewProperty = (property: AdminPropertyListItem) => {
-    fetchPropertyDetail(property.id);
   };
 
   const SortableHeader: React.FC<{
@@ -114,27 +104,49 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
     <div className="overflow-x-auto">
       <Table hoverable>
         <TableHead>
+          <TableHeadCell className="w-12 p-4">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700"
+              checked={allPageSelected}
+              onChange={() => toggleSelectAllOnPage(pageIds)}
+              aria-label="Seleccionar todas en esta página"
+            />
+          </TableHeadCell>
           <SortableHeader field="title">Título</SortableHeader>
           <SortableHeader field="ownerName">Propietario</SortableHeader>
-          <SortableHeader field="status">Estado</SortableHeader>
+          <TableHeadCell>Tipo</TableHeadCell>
           <SortableHeader field="city">Ubicación</SortableHeader>
           <TableHeadCell>Visibilidad</TableHeadCell>
           <TableHeadCell>Actividad</TableHeadCell>
           <SortableHeader field="createdAt">Creado</SortableHeader>
           <SortableHeader field="lastModified">Modificado</SortableHeader>
-          <TableHeadCell>Acciones</TableHeadCell>
         </TableHead>
         <TableBody className="divide-y">
-          {properties.map((property) => (
+          {properties.map((property: AdminPropertyListItem) => (
             <TableRow key={property.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-              {/* Title */}
-              <TableCell className="font-medium text-gray-900 dark:text-white max-w-xs">
-                <div className="truncate" title={property.title}>
-                  {property.title}
-                </div>
+              <TableCell className="p-4 w-12">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700"
+                  checked={selectedPropertyIds.includes(property.id)}
+                  onChange={() => togglePropertySelection(property.id)}
+                  aria-label={`Seleccionar ${property.title}`}
+                />
               </TableCell>
 
-              {/* Owner */}
+              <TableCell className="font-medium text-gray-900 dark:text-white max-w-xs">
+                <button
+                  type="button"
+                  className="truncate text-left w-full hover:underline focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
+                  title={property.title}
+                  onClick={() => void fetchPropertyDetail(property.id)}
+                >
+                  {property.title}
+                </button>
+              </TableCell>
+
               <TableCell className="text-gray-600 dark:text-gray-300">
                 <div className="space-y-1">
                   <div className="font-medium">{property.ownerName}</div>
@@ -144,24 +156,30 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                 </div>
               </TableCell>
 
-              {/* Status */}
-              <TableCell>
-                <Badge
-                  color={getStatusBadgeColor(property.status)}
-                  size="sm"
-                >
-                  {getStatusLabel(property.status)}
-                </Badge>
+              <TableCell className="max-w-xs">
+                {(() => {
+                  const labels = splitTypeSummary(property.propertyTypesSummary);
+                  if (labels.length === 0) {
+                    return <span className="text-sm text-gray-400 dark:text-gray-500">—</span>;
+                  }
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {labels.map((label) => (
+                        <Badge key={label} color="purple" size="sm">
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
+                  );
+                })()}
               </TableCell>
 
-              {/* Location */}
               <TableCell className="text-gray-600 dark:text-gray-300">
                 <div className="truncate" title={`${property.city}, ${property.state}`}>
                   {property.city}, {property.state}
                 </div>
               </TableCell>
 
-              {/* Visibility */}
               <TableCell>
                 <Badge
                   color={getVisibilityBadgeColor(property.isPropertyVisible)}
@@ -171,7 +189,6 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                 </Badge>
               </TableCell>
 
-              {/* Activity */}
               <TableCell>
                 <Badge
                   color={getActivityBadgeColor(property.isActive)}
@@ -181,52 +198,17 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                 </Badge>
               </TableCell>
 
-              {/* Created */}
               <TableCell className="text-gray-600 dark:text-gray-300 text-sm">
                 {formatDate(property.createdAt)}
               </TableCell>
 
-              {/* Modified */}
               <TableCell className="text-gray-600 dark:text-gray-300 text-sm">
                 {formatDate(property.lastModified)}
-              </TableCell>
-
-              {/* Actions */}
-              <TableCell>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => navigate(`/dashboard/property/${property.id}/bookings`)}
-                    className="p-2"
-                    title="Gestionar calendario"
-                    aria-label="Gestionar calendario"
-                  >
-                    <CalendarIcon className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    color="light"
-                    onClick={() => handleViewProperty(property)}
-                    className="p-2"
-                    title="Ver propiedad"
-                    aria-label="Ver propiedad"
-                  >
-                    <EyeIcon className="w-4 h-4" />
-                  </Button>
-                  <PropertyActionsMenu property={property} hook={hook} onEditListing={setEditingListingPropertyId} />
-                </div>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-      <EditListingModal
-        isOpen={!!editingListingPropertyId}
-        propertyId={editingListingPropertyId}
-        onClose={() => setEditingListingPropertyId(null)}
-        onSaved={() => void hook.fetchProperties()}
-      />
     </div>
   );
 };

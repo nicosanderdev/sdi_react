@@ -20,7 +20,7 @@ export function AboutPage() {
                 Qué hace la plataforma
               </h2>
               <p className="leading-relaxed">
-                SGI concentra la gestión de tus portales y propiedades: puedes mantener catálogos de viviendas para
+                Los Horneros concentra la gestión de tus portales y propiedades: puedes mantener catálogos de viviendas para
                 estancias cortas y de venues para celebraciones o encuentros profesionales, con herramientas para
                 actualizar oferta, coordinar reservas y dar respuesta a consultas desde un entorno único.
               </p>

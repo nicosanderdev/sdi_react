@@ -2,7 +2,10 @@
 import React from 'react';
 import { Button, Select, TextInput } from 'flowbite-react';
 import { SearchIcon, XIcon } from 'lucide-react';
-import { PropertyStatus } from '../../../services/PropertyAdminService';
+import {
+  AdminPropertyOfferKind,
+  DEFAULT_ADMIN_PROPERTY_LOCATION,
+} from '../../../services/PropertyAdminService';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 
 interface PropertyFiltersProps {
@@ -16,9 +19,9 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
     updateFilters({ search: value || undefined });
   };
 
-  const handleStatusChange = (value: string) => {
+  const handleOfferKindChange = (value: string) => {
     updateFilters({
-      status: value === 'all' ? undefined : (value as PropertyStatus)
+      offerKind: value === 'all' ? undefined : (value as AdminPropertyOfferKind),
     });
   };
 
@@ -26,18 +29,19 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
     updateFilters({ location: value || undefined });
   };
 
+  const locationTrimmed = (filters.location ?? '').trim();
   const hasActiveFilters =
-    filters.search ||
-    filters.status ||
-    filters.location;
+    Boolean(filters.search?.trim()) ||
+    Boolean(filters.userId?.trim()) ||
+    filters.offerKind != null ||
+    locationTrimmed !== DEFAULT_ADMIN_PROPERTY_LOCATION;
 
-  const statusOptions = [
-    { value: 'all', label: 'Todos los estados' },
-    { value: 'sale', label: 'En venta' },
-    { value: 'rent', label: 'En alquiler' },
-    { value: 'reserved', label: 'Reservado' },
-    { value: 'sold', label: 'Vendido' },
-    { value: 'unavailable', label: 'No disponible' },
+  const offerKindOptions: { value: 'all' | AdminPropertyOfferKind; label: string }[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'real_estate', label: 'En venta' },
+    { value: 'annual_rent', label: 'En alquiler' },
+    { value: 'summer_rent', label: 'Alquiler de temporada' },
+    { value: 'event_venue', label: 'Eventos' },
   ];
 
   return (
@@ -59,16 +63,16 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
 
         {/* Filter Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Property Status */}
+          {/* Offer kind (listing types + extensions) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Estado de la propiedad
+              Tipo de oferta
             </label>
             <Select
-              value={filters.status || 'all'}
-              onChange={(e) => handleStatusChange(e.target.value)}
+              value={filters.offerKind ?? 'all'}
+              onChange={(e) => handleOfferKindChange(e.target.value)}
             >
-              {statusOptions.map((option) => (
+              {offerKindOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

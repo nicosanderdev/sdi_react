@@ -35,8 +35,8 @@ export function PublicFooter() {
               <FooterBrand
                 href="/"
                 src="/favicon.svg"
-                alt="SGI Logo"
-                name="SGI"
+                alt="Los Horneros Logo"
+                name="Los Horneros"
                 className="text-gray-900 dark:text-white"
               />
             </div>
@@ -66,7 +66,7 @@ export function PublicFooter() {
           </div>
           <FooterDivider />
           <div className="w-full sm:flex sm:items-center sm:justify-between">
-            <FooterCopyright href="/" by="SGI™" year={2025} className="text-gray-600 dark:text-gray-400" />
+            <FooterCopyright href="/" by="Los Horneros™" year={2025} className="text-gray-600 dark:text-gray-400" />
             <div className="mt-4 flex space-x-6 sm:mt-0 sm:justify-center">
               <FooterIcon href="#" icon={Facebook} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
               <FooterIcon href="#" icon={Instagram} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
