@@ -184,12 +184,12 @@ BEGIN
   ) THEN
     UPDATE public."Plans"
     SET
-      "PricingModel" = 'free',
+      "PricingModel" = 'hybrid',
       "Price" = 0,
       "MinMonthlyFee" = 0,
       "PricePerBooking" = NULL,
       "ListingLimit" = 3,
-      "DurationDays" = NULL,
+      "DurationDays" = 30,
       "IsActiveV2" = true
     WHERE "Id" = '11111111-1111-4111-8111-111111111111'::uuid;
 

@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { ensureBookingUsageIfApplicable } from './BillingUsageRecords';
+import { assertBookingConfirmationAllowed, ensureBookingUsageIfApplicable } from './BillingUsageRecords';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
@@ -450,6 +450,21 @@ class BookingService {
 
       // Map form field names to database field names
       if (updates.estatePropertyId) updatePayload.EstatePropertyId = updates.estatePropertyId;
+
+      if (updates.status === BookingStatus.Confirmed) {
+        const { data: preBooking, error: preErr } = await supabase
+          .from('Bookings')
+          .select('EstatePropertyId')
+          .eq('Id', bookingId)
+          .single();
+
+        if (preErr) throw preErr;
+
+        if (preBooking?.EstatePropertyId) {
+          await assertBookingConfirmationAllowed(preBooking.EstatePropertyId, bookingId);
+        }
+      }
+
       if (updates.guestId !== undefined) updatePayload.GuestId = updates.guestId && updates.guestId.trim() !== '' ? updates.guestId : null;
       if (updates.checkInDate) updatePayload.CheckInDate = updates.checkInDate;
       if (updates.checkOutDate) updatePayload.CheckOutDate = updates.checkOutDate;
