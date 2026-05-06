@@ -202,7 +202,7 @@ export async function ensureBookingUsageIfApplicable(bookingId: string, property
 /**
  * Before confirming a booking: enforce usage limits (throws if blocked).
  */
-export async function assertBookingConfirmationAllowed(propertyId: string, bookingId: string): Promise<void> {
+export async function assertBookingConfirmationAllowed(propertyId: string, bookingId?: string | null): Promise<void> {
   const memberId = await resolveBillingMemberIdByPropertyId(propertyId);
   if (!memberId) {
     throw new Error('Unable to resolve billing member for booking usage record');
@@ -213,7 +213,7 @@ export async function assertBookingConfirmationAllowed(propertyId: string, booki
     return;
   }
 
-  await flexibleUsageLimitCheck(memberId, 'booking', bookingId);
+  await flexibleUsageLimitCheck(memberId, 'booking', bookingId ?? null);
 }
 
 /**
