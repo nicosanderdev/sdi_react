@@ -57,6 +57,8 @@ $$;
 -- -----------------------------------------------------------------------------
 -- get_active_member_plan: expose BookingLimit
 -- -----------------------------------------------------------------------------
+drop function if exists public.get_active_member_plan(uuid, timestamp with time zone);
+
 create or replace function public.get_active_member_plan(
   p_member_id uuid,
   p_at timestamptz default now()

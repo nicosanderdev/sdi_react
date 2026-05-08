@@ -25,6 +25,8 @@ begin
 end;
 $$;
 
+drop function if exists public.get_admin_user_detail(uuid);
+
 create or replace function public.get_admin_user_detail(p_user_id uuid)
 returns table (
   id uuid,

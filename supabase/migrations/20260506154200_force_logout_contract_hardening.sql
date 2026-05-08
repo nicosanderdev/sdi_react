@@ -70,6 +70,8 @@ begin
 end;
 $$;
 
+drop function if exists public.acknowledge_force_logout();
+
 create or replace function public.acknowledge_force_logout()
 returns jsonb
 language plpgsql
