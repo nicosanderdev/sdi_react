@@ -1,6 +1,6 @@
--- Align subscription tier filtering with frontend enum values.
--- Plans."Key" may be text ('free', ...) or integer (legacy seed 0,1,2): tier CASE uses plan_key::text
--- so PostgreSQL never casts string literals to integer (22P02).
+-- get_admin_users_list: Plans."Key" may be integer (seed 0,1,2) or text ('free', ...).
+-- Comparing integer plan_key to text literals makes PostgreSQL cast the literal to int
+-- ('free'::integer -> 22P02). Normalize with plan_key::text and map legacy numeric strings.
 
 begin;
 

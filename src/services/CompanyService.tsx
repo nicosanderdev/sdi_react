@@ -23,12 +23,33 @@ const isElevatedCompanyRole = (role: unknown): boolean => {
   return s === '1' || s === '2';
 };
 
+/** CompanyMembers.Role: Admin only (primary company admin), not Manager. */
+const isCompanyAdminRole = (role: unknown): boolean => {
+  if (role === null || role === undefined) return false;
+  if (typeof role === 'number') return role === 2;
+  if (typeof role === 'string') {
+    const r = role.trim().toLowerCase();
+    return r === 'admin' || r === '2';
+  }
+  return String(role) === '2';
+};
+
 export interface AdminCompanyFilters { search?: string; status?: 'active' | 'deleted'; page?: number; limit?: number }
 export interface AdminCompanyListItem { id: string; name: string; billingEmail: string; createdAt: string; isDeleted: boolean; status: 'active' | 'deleted'; membersCount: number }
 export interface AdminCompanyListResponse { companies: AdminCompanyListItem[]; total: number }
 export interface AdminCompanyMetrics { totalCompanies: number; activeCompanies: number; companiesCreatedThisMonth: number }
 export interface AdminCompanyMember { id: string; memberId: string; companyId: string; role: string; joinedAt: string; fullName: string; email: string }
-export interface AdminCompanyDetail { company: CompanyInfo; members: AdminCompanyMember[] }
+export interface AdminCompanyDetailStatistics {
+  activeOwnedProperties: number;
+  linkedUsers: number;
+  unpublishedOrInactive: number;
+}
+export interface AdminCompanyDetail {
+  company: CompanyInfo;
+  members: AdminCompanyMember[];
+  statistics: AdminCompanyDetailStatistics;
+  primaryCompanyAdmin: { fullName: string; email: string } | null;
+}
 export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string }
 export interface AdminUpdateCompanyPayload { name: string; billingEmail: string; description?: string; phone?: string }
 export interface AddCompanyMemberResult { success: boolean; message: string; member?: AdminCompanyMember }
@@ -160,12 +181,57 @@ const listAdminCompanies = async (filters: AdminCompanyFilters): Promise<AdminCo
   };
 };
 
+const mapRpcCompanyStats = (row: Record<string, unknown> | undefined): AdminCompanyDetailStatistics => ({
+  activeOwnedProperties: Number(row?.active_owned_properties ?? 0),
+  linkedUsers: Number(row?.linked_users ?? 0),
+  unpublishedOrInactive: Number(row?.unpublished_or_inactive ?? 0),
+});
+
+const resolvePrimaryCompanyAdmin = async (
+  members: AdminCompanyMember[],
+  billingContactUserId: string | null | undefined,
+): Promise<{ fullName: string; email: string } | null> => {
+  const admins = members
+    .filter(m => isCompanyAdminRole(m.role))
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+  if (admins.length > 0) {
+    return { fullName: admins[0].fullName, email: admins[0].email };
+  }
+  if (!billingContactUserId) return null;
+  const { data: billingMember, error } = await supabase
+    .from('Members')
+    .select('FirstName, LastName, Email')
+    .eq('UserId', billingContactUserId)
+    .eq('IsDeleted', false)
+    .maybeSingle();
+  if (error || !billingMember) return null;
+  const fullName = `${billingMember.FirstName ?? ''} ${billingMember.LastName ?? ''}`.trim() || 'Sin nombre';
+  return { fullName, email: billingMember.Email ?? '' };
+};
+
 const getAdminCompanyDetail = async (companyId: string): Promise<AdminCompanyDetail> => {
-  const { data: company, error: companyError } = await supabase.from('Companies').select('*').eq('Id', companyId).single();
+  const [{ data: company, error: companyError }, { data: members, error: membersError }, statsResult] = await Promise.all([
+    supabase.from('Companies').select('*').eq('Id', companyId).single(),
+    supabase.from('CompanyMembers').select('*, Members (FirstName, LastName, Email)').eq('CompanyId', companyId).eq('IsDeleted', false),
+    supabase.rpc('get_admin_company_edit_stats', { p_company_id: companyId }),
+  ]);
   if (companyError) throw companyError;
-  const { data: members, error: membersError } = await supabase.from('CompanyMembers').select('*, Members (FirstName, LastName, Email)').eq('CompanyId', companyId).eq('IsDeleted', false);
   if (membersError) throw membersError;
-  return { company: mapDbToCompany(company), members: (members ?? []).map(mapAdminMember) };
+  if (statsResult.error) throw statsResult.error;
+
+  const mappedMembers = (members ?? []).map(mapAdminMember);
+  const statsRows = statsResult.data as Record<string, unknown>[] | null;
+  const statistics = mapRpcCompanyStats(Array.isArray(statsRows) ? statsRows[0] : statsRows ?? undefined);
+
+  const companyRow = company as { BillingContactUserId?: string | null };
+  const primaryCompanyAdmin = await resolvePrimaryCompanyAdmin(mappedMembers, companyRow.BillingContactUserId);
+
+  return {
+    company: mapDbToCompany(company),
+    members: mappedMembers,
+    statistics,
+    primaryCompanyAdmin,
+  };
 };
 
 const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> => createCompany({ name: payload.name, description: payload.description, billingEmail: payload.billingEmail });

@@ -1,6 +1,9 @@
--- Align subscription tier filtering with frontend enum values.
--- Plans."Key" may be text ('free', ...) or integer (legacy seed 0,1,2): tier CASE uses plan_key::text
--- so PostgreSQL never casts string literals to integer (22P02).
+-- Re-apply get_admin_users_list so subscription_tier is always integer (plan_tier_code).
+-- Fixes: invalid input syntax for type integer: "free" when RETURNS TABLE declares
+-- subscription_tier integer but the old body returned text Plans."Key" (e.g. 'free').
+-- Tier CASE uses plan_key::text so integer Keys (seed 0,1,2) do not coerce literals to int.
+-- Idempotent with 20260506154300_users_filters_type_alignment.sql; use this migration
+-- for audit trail or if the database definition drifted from that file.
 
 begin;
 

@@ -218,16 +218,22 @@ export function PropertyEditPage() {
             />
           )}
           {currentStep === 4 && (
-            <div className="space-y-6">
-              <PropertyFormStep4Sections onBack={() => setCurrentStep(3)} displayImages={displayImages} hideNextButton />
-              <div className="flex justify-end gap-2">
-                <Button color="alternative" onClick={() => navigate(-1)} disabled={isSaving}>Cancelar</Button>
-                <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
-                  <Save size={16} className="mr-2" />
-                  {isSaving ? 'Guardando...' : 'Guardar cambios'}
-                </Button>
-              </div>
-            </div>
+            <PropertyFormStep4Sections
+              onBack={() => setCurrentStep(3)}
+              displayImages={displayImages}
+              hideNextButton
+              footerExtra={
+                <>
+                  <Button color="alternative" onClick={() => navigate(-1)} disabled={isSaving}>
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
+                    <Save size={16} className="mr-2" />
+                    {isSaving ? 'Guardando...' : 'Guardar cambios'}
+                  </Button>
+                </>
+              }
+            />
           )}
         </div>
       </Card>

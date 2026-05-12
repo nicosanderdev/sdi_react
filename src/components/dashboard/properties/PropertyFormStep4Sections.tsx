@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button } from 'flowbite-react';
 import type { DisplayImage } from './ImageManager';
 import { PropertyContentSectionsManager } from './PropertyContentSectionsManager';
@@ -7,6 +8,8 @@ interface PropertyFormStep4SectionsProps {
   onBack: () => void;
   displayImages: DisplayImage[];
   hideNextButton?: boolean;
+  /** Renders on the right of the footer row (e.g. edit wizard save actions). Same max-width as content. */
+  footerExtra?: ReactNode;
 }
 
 /**
@@ -17,21 +20,25 @@ export function PropertyFormStep4Sections({
   onBack,
   displayImages,
   hideNextButton = false,
+  footerExtra,
 }: PropertyFormStep4SectionsProps) {
   return (
-    <div className="max-w-4xl mx-auto" id="onboarding-form-sections">
+    <div className="max-w-4xl mx-auto w-full" id="onboarding-form-sections">
       <div className="space-y-6">
         <PropertyContentSectionsManager displayImages={displayImages} />
 
-        <div className="flex justify-between pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
           <Button color="alternative" onClick={onBack}>
             Atrás
           </Button>
-          {!hideNextButton && onNext && (
-            <Button id="next-step-button" onClick={onNext}>
-              Siguiente
-            </Button>
-          )}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {!hideNextButton && onNext && (
+              <Button id="next-step-button" onClick={onNext}>
+                Siguiente
+              </Button>
+            )}
+            {footerExtra}
+          </div>
         </div>
       </div>
     </div>

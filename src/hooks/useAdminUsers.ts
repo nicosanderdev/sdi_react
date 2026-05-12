@@ -1,5 +1,5 @@
 // src/hooks/useAdminUsers.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import userAdminService, {
   UserListItem,
   UserDetail,
@@ -57,6 +57,10 @@ export interface UseAdminUsersReturn {
   editUser: UserDetail | null;
   editFieldErrors: { email?: string; phone?: string };
 
+  // Table selection (admin list)
+  selectedUserIds: string[];
+  primarySelectedUser: UserListItem | null;
+
   // Actions
   setPage: (page: number) => void;
   setPageSize: (size: number) => void;
@@ -85,6 +89,10 @@ export interface UseAdminUsersReturn {
   openDeleteConfirmModal: (user: AdminUserDeletable) => void;
   closeDeleteConfirmModal: (options?: { preserveActionError?: boolean }) => void;
   confirmDeleteUser: (reason?: string) => Promise<void>;
+
+  toggleUserSelection: (memberId: string) => void;
+  toggleSelectAllUsersOnPage: (pageMemberIds: string[]) => void;
+  clearUserSelection: () => void;
 }
 
 const defaultFilters: UserFilters = {
@@ -133,9 +141,16 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserDetail | null>(null);
   const [editFieldErrors, setEditFieldErrors] = useState<{ email?: string; phone?: string }>({});
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   // Computed values
   const totalPages = Math.ceil(totalUsers / pageSize);
+
+  const primarySelectedUser = useMemo((): UserListItem | null => {
+    if (selectedUserIds.length !== 1) return null;
+    const id = selectedUserIds[0];
+    return users.find((u) => u.id === id) ?? null;
+  }, [users, selectedUserIds]);
 
   // Fetch users list
   const fetchUsers = useCallback(async () => {
@@ -151,6 +166,7 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
 
       setUsers(response.users);
       setTotalUsers(response.total);
+      setSelectedUserIds([]);
     } catch (err: any) {
       setError(err.message || 'Failed to fetch users');
     } finally {
@@ -440,6 +456,25 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     [userToDelete, fetchUsers, closeDeleteConfirmModal],
   );
 
+  const toggleUserSelection = useCallback((memberId: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId],
+    );
+  }, []);
+
+  const toggleSelectAllUsersOnPage = useCallback((pageMemberIds: string[]) => {
+    if (pageMemberIds.length === 0) return;
+    setSelectedUserIds((prev) => {
+      const allIn = pageMemberIds.every((id) => prev.includes(id));
+      if (allIn) return prev.filter((id) => !pageMemberIds.includes(id));
+      return [...new Set([...prev, ...pageMemberIds])];
+    });
+  }, []);
+
+  const clearUserSelection = useCallback(() => {
+    setSelectedUserIds([]);
+  }, []);
+
   // Initial fetch
   useEffect(() => {
     fetchUsers();
@@ -478,6 +513,9 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     editUser,
     editFieldErrors,
 
+    selectedUserIds,
+    primarySelectedUser,
+
     setPage,
     setPageSize: handleSetPageSize,
     updateFilters,
@@ -503,5 +541,9 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     openDeleteConfirmModal,
     closeDeleteConfirmModal,
     confirmDeleteUser,
+
+    toggleUserSelection,
+    toggleSelectAllUsersOnPage,
+    clearUserSelection,
   };
 };

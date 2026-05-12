@@ -8,7 +8,7 @@ import {
   getPropertyTypeShortLabelEs,
 } from '../../../models/properties/propertyTypeLabels';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
-import { Button, Label, Select, TextInput, Textarea, Checkbox } from 'flowbite-react';
+import { Button, Label, Select, TextInput, Checkbox } from 'flowbite-react';
 import PropertyService from '../../../services/PropertyService';
 import { Amenity } from '../../../models/properties/Amenity';
 import { RealEstateExtensionForm } from './RealEstateExtensionForm';
@@ -108,7 +108,6 @@ export function PropertyFormStep2({
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     const baseFieldsToValidate: (keyof PropertyFormData)[] = [
-      'title',
       'areaValue',
       'areaUnit',
       'bedrooms',
@@ -133,33 +132,7 @@ export function PropertyFormStep2({
       <div className="space-y-6">
         <div>
           <h3 className="text-lg font-semibold mb-2">Información Principal</h3>
-          <div>
-            <div className="mb-2 block">
-              <Label htmlFor="title">
-                Título de la Publicación*
-              </Label>
-            </div>
-            <TextInput
-              id="title"
-              {...register('title')}
-              placeholder="Ej: Apartamento moderno en el centro"/>
-            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title.message}</p>}
-          </div>
-          <div className="mt-4">
-            <div className="mb-2 block">
-              <Label htmlFor="description">Descripción</Label>
-            </div>
-            <Textarea
-              id="description"
-              {...register('description')}
-              rows={4}
-              placeholder="Añada una descripción detallada de la propiedad..."
-            />
-            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
           <div>
             <div className="mb-2 block">
               <Label htmlFor="areaValue">
@@ -192,6 +165,7 @@ export function PropertyFormStep2({
             </Select>
             {errors.areaUnit && <p className="text-red-500 text-sm mt-1">{errors.areaUnit.message}</p>}
           </div>
+        </div>
         </div>
 
         <div className="border-t border-gray-200 pt-6">

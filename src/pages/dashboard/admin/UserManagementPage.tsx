@@ -6,6 +6,7 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import { useAdminUsers } from '../../../hooks/useAdminUsers';
 import { UserFilters } from '../../../components/admin/users/UserFilters';
 import { UserManagementTable } from '../../../components/admin/users/UserManagementTable';
+import { UserManagementToolbar } from '../../../components/admin/users/UserManagementToolbar';
 import { UserDetailModal } from '../../../components/admin/users/UserDetailModal';
 import { UserViewModal } from '../../../components/admin/users/UserViewModal';
 import { UserEditModal } from '../../../components/admin/users/UserEditModal';
@@ -122,6 +123,7 @@ const UserManagementPage: React.FC = () => {
             Crear usuario
           </Button>
         </div>
+        <UserManagementToolbar hook={hook} />
         <UserManagementTable hook={hook} />
       </Card>
 
