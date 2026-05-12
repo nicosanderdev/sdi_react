@@ -32,7 +32,13 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import BookingService, {
   BookingWithMemberAndProperty
 } from '../../../services/BookingService';
-import { BookingStatus, BOOKING_STATUS_NAMES, CURRENCY_SYMBOLS, Currency } from '../../../models/calendar/CalendarSync';
+import {
+  BookingStatus,
+  BOOKING_STATUS_NAMES,
+  CURRENCY_SYMBOLS,
+  Currency,
+  getBookingStatusBadgeColor
+} from '../../../models/calendar/CalendarSync';
 import { useEnsureReceiptsAndBlock } from '../../../hooks/useEnsureReceiptsAndBlock';
 import { AppDispatch, fetchNotificationCounts } from '../../../store';
 
@@ -100,15 +106,7 @@ function BookingRow({
             <Building2 className="h-4 w-4 flex-shrink-0" />
             {booking.EstateProperty?.Title ?? 'Propiedad'}
           </Link>
-          <Badge
-            color={
-              booking.Status === BookingStatus.Pending
-                ? 'warning'
-                : booking.Status === BookingStatus.Confirmed
-                ? 'success'
-                : 'failure'
-            }
-          >
+          <Badge color={getBookingStatusBadgeColor(booking.Status)}>
             {BOOKING_STATUS_NAMES[booking.Status as BookingStatus]}
           </Badge>
         </div>

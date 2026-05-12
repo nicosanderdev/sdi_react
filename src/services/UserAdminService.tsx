@@ -134,7 +134,7 @@ class UserAdminService {
       p_page: filters.page || 1,
       p_limit: filters.limit || 20,
       p_subscription_status: filters.subscriptionStatus || null,
-      p_subscription_tier: filters.subscriptionTier || null,
+      p_subscription_tier: filters.subscriptionTier ?? null,
       p_account_status: filters.accountStatus || null,
       p_registration_date_from: filters.registrationDateFrom || null,
       p_registration_date_to: filters.registrationDateTo || null,

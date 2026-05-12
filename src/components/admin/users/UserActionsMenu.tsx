@@ -1,67 +1,75 @@
 // src/components/admin/users/UserActionsMenu.tsx
-import React, { useState } from 'react';
-import { Button, Dropdown, DropdownDivider, DropdownItem } from 'flowbite-react';
-import { MoreHorizontalIcon, Loader2Icon, FileTextIcon } from 'lucide-react';
+import React from 'react';
+import { Button } from 'flowbite-react';
+import { UserMinusIcon, UserCheckIcon, RotateCcwIcon, LogOutIcon } from 'lucide-react';
 import { UserListItem } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 
 interface UserActionsMenuProps {
-  user: UserListItem;
+  user: UserListItem | null;
   hook: UseAdminUsersReturn;
 }
 
 export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) => {
-  const [loading, setLoading] = useState(false);
+  const { suspendUser, reactivateUser, resetOnboarding, forceLogout, actionLoading } = hook;
 
-  const {
-    suspendUser,
-    reactivateUser,
-    resetOnboarding,
-    forceLogout
-  } = hook;
+  const disabled = !user || actionLoading;
 
-  const handleAction = async (action: () => Promise<void>) => {
-    setLoading(true);
-    try {
-      await action();
-    } finally {
-      setLoading(false);
-    }
+  const handleSuspend = () => {
+    if (!user) return;
+    void suspendUser(user.id, 'Suspended by admin');
+  };
+  const handleReactivate = () => {
+    if (!user) return;
+    void reactivateUser(user.id);
+  };
+  const handleResetOnboarding = () => {
+    if (!user) return;
+    void resetOnboarding(user.id);
+  };
+  const handleForceLogout = () => {
+    if (!user) return;
+    void forceLogout(user.id, 'Forced logout by admin');
   };
 
-  const handleSuspend = () => handleAction(() => suspendUser(user.id, 'Suspended by admin'));
-  const handleReactivate = () => handleAction(() => reactivateUser(user.id));
-  const handleResetOnboarding = () => handleAction(() => resetOnboarding(user.id));
-  const handleForceLogout = () => handleAction(() => forceLogout(user.id, 'Forced logout by admin'));
+  const isActive = user?.accountStatus === 'active';
 
   return (
-    <Dropdown
-      label=""
-      renderTrigger={() => (
-        <Button size="xs" color="light" className="p-2" disabled={loading} title="Más acciones">
-          {loading ? (
-            <Loader2Icon className="w-4 h-4 animate-spin" />
-          ) : (
-            <MoreHorizontalIcon className="w-4 h-4" />
-          )}
-        </Button>
-      )}
-    >
-      {user.accountStatus === 'active' ? (
-        <DropdownItem onClick={handleSuspend}>
-          Suspender usuario
-        </DropdownItem>
-      ) : (
-        <DropdownItem onClick={handleReactivate}>
-          Reactivar usuario
-        </DropdownItem>
-      )}
-      <DropdownItem onClick={handleResetOnboarding}>
-        Reiniciar onboarding
-      </DropdownItem>
-      <DropdownItem onClick={handleForceLogout}>
-        Cerrar sesión forzada
-      </DropdownItem>
-    </Dropdown>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        size="sm"
+        color="light"
+        className="flex items-center gap-2"
+        disabled={disabled}
+        onClick={isActive ? handleSuspend : handleReactivate}
+      >
+        {isActive ? (
+          <UserMinusIcon className="w-4 h-4 shrink-0" aria-hidden />
+        ) : (
+          <UserCheckIcon className="w-4 h-4 shrink-0" aria-hidden />
+        )}
+        <span>{isActive ? 'Suspender usuario' : 'Reactivar usuario'}</span>
+      </Button>
+      <Button
+        size="sm"
+        color="light"
+        className="flex items-center gap-2"
+        disabled={disabled}
+        onClick={handleResetOnboarding}
+      >
+        <RotateCcwIcon className="w-4 h-4 shrink-0" aria-hidden />
+        <span>Reiniciar onboarding</span>
+      </Button>
+      <Button
+        size="sm"
+        color="light"
+        className="flex items-center gap-2"
+        disabled={disabled}
+        onClick={handleForceLogout}
+      >
+        <LogOutIcon className="w-4 h-4 shrink-0" aria-hidden />
+        <span>Cerrar sesión forzada</span>
+      </Button>
+    </div>
   );
 };

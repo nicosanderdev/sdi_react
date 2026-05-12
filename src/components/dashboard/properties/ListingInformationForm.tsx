@@ -1,8 +1,9 @@
 import { useFormContext } from 'react-hook-form';
-import { Checkbox, Label, Select, TextInput, Textarea } from 'flowbite-react';
+import { Checkbox, Label, Select, TextInput } from 'flowbite-react';
 import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import { resolveCreationListingType } from '../../../models/properties/PropertyFormSchema';
 import type { PropertyType } from '../../../models/properties/PropertyData';
+import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 
 const checkboxBool = {
   setValueAs: (v: unknown) => v === true || v === 'on',
@@ -28,37 +29,12 @@ export function ListingInformationForm() {
       <div>
         <h3 className="text-lg font-semibold mb-1">Información del aviso</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Título y descripción del aviso (también editables aquí antes de publicar), disponibilidad,
-          precio y opciones de visibilidad. El tipo de aviso se toma del tipo de propiedad elegido en
-          el paso 1.
+          Título y descripción del aviso, disponibilidad, precio y opciones de visibilidad. El tipo de
+          aviso se toma del tipo de propiedad elegido en el paso 1.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        <div>
-          <Label htmlFor="listing-title-aviso">Título del aviso</Label>
-          <TextInput
-            id="listing-title-aviso"
-            {...register('title')}
-            placeholder="Título que verán en el listado"
-          />
-          {errors.title && (
-            <p className="text-red-500 text-sm mt-1">{errors.title.message as string}</p>
-          )}
-        </div>
-        <div>
-          <Label htmlFor="listing-description-aviso">Descripción del aviso</Label>
-          <Textarea
-            id="listing-description-aviso"
-            rows={4}
-            {...register('description')}
-            placeholder="Descripción breve para el listado"
-          />
-          {errors.description && (
-            <p className="text-red-500 text-sm mt-1">{errors.description.message as string}</p>
-          )}
-        </div>
-      </div>
+      <PropertyListingCopyFields />
 
       {propertyType === 'RealEstate' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

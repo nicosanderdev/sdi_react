@@ -96,7 +96,8 @@ test.describe('Admin user management', () => {
 
     const row = userRowByEmail(page, email);
     await expect(row).toBeVisible({ timeout: 30000 });
-    await row.getByRole('button', { name: 'Editar' }).click();
+    await row.getByRole('checkbox').check();
+    await page.getByTestId('admin-users-toolbar').getByRole('button', { name: 'Editar' }).click();
 
     await expect(page.getByTestId('admin-edit-user-modal')).toBeVisible();
     const firstNameInput = page.locator('#edit-first-name');

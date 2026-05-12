@@ -119,13 +119,13 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
         ) : (
-          <Tabs aria-label="Pestañas de detalles de la propiedad" className='underline'>
+          <Tabs aria-label="Pestañas de detalles de la propiedad">
             {/* Overview Tab */}
             <TabItem active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
                 {/* Quick Actions */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Acciones rápidas</h4>
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Acciones rápidas</h4>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -149,9 +149,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
                     <Button
                       size="sm"
-                      color="failure"
+                      color="red"
                       onClick={handleDelete}
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-gray-900 dark:text-white"
                     >
                       <XCircleIcon className="w-4 h-4" />
                       <span>Eliminar propiedad</span>
@@ -161,7 +161,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
                 {/* Basic Information */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Información básica</h4>
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Información básica</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <div className="flex items-center space-x-2">
@@ -208,7 +208,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
 
                 {/* Dates */}
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Fechas importantes</h4>
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Fechas importantes</h4>
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
                       <ClockIcon className="w-4 h-4 text-gray-400" />
@@ -230,7 +230,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             {/* Owner Tab */}
             <TabItem title="Propietario" icon={UserIcon}>
               <Card>
-                <h4 className="text-md font-semibold mb-4">Información del propietario</h4>
+                <h4 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">Información del propietario</h4>
                 <div className="space-y-3">
                   <div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">ID del propietario</p>
@@ -250,11 +250,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                 ) : (
                   <>
                     <Card>
-                      <h4 className="text-md font-semibold mb-2">Vistas (últimos 30 días)</h4>
+                      <h4 className="text-md font-semibold mb-2 text-gray-900 dark:text-white">Vistas (últimos 30 días)</h4>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalViews.toLocaleString('es-ES')}</p>
                     </Card>
                     <Card>
-                      <h4 className="text-md font-semibold mb-3">Visitas por día</h4>
+                      <h4 className="text-md font-semibold mb-3 text-gray-900 dark:text-white">Visitas por día</h4>
                       <div className="h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -268,7 +268,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                       </div>
                     </Card>
                     <Card>
-                      <h4 className="text-md font-semibold mb-3">Visitas por fuente</h4>
+                      <h4 className="text-md font-semibold mb-3 text-gray-900 dark:text-white">Visitas por fuente</h4>
                       {(propertyViewsBySource?.length ?? 0) === 0 ? (
                         <p className="text-sm text-gray-500 dark:text-gray-400">Sin datos por fuente en este período.</p>
                       ) : (
@@ -294,7 +294,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             {selectedProperty.allowedEventsDescription && (
               <TabItem title="Descripción" icon={HomeIcon}>
                 <Card>
-                  <h4 className="text-md font-semibold mb-4">Descripción de eventos</h4>
+                  <h4 className="text-md font-semibold mb-4 text-gray-900 dark:text-white">Descripción de eventos</h4>
                   <div className="prose dark:prose-invert max-w-none">
                     <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                       {selectedProperty.allowedEventsDescription}

@@ -85,7 +85,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
             element: '#onboarding-form-details',
             title: 'Property details',
             description:
-              'Add a property description, set pricing, and set availability. These help guests find and book your property.',
+              'Set the size, rooms, services, and type-specific details for your property. Title, description, pricing, and availability are set in the last step before you publish.',
             nextBtnText: 'Next',
           }}
           onNext={() => {}}

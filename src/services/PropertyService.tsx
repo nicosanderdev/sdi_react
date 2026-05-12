@@ -10,7 +10,7 @@ import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateP
 
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
-import { tryRecordListingUsageOnPublish } from './BillingUsageRecords';
+import { assertListingPublishAllowed, tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
 
 // Import types for Supabase property creation
@@ -845,6 +845,12 @@ const createPropertyWithOwnerUserId = async (
                 ? formData.rentPricePeriod
                 : null;
 
+        const publishedOnCreate =
+            (formData.isPropertyVisible ?? false) === true && (formData.isActive ?? false) === true;
+        if (publishedOnCreate) {
+            await assertListingPublishAllowed(estatePropertyId, null);
+        }
+
         const { error: listingError } = await supabase.rpc('insert_listing', {
             p_estate_property_id: estatePropertyId,
             p_listing_type: listingType,
@@ -870,8 +876,6 @@ const createPropertyWithOwnerUserId = async (
 
         if (listingError) throw listingError;
 
-        const publishedOnCreate =
-            (formData.isPropertyVisible ?? false) === true && (formData.isActive ?? false) === true;
         if (publishedOnCreate) {
             await tryRecordListingUsageOnPublish(estatePropertyId);
         }
@@ -1229,13 +1233,19 @@ const updateProperty = async (
 
         const { data: listingBefore } = await supabase
             .from('Listings')
-            .select('IsPropertyVisible, IsActive')
+            .select('Id, IsPropertyVisible, IsActive')
             .eq('EstatePropertyId', id)
             .eq('IsDeleted', false)
             .limit(1)
             .maybeSingle();
 
         const wasPublished = !!(listingBefore?.IsPropertyVisible && listingBefore?.IsActive);
+        const willPublish =
+            !!(formData.isPropertyVisible && formData.isActive);
+
+        if (!wasPublished && willPublish) {
+            await assertListingPublishAllowed(id, listingBefore?.Id ?? null);
+        }
 
         const uploadedImages = await Promise.all(
             displayImages

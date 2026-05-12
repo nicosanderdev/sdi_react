@@ -65,7 +65,8 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             const { data: freePlanData, error: freePlanError } = await supabase
                 .from('Plans')
                 .select('*')
-                .or('PricingModel.eq.free,Key.eq.0')
+                .eq('Key', 0)
+                .eq('IsDeleted', false)
                 .limit(1);
 
             let freePlan: PlanData;

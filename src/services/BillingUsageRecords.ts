@@ -1,12 +1,24 @@
 import { supabase } from '../config/supabase';
 
-export type PlanPricingModel = 'free' | 'per_booking' | 'per_listing' | 'hybrid';
+export type PlanPricingModel = 'per_booking' | 'per_listing' | 'hybrid';
 
 export interface ActivePlanSnapshot {
   pricingModel: PlanPricingModel | null;
   /** Plan "Price" column — used as line amount for per-listing usage rows. */
   price: number | null;
+  listingLimit: number | null;
+  bookingLimit: number | null;
+  durationDays: number | null;
 }
+
+type FlexibleUsageLimitCheckRow = {
+  allowed?: boolean;
+  skipped?: boolean;
+  idempotent?: boolean;
+  reason?: string;
+  current?: number;
+  limit?: number;
+};
 
 /**
  * Resolves the member that is billed for flexible-billing UsageRecords for a property
@@ -64,6 +76,9 @@ export async function getActivePlanSnapshotForMember(memberId: string): Promise<
       Plans (
         PricingModel,
         Price,
+        ListingLimit,
+        BookingLimit,
+        DurationDays,
         IsActive,
         IsActiveV2
       )
@@ -86,7 +101,15 @@ export async function getActivePlanSnapshotForMember(memberId: string): Promise<
   if (!data) return null;
 
   const plan = data.Plans as
-    | { PricingModel?: string | null; Price?: number | null; IsActive?: boolean | null; IsActiveV2?: boolean | null }
+    | {
+        PricingModel?: string | null;
+        Price?: number | null;
+        ListingLimit?: number | null;
+        BookingLimit?: number | null;
+        DurationDays?: number | null;
+        IsActive?: boolean | null;
+        IsActiveV2?: boolean | null;
+      }
     | null
     | undefined;
 
@@ -97,11 +120,14 @@ export async function getActivePlanSnapshotForMember(memberId: string): Promise<
 
   const raw = plan.PricingModel ?? null;
   const pricingModel =
-    raw === 'free' || raw === 'per_booking' || raw === 'per_listing' || raw === 'hybrid' ? raw : null;
+    raw === 'per_booking' || raw === 'per_listing' || raw === 'hybrid' ? raw : null;
 
   return {
     pricingModel,
-    price: plan.Price != null ? Number(plan.Price) : null
+    price: plan.Price != null ? Number(plan.Price) : null,
+    listingLimit: plan.ListingLimit != null ? Number(plan.ListingLimit) : null,
+    bookingLimit: plan.BookingLimit != null ? Number(plan.BookingLimit) : null,
+    durationDays: plan.DurationDays != null ? Number(plan.DurationDays) : null
   };
 }
 
@@ -113,6 +139,35 @@ export function pricingModelAllowsBookingUsage(model: string | null | undefined)
 export function pricingModelAllowsListingUsage(model: string | null | undefined): boolean {
   if (!model) return false;
   return model === 'per_listing' || model === 'hybrid';
+}
+
+/**
+ * Server-side limit check (matches flexible_usage_limit_check RPC).
+ */
+export async function flexibleUsageLimitCheck(
+  memberId: string,
+  usageType: 'booking' | 'listing',
+  referenceId?: string | null
+): Promise<FlexibleUsageLimitCheckRow> {
+  const { data, error } = await supabase.rpc('flexible_usage_limit_check', {
+    p_member_id: memberId,
+    p_usage_type: usageType,
+    p_reference_id: referenceId ?? null
+  });
+
+  if (error) throw error;
+
+  const row = data as FlexibleUsageLimitCheckRow | null;
+  if (row?.allowed === false) {
+    const detail =
+      row.reason ??
+      (usageType === 'booking'
+        ? 'Booking confirmation limit exceeded for your plan.'
+        : 'Listing publish limit exceeded for your plan.');
+    throw new Error(detail);
+  }
+
+  return row ?? { allowed: true };
 }
 
 /**
@@ -142,6 +197,41 @@ export async function ensureBookingUsageIfApplicable(bookingId: string, property
   });
 
   if (error) throw error;
+}
+
+/**
+ * Before confirming a booking: enforce usage limits (throws if blocked).
+ */
+export async function assertBookingConfirmationAllowed(propertyId: string, bookingId?: string | null): Promise<void> {
+  const memberId = await resolveBillingMemberIdByPropertyId(propertyId);
+  if (!memberId) {
+    throw new Error('Unable to resolve billing member for booking usage record');
+  }
+
+  const snapshot = await getActivePlanSnapshotForMember(memberId);
+  if (!snapshot || !pricingModelAllowsBookingUsage(snapshot.pricingModel)) {
+    return;
+  }
+
+  await flexibleUsageLimitCheck(memberId, 'booking', bookingId ?? null);
+}
+
+/**
+ * Before publishing a listing (visible + active): enforce listing usage limits (throws if blocked).
+ */
+export async function assertListingPublishAllowed(
+  estatePropertyId: string,
+  listingId?: string | null
+): Promise<void> {
+  const memberId = await resolveBillingMemberIdByPropertyId(estatePropertyId);
+  if (!memberId) return;
+
+  const snapshot = await getActivePlanSnapshotForMember(memberId);
+  if (!snapshot || !pricingModelAllowsListingUsage(snapshot.pricingModel)) {
+    return;
+  }
+
+  await flexibleUsageLimitCheck(memberId, 'listing', listingId ?? null);
 }
 
 /**

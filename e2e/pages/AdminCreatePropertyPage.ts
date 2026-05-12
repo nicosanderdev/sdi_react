@@ -84,8 +84,7 @@ export class AdminCreatePropertyPom {
     await expect(this.page.getByRole('heading', { name: 'Información Principal' })).toBeVisible();
   }
 
-  async fillStep2CoreAndExtensions(opts: { title: string; case: AdminPropertyTypeCase }): Promise<void> {
-    await this.page.fill('#title', opts.title);
+  async fillStep2CoreAndExtensions(opts: { case: AdminPropertyTypeCase }): Promise<void> {
     await this.page.fill('#areaValue', '120');
     await this.page.selectOption('#areaUnit', 'm²');
     await this.page.fill('#bedrooms', '2');
@@ -113,15 +112,22 @@ export class AdminCreatePropertyPom {
     await this.page.locator('#onboarding-form-photos').getByRole('button', { name: 'Siguiente' }).click();
   }
 
-  async fillStep4Listing(listingType: 'SummerRent' | 'EventVenue'): Promise<void> {
-    await this.page.selectOption('#listingType', listingType);
+  /**
+   * From step 4 (content sections): advance to publication step and fill listing fields.
+   * Omit `title` (or leave default empty) to test title validation on submit.
+   */
+  async fillStep4Listing(opts: { listingType: 'SummerRent' | 'EventVenue'; title?: string }): Promise<void> {
+    const { title } = opts;
+    await this.page.locator('#onboarding-form-sections').getByRole('button', { name: 'Siguiente' }).click();
+    await expect(this.page.getByRole('button', { name: 'Guardar Propiedad' })).toBeVisible({ timeout: 15000 });
+    if (title != null && title !== '') {
+      await this.page.fill('#title', title);
+    }
     await this.page.selectOption('#currency', 'USD');
     const today = new Date().toISOString().split('T')[0];
     await this.page.fill('#availableFrom', today);
     await this.page.fill('#rentPrice', '250');
-    await this.page.fill('#capacity', '10');
-    await this.page.selectOption('#status', 'rent');
-    await this.page.getByRole('radio', { name: /Publicar ahora/ }).check();
+    await this.page.getByRole('checkbox', { name: /Publicar ahora/ }).check();
   }
 
   async submitFinal(): Promise<void> {
@@ -142,11 +148,13 @@ export class AdminCreatePropertyPom {
   }
 
   /**
-   * From property step 2: empty title should show schema error and not advance.
+   * Empty title on the final publication step should block submit with a schema error.
    */
-  async expectTitleValidationBlocksProgress(): Promise<void> {
-    await this.page.fill('#title', '');
-    await this.page.locator('#onboarding-form-details').getByRole('button', { name: 'Siguiente' }).click();
+  async expectTitleValidationBlocksProgress(propertyCase: AdminPropertyTypeCase): Promise<void> {
+    await this.fillStep2CoreAndExtensions({ case: propertyCase });
+    await this.page.locator('#onboarding-form-photos').getByRole('button', { name: 'Siguiente' }).click();
+    await this.fillStep4Listing({ listingType: propertyCase.listingType });
+    await this.submitFinal();
     await expect(this.page.getByText('El título debe tener al menos 5 caracteres.')).toBeVisible();
   }
 }

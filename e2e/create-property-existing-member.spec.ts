@@ -66,9 +66,9 @@ test.describe('Admin create property — existing member', () => {
       const title = uniquePropertyTitle(propertyCase.titlePrefix);
       await pom.selectPropertyType(propertyCase.propertyTypeLabel);
       await pom.fillStep1Address();
-      await pom.fillStep2CoreAndExtensions({ title, case: propertyCase });
+      await pom.fillStep2CoreAndExtensions({ case: propertyCase });
       await pom.fillStep3UploadImages();
-      await pom.fillStep4Listing(propertyCase.listingType);
+      await pom.fillStep4Listing({ listingType: propertyCase.listingType, title });
       await pom.submitFinal();
 
       await pom.expectAdminPropertiesList();
@@ -89,6 +89,7 @@ test.describe('Admin create property — existing member', () => {
     await pom.continueFromOwnerPhase();
     await pom.selectPropertyType('Eventos');
     await pom.fillStep1Address();
-    await pom.expectTitleValidationBlocksProgress();
+    const eventVenueCase = ADMIN_PROPERTY_TYPE_CASES.find(c => c.listingType === 'EventVenue')!;
+    await pom.expectTitleValidationBlocksProgress(eventVenueCase);
   });
 });

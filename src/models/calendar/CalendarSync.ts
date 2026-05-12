@@ -446,6 +446,34 @@ export const BOOKING_STATUS_NAMES = {
   [BookingStatus.NoShow]: 'No Show'
 } as const
 
+/** flowbite-react `Badge` color prop values for list rows */
+export type BookingStatusBadgeColor =
+  | 'success'
+  | 'warning'
+  | 'failure'
+  | 'info'
+  | 'gray'
+  | 'purple'
+
+export function getBookingStatusBadgeColor(
+  status: BookingStatus
+): BookingStatusBadgeColor {
+  switch (status) {
+    case BookingStatus.Pending:
+      return 'warning'
+    case BookingStatus.Confirmed:
+      return 'success'
+    case BookingStatus.Completed:
+      return 'info'
+    case BookingStatus.Cancelled:
+      return 'failure'
+    case BookingStatus.NoShow:
+      return 'purple'
+    default:
+      return 'gray'
+  }
+}
+
 export const CURRENCY_NAMES = {
   [Currency.USD]: 'USD',
   [Currency.UYU]: 'UYU',

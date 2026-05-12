@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase';
-import { ensureBookingUsageIfApplicable } from './BillingUsageRecords';
+import BookingConfirmationService from './BookingConfirmationService';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
@@ -378,6 +378,9 @@ class BookingService {
       }
 
       const status = options?.status ?? BookingStatus.Pending;
+      if (status === BookingStatus.Confirmed) {
+        await BookingConfirmationService.assertCanConfirm(bookingData.estatePropertyId, null);
+      }
 
       const bookingPayload = {
         EstatePropertyId: bookingData.estatePropertyId,
@@ -412,11 +415,35 @@ class BookingService {
             Email,
             Phone,
             AvatarUrl
+          ),
+          EstateProperty:EstateProperties(
+            Id,
+            StreetName,
+            HouseNumber,
+            Neighborhood,
+            City,
+            State,
+            ZipCode,
+            Country
           )
         `)
         .single();
 
       if (error) throw error;
+      if (data?.EstateProperty) {
+        data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
+      }
+
+      if (status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+        await BookingConfirmationService.handlePostConfirmation({
+          bookingId: data.Id,
+          estatePropertyId: data.EstatePropertyId,
+          checkInDate: data.CheckInDate,
+          checkOutDate: data.CheckOutDate,
+          propertyTitle: data.EstateProperty?.Title,
+          guestPhone: data.Guest?.Phone
+        });
+      }
 
       return {
         succeeded: true,
@@ -450,6 +477,21 @@ class BookingService {
 
       // Map form field names to database field names
       if (updates.estatePropertyId) updatePayload.EstatePropertyId = updates.estatePropertyId;
+
+      if (updates.status === BookingStatus.Confirmed) {
+        const { data: preBooking, error: preErr } = await supabase
+          .from('Bookings')
+          .select('EstatePropertyId')
+          .eq('Id', bookingId)
+          .single();
+
+        if (preErr) throw preErr;
+
+        if (preBooking?.EstatePropertyId) {
+          await BookingConfirmationService.assertCanConfirm(preBooking.EstatePropertyId, bookingId);
+        }
+      }
+
       if (updates.guestId !== undefined) updatePayload.GuestId = updates.guestId && updates.guestId.trim() !== '' ? updates.guestId : null;
       if (updates.checkInDate) updatePayload.CheckInDate = updates.checkInDate;
       if (updates.checkOutDate) updatePayload.CheckOutDate = updates.checkOutDate;
@@ -499,7 +541,14 @@ class BookingService {
       }
 
       if (updates.status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
-        await ensureBookingUsageIfApplicable(data.Id, data.EstatePropertyId);
+        await BookingConfirmationService.handlePostConfirmation({
+          bookingId: data.Id,
+          estatePropertyId: data.EstatePropertyId,
+          checkInDate: data.CheckInDate,
+          checkOutDate: data.CheckOutDate,
+          propertyTitle: data.EstateProperty?.Title,
+          guestPhone: data.Guest?.Phone
+        });
       }
 
       return {
