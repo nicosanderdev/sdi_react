@@ -122,18 +122,33 @@ export function AdminCreatePropertyPage() {
     const loadPropertyTypes = async () => {
       setLoadingPropertyTypes(true);
       try {
+        const { data: memberRow, error: memberErr } = await supabase
+          .from('Members')
+          .select('Id')
+          .eq('UserId', ownerUserId)
+          .eq('IsDeleted', false)
+          .maybeSingle();
+
+        if (memberErr) throw memberErr;
+        if (!memberRow?.Id) {
+          const fallback: PropertyType[] = ['RealEstate'];
+          if (!watch('propertyType')) {
+            setValue('propertyType', fallback[0], { shouldValidate: false });
+          }
+          return;
+        }
+
         const { data, error } = await supabase
-          .from('Subscriptions')
+          .from('MemberPlans')
           .select(
             `
             *,
             Plans (*)
           `
           )
-          .eq('OwnerId', ownerUserId)
-          .eq('Status', 1)
-          .eq('IsDeleted', false)
-          .order('CreatedAt', { ascending: false });
+          .eq('MemberId', memberRow.Id)
+          .eq('IsActive', true)
+          .order('StartDate', { ascending: false });
 
         if (error) throw error;
 
