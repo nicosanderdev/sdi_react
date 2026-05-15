@@ -57,7 +57,7 @@ const customSidebarTheme = {
       on: "hidden",
       off: "self-center whitespace-nowrap text-sm font-semibold dark:text-white"
     },
-    img: "mr-3 h-6 w-6 self-center rounded-full border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-800"
+    img: "mr-3 h-9 w-auto max-w-[160px] object-contain self-center shrink-0"
   }
 };
 
@@ -111,10 +111,10 @@ export function DashboardSidebar() {
             e.preventDefault();
             navigate('/dashboard');
           }}
-          img="/favicon.svg"
-          imgAlt="SGI logo"
+          img="/logo-en-cartelera.png"
+          imgAlt="En cartelera"
         >
-          SGI
+          En cartelera - Panel
         </SidebarLogo>
         <SidebarItems>
           {isAdmin ? (

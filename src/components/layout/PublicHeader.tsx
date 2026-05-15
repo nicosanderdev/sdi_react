@@ -56,8 +56,8 @@ export function PublicHeader() {
         <div className="grid grid-cols-12 w-full">
         <Navbar fluid rounded className="col-span-12 md:col-span-8 md:col-start-3">
           <NavbarBrand href="/">
-            <img src="/favicon.svg" className="mr-3 h-6 sm:h-9" alt="Los Horneros Logo" />
-            <span className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-white">Los Horneros</span>
+            <img src="/logo-en-cartelera.png" className="mr-3 h-8 sm:h-10 w-auto object-contain" alt="En cartelera" />
+            <span className="self-center whitespace-nowrap text-xl font-semibold text-gray-900 dark:text-white">En cartelera</span>
           </NavbarBrand>
           <NavbarToggle />
           <NavbarCollapse>
