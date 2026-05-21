@@ -39,7 +39,6 @@ import {
   Currency,
   getBookingStatusBadgeColor
 } from '../../models/calendar/CalendarSync';
-import { useEnsureReceiptsAndBlock } from '../../hooks/useEnsureReceiptsAndBlock';
 import { AppDispatch, fetchNotificationCounts } from '../../store';
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
@@ -196,9 +195,6 @@ export default function BookingsPage() {
   const [confirmModal, setConfirmModal] = useState<{ bookingId: string; action: 'reject' | 'cancel' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'current' | 'past' | 'rejected'>('all');
-
-  // On-demand receipt creation and property block (no cron)
-  useEnsureReceiptsAndBlock();
 
   const fetchBookings = useCallback(async () => {
     setError(null);
