@@ -28,6 +28,13 @@ interface DLocalWebhookPayload {
   // ... other DLocal fields
 }
 
+type BillingSubjectType = 'member' | 'company'
+
+interface BillingSubject {
+  subjectType: BillingSubjectType
+  memberOrCompanyId: string
+}
+
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -46,15 +53,6 @@ Deno.serve(async (req) => {
     // Get webhook payload
     const payload: DLocalWebhookPayload = await req.json()
     const { id: dlocalPaymentId, status, order_id: paymentIntentId, amount, currency, approved_date } = payload
-
-    // Validate webhook (you should implement DLocal signature verification here)
-    // const isValidSignature = verifyDLocalSignature(req.headers, payload)
-    // if (!isValidSignature) {
-    //   return new Response(JSON.stringify({ error: 'Invalid signature' }), {
-    //     status: 401,
-    //     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    //   })
-    // }
 
     if (!paymentIntentId) {
       console.error('No payment_intent_id in webhook payload')
@@ -99,9 +97,6 @@ Deno.serve(async (req) => {
     currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1) // 1 month subscription
 
     if (status === 'PAID') {
-      // Payment succeeded - create subscription and billing records
-
-      // Update payment intent
       const { error: updateIntentError } = await supabase
         .from('payment_intents')
         .update({
@@ -114,8 +109,8 @@ Deno.serve(async (req) => {
         console.error('Error updating payment intent:', updateIntentError)
       }
 
-      // New billing model: map intent to member and create/update MemberPlans + BillingCycles + Invoices
-      let memberId: string | null = null
+      let subject: BillingSubject | null = null
+
       if (paymentIntent.entity_type === 'user') {
         const { data: member } = await supabase
           .from('Members')
@@ -123,62 +118,59 @@ Deno.serve(async (req) => {
           .eq('UserId', paymentIntent.entity_id)
           .eq('IsDeleted', false)
           .maybeSingle()
-        memberId = member?.Id ?? null
-      } else {
-        const { data: companyMember } = await supabase
-          .from('CompanyMembers')
-          .select('MemberId')
-          .eq('CompanyId', paymentIntent.entity_id)
-          .eq('IsDeleted', false)
-          .limit(1)
-          .maybeSingle()
-        memberId = companyMember?.MemberId ?? null
+
+        if (member?.Id) {
+          subject = { subjectType: 'member', memberOrCompanyId: member.Id }
+        }
+      } else if (paymentIntent.entity_type === 'company') {
+        subject = { subjectType: 'company', memberOrCompanyId: paymentIntent.entity_id }
       }
 
-      if (!memberId) {
-        return new Response(JSON.stringify({ error: 'No member mapping for payment entity' }), {
+      if (!subject) {
+        return new Response(JSON.stringify({ error: 'No billing subject for payment entity' }), {
           status: 422,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      const { data: existingMemberPlan } = await supabase
-        .from('MemberPlans')
+      const { data: existingAssignment } = await supabase
+        .from('BillingPlanAssignments')
         .select('Id')
-        .eq('MemberId', memberId)
+        .eq('SubjectType', subject.subjectType)
+        .eq('MemberOrCompanyId', subject.memberOrCompanyId)
         .eq('IsActive', true)
         .order('StartDate', { ascending: false })
         .limit(1)
         .maybeSingle()
 
-      if (existingMemberPlan?.Id) {
+      if (existingAssignment?.Id) {
         await supabase
-          .from('MemberPlans')
+          .from('BillingPlanAssignments')
           .update({
             PlanId: paymentIntent.plan_id,
             StartDate: currentPeriodStart,
             EndDate: currentPeriodEnd.toISOString(),
             LastModified: now
           })
-          .eq('Id', existingMemberPlan.Id)
+          .eq('Id', existingAssignment.Id)
       } else {
-        await supabase
-          .from('MemberPlans')
-          .insert({
-            MemberId: memberId,
-            PlanId: paymentIntent.plan_id,
-            StartDate: currentPeriodStart,
-            EndDate: currentPeriodEnd.toISOString(),
-            IsActive: true,
-            Created: now,
-            LastModified: now
-          })
+        await supabase.from('BillingPlanAssignments').insert({
+          SubjectType: subject.subjectType,
+          MemberOrCompanyId: subject.memberOrCompanyId,
+          PlanId: paymentIntent.plan_id,
+          StartDate: currentPeriodStart,
+          EndDate: currentPeriodEnd.toISOString(),
+          IsActive: true,
+          Created: now,
+          LastModified: now
+        })
       }
 
       const { data: cycle } = await supabase
         .from('BillingCycles')
         .insert({
-          MemberId: memberId,
+          SubjectType: subject.subjectType,
+          MemberOrCompanyId: subject.memberOrCompanyId,
           StartDate: currentPeriodStart,
           EndDate: currentPeriodEnd.toISOString(),
           Status: 'closed',
@@ -190,22 +182,18 @@ Deno.serve(async (req) => {
         .single()
 
       if (cycle?.Id) {
-        await supabase
-          .from('Invoices')
-          .insert({
-            MemberId: memberId,
-            BillingCycleId: cycle.Id,
-            Total: amount / 100,
-            Status: 'paid',
-            CreatedAt: now,
-            UpdatedAt: now
-          })
+        await supabase.from('Invoices').insert({
+          SubjectType: subject.subjectType,
+          MemberOrCompanyId: subject.memberOrCompanyId,
+          BillingCycleId: cycle.Id,
+          Total: amount / 100,
+          Status: 'paid',
+          CreatedAt: now,
+          UpdatedAt: now
+        })
       }
 
-      // Create payment receipt record
-      // Note: This assumes you have a PaymentReceipts table
       const receiptData = {
-        // Add your receipt fields here based on your schema
         payment_intent_id: paymentIntentId,
         dlocal_payment_id: dlocalPaymentId,
         amount: amount / 100,
@@ -213,19 +201,13 @@ Deno.serve(async (req) => {
         created_at: now
       }
 
-      // Uncomment when you have the PaymentReceipts table
-      // const { error: receiptError } = await supabase
-      //   .from('PaymentReceipts')
-      //   .insert(receiptData)
-
-      // if (receiptError) {
-      //   console.error('Error creating payment receipt:', receiptError)
-      // }
-
-      console.log('Payment succeeded, subscription activated for:', paymentIntent.entity_type, paymentIntent.entity_id)
-
+      console.log(
+        'Payment succeeded, subscription activated for:',
+        subject.subjectType,
+        subject.memberOrCompanyId,
+        receiptData
+      )
     } else {
-      // Payment failed or was cancelled/expired
       const { error: updateIntentError } = await supabase
         .from('payment_intents')
         .update({
@@ -241,19 +223,20 @@ Deno.serve(async (req) => {
       console.log('Payment failed for:', paymentIntentId, status)
     }
 
-    // Return success response to DLocal
     return new Response(JSON.stringify({ message: 'Webhook processed successfully' }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
-
   } catch (error) {
     console.error('Unexpected error in webhook:', error)
-    return new Response(JSON.stringify({
-      error: 'Internal server error'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error'
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
   }
 })

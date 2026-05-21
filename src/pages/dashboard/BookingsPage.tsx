@@ -151,18 +151,20 @@ function BookingRow({
             <>
               <Button
                 size="xs"
-                color="success"
+                color="green"
                 onClick={() => onAccept(booking.Id)}
                 className="flex items-center gap-1"
+                outline
               >
                 <Check className="h-4 w-4" />
                 Aceptar
               </Button>
               <Button
                 size="xs"
-                color="failure"
+                color="dark"
                 onClick={() => onReject(booking.Id)}
                 className="flex items-center gap-1"
+                outline
               >
                 <X className="h-4 w-4" />
                 Rechazar

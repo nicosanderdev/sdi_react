@@ -47,12 +47,13 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         if (!member) throw new Error('Member not found for user');
 
         const { data: memberPlanData, error } = await supabase
-            .from('MemberPlans')
+            .from('BillingPlanAssignments')
             .select(`
                 *,
                 Plans (*)
             `)
-            .eq('MemberId', member.Id)
+            .eq('SubjectType', 'member')
+            .eq('MemberOrCompanyId', member.Id)
             .eq('IsActive', true)
             .order('StartDate', { ascending: false })
             .limit(1);
@@ -134,7 +135,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         return {
             id: row.Id,
             ownerType: '0',
-            ownerId: row.MemberId,
+            ownerId: row.MemberOrCompanyId,
             providerCustomerId: '',
             providerSubscriptionId: '',
             planId: row.PlanId,
@@ -273,7 +274,8 @@ const getBillingHistory = async (filters?: {
         let query = supabase
             .from('Invoices')
             .select('*')
-            .eq('MemberId', member.Id)
+            .eq('SubjectType', 'member')
+            .eq('MemberOrCompanyId', member.Id)
             .order('CreatedAt', { ascending: false });
 
         // Apply filters
@@ -364,7 +366,7 @@ const getCompanySubscription = async (companyId: string) => {
 const getAdminSubscriptions = async (filters?: { status?: string; overdue?: boolean }): Promise<SubscriptionData[]> => {
     try {
         const { data, error } = await supabase
-            .from('MemberPlans')
+            .from('BillingPlanAssignments')
             .select(`*, Plans(*)`)
             .eq('IsActive', true)
             .order('StartDate', { ascending: false });
@@ -373,8 +375,8 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
 
         return (data ?? []).map((row: any) => ({
             id: row.Id,
-            ownerType: '0',
-            ownerId: row.MemberId,
+            ownerType: row.SubjectType === 'company' ? '1' : '0',
+            ownerId: row.MemberOrCompanyId,
             providerCustomerId: '',
             providerSubscriptionId: '',
             planId: row.PlanId,

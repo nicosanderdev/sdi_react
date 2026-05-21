@@ -32,40 +32,37 @@ function effectiveDueMs(row: { DueDate: string | null; CreatedAt: string }): num
   return created.getTime()
 }
 
-async function collectOwnerIdsForBilledMember(memberId: string): Promise<string[]> {
+type BillingSubject = {
+  subjectType: 'member' | 'company'
+  memberOrCompanyId: string
+}
+
+async function collectOwnerIdsForSubject(subject: BillingSubject): Promise<string[]> {
   const ownerIds = new Set<string>()
 
-  const { data: directOwners } = await supabase
-    .from('Owners')
-    .select('Id')
-    .eq('MemberId', memberId)
-    .eq('OwnerType', 'member')
-    .eq('IsDeleted', false)
+  if (subject.subjectType === 'member') {
+    const { data: directOwners } = await supabase
+      .from('Owners')
+      .select('Id')
+      .eq('MemberId', subject.memberOrCompanyId)
+      .eq('OwnerType', 'member')
+      .eq('IsDeleted', false)
 
-  for (const o of directOwners ?? []) {
-    ownerIds.add((o as { Id: string }).Id)
+    for (const o of directOwners ?? []) {
+      ownerIds.add((o as { Id: string }).Id)
+    }
+    return [...ownerIds]
   }
 
-  const { data: maps } = await supabase
-    .from('BillingOwnerMemberMap')
-    .select('OwnerType, OwnerId')
-    .eq('MemberId', memberId)
-    .eq('IsActive', true)
+  const { data: companyOwners } = await supabase
+    .from('Owners')
+    .select('Id')
+    .eq('OwnerType', 'company')
+    .eq('CompanyId', subject.memberOrCompanyId)
+    .eq('IsDeleted', false)
 
-  for (const m of maps ?? []) {
-    const map = m as { OwnerType: number; OwnerId: string }
-    if (map.OwnerType === 1) {
-      const { data: companyOwners } = await supabase
-        .from('Owners')
-        .select('Id')
-        .eq('OwnerType', 'company')
-        .eq('CompanyId', map.OwnerId)
-        .eq('IsDeleted', false)
-
-      for (const o of companyOwners ?? []) {
-        ownerIds.add((o as { Id: string }).Id)
-      }
-    }
+  for (const o of companyOwners ?? []) {
+    ownerIds.add((o as { Id: string }).Id)
   }
 
   return [...ownerIds]
@@ -98,26 +95,27 @@ Deno.serve(async (req) => {
   const graceMs = graceDays * 24 * 60 * 60 * 1000
   const nowMs = Date.now()
   let invoicesReviewed = 0
-  let membersAffected = 0
+  let subjectsAffected = 0
   let listingsUpdated = 0
   const errors: string[] = []
 
   try {
     const { data: pendingInvoices, error: invErr } = await supabase
       .from('Invoices')
-      .select('Id, MemberId, DueDate, CreatedAt, Status')
+      .select('Id, SubjectType, MemberOrCompanyId, DueDate, CreatedAt, Status')
       .eq('Status', 'pending')
 
     if (invErr) {
       throw new Error(`Invoices: ${invErr.message}`)
     }
 
-    const overdueMemberIds = new Set<string>()
+    const overdueSubjects = new Map<string, BillingSubject>()
     const rows = pendingInvoices ?? []
 
     for (const inv of rows as {
       Id: string
-      MemberId: string
+      SubjectType: 'member' | 'company'
+      MemberOrCompanyId: string
       DueDate: string | null
       CreatedAt: string
       Status: string
@@ -125,12 +123,16 @@ Deno.serve(async (req) => {
       invoicesReviewed++
       const dueCutoff = effectiveDueMs(inv) + graceMs
       if (dueCutoff >= nowMs) continue
-      overdueMemberIds.add(inv.MemberId)
+      const key = `${inv.SubjectType}:${inv.MemberOrCompanyId}`
+      overdueSubjects.set(key, {
+        subjectType: inv.SubjectType,
+        memberOrCompanyId: inv.MemberOrCompanyId
+      })
     }
 
-    for (const memberId of overdueMemberIds) {
+    for (const subject of overdueSubjects.values()) {
       try {
-        const ownerIds = await collectOwnerIdsForBilledMember(memberId)
+        const ownerIds = await collectOwnerIdsForSubject(subject)
         const propertyIds = await getEstatePropertyIdsForOwners(ownerIds)
         if (propertyIds.length === 0) {
           continue
@@ -151,10 +153,12 @@ Deno.serve(async (req) => {
           throw listErr
         }
 
-        membersAffected++
+        subjectsAffected++
         listingsUpdated += (upd ?? []).length
       } catch (e) {
-        errors.push(`${memberId}: ${(e as Error).message}`)
+        errors.push(
+          `${subject.subjectType}/${subject.memberOrCompanyId}: ${(e as Error).message}`
+        )
       }
     }
 
@@ -162,8 +166,8 @@ Deno.serve(async (req) => {
       success: errors.length === 0,
       graceDays,
       invoicesReviewed,
-      overdueMembers: overdueMemberIds.size,
-      membersAffected,
+      overdueSubjects: overdueSubjects.size,
+      subjectsAffected,
       listingsUpdated,
       durationMs: Date.now() - startTime,
       errors: errors.length > 0 ? errors : undefined
@@ -178,7 +182,7 @@ Deno.serve(async (req) => {
         success: false,
         error: (error as Error).message,
         invoicesReviewed,
-        membersAffected,
+        subjectsAffected,
         listingsUpdated,
         durationMs: Date.now() - startTime
       }),

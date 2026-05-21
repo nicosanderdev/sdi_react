@@ -4,7 +4,7 @@ import { supabase } from '../config/supabase';
  * Flexible billing (UsageRecords → Invoices). Types still say "Receipt" in places; UI uses "factura".
  * - getBookings: admin_get_billable_usage (usage ids; not BookingReceipts).
  * - getReceipts / generateReceipt / updateReceiptStatus: admin_get_invoices, admin_generate_invoice_from_usage, admin_set_invoice_status.
- * Automatic cycle invoicing (generate_invoice_for_cycle) is separate and unchanged by this module.
+ * Automatic cycle invoicing uses generate_invoice_for_cycle(subject_type, subject_id, ...).
  * Proof-of-payment "recibo" rows are not created here unless optional SQL in the same migration file (20260408120000, section B) is applied.
  */
 

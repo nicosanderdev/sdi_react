@@ -1,4 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  logBookingOtpMockMessage,
+  shouldUseBookingOtpMock,
+} from '../_shared/bookingOtpDev.ts';
 
 interface SendOtpBody {
   holdId: string;
@@ -203,6 +207,37 @@ Deno.serve(async (req: Request) => {
     }
 
     const otpRequestId = otpInsert.id as string;
+
+    if (shouldUseBookingOtpMock()) {
+      logBookingOtpMockMessage({
+        phone,
+        holdId,
+        otpRequestId,
+        otpCode,
+        expiresAt,
+      });
+
+      await supabaseAdmin
+        .from('otp_requests')
+        .update({
+          whatsapp_status: 'sent',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', otpRequestId);
+
+      await supabaseAdmin
+        .from('booking_holds')
+        .update({ phone, updated_at: new Date().toISOString() })
+        .eq('id', holdId);
+
+      return jsonResponse({
+        success: true,
+        channel: 'local_mock',
+        otpRequestId,
+        mode: 'dry-run',
+      });
+    }
+
     const waResult = await sendWhatsappViaMeta(phone, otpCode);
     if (!waResult.ok) {
       const smsResult = await sendSmsFallback(phone, otpCode);

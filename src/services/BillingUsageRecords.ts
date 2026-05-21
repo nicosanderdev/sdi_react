@@ -1,5 +1,12 @@
 import { supabase } from '../config/supabase';
 
+export type BillingSubjectType = 'member' | 'company';
+
+export interface BillingSubject {
+  subjectType: BillingSubjectType;
+  memberOrCompanyId: string;
+}
+
 export type PlanPricingModel = 'per_booking' | 'per_listing' | 'hybrid';
 
 export interface ActivePlanSnapshot {
@@ -21,10 +28,11 @@ type FlexibleUsageLimitCheckRow = {
 };
 
 /**
- * Resolves the member that is billed for flexible-billing UsageRecords for a property
- * (owner member, or mapped billing member for companies).
+ * Resolves billing subject for a property (member owner or company owner).
  */
-export async function resolveBillingMemberIdByPropertyId(propertyId: string): Promise<string | null> {
+export async function resolveBillingSubjectByPropertyId(
+  propertyId: string
+): Promise<BillingSubject | null> {
   const { data: property, error: propertyError } = await supabase
     .from('EstateProperties')
     .select('OwnerId')
@@ -45,90 +53,71 @@ export async function resolveBillingMemberIdByPropertyId(propertyId: string): Pr
   if (ownerError) throw ownerError;
   if (!owner) return null;
 
-  if (owner.OwnerType === 'member') {
-    return owner.MemberId ?? null;
+  if (owner.OwnerType === 'member' && owner.MemberId) {
+    return { subjectType: 'member', memberOrCompanyId: owner.MemberId };
   }
 
   if (owner.OwnerType === 'company' && owner.CompanyId) {
-    const { data: ownerMap, error: ownerMapError } = await supabase
-      .from('BillingOwnerMemberMap')
-      .select('MemberId')
-      .eq('OwnerId', owner.CompanyId)
-      .eq('IsActive', true)
-      .limit(1);
-
-    if (ownerMapError) throw ownerMapError;
-    return ownerMap?.[0]?.MemberId ?? null;
+    return { subjectType: 'company', memberOrCompanyId: owner.CompanyId };
   }
 
   return null;
 }
 
-export async function getActivePlanSnapshotForMember(memberId: string): Promise<ActivePlanSnapshot | null> {
-  const now = Date.now();
+/** @deprecated Use resolveBillingSubjectByPropertyId */
+export async function resolveBillingMemberIdByPropertyId(propertyId: string): Promise<string | null> {
+  const subject = await resolveBillingSubjectByPropertyId(propertyId);
+  if (!subject) return null;
+  return subject.subjectType === 'member' ? subject.memberOrCompanyId : null;
+}
 
-  const { data: rows, error } = await supabase
-    .from('MemberPlans')
-    .select(
-      `
-      StartDate,
-      EndDate,
-      Plans (
-        PricingModel,
-        Price,
-        ListingLimit,
-        BookingLimit,
-        DurationDays,
-        IsActive,
-        IsActiveV2
-      )
-    `
-    )
-    .eq('MemberId', memberId)
-    .eq('IsActive', true)
-    .order('StartDate', { ascending: false });
+type ActivePlanAssignmentRow = {
+  pricing_model?: string | null;
+  price?: number | null;
+  listing_limit?: number | null;
+  booking_limit?: number | null;
+  duration_days?: number | null;
+};
 
-  if (error) throw error;
-
-  const data = (rows ?? []).find((r) => {
-    const start = new Date(r.StartDate).getTime();
-    const end = r.EndDate ? new Date(r.EndDate).getTime() : null;
-    if (start > now) return false;
-    if (end != null && end < now) return false;
-    return true;
-  });
-
-  if (!data) return null;
-
-  const plan = data.Plans as
-    | {
-        PricingModel?: string | null;
-        Price?: number | null;
-        ListingLimit?: number | null;
-        BookingLimit?: number | null;
-        DurationDays?: number | null;
-        IsActive?: boolean | null;
-        IsActiveV2?: boolean | null;
-      }
-    | null
-    | undefined;
-
-  if (!plan) return null;
-
-  const planRowActive = plan.IsActiveV2 ?? plan.IsActive ?? true;
-  if (!planRowActive) return null;
-
-  const raw = plan.PricingModel ?? null;
+function mapActivePlanAssignmentRow(row: ActivePlanAssignmentRow): ActivePlanSnapshot | null {
+  const raw = row.pricing_model ?? null;
   const pricingModel =
     raw === 'per_booking' || raw === 'per_listing' || raw === 'hybrid' ? raw : null;
 
+  if (!pricingModel) return null;
+
   return {
     pricingModel,
-    price: plan.Price != null ? Number(plan.Price) : null,
-    listingLimit: plan.ListingLimit != null ? Number(plan.ListingLimit) : null,
-    bookingLimit: plan.BookingLimit != null ? Number(plan.BookingLimit) : null,
-    durationDays: plan.DurationDays != null ? Number(plan.DurationDays) : null
+    price: row.price != null ? Number(row.price) : null,
+    listingLimit: row.listing_limit != null ? Number(row.listing_limit) : null,
+    bookingLimit: row.booking_limit != null ? Number(row.booking_limit) : null,
+    durationDays: row.duration_days != null ? Number(row.duration_days) : null
   };
+}
+
+/**
+ * Loads active plan via security-definer RPC so admins can resolve any billing subject's plan (RLS-safe).
+ */
+export async function getActivePlanSnapshotForSubject(
+  subject: BillingSubject
+): Promise<ActivePlanSnapshot | null> {
+  const { data, error } = await supabase.rpc('get_active_plan_assignment', {
+    p_subject_type: subject.subjectType,
+    p_subject_id: subject.memberOrCompanyId,
+    p_at: new Date().toISOString()
+  });
+
+  if (error) throw error;
+
+  const row = (Array.isArray(data) ? data[0] : data) as ActivePlanAssignmentRow | undefined;
+  if (!row) return null;
+
+  return mapActivePlanAssignmentRow(row);
+}
+
+/** @deprecated Use getActivePlanSnapshotForSubject */
+export async function getActivePlanSnapshotForMember(memberId: string): Promise<ActivePlanSnapshot | null> {
+  return getActivePlanSnapshotForSubject({ subjectType: 'member', memberOrCompanyId: memberId });
 }
 
 export function pricingModelAllowsBookingUsage(model: string | null | undefined): boolean {
@@ -145,12 +134,13 @@ export function pricingModelAllowsListingUsage(model: string | null | undefined)
  * Server-side limit check (matches flexible_usage_limit_check RPC).
  */
 export async function flexibleUsageLimitCheck(
-  memberId: string,
+  subject: BillingSubject,
   usageType: 'booking' | 'listing',
   referenceId?: string | null
 ): Promise<FlexibleUsageLimitCheckRow> {
   const { data, error } = await supabase.rpc('flexible_usage_limit_check', {
-    p_member_id: memberId,
+    p_subject_type: subject.subjectType,
+    p_subject_id: subject.memberOrCompanyId,
     p_usage_type: usageType,
     p_reference_id: referenceId ?? null
   });
@@ -171,29 +161,22 @@ export async function flexibleUsageLimitCheck(
 }
 
 /**
- * Inserts/ignores a booking Usage row when the member's plan bills per confirmed booking (or hybrid).
+ * Inserts/ignores a booking Usage row when the billing subject's plan bills per confirmed booking (or hybrid).
  */
 export async function ensureBookingUsageIfApplicable(bookingId: string, propertyId: string): Promise<void> {
-  const memberId = await resolveBillingMemberIdByPropertyId(propertyId);
-  if (!memberId) {
-    throw new Error('Unable to resolve billing member for booking usage record');
+  const subject = await resolveBillingSubjectByPropertyId(propertyId);
+  if (!subject) {
+    throw new Error('Unable to resolve billing subject for booking usage record');
   }
 
-  const snapshot = await getActivePlanSnapshotForMember(memberId);
+  const snapshot = await getActivePlanSnapshotForSubject(subject);
   if (!snapshot || !pricingModelAllowsBookingUsage(snapshot.pricingModel)) {
     return;
   }
 
-  const payload = {
-    MemberId: memberId,
-    Type: 'booking' as const,
-    ReferenceId: bookingId,
-    Amount: null as number | null
-  };
-
-  const { error } = await supabase.from('UsageRecords').upsert(payload, {
-    onConflict: 'MemberId,Type,ReferenceId',
-    ignoreDuplicates: true
+  const { error } = await supabase.rpc('record_booking_usage_record', {
+    p_booking_id: bookingId,
+    p_estate_property_id: propertyId
   });
 
   if (error) throw error;
@@ -203,17 +186,17 @@ export async function ensureBookingUsageIfApplicable(bookingId: string, property
  * Before confirming a booking: enforce usage limits (throws if blocked).
  */
 export async function assertBookingConfirmationAllowed(propertyId: string, bookingId?: string | null): Promise<void> {
-  const memberId = await resolveBillingMemberIdByPropertyId(propertyId);
-  if (!memberId) {
-    throw new Error('Unable to resolve billing member for booking usage record');
+  const subject = await resolveBillingSubjectByPropertyId(propertyId);
+  if (!subject) {
+    throw new Error('Unable to resolve billing subject for booking usage record');
   }
 
-  const snapshot = await getActivePlanSnapshotForMember(memberId);
+  const snapshot = await getActivePlanSnapshotForSubject(subject);
   if (!snapshot || !pricingModelAllowsBookingUsage(snapshot.pricingModel)) {
     return;
   }
 
-  await flexibleUsageLimitCheck(memberId, 'booking', bookingId ?? null);
+  await flexibleUsageLimitCheck(subject, 'booking', bookingId ?? null);
 }
 
 /**
@@ -223,21 +206,19 @@ export async function assertListingPublishAllowed(
   estatePropertyId: string,
   listingId?: string | null
 ): Promise<void> {
-  const memberId = await resolveBillingMemberIdByPropertyId(estatePropertyId);
-  if (!memberId) return;
+  const subject = await resolveBillingSubjectByPropertyId(estatePropertyId);
+  if (!subject) return;
 
-  const snapshot = await getActivePlanSnapshotForMember(memberId);
+  const snapshot = await getActivePlanSnapshotForSubject(subject);
   if (!snapshot || !pricingModelAllowsListingUsage(snapshot.pricingModel)) {
     return;
   }
 
-  await flexibleUsageLimitCheck(memberId, 'listing', listingId ?? null);
+  await flexibleUsageLimitCheck(subject, 'listing', listingId ?? null);
 }
 
 /**
  * When a listing becomes published (visible + active), record listing usage for per_listing / hybrid plans.
- * Uses Listings.Id as ReferenceId (text). Amount defaults to plan Price for invoice math on the server.
- * Swallows errors so a failed usage row does not roll back an already-saved property publish.
  */
 export async function tryRecordListingUsageOnPublish(estatePropertyId: string): Promise<void> {
   try {
@@ -253,10 +234,10 @@ export async function tryRecordListingUsageOnPublish(estatePropertyId: string): 
     if (!listing?.Id) return;
     if (!listing.IsPropertyVisible || !listing.IsActive) return;
 
-    const memberId = await resolveBillingMemberIdByPropertyId(estatePropertyId);
-    if (!memberId) return;
+    const subject = await resolveBillingSubjectByPropertyId(estatePropertyId);
+    if (!subject) return;
 
-    const snapshot = await getActivePlanSnapshotForMember(memberId);
+    const snapshot = await getActivePlanSnapshotForSubject(subject);
     if (!snapshot || !pricingModelAllowsListingUsage(snapshot.pricingModel)) {
       return;
     }
@@ -269,14 +250,15 @@ export async function tryRecordListingUsageOnPublish(estatePropertyId: string): 
           : null;
 
     const payload = {
-      MemberId: memberId,
+      SubjectType: subject.subjectType,
+      MemberOrCompanyId: subject.memberOrCompanyId,
       Type: 'listing' as const,
       ReferenceId: String(listing.Id),
       Amount: amount
     };
 
     const { error } = await supabase.from('UsageRecords').upsert(payload, {
-      onConflict: 'MemberId,Type,ReferenceId',
+      onConflict: 'SubjectType,MemberOrCompanyId,Type,ReferenceId',
       ignoreDuplicates: true
     });
 

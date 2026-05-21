@@ -14,7 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 type ReadyCycleRow = {
   billing_cycle_id: string
-  member_id: string
+  subject_type: 'member' | 'company'
+  member_or_company_id: string
 }
 
 Deno.serve(async (req) => {
@@ -46,7 +47,8 @@ Deno.serve(async (req) => {
     for (const row of rows) {
       try {
         const { data: invoiceId, error: invoiceErr } = await supabase.rpc('generate_invoice_for_cycle', {
-          p_member_id: row.member_id,
+          p_subject_type: row.subject_type,
+          p_subject_id: row.member_or_company_id,
           p_billing_cycle_id: row.billing_cycle_id,
           p_created_by: 'cron-flexible-invoice'
         })
