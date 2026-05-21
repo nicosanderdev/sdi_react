@@ -1,6 +1,10 @@
 import { Alert, Badge, Button, Card, Label, Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput, Select } from 'flowbite-react';
 import { Search } from 'lucide-react';
-import { AdminPaymentBookingRow, PaymentFilterStatus } from '../../../services/PaymentsAdminService';
+import {
+  AdminOperationType,
+  AdminPaymentBookingRow,
+  PaymentFilterStatus
+} from '../../../services/PaymentsAdminService';
 
 interface Props {
   userSearch: string;
@@ -28,7 +32,11 @@ function formatAmount(value: number): string {
   }).format(value || 0);
 }
 
-/** Estado de la factura asociada al uso (0 = sin factura o pendiente, 1 = factura pagada). */
+function formatOperationType(type: AdminOperationType): string {
+  return type === 'listing' ? 'Publicación' : 'Reserva';
+}
+
+/** Estado de la operación (0 = sin factura o pendiente, 1 = factura pagada). */
 function renderPaymentStatus(status: number) {
   if (status === 1) {
     return <Badge color="success">Pagada</Badge>;
@@ -69,7 +77,7 @@ export function BookingsReceiptGenerationSection(props: Props) {
             />
           </div>
           <div>
-            <Label htmlFor="payments-status-filter">Estado de factura</Label>
+            <Label htmlFor="payments-status-filter">Estado de operación</Label>
             <Select
               id="payments-status-filter"
               value={paymentStatus}
@@ -123,37 +131,41 @@ export function BookingsReceiptGenerationSection(props: Props) {
         {loading ? (
           <div className="flex items-center gap-2 py-4">
             <Spinner size="md" />
-            <span>Cargando reservas...</span>
+            <span>Cargando operaciones...</span>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table hoverable>
               <TableHead>
-                <TableHeadCell>ID de reserva</TableHeadCell>
+                <TableHeadCell>Tipo</TableHeadCell>
+                <TableHeadCell>id objetivo</TableHeadCell>
                 <TableHeadCell>Propietario</TableHeadCell>
                 <TableHeadCell>Propiedad / Espacio</TableHeadCell>
                 <TableHeadCell>Fechas</TableHeadCell>
                 <TableHeadCell>Monto total</TableHeadCell>
-                <TableHeadCell>Estado de factura</TableHeadCell>
+                <TableHeadCell>Estado de operación</TableHeadCell>
               </TableHead>
               <TableBody className="divide-y">
                 {bookings.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      No hay reservas con uso facturable que coincidan con los filtros.
+                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      No hay operaciones facturables que coincidan con los filtros.
                     </TableCell>
                   </TableRow>
                 ) : (
                   bookings.map((booking) => (
                     <TableRow key={booking.id}>
-                      <TableCell className="font-mono text-xs">{booking.id}</TableCell>
+                      <TableCell>{formatOperationType(booking.operationType)}</TableCell>
+                      <TableCell className="font-mono text-xs">{booking.targetId || '—'}</TableCell>
                       <TableCell>
                         <div className="font-medium">{booking.userName}</div>
                         <div className="text-xs text-gray-500">{booking.userEmail || booking.userIdentifier || '—'}</div>
                       </TableCell>
                       <TableCell>{booking.propertyName}</TableCell>
                       <TableCell>
-                        {booking.checkInDate} - {booking.checkOutDate}
+                        {booking.operationType === 'listing'
+                          ? '—'
+                          : `${booking.checkInDate} - ${booking.checkOutDate}`}
                       </TableCell>
                       <TableCell>{formatAmount(booking.totalAmount)}</TableCell>
                       <TableCell>{renderPaymentStatus(booking.paymentStatus)}</TableCell>
@@ -167,7 +179,7 @@ export function BookingsReceiptGenerationSection(props: Props) {
 
         <div className="pt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium">
-            Total estimado (usos pendientes de facturar):{' '}
+            Total estimado (operaciones pendientes de facturar):{' '}
             <span className="text-primary-700 dark:text-primary-400">{formatAmount(totalToCollect)}</span>
           </p>
           <Button

@@ -11,6 +11,8 @@ import { supabase } from '../config/supabase';
 export type PaymentFilterStatus = 'all' | 'paid' | 'unpaid';
 export type ReceiptFilterStatus = 'all' | 'paid' | 'unpaid';
 
+export type AdminOperationType = 'booking' | 'listing';
+
 export interface AdminPaymentBookingRow {
   id: string;
   userName: string;
@@ -22,6 +24,8 @@ export interface AdminPaymentBookingRow {
   totalAmount: number;
   currency: number;
   paymentStatus: number;
+  operationType: AdminOperationType;
+  targetId: string;
 }
 
 export interface AdminReceiptItemRow {
@@ -102,6 +106,8 @@ class PaymentsAdminService {
     }
 
     return (data ?? []).map((row: any) => {
+      const operationType: AdminOperationType =
+        row.operation_type === 'listing' ? 'listing' : 'booking';
       return {
         id: row.id,
         userName: row.user_name ?? 'Sin propietario',
@@ -112,7 +118,9 @@ class PaymentsAdminService {
         checkOutDate: row.check_out_date ?? '',
         totalAmount: Number(row.total_amount ?? 0),
         currency: Number(row.currency ?? 0),
-        paymentStatus: Number(row.payment_status ?? 0)
+        paymentStatus: Number(row.payment_status ?? 0),
+        operationType,
+        targetId: row.target_id ?? row.reference_id ?? ''
       };
     });
   }
@@ -171,7 +179,16 @@ class PaymentsAdminService {
       throw new Error(error.message);
     }
 
-    return data as string;
+    const invoiceId = data as string;
+    void supabase.functions
+      .invoke('send-flexible-invoice-email', { body: { invoiceId } })
+      .then(({ error: emailError }) => {
+        if (emailError) {
+          console.warn('Invoice created but notification email failed:', emailError.message);
+        }
+      });
+
+    return invoiceId;
   }
 
   async updateReceiptStatus(receiptId: string, isPaid: boolean): Promise<void> {

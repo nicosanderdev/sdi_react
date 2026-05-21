@@ -57,6 +57,30 @@ Deno.serve(async (req) => {
         }
         if (invoiceId) {
           invoicesCreated++
+          try {
+            const emailRes = await fetch(
+              `${supabaseUrl}/functions/v1/send-flexible-invoice-email`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${supabaseServiceKey}`,
+                  'x-cron-secret': Deno.env.get('INVOICE_EMAIL_CRON_SECRET') ?? '',
+                },
+                body: JSON.stringify({ invoiceId }),
+              }
+            )
+            if (!emailRes.ok) {
+              const detail = await emailRes.text()
+              errors.push(
+                `${row.billing_cycle_id} email: ${emailRes.status} ${detail.slice(0, 200)}`
+              )
+            }
+          } catch (emailErr) {
+            errors.push(
+              `${row.billing_cycle_id} email: ${(emailErr as Error).message}`
+            )
+          }
         }
       } catch (e) {
         errors.push(`${row.billing_cycle_id}: ${(e as Error).message}`)
