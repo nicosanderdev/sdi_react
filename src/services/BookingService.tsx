@@ -3,17 +3,121 @@ import BookingConfirmationService from './BookingConfirmationService';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
 
-// Extended Booking interface with member information
+export type BookingGuestKind = 'member' | 'guest';
+
+export interface BookingGuestProfile {
+  Id: string;
+  guestKind: BookingGuestKind;
+  UserId?: string;
+  FirstName?: string;
+  LastName?: string;
+  Email?: string;
+  Phone?: string;
+  AvatarUrl?: string;
+}
+
+// Extended Booking interface with guest (member or Guests table)
 export interface BookingWithMember extends Booking {
-  Guest?: {
-    Id: string;
-    UserId: string;
-    FirstName?: string;
-    LastName?: string;
-    Email?: string;
-    Phone?: string;
-    AvatarUrl?: string;
+  Guest?: BookingGuestProfile;
+}
+
+type GuestProfileRpc = {
+  kind?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+};
+
+function mapRpcProfileToGuest(guestId: string, profile: GuestProfileRpc): BookingGuestProfile {
+  const kind: BookingGuestKind = profile.kind === 'member' ? 'member' : 'guest';
+  return {
+    Id: guestId,
+    guestKind: kind,
+    UserId: kind === 'member' ? guestId : undefined,
+    FirstName: profile.firstName,
+    LastName: profile.lastName,
+    Email: profile.email,
+    Phone: profile.phone,
   };
+}
+
+async function resolveGuestProfilesByIds(
+  guestIds: string[]
+): Promise<Map<string, BookingGuestProfile>> {
+  const uniqueIds = [...new Set(guestIds.filter(Boolean))];
+  const map = new Map<string, BookingGuestProfile>();
+
+  if (uniqueIds.length === 0) {
+    return map;
+  }
+
+  const { data: members, error: membersError } = await supabase
+    .from('Members')
+    .select('Id, UserId, FirstName, LastName, Email, Phone, AvatarUrl')
+    .in('Id', uniqueIds)
+    .eq('IsDeleted', false);
+
+  if (membersError) {
+    throw membersError;
+  }
+
+  for (const m of members ?? []) {
+    map.set(m.Id, {
+      Id: m.Id,
+      guestKind: 'member',
+      UserId: m.UserId,
+      FirstName: m.FirstName,
+      LastName: m.LastName,
+      Email: m.Email,
+      Phone: m.Phone,
+      AvatarUrl: m.AvatarUrl,
+    });
+  }
+
+  const unresolved = uniqueIds.filter((id) => !map.has(id));
+  if (unresolved.length === 0) {
+    return map;
+  }
+
+  const profileResults = await Promise.all(
+    unresolved.map(async (guestId) => {
+      const { data, error } = await supabase.rpc('resolve_guest_profile', {
+        p_guest_id: guestId,
+      });
+      if (error) {
+        return { guestId, profile: null as GuestProfileRpc | null };
+      }
+      return { guestId, profile: (data as GuestProfileRpc | null) ?? null };
+    })
+  );
+
+  for (const { guestId, profile } of profileResults) {
+    if (profile && !map.has(guestId)) {
+      map.set(guestId, mapRpcProfileToGuest(guestId, profile));
+    }
+  }
+
+  return map;
+}
+
+async function attachGuestsToBookings<T extends Booking>(
+  bookings: T[]
+): Promise<(T & { Guest?: BookingGuestProfile })[]> {
+  const guestIds = bookings
+    .map((b) => b.GuestId)
+    .filter((id): id is string => Boolean(id));
+
+  const profileMap = await resolveGuestProfilesByIds(guestIds);
+
+  return bookings.map((booking) => {
+    const guestId = booking.GuestId;
+    if (!guestId) {
+      return booking;
+    }
+    const guest = profileMap.get(guestId);
+    return guest ? { ...booking, Guest: guest } : booking;
+  });
 }
 
 // Extended for owner's list: booking with guest and property title
@@ -105,18 +209,7 @@ class BookingService {
     try {
       let query = supabase
         .from('Bookings')
-        .select(`
-          *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          )
-        `)
+        .select('*')
         .eq('EstatePropertyId', propertyId)
         .eq('IsDeleted', false)
         .order('CheckInDate', { ascending: true });
@@ -133,9 +226,11 @@ class BookingService {
 
       if (error) throw error;
 
+      const withGuests = await attachGuestsToBookings(data || []);
+
       return {
         succeeded: true,
-        data: data || []
+        data: withGuests
       };
     } catch (error: any) {
       return {
@@ -324,27 +419,18 @@ class BookingService {
     try {
       const { data, error } = await supabase
         .from('Bookings')
-        .select(`
-          *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          )
-        `)
+        .select('*')
         .eq('Id', bookingId)
         .eq('IsDeleted', false)
         .single();
 
       if (error) throw error;
 
+      const [withGuest] = await attachGuestsToBookings([data]);
+
       return {
         succeeded: true,
-        data
+        data: withGuest
       };
     } catch (error: any) {
       return {
@@ -407,15 +493,6 @@ class BookingService {
         .insert(bookingPayload)
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
             StreetName,
@@ -434,20 +511,22 @@ class BookingService {
         data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
       }
 
-      if (status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+      const [withGuest] = await attachGuestsToBookings([data]);
+
+      if (status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
         await BookingConfirmationService.handlePostConfirmation({
-          bookingId: data.Id,
-          estatePropertyId: data.EstatePropertyId,
-          checkInDate: data.CheckInDate,
-          checkOutDate: data.CheckOutDate,
-          propertyTitle: data.EstateProperty?.Title,
-          guestPhone: data.Guest?.Phone
+          bookingId: withGuest.Id,
+          estatePropertyId: withGuest.EstatePropertyId,
+          checkInDate: withGuest.CheckInDate,
+          checkOutDate: withGuest.CheckOutDate,
+          propertyTitle: withGuest.EstateProperty?.Title,
+          guestPhone: withGuest.Guest?.Phone
         });
       }
 
       return {
         succeeded: true,
-        data
+        data: withGuest
       };
     } catch (error: any) {
       return {
@@ -512,15 +591,6 @@ class BookingService {
         .eq('Id', bookingId)
         .select(`
           *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          ),
           EstateProperty:EstateProperties(
             Id,
             StreetName,
@@ -540,20 +610,22 @@ class BookingService {
         data.EstateProperty.Title = buildEstatePropertyTitle(data.EstateProperty);
       }
 
-      if (updates.status === BookingStatus.Confirmed && data?.Id && data?.EstatePropertyId) {
+      const [withGuest] = await attachGuestsToBookings([data]);
+
+      if (updates.status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
         await BookingConfirmationService.handlePostConfirmation({
-          bookingId: data.Id,
-          estatePropertyId: data.EstatePropertyId,
-          checkInDate: data.CheckInDate,
-          checkOutDate: data.CheckOutDate,
-          propertyTitle: data.EstateProperty?.Title,
-          guestPhone: data.Guest?.Phone
+          bookingId: withGuest.Id,
+          estatePropertyId: withGuest.EstatePropertyId,
+          checkInDate: withGuest.CheckInDate,
+          checkOutDate: withGuest.CheckOutDate,
+          propertyTitle: withGuest.EstateProperty?.Title,
+          guestPhone: withGuest.Guest?.Phone
         });
       }
 
       return {
         succeeded: true,
-        data
+        data: withGuest
       };
     } catch (error: any) {
       return {
@@ -604,18 +676,7 @@ class BookingService {
       // Check for overlapping bookings
       let query = supabase
         .from('Bookings')
-        .select(`
-          *,
-          Guest:Members!FK_Bookings_Members_GuestId(
-            Id,
-            UserId,
-            FirstName,
-            LastName,
-            Email,
-            Phone,
-            AvatarUrl
-          )
-        `)
+        .select('*')
         .eq('EstatePropertyId', propertyId)
         .eq('IsDeleted', false)
         .neq('Status', BookingStatus.Cancelled)
@@ -629,7 +690,7 @@ class BookingService {
 
       if (error) throw error;
 
-      const conflicts = conflictingBookings || [];
+      const conflicts = await attachGuestsToBookings(conflictingBookings || []);
 
       return {
         succeeded: true,

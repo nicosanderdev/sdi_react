@@ -52,6 +52,7 @@ import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySu
 // Admin pages
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
 import UserManagementPage from './pages/dashboard/admin/UserManagementPage';
+import GuestManagementPage from './pages/dashboard/admin/GuestManagementPage';
 import PropertyManagementPage from './pages/dashboard/admin/PropertyManagementPage';
 import { AdminCreatePropertyPage } from './pages/dashboard/admin/AdminCreatePropertyPage';
 import { AdminConfigPage } from './pages/dashboard/admin/AdminConfigPage';
@@ -150,6 +151,7 @@ export function App() {
             <Route path="admin/bookings" element={<AdminOnlyRoute><AdminBookingsPage /></AdminOnlyRoute>} />
             <Route path="admin/payments" element={<AdminOnlyRoute><AdminPaymentsPage /></AdminOnlyRoute>} />
             <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
+            <Route path="admin/guests" element={<AdminOnlyRoute><GuestManagementPage /></AdminOnlyRoute>} />
             <Route path="admin/companies" element={<AdminOnlyRoute><AdminCompaniesPage /></AdminOnlyRoute>} />
             <Route path="admin/companies/:companyId/edit" element={<AdminOnlyRoute><AdminEditCompanyPage /></AdminOnlyRoute>} />
           </Route>
