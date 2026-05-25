@@ -50,22 +50,39 @@ The single-argument `get_reservation_by_code` is **dropped**. Update every calle
 
 ## 1. Hold creation (required)
 
-When inserting into `booking_holds`, set `listing_type` to the modality of the site the user is booking on:
+Pass `p_listing_type` when calling `create_booking_hold` so the hold is scoped to the site the user is booking on:
 
 ```ts
-const SITE_LISTING_TYPE = 'SummerRent'; // from app config per deployment
+import type { CreateBookingHoldResponse, GuestSiteListingType } from '.../guestReviewContract';
 
-await supabase.from('booking_holds').insert({
-  property_id: propertyId,
-  check_in: checkIn,
-  check_out: checkOut,
-  guests,
-  listing_type: SITE_LISTING_TYPE,
-  // ... other existing fields
+const siteListingType: GuestSiteListingType = 'SummerRent'; // from app config per deployment
+
+const { data, error } = await supabase.rpc('create_booking_hold', {
+  p_property_id: propertyId,
+  p_check_in: checkIn,
+  p_check_out: checkOut,
+  p_visible_check_out: visibleCheckOut,
+  p_guests: guests,
+  p_estimated_guests: estimatedGuests,
+  p_listing_type: siteListingType,
+  p_idempotency_key: idempotencyKey,
 });
+
+if (error) throw error;
+
+const result = data as CreateBookingHoldResponse;
+
+if (!result.success) {
+  showError(result.error ?? 'Could not create hold');
+  return;
+}
+
+// result.hold.id, result.hold.expires_at, result.hold.listing_type
 ```
 
 Allowed values: `RealEstate`, `SummerRent`, `EventVenue` (exact casing).
+
+**Migration:** [`20260530120000_create_booking_hold_listing_type.sql`](../supabase/migrations/20260530120000_create_booking_hold_listing_type.sql) — apply after `20260529120000_guest_booking_overlap.sql`.
 
 If `listing_type` is missing at confirm time, `Bookings.ListingType` stays null and lookup/review only succeed when a matching **confirmed** hold row exists with the same dates and `listing_type`.
 
@@ -237,4 +254,7 @@ Shared types live in [`src/types/guestReviewContract.ts`](../../src/types/guestR
 3. `20260525120000_guests_table_polymorphic_guest_id.sql`
 4. `20260526120000_fix_confirm_booking_gen_random_bytes.sql`
 5. `20260526130000_fix_issue_booking_manage_token_pgcrypto.sql`
-6. **`20260527120000_reviews_listing_type.sql`** ← this handoff
+6. `20260527120000_reviews_listing_type.sql`
+7. `20260528120000_guest_review_48h_window.sql`
+8. `20260529120000_guest_booking_overlap.sql`
+9. **`20260530120000_create_booking_hold_listing_type.sql`** ← fixes `create_booking_hold` PGRST202 when client sends `p_listing_type`

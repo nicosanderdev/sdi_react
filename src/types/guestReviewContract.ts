@@ -1,7 +1,9 @@
 /**
  * RPC contracts for guest reservation lookup and review submit/edit.
  * Backend: supabase/migrations/20260527120000_reviews_listing_type.sql,
- *          supabase/migrations/20260528120000_guest_review_48h_window.sql
+ *          supabase/migrations/20260528120000_guest_review_48h_window.sql,
+ *          supabase/migrations/20260529120000_guest_booking_overlap.sql,
+ *          supabase/migrations/20260530120000_create_booking_hold_listing_type.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  */
 
@@ -63,7 +65,11 @@ export interface GetReservationByCodeSuccess {
 export interface RpcFailure {
   success: false;
   error: string;
+  error_code?: GuestBookingErrorCode;
 }
+
+/** Stable error codes returned by guest booking RPCs. */
+export type GuestBookingErrorCode = 'GUEST_BOOKING_OVERLAP';
 
 export type GetReservationByCodeResponse =
   | GetReservationByCodeSuccess
@@ -80,6 +86,44 @@ export type CreateGuestReviewResponse =
   | RpcFailure;
 
 export type UpdateGuestReviewResponse = CreateGuestReviewResponse;
+
+/** Parameters for create_booking_hold (9-arg). */
+export interface CreateBookingHoldParams {
+  p_property_id: string;
+  p_check_in: string;
+  p_check_out: string;
+  p_guests: number;
+  p_ip_hash?: string | null;
+  p_idempotency_key?: string | null;
+  p_visible_check_out?: string | null;
+  p_estimated_guests?: number | null;
+  p_listing_type: GuestSiteListingType;
+}
+
+export interface BookingHoldValidation {
+  is_valid: boolean;
+  errors: string[];
+  pricing?: {
+    nightly_price: number;
+    nights: number;
+    total_price: number;
+  };
+  normalized_rules?: Record<string, unknown>;
+}
+
+export interface CreateBookingHoldSuccess {
+  success: true;
+  hold: {
+    id: string;
+    expires_at: string;
+    listing_type?: GuestSiteListingType | null;
+  };
+  validation: BookingHoldValidation;
+}
+
+export type CreateBookingHoldResponse =
+  | CreateBookingHoldSuccess
+  | RpcFailure;
 
 /** Parameters for get_reservation_by_code(reservation_code, p_listing_type). */
 export interface GetReservationByCodeParams {
@@ -114,4 +158,48 @@ export interface ConfirmBookingFromHoldSuccess {
   listing_type?: GuestSiteListingType;
   manage_token: string;
   manage_expires_at: string;
+}
+
+export type ConfirmBookingFromHoldResponse =
+  | ConfirmBookingFromHoldSuccess
+  | RpcFailure;
+
+/** Parameters for validate_guest_booking_overlap(p_email, p_check_in, p_check_out). */
+export interface ValidateGuestBookingOverlapParams {
+  p_email: string;
+  p_check_in: string;
+  p_check_out: string;
+}
+
+export interface ValidateGuestBookingOverlapNoOverlap {
+  success: true;
+  hasOverlap: false;
+}
+
+export interface ValidateGuestBookingOverlapFound {
+  success: true;
+  hasOverlap: true;
+  error_code: 'GUEST_BOOKING_OVERLAP';
+  error: string;
+}
+
+export type ValidateGuestBookingOverlapSuccess =
+  | ValidateGuestBookingOverlapNoOverlap
+  | ValidateGuestBookingOverlapFound;
+
+export type ValidateGuestBookingOverlapResponse =
+  | ValidateGuestBookingOverlapSuccess
+  | RpcFailure;
+
+export function isGuestBookingOverlapError(
+  result:
+    | RpcFailure
+    | ValidateGuestBookingOverlapSuccess
+    | null
+    | undefined
+): boolean {
+  if (!result || !result.success) {
+    return result?.error_code === 'GUEST_BOOKING_OVERLAP';
+  }
+  return 'hasOverlap' in result && result.hasOverlap === true;
 }
