@@ -4,6 +4,7 @@ POST-only Edge function for the **daily** job that:
 
 1. Calls `cron_invoice_ready_cycles()` to list `BillingCycles` that are **open**, **ended** (`EndDate <= now()`), and have **no** `Invoices` row yet.
 2. For each row, calls `generate_invoice_for_cycle` (service role), which closes the cycle, creates a **pending** invoice with `DueDate = now() + 7 days`, and sets `UsageRecords.InvoiceId` for usage in that cycle window.
+3. Calls [`send-flexible-invoice-email`](../send-flexible-invoice-email) for each new invoice (requires `INVOICE_EMAIL_CRON_SECRET` for cron auth when set).
 
 ## Schedule
 

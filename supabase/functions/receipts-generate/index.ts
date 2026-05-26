@@ -14,7 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 type ReadyCycleRow = {
   billing_cycle_id: string
-  member_id: string
+  subject_type: 'member' | 'company'
+  member_or_company_id: string
 }
 
 Deno.serve(async (req) => {
@@ -46,7 +47,8 @@ Deno.serve(async (req) => {
     for (const row of rows) {
       try {
         const { data: invoiceId, error: invoiceErr } = await supabase.rpc('generate_invoice_for_cycle', {
-          p_member_id: row.member_id,
+          p_subject_type: row.subject_type,
+          p_subject_id: row.member_or_company_id,
           p_billing_cycle_id: row.billing_cycle_id,
           p_created_by: 'cron-flexible-invoice'
         })
@@ -55,6 +57,30 @@ Deno.serve(async (req) => {
         }
         if (invoiceId) {
           invoicesCreated++
+          try {
+            const emailRes = await fetch(
+              `${supabaseUrl}/functions/v1/send-flexible-invoice-email`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${supabaseServiceKey}`,
+                  'x-cron-secret': Deno.env.get('INVOICE_EMAIL_CRON_SECRET') ?? '',
+                },
+                body: JSON.stringify({ invoiceId }),
+              }
+            )
+            if (!emailRes.ok) {
+              const detail = await emailRes.text()
+              errors.push(
+                `${row.billing_cycle_id} email: ${emailRes.status} ${detail.slice(0, 200)}`
+              )
+            }
+          } catch (emailErr) {
+            errors.push(
+              `${row.billing_cycle_id} email: ${(emailErr as Error).message}`
+            )
+          }
         }
       } catch (e) {
         errors.push(`${row.billing_cycle_id}: ${(e as Error).message}`)

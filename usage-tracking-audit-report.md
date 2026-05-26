@@ -140,10 +140,9 @@
      - On paid: set linked `BillingCycles.Status = 'paid'` if no pending invoice in same cycle.
      - On unpaid rollback: set cycle back to `closed` (or `open` based on policy).
 
-4. **Harden admin manual invoice generation cycle assignment**
-   - Extend `admin_generate_invoice_from_usage`:
-     - Validate selected usage timestamps are within target cycle window, OR
-     - Derive/create appropriate cycle from min/max usage dates.
+4. **Harden admin manual invoice generation cycle assignment** — **Addressed** in migration `20260522120000_admin_invoice_usage_aligned_cycle.sql`
+   - `admin_generate_invoice_from_usage` derives `v_usage_min` / `v_usage_max` from the selection, prefers an open cycle that contains all usage, closes misaligned open cycles, and creates a usage-aligned cycle when none fits.
+   - **After you apply the migration:** reproduce Gestión de pagos → Generar Factura with backdated unbilled usage and/or a misaligned open `BillingCycles` row; confirm invoice + `UsageRecords.InvoiceId` and cycle window `StartDate <= CreatedAt < EndDate`.
 
 5. **Optional reservation-code schema addition**
    - Add `Bookings.ReservationCode` with unique index if tracking code must be persisted.

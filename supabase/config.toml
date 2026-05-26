@@ -381,11 +381,18 @@ verify_jwt = false
 [functions.booking-send-otp]
 verify_jwt = false
 
+[functions.booking-verify-otp]
+verify_jwt = false
+
 # Daily POST from Supabase Scheduled Functions or external cron; uses service role in handler.
 [functions.receipts-generate]
 verify_jwt = false
 
 [functions.flexible-invoice-overdue-unpublish]
+verify_jwt = false
+
+# Flexible invoice notification; auth in handler (admin JWT or x-cron-secret).
+[functions.send-flexible-invoice-email]
 verify_jwt = false
 
 [edge_runtime]

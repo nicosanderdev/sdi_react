@@ -4,12 +4,14 @@ import { supabase } from '../config/supabase';
  * Flexible billing (UsageRecords → Invoices). Types still say "Receipt" in places; UI uses "factura".
  * - getBookings: admin_get_billable_usage (usage ids; not BookingReceipts).
  * - getReceipts / generateReceipt / updateReceiptStatus: admin_get_invoices, admin_generate_invoice_from_usage, admin_set_invoice_status.
- * Automatic cycle invoicing (generate_invoice_for_cycle) is separate and unchanged by this module.
+ * Automatic cycle invoicing uses generate_invoice_for_cycle(subject_type, subject_id, ...).
  * Proof-of-payment "recibo" rows are not created here unless optional SQL in the same migration file (20260408120000, section B) is applied.
  */
 
 export type PaymentFilterStatus = 'all' | 'paid' | 'unpaid';
 export type ReceiptFilterStatus = 'all' | 'paid' | 'unpaid';
+
+export type AdminOperationType = 'booking' | 'listing';
 
 export interface AdminPaymentBookingRow {
   id: string;
@@ -22,6 +24,8 @@ export interface AdminPaymentBookingRow {
   totalAmount: number;
   currency: number;
   paymentStatus: number;
+  operationType: AdminOperationType;
+  targetId: string;
 }
 
 export interface AdminReceiptItemRow {
@@ -102,6 +106,8 @@ class PaymentsAdminService {
     }
 
     return (data ?? []).map((row: any) => {
+      const operationType: AdminOperationType =
+        row.operation_type === 'listing' ? 'listing' : 'booking';
       return {
         id: row.id,
         userName: row.user_name ?? 'Sin propietario',
@@ -112,7 +118,9 @@ class PaymentsAdminService {
         checkOutDate: row.check_out_date ?? '',
         totalAmount: Number(row.total_amount ?? 0),
         currency: Number(row.currency ?? 0),
-        paymentStatus: Number(row.payment_status ?? 0)
+        paymentStatus: Number(row.payment_status ?? 0),
+        operationType,
+        targetId: row.target_id ?? row.reference_id ?? ''
       };
     });
   }
@@ -171,7 +179,16 @@ class PaymentsAdminService {
       throw new Error(error.message);
     }
 
-    return data as string;
+    const invoiceId = data as string;
+    void supabase.functions
+      .invoke('send-flexible-invoice-email', { body: { invoiceId } })
+      .then(({ error: emailError }) => {
+        if (emailError) {
+          console.warn('Invoice created but notification email failed:', emailError.message);
+        }
+      });
+
+    return invoiceId;
   }
 
   async updateReceiptStatus(receiptId: string, isPaid: boolean): Promise<void> {

@@ -139,14 +139,15 @@ export function AdminCreatePropertyPage() {
         }
 
         const { data, error } = await supabase
-          .from('MemberPlans')
+          .from('BillingPlanAssignments')
           .select(
             `
             *,
             Plans (*)
           `
           )
-          .eq('MemberId', memberRow.Id)
+          .eq('SubjectType', 'member')
+          .eq('MemberOrCompanyId', memberRow.Id)
           .eq('IsActive', true)
           .order('StartDate', { ascending: false });
 
