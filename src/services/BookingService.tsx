@@ -120,6 +120,28 @@ async function attachGuestsToBookings<T extends Booking>(
   });
 }
 
+type BookingWithGuestSiteFields = BookingWithMember & {
+  ReservationCode?: string | null;
+  ListingType?: string | null;
+  EstateProperty?: { Title?: string };
+};
+
+function buildConfirmationPayload(
+  booking: BookingWithGuestSiteFields
+): Parameters<typeof BookingConfirmationService.handlePostConfirmation>[0] {
+  return {
+    bookingId: booking.Id,
+    estatePropertyId: booking.EstatePropertyId,
+    checkInDate: booking.CheckInDate,
+    checkOutDate: booking.CheckOutDate,
+    propertyTitle: booking.EstateProperty?.Title,
+    guestPhone: booking.Guest?.Phone,
+    guestEmail: booking.Guest?.Email,
+    reservationCode: booking.ReservationCode ?? null,
+    listingType: booking.ListingType ?? null,
+  };
+}
+
 // Extended for owner's list: booking with guest and property title
 export interface BookingWithMemberAndProperty extends BookingWithMember {
   EstateProperty?: {
@@ -514,14 +536,9 @@ class BookingService {
       const [withGuest] = await attachGuestsToBookings([data]);
 
       if (status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
-        await BookingConfirmationService.handlePostConfirmation({
-          bookingId: withGuest.Id,
-          estatePropertyId: withGuest.EstatePropertyId,
-          checkInDate: withGuest.CheckInDate,
-          checkOutDate: withGuest.CheckOutDate,
-          propertyTitle: withGuest.EstateProperty?.Title,
-          guestPhone: withGuest.Guest?.Phone
-        });
+        await BookingConfirmationService.handlePostConfirmation(
+          buildConfirmationPayload(withGuest as BookingWithGuestSiteFields)
+        );
       }
 
       return {
@@ -613,14 +630,9 @@ class BookingService {
       const [withGuest] = await attachGuestsToBookings([data]);
 
       if (updates.status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
-        await BookingConfirmationService.handlePostConfirmation({
-          bookingId: withGuest.Id,
-          estatePropertyId: withGuest.EstatePropertyId,
-          checkInDate: withGuest.CheckInDate,
-          checkOutDate: withGuest.CheckOutDate,
-          propertyTitle: withGuest.EstateProperty?.Title,
-          guestPhone: withGuest.Guest?.Phone
-        });
+        await BookingConfirmationService.handlePostConfirmation(
+          buildConfirmationPayload(withGuest as BookingWithGuestSiteFields)
+        );
       }
 
       return {

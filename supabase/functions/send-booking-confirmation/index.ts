@@ -6,46 +6,69 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface BookingDetails {
-  id: string;
-  checkInDate: string;
-  checkOutDate: string;
-  numberOfGuests: number;
-  totalPrice: number;
-  property: {
-    title: string;
-    streetName?: string;
-    houseNumber?: string;
-    neighborhood?: string;
-    city?: string;
-    state?: string;
-    locationLatitude: number;
-    locationLongitude: number;
-  };
-  user: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-  };
-  host: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    phone?: string;
-  };
+interface HostContact {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
+interface GuestProfile {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+}
+
+interface BookingRow {
+  Id: string;
+  GuestId: string | null;
+  CheckInDate: string;
+  CheckOutDate: string;
+  GuestCount: number;
+  TotalAmount: number | null;
+  ReservationCode: string | null;
+  ListingType: string | null;
+  Status: number;
+  EstatePropertyId: string;
+  EstateProperties: {
+    Title: string | null;
+    StreetName: string | null;
+    HouseNumber: string | null;
+    Neighborhood: string | null;
+    City: string | null;
+    State: string | null;
+  } | null;
+}
+
+function buildGuestManageUrl(
+  reservationCode: string | null,
+  listingType: string | null
+): string | null {
+  const base = Deno.env.get('GUEST_BOOKING_MANAGE_BASE_URL');
+  if (!base || !reservationCode) {
+    return null;
+  }
+
+  const url = new URL(base);
+  url.searchParams.set('code', reservationCode);
+  if (listingType) {
+    url.searchParams.set('listingType', listingType);
+  }
+  return url.toString();
+}
+
+function buildGuestName(profile: GuestProfile | null): string {
+  if (!profile) return 'Guest';
+  return [profile.firstName, profile.lastName].filter(Boolean).join(' ').trim() || 'Guest';
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    // Check if email sending is enabled
     const sendEmailsEnabled = Deno.env.get('SEND_EMAILS_ENABLED') === 'true';
-
-    // Parse request body
     const { bookingId } = await req.json();
 
     if (!bookingId) {
@@ -58,40 +81,30 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch booking details with related data
     const { data: bookingData, error: bookingError } = await supabase
       .from('Bookings')
       .select(`
         Id,
+        GuestId,
         CheckInDate,
         CheckOutDate,
-        NumberOfGuests,
-        TotalPrice,
+        GuestCount,
+        TotalAmount,
+        ReservationCode,
+        ListingType,
+        Status,
+        EstatePropertyId,
         EstateProperties (
           Title,
           StreetName,
           HouseNumber,
           Neighborhood,
           City,
-          State,
-          LocationLatitude,
-          LocationLongitude,
-          Owners:Members (
-            FirstName,
-            LastName,
-            Email,
-            Phone
-          )
-        ),
-        Members (
-          FirstName,
-          LastName,
-          Email
+          State
         )
       `)
       .eq('Id', bookingId)
@@ -109,41 +122,25 @@ serve(async (req) => {
       );
     }
 
-    // Transform data
-    const booking: BookingDetails = {
-      id: bookingData.Id,
-      checkInDate: bookingData.CheckInDate,
-      checkOutDate: bookingData.CheckOutDate,
-      numberOfGuests: bookingData.NumberOfGuests,
-      totalPrice: bookingData.TotalPrice,
-      property: {
-        title: bookingData.EstateProperties?.Title || 'Property',
-        streetName: bookingData.EstateProperties?.StreetName,
-        houseNumber: bookingData.EstateProperties?.HouseNumber,
-        neighborhood: bookingData.EstateProperties?.Neighborhood,
-        city: bookingData.EstateProperties?.City,
-        state: bookingData.EstateProperties?.State,
-        locationLatitude: bookingData.EstateProperties?.LocationLatitude || 0,
-        locationLongitude: bookingData.EstateProperties?.LocationLongitude || 0,
-      },
-      user: {
-        firstName: bookingData.Members?.FirstName,
-        lastName: bookingData.Members?.LastName,
-        email: bookingData.Members?.Email,
-      },
-      host: {
-        firstName: bookingData.EstateProperties?.Owners?.FirstName,
-        lastName: bookingData.EstateProperties?.Owners?.LastName,
-        email: bookingData.EstateProperties?.Owners?.Email,
-        phone: bookingData.EstateProperties?.Owners?.Phone,
-      },
-    };
+    const booking = bookingData as BookingRow;
 
-    // Check if user has email
-    if (!booking.user.email) {
-      console.log('User has no email address');
+    let guestProfile: GuestProfile | null = null;
+    if (booking.GuestId) {
+      const { data: profileData, error: profileError } = await supabase.rpc(
+        'resolve_guest_profile',
+        { p_guest_id: booking.GuestId }
+      );
+      if (profileError) {
+        console.error('Error resolving guest profile:', profileError);
+      } else {
+        guestProfile = (profileData as GuestProfile | null) ?? null;
+      }
+    }
+
+    const guestEmail = guestProfile?.email?.trim() ?? '';
+    if (!guestEmail) {
       return new Response(
-        JSON.stringify({ success: false, error: 'User has no email address' }),
+        JSON.stringify({ success: false, error: 'Guest has no email address' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400,
@@ -151,37 +148,87 @@ serve(async (req) => {
       );
     }
 
-    // Format dates
-    const checkInDate = new Date(booking.checkInDate).toLocaleDateString('en-US', {
+    let host: HostContact = { name: null, email: null, phone: null };
+    if (booking.Status === 1) {
+      const { data: hostContact, error: hostError } = await supabase.rpc(
+        'resolve_host_contact_for_property',
+        { p_estate_property_id: booking.EstatePropertyId }
+      );
+      if (hostError) {
+        console.error('Error resolving host contact:', hostError);
+      } else if (hostContact) {
+        host = {
+          name: (hostContact as HostContact).name ?? null,
+          email: (hostContact as HostContact).email ?? null,
+          phone: (hostContact as HostContact).phone ?? null,
+        };
+      }
+    }
+
+    const property = booking.EstateProperties;
+    const propertyTitle = property?.Title || 'Property';
+    const reservationCode = booking.ReservationCode ?? booking.Id;
+    const manageUrl = buildGuestManageUrl(booking.ReservationCode, booking.ListingType);
+    const guestName = buildGuestName(guestProfile);
+
+    const checkInDate = new Date(booking.CheckInDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    const checkOutDate = new Date(booking.checkOutDate).toLocaleDateString('en-US', {
+    const checkOutDate = new Date(booking.CheckOutDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
 
-    // Calculate number of nights
-    const checkIn = new Date(booking.checkInDate);
-    const checkOut = new Date(booking.checkOutDate);
+    const checkIn = new Date(booking.CheckInDate);
+    const checkOut = new Date(booking.CheckOutDate);
     const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+    const totalAmount = booking.TotalAmount ?? 0;
 
-    // Format property location
     const locationParts = [
-      booking.property.houseNumber,
-      booking.property.streetName,
-      booking.property.neighborhood,
-      booking.property.city,
-      booking.property.state,
+      property?.HouseNumber,
+      property?.StreetName,
+      property?.Neighborhood,
+      property?.City,
+      property?.State,
     ].filter(Boolean);
     const propertyLocation = locationParts.join(', ') || 'Location not specified';
 
-    // Create email HTML content
+    const manageLinkHtml = manageUrl
+      ? `<p style="text-align: center; margin: 30px 0;">
+                <a href="${manageUrl}" class="button">Manage Your Booking</a>
+              </p>`
+      : '';
+
+    const hostContactHtml =
+      booking.Status === 1 && (host.name || host.email || host.phone)
+        ? `
+              <h2>Host Contact</h2>
+              <p>If you need to contact your host before your arrival:</p>
+              <div class="booking-details">
+                ${host.name ? `
+                <div class="detail-row">
+                  <span><strong>Name:</strong></span>
+                  <span>${host.name}</span>
+                </div>` : ''}
+                ${host.email ? `
+                <div class="detail-row">
+                  <span><strong>Email:</strong></span>
+                  <span>${host.email}</span>
+                </div>` : ''}
+                ${host.phone ? `
+                <div class="detail-row">
+                  <span><strong>Phone:</strong></span>
+                  <span>${host.phone}</span>
+                </div>` : ''}
+              </div>`
+        : '';
+
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -207,8 +254,8 @@ serve(async (req) => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>🎉 Booking Confirmed!</h1>
-              <p>Your reservation has been successfully confirmed</p>
+              <h1>Booking Confirmed!</h1>
+              <p>Hi ${guestName}, your reservation has been successfully confirmed</p>
             </div>
 
             <div class="content">
@@ -216,8 +263,12 @@ serve(async (req) => {
 
               <div class="booking-details">
                 <div class="detail-row">
+                  <span><strong>Reservation code:</strong></span>
+                  <span>${reservationCode}</span>
+                </div>
+                <div class="detail-row">
                   <span><strong>Property:</strong></span>
-                  <span>${booking.property.title}</span>
+                  <span>${propertyTitle}</span>
                 </div>
                 <div class="detail-row">
                   <span><strong>Location:</strong></span>
@@ -237,48 +288,16 @@ serve(async (req) => {
                 </div>
                 <div class="detail-row">
                   <span><strong>Guests:</strong></span>
-                  <span>${booking.numberOfGuests}</span>
+                  <span>${booking.GuestCount}</span>
                 </div>
                 <div class="detail-row total">
                   <span><strong>Total:</strong></span>
-                  <span>$${booking.totalPrice.toFixed(2)}</span>
+                  <span>$${totalAmount.toFixed(2)}</span>
                 </div>
               </div>
 
-              <h2>Important Information</h2>
-              <p>Thank you for choosing Holiday Trips! Here are some important details for your stay:</p>
-
-              <ul>
-                <li><strong>Check-in time:</strong> After 3:00 PM on your arrival date</li>
-                <li><strong>Check-out time:</strong> Before 11:00 AM on your departure date</li>
-                <li><strong>Access instructions:</strong> You will receive specific check-in instructions 24 hours before your arrival</li>
-                <li><strong>Cancellation policy:</strong> Free cancellation up to 24 hours after booking. After that, cancellations made 7 days before check-in receive a 50% refund.</li>
-              </ul>
-
-              <h2>Host Contact</h2>
-              <p>If you need to contact your host before your arrival:</p>
-              <div class="booking-details">
-                <div class="detail-row">
-                  <span><strong>Name:</strong></span>
-                  <span>${booking.host.firstName || ''} ${booking.host.lastName || ''}</span>
-                </div>
-                ${booking.host.email ? `
-                <div class="detail-row">
-                  <span><strong>Email:</strong></span>
-                  <span>${booking.host.email}</span>
-                </div>
-                ` : ''}
-                ${booking.host.phone ? `
-                <div class="detail-row">
-                  <span><strong>Phone:</strong></span>
-                  <span>${booking.host.phone}</span>
-                </div>
-                ` : ''}
-              </div>
-
-              <p style="text-align: center; margin: 30px 0;">
-                <a href="#" class="button">View Booking Details</a>
-              </p>
+              ${hostContactHtml}
+              ${manageLinkHtml}
 
               <p>We hope you have an amazing stay! If you have any questions, please don't hesitate to contact us.</p>
 
@@ -287,7 +306,7 @@ serve(async (req) => {
 
             <div class="footer">
               <p>This is an automated email. Please do not reply to this message.</p>
-              <p>Booking Reference: ${booking.id}</p>
+              <p>Booking Reference: ${booking.Id}</p>
               <p>&copy; 2026 Holiday Trips. All rights reserved.</p>
             </div>
           </div>
@@ -296,13 +315,13 @@ serve(async (req) => {
     `;
 
     const fromEmail = 'Holiday Trips <bookings@holidaytrips.com>';
-    const subject = `🎉 Booking Confirmed: ${booking.property.title}`;
+    const subject = `Booking Confirmed: ${propertyTitle}`;
 
     if (!sendEmailsEnabled) {
       console.log('Dry-run booking confirmation email:', {
         mode: 'dry-run',
         from: fromEmail,
-        to: [booking.user.email],
+        to: [guestEmail],
         subject,
         htmlLength: emailHtml.length,
       });
@@ -319,9 +338,7 @@ serve(async (req) => {
       );
     }
 
-    // Send email using Resend
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
-
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not configured');
       return new Response(
@@ -336,12 +353,12 @@ serve(async (req) => {
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${resendApiKey}`,
+        Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         from: fromEmail,
-        to: [booking.user.email],
+        to: [guestEmail],
         subject,
         html: emailHtml,
       }),
@@ -367,14 +384,13 @@ serve(async (req) => {
         success: true,
         message: 'Confirmation email sent successfully',
         mode: 'live',
-        emailId: emailResult.id
+        emailId: emailResult.id,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       }
     );
-
   } catch (error) {
     console.error('Unexpected error:', error);
     return new Response(

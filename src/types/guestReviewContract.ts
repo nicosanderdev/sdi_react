@@ -3,7 +3,8 @@
  * Backend: supabase/migrations/20260527120000_reviews_listing_type.sql,
  *          supabase/migrations/20260528120000_guest_review_48h_window.sql,
  *          supabase/migrations/20260529120000_guest_booking_overlap.sql,
- *          supabase/migrations/20260530120000_create_booking_hold_listing_type.sql
+ *          supabase/migrations/20260530120000_create_booking_hold_listing_type.sql,
+ *          supabase/migrations/20260601120000_host_contact_for_guests.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  */
 
@@ -34,6 +35,12 @@ export interface ExistingGuestReview {
   updatedAt?: string;
 }
 
+export interface HostContactInfo {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+
 export interface GuestReservation {
   bookingId: string;
   guestId: string | null;
@@ -47,6 +54,10 @@ export interface GuestReservation {
   guestName: string | null;
   guestEmail: string | null;
   guestPhone: string | null;
+  hostName?: string | null;
+  hostEmail?: string | null;
+  hostPhone?: string | null;
+  hostContact?: HostContactInfo | null;
   canCancel: boolean;
   isExpired: boolean;
   isDeleted: boolean;
@@ -73,6 +84,30 @@ export type GuestBookingErrorCode = 'GUEST_BOOKING_OVERLAP';
 
 export type GetReservationByCodeResponse =
   | GetReservationByCodeSuccess
+  | RpcFailure;
+
+export interface ManageBookingView {
+  bookingId: string;
+  reservationCode: string;
+  propertyTitle: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  status: ReservationStatus;
+  canCancel: boolean;
+  hostName?: string | null;
+  hostEmail?: string | null;
+  hostPhone?: string | null;
+  hostContact?: HostContactInfo | null;
+}
+
+export interface GetBookingByManageTokenSuccess {
+  success: true;
+  booking: ManageBookingView;
+}
+
+export type GetBookingByManageTokenResponse =
+  | GetBookingByManageTokenSuccess
   | RpcFailure;
 
 export interface CreateGuestReviewSuccess {
