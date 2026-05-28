@@ -9,6 +9,7 @@ import {
   FileText,
   CalendarCheck,
   Receipt,
+  SettingsIcon,
   type LucideIcon
 } from 'lucide-react';
 
@@ -35,8 +36,8 @@ export function AdminNavigation() {
     { id: 'admin-users', label: 'Usuarios', icon: UserIcon, path: '/dashboard/admin/users' },
     { id: 'admin-guests', label: 'Invitados', icon: UserCircleIcon, path: '/dashboard/admin/guests' },
     { id: 'admin-companies', label: 'Compañías', icon: Building2Icon, path: '/dashboard/admin/companies' },
-    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' }
-    // { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
+    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' },
+    { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
   ];
 
   return (

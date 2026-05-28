@@ -5,7 +5,10 @@
  *          supabase/migrations/20260529120000_guest_booking_overlap.sql,
  *          supabase/migrations/20260530120000_create_booking_hold_listing_type.sql,
  *          supabase/migrations/20260601120000_host_contact_for_guests.sql
+ *          supabase/migrations/20260602120000_dynamic_pricing_schema.sql
+ *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
+ * See docs/handoffs/dynamic-pricing-guest-client.md
  */
 
 /** Listing types allowed on public guest sites (excludes AnnualRent). */
@@ -80,7 +83,7 @@ export interface RpcFailure {
 }
 
 /** Stable error codes returned by guest booking RPCs. */
-export type GuestBookingErrorCode = 'GUEST_BOOKING_OVERLAP';
+export type GuestBookingErrorCode = 'GUEST_BOOKING_OVERLAP' | 'PRICE_QUOTE_MISMATCH';
 
 export type GetReservationByCodeResponse =
   | GetReservationByCodeSuccess
@@ -133,17 +136,23 @@ export interface CreateBookingHoldParams {
   p_visible_check_out?: string | null;
   p_estimated_guests?: number | null;
   p_listing_type: GuestSiteListingType;
+  /** Client-computed total; server rejects hold if outside PRICE_QUOTE_TOLERANCE. */
+  p_client_total?: number | null;
+}
+
+export interface BookingHoldPricing {
+  nightly_price: number;
+  nights: number;
+  total_price: number;
+  listing_id?: string;
 }
 
 export interface BookingHoldValidation {
   is_valid: boolean;
   errors: string[];
-  pricing?: {
-    nightly_price: number;
-    nights: number;
-    total_price: number;
-  };
+  pricing?: BookingHoldPricing;
   normalized_rules?: Record<string, unknown>;
+  error_code?: GuestBookingErrorCode;
 }
 
 export interface CreateBookingHoldSuccess {

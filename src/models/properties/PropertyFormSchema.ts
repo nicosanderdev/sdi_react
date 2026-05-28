@@ -89,6 +89,13 @@ export const propertyFormBaseSchema = z.object({
   currency: z.enum(['USD', 'UYU', 'BRL', 'EUR', 'GBP']).optional(),
   salePrice: z.string().optional(),
   rentPrice: z.string().optional(),
+  /** Dynamic pricing (SummerRent, EventVenue). */
+  basePrice: z.string().optional(),
+  minPrice: z.string().optional(),
+  maxPrice: z.string().optional(),
+  longStayDiscountEnabled: z.boolean().optional(),
+  longStayMinDays: z.coerce.number().int().min(1).optional(),
+  longStayDiscountPercentage: z.coerce.number().min(0).max(100).optional(),
   /** Nightly/event vs monthly meaning for `RentPrice` (Listings.RentPricePeriod). */
   rentPricePeriod: rentPricePeriodSchema.optional(),
   hasCommonExpenses: z.boolean().optional(),
@@ -174,14 +181,61 @@ export const propertyCreatePublishSchema = propertyCreateSchema
     data => {
       if (data.isActive !== true) return true;
       const lt = resolveCreationListingType(data);
-      if (!lt || lt === 'RealEstate') return true;
+      if (!lt || lt === 'RealEstate' || lt === 'AnnualRent') return true;
+      if (lt === 'SummerRent' || lt === 'EventVenue') {
+        return (
+          !!String(data.basePrice ?? '').trim() &&
+          !!String(data.minPrice ?? '').trim() &&
+          !!String(data.maxPrice ?? '').trim()
+        );
+      }
       return !!String(data.rentPrice ?? '').trim();
     },
     {
-      message: 'Para publicar, ingresa el precio de alquiler.',
-      path: ['rentPrice'],
+      message: 'Para publicar, ingresa precio base, mínimo y máximo.',
+      path: ['basePrice'],
+    }
+  )
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      const lt = resolveCreationListingType(data);
+      if (lt !== 'SummerRent' && lt !== 'EventVenue') return true;
+      const base = parseFloat(String(data.basePrice ?? ''));
+      const min = parseFloat(String(data.minPrice ?? ''));
+      const max = parseFloat(String(data.maxPrice ?? ''));
+      if (Number.isNaN(base) || Number.isNaN(min) || Number.isNaN(max)) return true;
+      return min <= base && base <= max && min <= max;
+    },
+    {
+      message: 'El precio base debe estar entre el mínimo y el máximo.',
+      path: ['basePrice'],
+    }
+  )
+  .refine(
+    data => {
+      if (data.isActive !== true) return true;
+      const lt = resolveCreationListingType(data);
+      if (lt !== 'SummerRent' && lt !== 'EventVenue') return true;
+      if (!data.longStayDiscountEnabled) return true;
+      return (
+        data.longStayMinDays != null &&
+        data.longStayMinDays >= 1 &&
+        data.longStayDiscountPercentage != null &&
+        data.longStayDiscountPercentage > 0
+      );
+    },
+    {
+      message: 'Indica días mínimos y porcentaje de descuento por estadía larga.',
+      path: ['longStayMinDays'],
     }
   );
+
+export function usesDynamicListingPricing(
+  listingType: ListingType | PropertyType | undefined
+): boolean {
+  return listingType === 'SummerRent' || listingType === 'EventVenue';
+}
 
 export type PropertyContentSectionFormData = z.infer<typeof propertyContentSectionSchema>;
 export type PropertyFormData = z.infer<typeof propertyFormSchema>;

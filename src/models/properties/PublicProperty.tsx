@@ -27,6 +27,15 @@ export interface PublicProperty {
   description: string;
   salePrice?: number;
   rentPrice?: number;
+  /** Dynamic pricing base nightly rate (SummerRent / EventVenue). */
+  basePrice?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  longStayDiscountEnabled?: boolean;
+  longStayMinDays?: number | null;
+  longStayDiscountPercentage?: number | null;
+  listingId?: string;
+  listingType?: string;
   currency: 'USD' | 'EUR' | 'GBP';
   isElectricityIncluded: boolean;
   isWaterIncluded: boolean;

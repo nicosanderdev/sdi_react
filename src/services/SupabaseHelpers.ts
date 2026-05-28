@@ -807,18 +807,49 @@ export const mapDbToPropertyData = (
 /**
  * Maps database rows to PublicProperty interface (limited data for public viewing)
  */
+interface ListingsRowLite {
+  Id: string;
+  ListingType?: string;
+  Title?: string;
+  Description?: string;
+  SalePrice?: number | null;
+  RentPrice?: number | null;
+  BasePrice?: number | null;
+  MinPrice?: number | null;
+  MaxPrice?: number | null;
+  LongStayDiscountEnabled?: boolean;
+  LongStayMinDays?: number | null;
+  LongStayDiscountPercentage?: number | null;
+  Currency?: number;
+  IsElectricityIncluded?: boolean;
+  IsWaterIncluded?: boolean;
+  BlockedForBooking?: boolean;
+  IsFeatured?: boolean;
+  IsDeleted?: boolean;
+}
+
+function pickFeaturedListing(raw: ListingsRowLite | ListingsRowLite[] | undefined): ListingsRowLite | undefined {
+  const rows = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return (
+    rows.find(l => l.IsFeatured && !l.IsDeleted) ??
+    rows.find(l => !l.IsDeleted) ??
+    rows[0]
+  );
+}
+
 export const mapDbToPublicProperty = (
   property: EstatePropertiesRow & {
-    EstatePropertyValues: EstatePropertyValuesRow[];
+    EstatePropertyValues?: EstatePropertyValuesRow[];
+    Listings?: ListingsRowLite | ListingsRowLite[];
     PropertyImages?: PropertyImagesRow[];
     PropertyVideos?: PropertyVideosRow[];
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PublicProperty => {
-  // Get the latest property values
   const latestValues = property.EstatePropertyValues?.sort(
     (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
   )[0];
+  const listing = pickFeaturedListing(property.Listings);
 
   const propertyImages: PropertyImage[] = property.PropertyImages?.map(img => ({
     id: img.Id,
@@ -873,14 +904,31 @@ export const mapDbToPublicProperty = (
     propertyVideos,
     amenities,
     mainImageId: property.MainImageId || '',
-    description: latestValues?.Description || '',
-    salePrice: latestValues?.SalePrice || undefined,
-    rentPrice: latestValues?.RentPrice || undefined,
-    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
-    isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
-    isWaterIncluded: latestValues?.IsWaterIncluded || false,
+    description: listing?.Description ?? latestValues?.Description ?? '',
+    salePrice: listing?.SalePrice ?? latestValues?.SalePrice ?? undefined,
+    rentPrice:
+      listing?.RentPrice ??
+      listing?.BasePrice ??
+      latestValues?.RentPrice ??
+      undefined,
+    basePrice: listing?.BasePrice ?? listing?.RentPrice ?? undefined,
+    minPrice: listing?.MinPrice ?? undefined,
+    maxPrice: listing?.MaxPrice ?? undefined,
+    longStayDiscountEnabled: listing?.LongStayDiscountEnabled ?? false,
+    longStayMinDays: listing?.LongStayMinDays ?? null,
+    longStayDiscountPercentage:
+      listing?.LongStayDiscountPercentage != null
+        ? Number(listing.LongStayDiscountPercentage)
+        : null,
+    listingId: listing?.Id,
+    listingType: listing?.ListingType,
+    currency: (currencyMapReverse[listing?.Currency ?? latestValues?.Currency ?? 0] ||
+      'USD') as 'USD' | 'EUR' | 'GBP',
+    isElectricityIncluded:
+      listing?.IsElectricityIncluded ?? latestValues?.IsElectricityIncluded ?? false,
+    isWaterIncluded: listing?.IsWaterIncluded ?? latestValues?.IsWaterIncluded ?? false,
     ownerId: property.OwnerId,
-    blockedForBooking: latestValues?.BlockedForBooking ?? false
+    blockedForBooking: listing?.BlockedForBooking ?? latestValues?.BlockedForBooking ?? false,
   };
 };
 

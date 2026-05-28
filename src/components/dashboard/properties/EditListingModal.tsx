@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, Label, Modal, ModalBody, ModalHeader, Select, TextInput, Textarea } from 'flowbite-react';
 import propertyService from '../../../services/PropertyService';
 import type { ListingType } from '../../../models/properties/PropertyData';
+import { usesDynamicListingPricing } from '../../../models/properties/PropertyFormSchema';
 
 interface EditListingModalProps {
   isOpen: boolean;
@@ -18,6 +19,12 @@ type ListingFormState = {
   currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
   salePrice: string;
   rentPrice: string;
+  basePrice: string;
+  minPrice: string;
+  maxPrice: string;
+  longStayDiscountEnabled: boolean;
+  longStayMinDays: string;
+  longStayDiscountPercentage: string;
   rentPricePeriod: 'PerNight' | 'PerMonth';
   isPriceVisible: boolean;
   isActive: boolean;
@@ -33,6 +40,12 @@ const emptyForm: ListingFormState = {
   currency: 'USD',
   salePrice: '',
   rentPrice: '',
+  basePrice: '',
+  minPrice: '',
+  maxPrice: '',
+  longStayDiscountEnabled: false,
+  longStayMinDays: '',
+  longStayDiscountPercentage: '',
   rentPricePeriod: 'PerNight',
   isPriceVisible: true,
   isActive: true,
@@ -48,6 +61,7 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
 
   const isSaleListing = form.listingType === 'RealEstate';
+  const isDynamicPricing = usesDynamicListingPricing(form.listingType);
   const currentSnapshot = useMemo(() => JSON.stringify(form), [form]);
   const isDirty = initialSnapshot.length > 0 && currentSnapshot !== initialSnapshot;
 
@@ -73,6 +87,16 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
           currency: listing.currency,
           salePrice: listing.salePrice ?? '',
           rentPrice: listing.rentPrice ?? '',
+          basePrice: listing.basePrice ?? '',
+          minPrice: listing.minPrice ?? '',
+          maxPrice: listing.maxPrice ?? '',
+          longStayDiscountEnabled: listing.longStayDiscountEnabled ?? false,
+          longStayMinDays:
+            listing.longStayMinDays != null ? String(listing.longStayMinDays) : '',
+          longStayDiscountPercentage:
+            listing.longStayDiscountPercentage != null
+              ? String(listing.longStayDiscountPercentage)
+              : '',
           rentPricePeriod: listing.rentPricePeriod ?? 'PerNight',
           isPriceVisible: listing.isPriceVisible,
           isActive: listing.isActive,
@@ -108,8 +132,20 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
         availableFrom: form.availableFrom || null,
         currency: form.currency,
         salePrice: isSaleListing ? form.salePrice || null : null,
-        rentPrice: isSaleListing ? null : form.rentPrice || null,
-        rentPricePeriod: isSaleListing ? null : form.rentPricePeriod,
+        rentPrice: isSaleListing || isDynamicPricing ? null : form.rentPrice || null,
+        basePrice: isDynamicPricing ? form.basePrice || null : null,
+        minPrice: isDynamicPricing ? form.minPrice || null : null,
+        maxPrice: isDynamicPricing ? form.maxPrice || null : null,
+        longStayDiscountEnabled: isDynamicPricing ? form.longStayDiscountEnabled : false,
+        longStayMinDays:
+          isDynamicPricing && form.longStayDiscountEnabled && form.longStayMinDays
+            ? parseInt(form.longStayMinDays, 10)
+            : null,
+        longStayDiscountPercentage:
+          isDynamicPricing && form.longStayDiscountEnabled && form.longStayDiscountPercentage
+            ? parseFloat(form.longStayDiscountPercentage)
+            : null,
+        rentPricePeriod: isSaleListing ? null : isDynamicPricing ? 'PerNight' : form.rentPricePeriod,
         isPriceVisible: form.isPriceVisible,
         isActive: form.isActive,
         isPropertyVisible: form.isPropertyVisible,
@@ -171,6 +207,52 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
                 <Label htmlFor="salePrice">Precio de venta</Label>
                 <TextInput id="salePrice" type="number" value={form.salePrice} onChange={e => setField('salePrice', e.target.value)} />
               </div>
+            ) : isDynamicPricing ? (
+              <>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="basePrice">Precio base</Label>
+                    <TextInput id="basePrice" type="number" value={form.basePrice} onChange={e => setField('basePrice', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="minPrice">Mínimo</Label>
+                    <TextInput id="minPrice" type="number" value={form.minPrice} onChange={e => setField('minPrice', e.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="maxPrice">Máximo</Label>
+                    <TextInput id="maxPrice" type="number" value={form.maxPrice} onChange={e => setField('maxPrice', e.target.value)} />
+                  </div>
+                </div>
+                <Label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={form.longStayDiscountEnabled}
+                    onChange={e => setField('longStayDiscountEnabled', e.target.checked)}
+                  />
+                  Descuento por estadía larga
+                </Label>
+                {form.longStayDiscountEnabled && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="longStayMinDays">Mínimo de noches</Label>
+                      <TextInput
+                        id="longStayMinDays"
+                        type="number"
+                        value={form.longStayMinDays}
+                        onChange={e => setField('longStayMinDays', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="longStayDiscountPercentage">Descuento (%)</Label>
+                      <TextInput
+                        id="longStayDiscountPercentage"
+                        type="number"
+                        value={form.longStayDiscountPercentage}
+                        onChange={e => setField('longStayDiscountPercentage', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 <div>

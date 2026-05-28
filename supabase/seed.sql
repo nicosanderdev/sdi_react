@@ -5,7 +5,7 @@
 -- Contents:
 --   - Optional enum bootstrap (company_roles, plan_keys) when not already present
 --   - CREATE EXTENSION pgcrypto (for gen_random_uuid in Amenities seed)
---   - Reference data: Amenities, Plans (flexible-pricing upsert)
+--   - Reference data: Amenities, Plans (flexible-pricing upsert), AppParameters (dynamic pricing)
 --
 -- Object storage is outside Supabase (external provider, e.g. R2); this file does
 -- not insert into storage.buckets.
@@ -255,5 +255,87 @@ BEGIN
       "ListingLimit" = excluded."ListingLimit",
       "DurationDays" = excluded."DurationDays",
       "IsActiveV2" = excluded."IsActiveV2";
+  END IF;
+END $$;
+
+-- Dynamic pricing defaults (SummerRent / EventVenue). Requires 20260602120000_dynamic_pricing_schema.sql.
+DO $$
+BEGIN
+  IF to_regclass('public."AppParameters"') IS NOT NULL THEN
+    INSERT INTO public."AppParameters" ("Name", "ParameterType", "Value", "SiteScope", "Description")
+    VALUES
+      ('SEASON_FACTOR_LOW', 'number', '0.90'::jsonb, 'global', 'Low season multiplier'),
+      ('SEASON_FACTOR_MID', 'number', '1.00'::jsonb, 'global', 'Mid season multiplier'),
+      ('SEASON_FACTOR_HIGH', 'number', '1.20'::jsonb, 'global', 'High season multiplier'),
+      (
+        'SEASON_CALENDAR',
+        'json',
+        '[
+          {"from": "05-01", "to": "08-31", "tier": "high"},
+          {"from": "12-15", "to": "01-15", "tier": "high"},
+          {"from": "03-01", "to": "04-30", "tier": "mid"},
+          {"from": "09-01", "to": "11-30", "tier": "mid"}
+        ]'::jsonb,
+        'global',
+        'MM-DD ranges to low|mid|high tier (Southern hemisphere summer example)'
+      ),
+      (
+        'SPECIAL_DATES',
+        'json',
+        '[]'::jsonb,
+        'global',
+        'Array of {start, end, multiplier} holiday/special periods'
+      ),
+      (
+        'ANTICIPATION_MIN_DAYS',
+        'number',
+        '30'::jsonb,
+        'global',
+        'Days before check-in to apply anticipation discount'
+      ),
+      (
+        'ANTICIPATION_MULTIPLIER',
+        'number',
+        '0.95'::jsonb,
+        'global',
+        'Multiplier when anticipation threshold met'
+      ),
+      (
+        'PRICE_ROUNDING_MODE',
+        'string',
+        '"tens"'::jsonb,
+        'global',
+        'none | tens | ending_99'
+      ),
+      (
+        'PRICE_QUOTE_TOLERANCE',
+        'number',
+        '1'::jsonb,
+        'global',
+        'Max abs diff for client vs server total on hold'
+      ),
+      ('DEMAND_FACTOR_MIN', 'number', '1.00'::jsonb, 'global', 'Demand multiplier at score 0'),
+      ('DEMAND_FACTOR_MAX', 'number', '1.25'::jsonb, 'global', 'Demand multiplier at score 1'),
+      (
+        'DEMAND_LOOKBACK_DAYS',
+        'number',
+        '90'::jsonb,
+        'global',
+        'Lookback window for demand signals (phase 2 cron)'
+      ),
+      (
+        'DEMAND_WEIGHTS',
+        'json',
+        '{"bookings": 0.6, "holds": 0.3, "views": 0.1}'::jsonb,
+        'global',
+        'Signal weights for demand cron'
+      )
+    ON CONFLICT ("Name", "SiteScope") DO UPDATE SET
+      "ParameterType" = excluded."ParameterType",
+      "Value" = excluded."Value",
+      "Description" = excluded."Description",
+      "IsActive" = true,
+      "IsDeleted" = false,
+      "LastModified" = now();
   END IF;
 END $$;
