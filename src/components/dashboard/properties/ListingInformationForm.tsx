@@ -1,7 +1,10 @@
 import { useFormContext } from 'react-hook-form';
 import { Checkbox, Label, Select, TextInput } from 'flowbite-react';
 import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
-import { resolveCreationListingType } from '../../../models/properties/PropertyFormSchema';
+import {
+  resolveCreationListingType,
+  usesDynamicListingPricing,
+} from '../../../models/properties/PropertyFormSchema';
 import type { PropertyType } from '../../../models/properties/PropertyData';
 import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 
@@ -23,6 +26,8 @@ export function ListingInformationForm() {
     realEstateOfferMode,
   });
   const isSaleListing = effectiveListingType === 'RealEstate';
+  const isDynamicPricing = usesDynamicListingPricing(effectiveListingType);
+  const longStayEnabled = watch('longStayDiscountEnabled');
 
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-6">
@@ -97,6 +102,18 @@ export function ListingInformationForm() {
                 </p>
               )}
             </div>
+          ) : isDynamicPricing ? (
+            <div>
+              <div className="mb-2 block">
+                <Label htmlFor="basePrice">Precio base (por noche / evento)</Label>
+              </div>
+              <TextInput id="basePrice" type="number" min="0" step="0.01" {...register('basePrice')} />
+              {errors.basePrice && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.basePrice.message as string}
+                </p>
+              )}
+            </div>
           ) : (
             <div>
               <div className="mb-2 block">
@@ -112,6 +129,8 @@ export function ListingInformationForm() {
           )}
 
           {isSaleListing ? (
+            <div className="hidden md:block" aria-hidden />
+          ) : isDynamicPricing ? (
             <div className="hidden md:block" aria-hidden />
           ) : (
             <div>
@@ -133,6 +152,85 @@ export function ListingInformationForm() {
             </div>
           )}
         </div>
+
+        {isDynamicPricing && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="minPrice">Precio mínimo</Label>
+                </div>
+                <TextInput id="minPrice" type="number" min="0" step="0.01" {...register('minPrice')} />
+                {errors.minPrice && (
+                  <p className="text-red-500 text-sm mt-1">{errors.minPrice.message as string}</p>
+                )}
+              </div>
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="maxPrice">Precio máximo</Label>
+                </div>
+                <TextInput id="maxPrice" type="number" min="0" step="0.01" {...register('maxPrice')} />
+                {errors.maxPrice && (
+                  <p className="text-red-500 text-sm mt-1">{errors.maxPrice.message as string}</p>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              El precio publicado se calcula con temporada, fechas especiales y otros factores; estos
+              valores definen el rango permitido.
+            </p>
+            <div className="space-y-3 border border-gray-100 dark:border-gray-700 rounded-lg p-4">
+              <div className="flex items-center">
+                <Checkbox
+                  id="longStayDiscountEnabled"
+                  {...register('longStayDiscountEnabled', checkboxBool)}
+                />
+                <Label htmlFor="longStayDiscountEnabled" className="ml-2">
+                  Descuento por estadía larga
+                </Label>
+              </div>
+              {longStayEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="mb-2 block">
+                      <Label htmlFor="longStayMinDays">Mínimo de noches</Label>
+                    </div>
+                    <TextInput
+                      id="longStayMinDays"
+                      type="number"
+                      min="1"
+                      step="1"
+                      {...register('longStayMinDays')}
+                    />
+                    {errors.longStayMinDays && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.longStayMinDays.message as string}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <div className="mb-2 block">
+                      <Label htmlFor="longStayDiscountPercentage">Descuento (%)</Label>
+                    </div>
+                    <TextInput
+                      id="longStayDiscountPercentage"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      {...register('longStayDiscountPercentage')}
+                    />
+                    {errors.longStayDiscountPercentage && (
+                      <p className="text-red-500 text-sm mt-1">
+                        {errors.longStayDiscountPercentage.message as string}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-center min-h-[42px]">

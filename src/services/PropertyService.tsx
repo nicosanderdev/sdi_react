@@ -837,11 +837,28 @@ const createPropertyWithOwnerUserId = async (
         const isSaleListing = listingType === 'RealEstate';
         const salePriceValue =
             isSaleListing && formData.salePrice ? parseFloat(formData.salePrice) : null;
-        const rentPriceValue =
-            !isSaleListing && formData.rentPrice ? parseFloat(formData.rentPrice) : null;
-        const rentPricePeriod =
-            !isSaleListing &&
-            (formData.rentPricePeriod === 'PerMonth' || formData.rentPricePeriod === 'PerNight')
+        const isDynamicPricing =
+            listingType === 'SummerRent' || listingType === 'EventVenue';
+        const basePriceValue =
+            isDynamicPricing && formData.basePrice
+                ? parseFloat(formData.basePrice)
+                : null;
+        const minPriceValue =
+            isDynamicPricing && formData.minPrice ? parseFloat(formData.minPrice) : null;
+        const maxPriceValue =
+            isDynamicPricing && formData.maxPrice ? parseFloat(formData.maxPrice) : null;
+        const rentPriceValue = isSaleListing
+            ? null
+            : isDynamicPricing
+              ? basePriceValue
+              : formData.rentPrice
+                ? parseFloat(formData.rentPrice)
+                : null;
+        const rentPricePeriod = isSaleListing
+            ? null
+            : isDynamicPricing
+              ? 'PerNight'
+              : formData.rentPricePeriod === 'PerMonth' || formData.rentPricePeriod === 'PerNight'
                 ? formData.rentPricePeriod
                 : null;
 
@@ -872,6 +889,16 @@ const createPropertyWithOwnerUserId = async (
             p_is_property_visible: !!formData.isPropertyVisible,
             p_is_featured: true,
             p_blocked_for_booking: formData.blockedForBooking ?? false,
+            p_base_price: basePriceValue,
+            p_min_price: minPriceValue,
+            p_max_price: maxPriceValue,
+            p_long_stay_discount_enabled: formData.longStayDiscountEnabled ?? false,
+            p_long_stay_min_days: formData.longStayDiscountEnabled
+                ? formData.longStayMinDays ?? null
+                : null,
+            p_long_stay_discount_percentage: formData.longStayDiscountEnabled
+                ? formData.longStayDiscountPercentage ?? null
+                : null,
         });
 
         if (listingError) throw listingError;
@@ -1081,6 +1108,12 @@ interface FeaturedListingSnapshot {
     currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
     salePrice: string;
     rentPrice: string;
+    basePrice: string;
+    minPrice: string;
+    maxPrice: string;
+    longStayDiscountEnabled: boolean;
+    longStayMinDays: number | null;
+    longStayDiscountPercentage: number | null;
     rentPricePeriod: 'PerNight' | 'PerMonth' | null;
     isPriceVisible: boolean;
     isActive: boolean;
@@ -1108,7 +1141,9 @@ const statusMapReverse: Record<number, 'sale' | 'rent' | 'reserved' | 'sold' | '
 const getFeaturedListingForProperty = async (propertyId: string): Promise<FeaturedListingSnapshot | null> => {
     const { data, error } = await supabase
         .from('Listings')
-        .select('Id, ListingType, Title, Description, AvailableFrom, Currency, SalePrice, RentPrice, RentPricePeriod, IsPriceVisible, IsActive, IsPropertyVisible, BlockedForBooking, Status')
+        .select(
+            'Id, ListingType, Title, Description, AvailableFrom, Currency, SalePrice, RentPrice, RentPricePeriod, BasePrice, MinPrice, MaxPrice, LongStayDiscountEnabled, LongStayMinDays, LongStayDiscountPercentage, IsPriceVisible, IsActive, IsPropertyVisible, BlockedForBooking, Status'
+        )
         .eq('EstatePropertyId', propertyId)
         .eq('IsDeleted', false)
         .eq('IsFeatured', true)
@@ -1128,6 +1163,20 @@ const getFeaturedListingForProperty = async (propertyId: string): Promise<Featur
         currency: currencyMapReverse[data.Currency ?? 0] ?? 'USD',
         salePrice: data.SalePrice != null ? String(data.SalePrice) : '',
         rentPrice: data.RentPrice != null ? String(data.RentPrice) : '',
+        basePrice:
+            data.BasePrice != null
+                ? String(data.BasePrice)
+                : data.RentPrice != null
+                  ? String(data.RentPrice)
+                  : '',
+        minPrice: data.MinPrice != null ? String(data.MinPrice) : '',
+        maxPrice: data.MaxPrice != null ? String(data.MaxPrice) : '',
+        longStayDiscountEnabled: data.LongStayDiscountEnabled ?? false,
+        longStayMinDays: data.LongStayMinDays ?? null,
+        longStayDiscountPercentage:
+            data.LongStayDiscountPercentage != null
+                ? Number(data.LongStayDiscountPercentage)
+                : null,
         rentPricePeriod: data.RentPricePeriod ?? null,
         isPriceVisible: data.IsPriceVisible ?? true,
         isActive: data.IsActive ?? true,
@@ -1196,6 +1245,12 @@ interface CreateListingVersionPayload {
     salePrice: string | null;
     rentPrice: string | null;
     rentPricePeriod: 'PerNight' | 'PerMonth' | null;
+    basePrice?: string | null;
+    minPrice?: string | null;
+    maxPrice?: string | null;
+    longStayDiscountEnabled?: boolean;
+    longStayMinDays?: number | null;
+    longStayDiscountPercentage?: number | null;
     isPriceVisible: boolean;
     isActive: boolean;
     isPropertyVisible: boolean;
@@ -1203,6 +1258,10 @@ interface CreateListingVersionPayload {
 }
 
 const createListingVersion = async (propertyId: string, payload: CreateListingVersionPayload): Promise<void> => {
+    const isDynamic =
+        payload.listingType === 'SummerRent' || payload.listingType === 'EventVenue';
+    const baseNum =
+        isDynamic && payload.basePrice ? parseFloat(payload.basePrice) : null;
     const { error } = await supabase.rpc('create_listing_version', {
         p_estate_property_id: propertyId,
         p_listing_type: payload.listingType,
@@ -1211,12 +1270,26 @@ const createListingVersion = async (propertyId: string, payload: CreateListingVe
         p_available_from: payload.availableFrom,
         p_currency: currencyMap[payload.currency],
         p_sale_price: payload.salePrice ? parseFloat(payload.salePrice) : null,
-        p_rent_price: payload.rentPrice ? parseFloat(payload.rentPrice) : null,
-        p_rent_price_period: payload.rentPricePeriod,
+        p_rent_price: isDynamic
+            ? baseNum
+            : payload.rentPrice
+              ? parseFloat(payload.rentPrice)
+              : null,
+        p_rent_price_period: isDynamic ? 'PerNight' : payload.rentPricePeriod,
         p_is_price_visible: payload.isPriceVisible,
         p_is_active: payload.isActive,
         p_is_property_visible: payload.isPropertyVisible,
         p_blocked_for_booking: payload.blockedForBooking,
+        p_base_price: baseNum,
+        p_min_price: isDynamic && payload.minPrice ? parseFloat(payload.minPrice) : null,
+        p_max_price: isDynamic && payload.maxPrice ? parseFloat(payload.maxPrice) : null,
+        p_long_stay_discount_enabled: payload.longStayDiscountEnabled ?? false,
+        p_long_stay_min_days: payload.longStayDiscountEnabled
+            ? payload.longStayMinDays ?? null
+            : null,
+        p_long_stay_discount_percentage: payload.longStayDiscountEnabled
+            ? payload.longStayDiscountPercentage ?? null
+            : null,
     });
     if (error) throw error;
 };
