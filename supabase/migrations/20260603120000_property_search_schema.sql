@@ -248,10 +248,10 @@ begin
   v_exploration_max := public.search_param_num(v_params, 'SEARCH_EXPLORATION_BOOST_MAX', 15);
   v_since := now() - make_interval(days => v_lookback_days);
 
-  -- Images
+  -- Images (PropertyImages has no IsPublic on this schema; all active images count as public)
   select
     count(*)::int,
-    count(*) filter (where pi."IsPublic" = true)::int,
+    count(*)::int,
     bool_or(pi."IsMain" = true),
     count(distinct lower(trim(pi."Url")))
   into v_image_count, v_public_count, v_has_main, v_distinct_urls
@@ -817,8 +817,8 @@ begin
           'scores', s.scores,
           'offlineBaseScore', s.offline_base_score,
           'onlineBoosts', jsonb_build_object(
-            'availability_score', round(s.availability_score, 2),
-            'distance_score', round(s.distance_score, 2)
+            'availability_score', round(s.availability_score::numeric, 2),
+            'distance_score', round(s.distance_score::numeric, 2)
           )
         )
         order by s.offline_base_score desc, s.estate_property_id

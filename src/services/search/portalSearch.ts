@@ -48,6 +48,7 @@ export async function portalSearchProperties(
     p_amenity_ids: filters.amenityIds?.length ? filters.amenityIds : null,
     p_check_in: filters.checkIn ?? null,
     p_check_out: filters.checkOut ?? null,
+    p_availability_mode: filters.availabilityMode ?? 'stay',
     p_center_lat: filters.centerLat ?? null,
     p_center_lng: filters.centerLng ?? null,
     p_limit: filters.limit ?? null,

@@ -5,6 +5,7 @@
 **Migrations (apply manually, in order):**
 
 1. [`supabase/migrations/20260603120000_property_search_schema.sql`](../supabase/migrations/20260603120000_property_search_schema.sql)
+2. [`supabase/migrations/20260609120000_portal_search_availability_mode.sql`](../supabase/migrations/20260609120000_portal_search_availability_mode.sql)
 
 **Prerequisite:** `AppParameters` table and `get_app_parameters` (from dynamic pricing migration if not already applied).
 
@@ -102,7 +103,21 @@ Admin UI: `/dashboard/admin/config` in `sdi_react` (existing `AppParametersManag
 | `p_amenity_ids` | uuid[] | Must have all listed amenities |
 | `p_check_in`, `p_check_out` | date | Availability filter + boost |
 | `p_center_lat`, `p_center_lng` | numeric | Distance boost |
+| `p_availability_mode` | text | `stay` (default) or `any_day_in_range`; see below |
 | `p_limit` | int | Default `SEARCH_CANDIDATE_POOL_SIZE` |
+
+#### Availability modes (`p_availability_mode`)
+
+| Mode | Date window | Hard filter | `availability_score` |
+|------|-------------|-------------|------------------------|
+| `stay` (default) | Requires `check_in < check_out` | Exclude property if **any** booking, pending hold, or unavailable block overlaps the full window | 100 if dates apply and not `blocked_for_booking`, else 0 |
+| `any_day_in_range` | Inclusive `check_in` … `check_out` (same day allowed) | Include property if **at least one** day `D` in the window has no overlap on `[D, D+1)` | Fraction of free days in window × 100 |
+
+- **Summer Rent:** omit `p_availability_mode` or pass `stay`.
+- **EventVenue (flexible event date):** pass `any_day_in_range` with search dates; no SQL auto-default by listing type—client must set the param explicitly.
+- Per-day checks use the same half-open overlap rule as guest bookings (`CheckIn < end`, `CheckOut > start`).
+
+Manual verification after migration: [`supabase/snippets/portal_search_availability_mode_test.sql`](../supabase/snippets/portal_search_availability_mode_test.sql).
 
 **Response:**
 
@@ -159,6 +174,7 @@ const { items } = await portalSearchProperties({
   neLng: bounds.east,
   checkIn: '2026-07-01',
   checkOut: '2026-07-08',
+  availabilityMode: 'stay',
   centerLat: mapCenter.lat,
   centerLng: mapCenter.lng,
 });
@@ -225,7 +241,8 @@ Store in `sessionStorage` with TTL from `SEARCH_RANDOMNESS.seedTtlMinutes` so or
 
 - [ ] Cron completes; `PropertySearchScores` populated for SummerRent listings
 - [ ] `portal_search_properties` respects bbox, price, bedrooms, dates
-- [ ] Unavailable dates exclude properties with overlapping bookings/holds/blocks
+- [ ] Unavailable dates exclude properties with overlapping bookings/holds/blocks (`stay` mode)
+- [ ] `any_day_in_range`: property with booking on one day in a month still appears for that month; excluded for tight `stay` window around that day (see availability snippet)
 - [ ] New listings get higher `exploration_boost` (< `SEARCH_EXPLORATION_NEW_LISTING_DAYS`)
 - [ ] Same `sessionSeed` → stable order; new seed → order changes within diversity caps
 - [ ] No more than `maxPerOwner` properties from same owner in top results

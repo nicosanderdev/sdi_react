@@ -48,6 +48,9 @@ export interface PortalSearchResponse {
   total: number;
 }
 
+/** stay = entire window free; any_day_in_range = at least one single-day slot free in inclusive window */
+export type PortalAvailabilityMode = 'stay' | 'any_day_in_range';
+
 export interface PortalSearchFilters {
   listingType: GuestSiteListingType;
   siteScope?: GuestSiteListingType;
@@ -64,6 +67,8 @@ export interface PortalSearchFilters {
   amenityIds?: string[];
   checkIn?: string;
   checkOut?: string;
+  /** Defaults to stay (Summer Rent). EventVenue flexible date search should use any_day_in_range. */
+  availabilityMode?: PortalAvailabilityMode;
   centerLat?: number;
   centerLng?: number;
   limit?: number;
