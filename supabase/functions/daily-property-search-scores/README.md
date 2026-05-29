@@ -17,9 +17,26 @@ Apply migration manually:
 
 ## Schedule
 
-Supabase Dashboard → Edge Functions → Cron, e.g. `0 4 * * *` (04:00 UTC daily).
+Supabase Dashboard → Edge Functions → Cron, e.g. `0 4 * * *` (04:00 UTC daily). Scheduled invocations use the **service role** bearer (allowed by the handler).
 
-## Invoke manually
+## Auth
+
+| Caller | Authorization |
+|--------|----------------|
+| Supabase cron / curl | `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` |
+| Admin UI (`sdi_react`) | Logged-in admin JWT via `supabase.functions.invoke` (handler checks `Members.Role = admin`) |
+
+## Admin UI
+
+On **Gestión de propiedades** (`/dashboard/admin/properties`), admins can click **Ejecutar scoring** to run the full batch without curl. Requires:
+
+- This function deployed to the project matching `VITE_SUPABASE_URL`
+- Migration `20260603120000_property_search_schema.sql` applied
+- Local: `supabase start` (edge functions at `/functions/v1/...`)
+
+Implementation: `PropertyAdminService.runSearchScoringBatch()` → `daily-property-search-scores`.
+
+## Invoke manually (service role)
 
 ```bash
 curl -X POST "$SUPABASE_URL/functions/v1/daily-property-search-scores" \

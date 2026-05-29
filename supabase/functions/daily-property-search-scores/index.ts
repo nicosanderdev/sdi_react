@@ -1,10 +1,16 @@
 /**
  * Daily batch: precompute portal search scores (PropertySearchScores).
- * Invoke via POST (Supabase Scheduled Functions or external cron).
+ * Invoke via POST (Supabase Scheduled Functions, service role, or admin JWT).
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import {
+  authenticateUser,
+  createForbiddenResponse,
+  createUnauthorizedResponse,
+  isAdmin,
+} from '../_shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -17,6 +23,14 @@ type BatchRow = {
   listing_type: string;
 };
 
+function isServiceRoleAuthorized(req: Request): boolean {
+  const auth = req.headers.get('Authorization');
+  if (!auth?.startsWith('Bearer ')) return false;
+  const token = auth.substring(7);
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')?.trim();
+  return !!serviceKey && token === serviceKey;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -27,6 +41,16 @@ Deno.serve(async (req) => {
       status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  }
+
+  if (!isServiceRoleAuthorized(req)) {
+    const authResult = await authenticateUser(req);
+    if (authResult.error || !authResult.user) {
+      return createUnauthorizedResponse(authResult.error ?? 'Authentication failed');
+    }
+    if (!isAdmin(authResult.user)) {
+      return createForbiddenResponse('Admin only');
+    }
   }
 
   const startTime = Date.now();
