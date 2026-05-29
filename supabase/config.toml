@@ -391,6 +391,10 @@ verify_jwt = false
 [functions.flexible-invoice-overdue-unpublish]
 verify_jwt = false
 
+# Daily portal search score precompute; service role in handler.
+[functions.daily-property-search-scores]
+verify_jwt = false
+
 # Flexible invoice notification; auth in handler (admin JWT or x-cron-secret).
 [functions.send-flexible-invoice-email]
 verify_jwt = false
