@@ -65,6 +65,17 @@ export interface ActionResult {
   message: string;
 }
 
+export interface SearchScoringBatchResult {
+  success: boolean;
+  processed: number;
+  succeeded: number;
+  skipped: number;
+  errorCount: number;
+  errors: string[];
+  durationMs: number;
+  error?: string;
+}
+
 class PropertyAdminService {
   /**
    * Fetch paginated list of properties with filters for admin
@@ -196,6 +207,43 @@ class PropertyAdminService {
     }
 
     return data as ActionResult;
+  }
+
+  /**
+   * Run portal search score batch (PropertySearchScores) via edge function.
+   */
+  async runSearchScoringBatch(options?: {
+    batchSize?: number;
+    maxBatches?: number;
+  }): Promise<SearchScoringBatchResult> {
+    const { data, error } = await supabase.functions.invoke('daily-property-search-scores', {
+      body: options ?? {},
+    });
+
+    if (error) {
+      throw new Error(
+        error.message ||
+          'No se pudo ejecutar el scoring. Compruebe que la función edge está desplegada.',
+      );
+    }
+
+    const body = data as SearchScoringBatchResult | { error?: string } | null;
+    if (!body || typeof body !== 'object') {
+      throw new Error('Respuesta inválida del servidor de scoring.');
+    }
+
+    if ('success' in body && body.success === false) {
+      throw new Error(
+        (body as SearchScoringBatchResult).error ||
+          'El proceso de scoring finalizó con error.',
+      );
+    }
+
+    if ('error' in body && body.error && !('success' in body)) {
+      throw new Error(body.error);
+    }
+
+    return body as SearchScoringBatchResult;
   }
 
   /**

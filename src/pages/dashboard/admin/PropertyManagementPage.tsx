@@ -1,7 +1,9 @@
 // src/pages/dashboard/admin/PropertyManagementPage.tsx
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card } from 'flowbite-react';
-import { PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { Alert, Button, Card } from 'flowbite-react';
+import { BarChart3Icon, Loader2Icon, PlusIcon, RefreshCwIcon } from 'lucide-react';
+import propertyAdminService, { SearchScoringBatchResult } from '../../../services/PropertyAdminService';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminProperties } from '../../../hooks/useAdminProperties';
 import { PropertyFilters } from '../../../components/admin/properties/PropertyFilters';
@@ -27,8 +29,33 @@ const PropertyManagementPage = () => {
     setEditingListingPropertyId,
   } = hook;
 
+  const [scoringRunning, setScoringRunning] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
+  const [scoringResult, setScoringResult] = useState<SearchScoringBatchResult | null>(null);
+
   const handleRefresh = () => {
     fetchProperties();
+  };
+
+  const handleRunScoring = async () => {
+    const confirmed = window.confirm(
+      '¿Recalcular las puntuaciones de búsqueda para todos los anuncios SummerRent y EventVenue visibles? ' +
+        'El proceso puede tardar varios minutos.',
+    );
+    if (!confirmed) return;
+
+    setScoringRunning(true);
+    setScoringError(null);
+    setScoringResult(null);
+
+    try {
+      const result = await propertyAdminService.runSearchScoringBatch();
+      setScoringResult(result);
+    } catch (e) {
+      setScoringError(e instanceof Error ? e.message : 'Error al ejecutar el scoring.');
+    } finally {
+      setScoringRunning(false);
+    }
   };
 
   return (
@@ -40,17 +67,64 @@ const PropertyManagementPage = () => {
           subtitle="Supervisa y modera todos los anuncios de propiedades en la plataforma"
         />
 
-        <Button
-          color="light"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={loading}
-          className="flex items-center space-x-2"
-        >
-          <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Actualizar</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            color="light"
+            size="sm"
+            onClick={() => void handleRunScoring()}
+            disabled={loading || scoringRunning}
+            className="flex items-center space-x-2"
+          >
+            {scoringRunning ? (
+              <Loader2Icon className="w-4 h-4 animate-spin" />
+            ) : (
+              <BarChart3Icon className="w-4 h-4" />
+            )}
+            <span>Ejecutar scoring</span>
+          </Button>
+          <Button
+            color="light"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading || scoringRunning}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </Button>
+        </div>
       </div>
+
+      {scoringError && (
+        <Alert color="failure" onDismiss={() => setScoringError(null)}>
+          <span className="font-medium">Scoring: </span>
+          {scoringError}
+        </Alert>
+      )}
+
+      {scoringResult && (
+        <Alert
+          color={scoringResult.errorCount > 0 ? 'warning' : 'success'}
+          onDismiss={() => setScoringResult(null)}
+        >
+          <p className="font-medium">Scoring completado</p>
+          <p className="text-sm mt-1">
+            Procesados: {scoringResult.processed} · Correctos: {scoringResult.succeeded} · Omitidos:{' '}
+            {scoringResult.skipped} · Errores: {scoringResult.errorCount} · Duración:{' '}
+            {(scoringResult.durationMs / 1000).toFixed(1)} s
+          </p>
+          {scoringResult.errors.length > 0 && (
+            <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+              {scoringResult.errors.slice(0, 5).map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+              {scoringResult.errorCount > 5 && (
+                <li>… y {scoringResult.errorCount - 5} más</li>
+              )}
+            </ul>
+          )}
+        </Alert>
+      )}
 
       {/* Error Display */}
       {error && (
