@@ -2,11 +2,46 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { authenticateUser, hasPropertyAccess, createUnauthorizedResponse, createForbiddenResponse } from '../_shared/auth.ts'
 import { validateRequest, type CalendarSyncRequest } from '../_shared/schemas.ts'
 import { CalendarIntegrationsDB, RateLimiter } from '../_shared/db.ts'
+import { handleSyncOrchestratorRequest } from './sync-orchestrator/index.ts'
+import { handleGoogleOAuthRequest } from './google-oauth/index.ts'
+import { handleGoogleSyncRequest } from './google-sync/index.ts'
+import { handleICalSyncRequest } from './ical-sync/index.ts'
+import { handleWebhookRequest } from './webhook/index.ts'
+
+function getCalendarSyncSubRoute(pathname: string): string | null {
+  const match = pathname.match(/\/calendar-sync\/([^/]+)/)
+  return match?.[1] ?? null
+}
+
+async function dispatchSubRoute(req: Request, subRoute: string): Promise<Response> {
+  switch (subRoute) {
+    case 'sync-orchestrator':
+      return handleSyncOrchestratorRequest(req)
+    case 'google-oauth':
+      return handleGoogleOAuthRequest(req)
+    case 'google-sync':
+      return handleGoogleSyncRequest(req)
+    case 'ical-sync':
+      return handleICalSyncRequest(req)
+    case 'webhook':
+      return handleWebhookRequest(req)
+    default:
+      return new Response(JSON.stringify({ error: 'Unknown calendar-sync endpoint' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+  }
+}
 
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  const subRoute = getCalendarSyncSubRoute(new URL(req.url).pathname)
+  if (subRoute) {
+    return dispatchSubRoute(req, subRoute)
   }
 
   try {

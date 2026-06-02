@@ -399,6 +399,12 @@ verify_jwt = false
 [functions.send-flexible-invoice-email]
 verify_jwt = false
 
+# Parent calendar-sync only (nested routes calendar-sync/<name> cannot use slashes in config.toml).
+# For nested calendar-sync/* locally, run: npx supabase functions serve --no-verify-jwt ...
+# Auth is enforced in each handler via _shared/auth.ts.
+[functions.calendar-sync]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
