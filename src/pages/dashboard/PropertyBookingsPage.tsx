@@ -475,7 +475,7 @@ const PropertyBookingsPage: React.FC = () => {
             Cancelar
           </Button>
           <Button
-            color="primary"
+            color="green"
             onClick={handleSaveChanges}
             disabled={state.isLoading}
           >

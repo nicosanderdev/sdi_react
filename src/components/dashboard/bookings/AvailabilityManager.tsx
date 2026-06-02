@@ -1,15 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { format, parseISO } from 'date-fns';
 import {
   Plus,
   Trash2,
   Edit3,
-  CheckCircle
+  CheckCircle,
+  Upload,
+  Download,
+  AlertCircle,
+  X
 } from 'lucide-react';
-import { Button, Card, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
+import { Alert, Button, Card, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
 import { AvailabilityBlock, BlockType, SourceType } from '../../../models/calendar/CalendarSync';
 import type { SdiApiResponse } from '../../../models/SdiApiResponse';
 import { CalendarSyncService } from '../../../services/CalendarSyncService';
+import {
+  downloadAvailabilityBlocksTemplate,
+  parseAvailabilityBlocksWorkbook,
+  type ParsedBlockRow,
+  type RowValidationError
+} from '../../../utils/availabilityBlocksExcel';
 
 const TIPO_BLOQUEO_ES: Record<BlockType, string> = {
   [BlockType.Availability]: 'Disponibilidad',
@@ -62,6 +72,38 @@ interface BlockFormData {
   description?: string;
 }
 
+type ImportSummary = {
+  kind: 'success' | 'warning' | 'error';
+  title: string;
+  createdCount: number;
+  validationErrors: RowValidationError[];
+  apiErrors: RowValidationError[];
+};
+
+function buildBlockPayload(
+  propertyId: string,
+  data: {
+    startDate: string;
+    endDate: string;
+    blockType: BlockType;
+    title?: string;
+    description?: string;
+  }
+): Omit<AvailabilityBlock, 'Id' | 'Created' | 'LastModified' | 'LastModifiedBy' | 'IsDeleted' | 'CreatedBy'> {
+  return {
+    EstatePropertyId: propertyId,
+    IsAvailable: false,
+    StartDate: data.startDate,
+    EndDate: data.endDate,
+    BlockType: data.blockType,
+    Source: SourceType.Internal,
+    Title: data.title,
+    Description: data.description,
+    IsReadOnly: false,
+    ConflictFlagged: false
+  };
+}
+
 const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   propertyId,
   availabilityBlocks,
@@ -79,24 +121,15 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     description: ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Save availability block
   const handleSaveBlock = async () => {
     setIsSaving(true);
 
     try {
-      const blockData = {
-        EstatePropertyId: propertyId,
-        IsAvailable: false,
-        StartDate: blockFormData.startDate,
-        EndDate: blockFormData.endDate,
-        BlockType: blockFormData.blockType,
-        Source: SourceType.Internal,
-        Title: blockFormData.title,
-        Description: blockFormData.description,
-        IsReadOnly: false,
-        ConflictFlagged: false
-      };
+      const blockData = buildBlockPayload(propertyId, blockFormData);
 
       let result: SdiApiResponse<AvailabilityBlock> | undefined;
       if (editingBlock) {
@@ -119,9 +152,9 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
         setShowBlockModal(false);
         setEditingBlock(null);
       } else {
-        console.error('Failed to save block:', result.errorMessage);
+        console.error('Failed to save block:', result?.errorMessage);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving block:', error);
     } finally {
       setIsSaving(false);
@@ -141,8 +174,96 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
       } else {
         console.error('Failed to delete block:', result.errorMessage);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting block:', error);
+    }
+  };
+
+  const handleBulkCreateBlocks = async (rows: ParsedBlockRow[]) => {
+    const created: AvailabilityBlock[] = [];
+    const apiErrors: RowValidationError[] = [];
+
+    for (const row of rows) {
+      const blockData = buildBlockPayload(propertyId, row);
+      const result = await CalendarSyncService.createAvailabilityBlock(blockData);
+      if (result.succeeded && result.data) {
+        created.push(result.data);
+      } else {
+        apiErrors.push({
+          rowNumber: row.rowNumber,
+          message: result.errorMessage || 'Error al guardar el bloqueo.'
+        });
+      }
+    }
+
+    if (created.length > 0) {
+      onAvailabilityChange([...availabilityBlocks, ...created]);
+    }
+
+    return { createdCount: created.length, apiErrors };
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const isXlsx =
+      file.name.toLowerCase().endsWith('.xlsx') ||
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    if (!isXlsx) {
+      setImportSummary({
+        kind: 'error',
+        title: 'Formato no válido',
+        createdCount: 0,
+        validationErrors: [{ rowNumber: 0, message: 'Solo se admiten archivos .xlsx.' }],
+        apiErrors: []
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    setImportSummary(null);
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const { validRows, errors: validationErrors } = parseAvailabilityBlocksWorkbook(buffer);
+
+      if (validRows.length === 0) {
+        setImportSummary({
+          kind: 'error',
+          title: 'No se importó ningún bloqueo',
+          createdCount: 0,
+          validationErrors,
+          apiErrors: []
+        });
+        return;
+      }
+
+      const { createdCount, apiErrors } = await handleBulkCreateBlocks(validRows);
+      const hasWarnings = validationErrors.length > 0 || apiErrors.length > 0;
+
+      setImportSummary({
+        kind: hasWarnings ? 'warning' : 'success',
+        title: hasWarnings
+          ? 'Importación completada con advertencias'
+          : 'Importación completada',
+        createdCount,
+        validationErrors,
+        apiErrors
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error al procesar el archivo.';
+      setImportSummary({
+        kind: 'error',
+        title: 'Error al importar',
+        createdCount: 0,
+        validationErrors: [{ rowNumber: 0, message }],
+        apiErrors: []
+      });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -169,34 +290,120 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
     });
   }, [availabilityBlocks]);
 
-  const handleFormChange = (field: keyof BlockFormData, value: any) => {
+  const handleFormChange = (field: keyof BlockFormData, value: string | BlockType) => {
     setBlockFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const allImportErrors = [
+    ...(importSummary?.validationErrors ?? []),
+    ...(importSummary?.apiErrors ?? [])
+  ];
+
   return (
     <div className="space-y-4">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {importSummary && (
+        <Alert
+          color={
+            importSummary.kind === 'success'
+              ? 'success'
+              : importSummary.kind === 'warning'
+                ? 'warning'
+                : 'failure'
+          }
+          onDismiss={() => setImportSummary(null)}
+        >
+          <div className="flex items-start gap-2">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium">{importSummary.title}</p>
+              {importSummary.createdCount > 0 && (
+                <p className="text-sm mt-1">
+                  Se crearon {importSummary.createdCount} bloqueo(s) correctamente.
+                </p>
+              )}
+              {allImportErrors.length > 0 && (
+                <ul className="text-sm mt-2 list-disc list-inside space-y-0.5 max-h-32 overflow-y-auto">
+                  {allImportErrors.map((err) => (
+                    <li key={`${err.rowNumber}-${err.message}`}>
+                      {err.rowNumber > 0 ? `Fila ${err.rowNumber}: ` : ''}
+                      {err.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              onClick={() => setImportSummary(null)}
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </Alert>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-gray-600 dark:text-gray-400">
           {uniqueBlocks.length === 0 ? 'No hay bloqueos creados' : `${uniqueBlocks.length} bloqueo(s)`}
         </p>
-        <Button
-          size="sm"
-          color="alternative"
-          onClick={() => {
-            setBlockFormData({
-              startDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
-              endDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
-              blockType: BlockType.OwnerBlock,
-              title: '',
-              description: ''
-            });
-            setEditingBlock(null);
-            setShowBlockModal(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Bloqueo
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            color="alternative"
+            onClick={() => downloadAvailabilityBlocksTemplate()}
+            disabled={isImporting}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Descargar plantilla
+          </Button>
+          <Button
+            size="sm"
+            color="alternative"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            {isImporting ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-b-transparent dark:border-gray-300" />
+                Importando...
+              </>
+            ) : (
+              <>
+                <Upload className="h-4 w-4 mr-2" />
+                Subir archivo bloqueos
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            color="alternative"
+            onClick={() => {
+              setBlockFormData({
+                startDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
+                endDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
+                blockType: BlockType.OwnerBlock,
+                title: '',
+                description: ''
+              });
+              setEditingBlock(null);
+              setShowBlockModal(true);
+            }}
+            disabled={isImporting}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Bloqueo
+          </Button>
+        </div>
       </div>
 
       {uniqueBlocks.length > 0 && (
@@ -228,9 +435,11 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                     color="alternative"
                     onClick={() => {
                       setEditingBlock(block);
+                      const startDateOnly = block.StartDate.split('T')[0];
+                      const endDateOnly = block.EndDate.split('T')[0];
                       setBlockFormData({
-                        startDate: block.StartDate,
-                        endDate: block.EndDate,
+                        startDate: startDateOnly,
+                        endDate: endDateOnly,
                         blockType: block.BlockType,
                         title: block.Title || '',
                         description: block.Description || ''
