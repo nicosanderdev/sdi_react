@@ -11,6 +11,16 @@ import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateP
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
 import { buildAmenityLinksForRpc } from '../models/properties/amenityDescriptions';
+import { buildPoliciesForRpc } from '../models/properties/propertyPolicies';
+import { buildContentSectionsForRpc } from '../models/properties/propertyContentSections';
+import {
+    contentSectionsFromDb,
+    type PropertyContentSectionFromDb,
+} from '../models/properties/propertyContentSections';
+import {
+    propertyPoliciesFromDb,
+    type PropertyPolicyFromDb,
+} from '../models/properties/propertyPolicies';
 import { assertListingPublishAllowed, tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
 
@@ -42,92 +52,58 @@ const propertyTypeMap: { [key: string]: number } = {
     farmland: 4, // Campo
 };
 
-type PropertySectionLayoutType = 'split' | 'carousel' | 'stacked';
-type PropertySectionType = 'SummerRent' | 'EventVenue' | 'RealEstate';
-type PropertySectionDisplayVariant = 'default' | 'compact' | 'hero';
-
-interface PropertyContentSectionPayload {
-    name: string;
-    description?: string;
-    propertyType: PropertySectionType;
-    layoutType: PropertySectionLayoutType;
-    displayVariant?: PropertySectionDisplayVariant;
-    imageKeys?: string[];
-}
-
-const isMissingPropertySectionRpcError = (error: any): boolean => {
-    if (!error) return false;
-    const code = String(error.code ?? '');
-    const message = String(error.message ?? '');
+const isMissingPropertyEditorContentRpcError = (error: unknown): boolean => {
+    if (!error || typeof error !== 'object') return false;
+    const code = String((error as { code?: string }).code ?? '');
+    const message = String((error as { message?: string }).message ?? '');
     if (code !== 'PGRST202') return false;
     return (
-        message.includes('insert_property_details_section') ||
-        message.includes('insert_property_section_image')
+        message.includes('replace_estate_property_content_sections') ||
+        message.includes('replace_estate_property_policies') ||
+        message.includes('get_estate_property_editor_content')
     );
 };
 
-const persistPropertyContentSections = async (
+const persistPropertyEditorContent = async (
     estatePropertyId: string,
-    sections: PropertyContentSectionPayload[] | undefined,
+    formData: PropertyFormData,
     imageIdByKey: Record<string, string>
 ) => {
-    if (!sections || sections.length === 0) return;
+    const sectionsPayload = buildContentSectionsForRpc(formData.contentSections, imageIdByKey);
+    const policiesPayload = buildPoliciesForRpc(formData.propertyPolicies);
 
-    for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex += 1) {
-        const section = sections[sectionIndex];
-        const displayOrder = sectionIndex;
+    const { error: sectionsError } = await supabase.rpc('replace_estate_property_content_sections', {
+        p_property_id: estatePropertyId,
+        p_sections: sectionsPayload,
+    });
+    if (sectionsError) throw sectionsError;
 
-        const { data: sectionId, error: sectionError } = await supabase.rpc('insert_property_details_section', {
-            p_property_id: estatePropertyId,
-            p_name: section.name,
-            p_description: section.description || null,
-            p_property_type: section.propertyType,
-            p_layout_type: section.layoutType,
-            p_layout_config: { displayVariant: section.displayVariant ?? 'default' },
-            p_display_order: displayOrder,
-        });
+    const { error: policiesError } = await supabase.rpc('replace_estate_property_policies', {
+        p_property_id: estatePropertyId,
+        p_policies: policiesPayload,
+    });
+    if (policiesError) throw policiesError;
+};
 
-        if (sectionError) {
-            console.error('[PropertyService] Failed to persist content section', {
-                estatePropertyId,
-                sectionIndex,
-                sectionName: section.name,
-                code: sectionError.code,
-                message: sectionError.message,
-                details: sectionError.details,
-            });
-            throw sectionError;
+const loadPropertyEditorContent = async (estatePropertyId: string) => {
+    const { data, error } = await supabase.rpc('get_estate_property_editor_content', {
+        p_property_id: estatePropertyId,
+    });
+    if (error) {
+        if (isMissingPropertyEditorContentRpcError(error)) {
+            return { contentSections: [], propertyPolicies: [] };
         }
-        if (!sectionId) {
-            throw new Error(`Failed to create property content section "${section.name}".`);
-        }
-
-        const uniqueImageKeys = Array.from(new Set(section.imageKeys ?? []));
-        for (let imageOrder = 0; imageOrder < uniqueImageKeys.length; imageOrder += 1) {
-            const imageKey = uniqueImageKeys[imageOrder];
-            const propertyImageId = imageIdByKey[imageKey];
-            if (!propertyImageId) continue;
-
-            const { error: sectionImageError } = await supabase.rpc('insert_property_section_image', {
-                p_section_id: sectionId,
-                p_property_image_id: propertyImageId,
-                p_display_order: imageOrder,
-            });
-            if (sectionImageError) {
-                console.error('[PropertyService] Failed to persist content section image', {
-                    estatePropertyId,
-                    sectionIndex,
-                    sectionId,
-                    imageOrder,
-                    propertyImageId,
-                    code: sectionImageError.code,
-                    message: sectionImageError.message,
-                    details: sectionImageError.details,
-                });
-                throw sectionImageError;
-            }
-        }
+        throw error;
     }
+    const raw = (data ?? {}) as {
+        contentSections?: PropertyContentSectionFromDb[];
+        policies?: PropertyPolicyFromDb[];
+    };
+    const imageKeyById: Record<string, string> = {};
+    return {
+        contentSections: contentSectionsFromDb(raw.contentSections ?? [], imageKeyById),
+        propertyPolicies: propertyPoliciesFromDb(raw.policies ?? []),
+    };
 };
 
 
@@ -389,7 +365,9 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
                 throw error;
             }
 
-            return mapDbToPropertyData(data);
+            const property = mapDbToPropertyData(data);
+            const editor = await loadPropertyEditorContent(id);
+            return { ...property, ...editor } as PropertyData;
         }
 
         // Get all company IDs for this member
@@ -467,7 +445,9 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
             throw error;
         }
 
-        return mapDbToPropertyData(data);
+        const property = mapDbToPropertyData(data);
+        const editor = await loadPropertyEditorContent(id);
+        return { ...property, ...editor } as PropertyData;
     } catch (error: any) {
         console.error(`Error fetching property ${id}:`, error.message);
         throw error;
@@ -932,11 +912,16 @@ const createPropertyWithOwnerUserId = async (
             return acc;
         }, {});
 
-        await persistPropertyContentSections(
-            estatePropertyId,
-            (formData as any).contentSections as PropertyContentSectionPayload[] | undefined,
-            imageIdBySourceKey
-        );
+        try {
+            await persistPropertyEditorContent(estatePropertyId, formData, imageIdBySourceKey);
+        } catch (editorError: unknown) {
+            if (isMissingPropertyEditorContentRpcError(editorError)) {
+                throw new Error(
+                    'La propiedad no pudo terminar de guardarse porque faltan RPCs de políticas/secciones (replace_estate_property_*). Aplica las migraciones 20260611120000 y 20260611120100.'
+                );
+            }
+            throw editorError;
+        }
 
         const docsToInsert = allDocuments.filter(d => !!d.url);
         const insertedDocumentIds: string[] = [];
@@ -1074,9 +1059,9 @@ const createPropertyWithOwnerUserId = async (
             throw new Error(error.message);
         }
 
-        if (isMissingPropertySectionRpcError(error)) {
+        if (isMissingPropertyEditorContentRpcError(error)) {
             throw new Error(
-                'La propiedad no pudo terminar de guardarse porque faltan RPCs de secciones (insert_property_details_section / insert_property_section_image). Aplica la migracion correspondiente y vuelve a intentar.'
+                'La propiedad no pudo terminar de guardarse porque faltan RPCs de políticas/secciones. Aplica las migraciones 20260611120000 y 20260611120100.'
             );
         }
 
@@ -1409,6 +1394,17 @@ const updateProperty = async (
                 isPublic: true
             }));
 
+        const imageIdByKey: Record<string, string> = {};
+        for (const img of allImages) {
+            if (img.sourceKey && img.id) imageIdByKey[img.sourceKey] = img.id;
+        }
+        for (const disp of displayImages) {
+            if (disp.key && disp.id) imageIdByKey[disp.key] = disp.id;
+        }
+
+        const sectionsPayload = buildContentSectionsForRpc(formData.contentSections, imageIdByKey);
+        const policiesPayload = buildPoliciesForRpc(formData.propertyPolicies);
+
         // Call update RPC function
         const { data, error } = await supabase.rpc('update_estate_property', {
             p_property_id: id,
@@ -1447,6 +1443,8 @@ const updateProperty = async (
             p_property_videos: videos,
             p_amenity_ids: formData.amenities || [],
             p_amenity_links: buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions),
+            p_policies: policiesPayload,
+            p_content_sections: sectionsPayload,
             p_user_id: userId
         });
 

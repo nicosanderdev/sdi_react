@@ -1,14 +1,15 @@
 import type { AmenityLanguage } from './Amenity';
+import {
+  LOCALIZED_LANGUAGES,
+  LOCALIZED_LANGUAGE_LABELS,
+  pruneLocalizedText,
+  pickLocalizedText,
+} from './localizedText';
 
 export type { AmenityLanguage };
 
-export const AMENITY_LANGUAGES: AmenityLanguage[] = ['es', 'en', 'pt'];
-
-export const AMENITY_LANGUAGE_LABELS: Record<AmenityLanguage, string> = {
-  es: 'Español',
-  en: 'English',
-  pt: 'Português',
-};
+export const AMENITY_LANGUAGES = LOCALIZED_LANGUAGES as AmenityLanguage[];
+export const AMENITY_LANGUAGE_LABELS = LOCALIZED_LANGUAGE_LABELS as Record<AmenityLanguage, string>;
 
 export type AmenityDescriptionsByLanguage = Partial<Record<AmenityLanguage, string>>;
 
@@ -23,13 +24,7 @@ export interface AmenityLinkForRpc {
 function pruneDescriptions(
   descriptions?: AmenityDescriptionsByLanguage
 ): AmenityDescriptionsByLanguage {
-  if (!descriptions) return {};
-  const out: AmenityDescriptionsByLanguage = {};
-  for (const lang of AMENITY_LANGUAGES) {
-    const v = descriptions[lang]?.trim();
-    if (v) out[lang] = v;
-  }
-  return out;
+  return pruneLocalizedText(descriptions) as AmenityDescriptionsByLanguage;
 }
 
 /** Build RPC payload for create_estate_property / update_estate_property */
@@ -62,16 +57,5 @@ export function pickAmenityDescription(
   descriptions: AmenityDescriptionsByLanguage | undefined,
   preferredLocale?: string
 ): string | undefined {
-  if (!descriptions) return undefined;
-  const pref = preferredLocale?.toLowerCase().slice(0, 2) as AmenityLanguage | undefined;
-  const order: AmenityLanguage[] = [];
-  if (pref && AMENITY_LANGUAGES.includes(pref)) order.push(pref);
-  for (const lang of ['es', 'en', 'pt'] as AmenityLanguage[]) {
-    if (!order.includes(lang)) order.push(lang);
-  }
-  for (const lang of order) {
-    const v = descriptions[lang]?.trim();
-    if (v) return v;
-  }
-  return undefined;
+  return pickLocalizedText(descriptions, preferredLocale);
 }

@@ -10,4 +10,7 @@ export * from './PropertyVideo';
 export * from './PublicProperty';
 export * from './Amenity';
 export * from './amenityDescriptions';
+export * from './localizedText';
+export * from './propertyPolicies';
+export * from './propertyContentSections';
 export * from './EstatePropertyValues';

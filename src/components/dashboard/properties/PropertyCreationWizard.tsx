@@ -84,6 +84,7 @@ export function PropertyCreationWizard({
       // Ensure location is always defined when the wizard is used directly
       location: { lat: -34.9011, lng: -56.1645 },
       contentSections: [],
+      propertyPolicies: [],
       rentPricePeriod: 'PerNight',
       realEstateOfferMode: 'sale',
       isActive: true,

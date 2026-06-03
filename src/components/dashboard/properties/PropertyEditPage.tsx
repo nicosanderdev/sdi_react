@@ -35,6 +35,7 @@ export function PropertyEditPage() {
     defaultValues: {
       location: { lat: -34.9011, lng: -56.1645 },
       contentSections: [],
+      propertyPolicies: [],
       hasGarage: false,
       isActive: true,
       blockedForBooking: false,
@@ -85,6 +86,7 @@ export function PropertyEditPage() {
       amenities: ((property as any).amenities || []).map((a: any) => a.id),
       amenityDescriptions: amenityDescriptionsFromAmenities((property as any).amenities || []),
       contentSections: ((property as any).contentSections ?? []),
+      propertyPolicies: ((property as any).propertyPolicies ?? []),
       additionalExtensionType: undefined,
       allowsFinancing: (property as any).allowsFinancing ?? false,
       isNewConstruction: (property as any).isNewConstruction ?? false,
@@ -223,6 +225,7 @@ export function PropertyEditPage() {
             <PropertyFormStep4Sections
               onBack={() => setCurrentStep(3)}
               displayImages={displayImages}
+              allowedListingTypes={activeListingTypesForEdit}
               hideNextButton
               footerExtra={
                 <>
