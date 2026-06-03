@@ -14,6 +14,7 @@ import { Amenity } from '../../../models/properties/Amenity';
 import { RealEstateExtensionForm } from './RealEstateExtensionForm';
 import { SummerRentExtensionForm } from './SummerRentExtensionForm';
 import { EventVenueExtensionForm } from './EventVenueExtensionForm';
+import { AmenityDescriptionsSection } from './AmenityDescriptionsSection';
 
 const ALL_EXTENSION_KINDS: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
 
@@ -41,6 +42,7 @@ export function PropertyFormStep2({
 }: PropertyFormStep2Props) {
   const { register, formState: { errors }, watch, trigger, setValue } = useFormContext<PropertyFormData>();
   const selectedAmenities = watch('amenities') || [];
+  const amenityDescriptions = watch('amenityDescriptions');
   const propertyType = watch('propertyType');
   const additionalExtensionType = watch('additionalExtensionType');
 
@@ -69,6 +71,15 @@ export function PropertyFormStep2({
   });
 
   const isLoadingAmenities = amenitiesQueries.some(q => q.isFetching || q.isPending);
+
+  const amenityNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    amenitiesQueries.forEach(q => {
+      const list = q.data as Amenity[] | undefined;
+      list?.forEach(a => map.set(a.id, a.name));
+    });
+    return map;
+  }, [amenitiesQueries]);
 
   const extensionKindsOrdered = useMemo(
     () => distinctAmenityPropertyTypesForListings(listingTypesForAmenities),
@@ -102,6 +113,15 @@ export function PropertyFormStep2({
       setValue('amenities', Array.from(new Set([...selectedAmenities, amenityId])));
     } else {
       setValue('amenities', selectedAmenities.filter(id => id !== amenityId));
+      if (amenityDescriptions?.[amenityId]) {
+        const next = { ...amenityDescriptions };
+        delete next[amenityId];
+        setValue(
+          'amenityDescriptions',
+          Object.keys(next).length > 0 ? next : undefined,
+          { shouldDirty: true }
+        );
+      }
     }
   };
 
@@ -268,6 +288,11 @@ export function PropertyFormStep2({
             </div>
           )}
         </div>
+
+        <AmenityDescriptionsSection
+          selectedAmenityIds={selectedAmenities}
+          amenityNameById={amenityNameById}
+        />
 
         {!editMode && propertyType === 'RealEstate' && <RealEstateExtensionForm />}
         {!editMode && propertyType === 'SummerRent' && <SummerRentExtensionForm />}

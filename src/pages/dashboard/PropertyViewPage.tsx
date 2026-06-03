@@ -34,6 +34,7 @@ import { PropertyImage } from '../../models/properties/PropertyImage';
 import { PropertyVideo } from '../../models/properties/PropertyVideo';
 import { PropertyDocument } from '../../models/properties/PropertyDocument';
 import { Amenity } from '../../models/properties/Amenity';
+import { pickAmenityDescription } from '../../models/properties/amenityDescriptions';
 import { DuplicatedEstateProperty } from '../../models/properties/DuplicatedEstateProperty';
 import { EstatePropertyValues } from '../../models/properties/EstatePropertyValues';
 
@@ -570,12 +571,20 @@ export function PropertyViewPage() {
                     <div className='mb-8'>
                         <h3 className="text-xl font-semibold mb-4 border-b pb-2">Servicios y Amenidades</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {property.amenities.map((amenity: Amenity) => (
-                                <div key={amenity.id} className="flex items-center space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
-                                    <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-                                    <span className="text-sm font-medium text-[#1B4965]">{amenity.name}</span>
+                            {property.amenities.map((amenity: Amenity) => {
+                                const description = pickAmenityDescription(amenity.descriptions, 'es');
+                                return (
+                                <div key={amenity.id} className="flex items-start space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
+                                    <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="text-sm font-medium text-[#1B4965]">{amenity.name}</span>
+                                      {description && (
+                                        <p className="text-xs text-[#1B4965]/80 mt-1 whitespace-pre-line">{description}</p>
+                                      )}
+                                    </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}

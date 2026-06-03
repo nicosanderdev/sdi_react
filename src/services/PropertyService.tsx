@@ -10,6 +10,7 @@ import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateP
 
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
+import { buildAmenityLinksForRpc } from '../models/properties/amenityDescriptions';
 import { assertListingPublishAllowed, tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
 
@@ -812,6 +813,10 @@ const createPropertyWithOwnerUserId = async (
 
             // amenities
             p_amenity_ids: formData.amenities && formData.amenities.length > 0 ? formData.amenities : null,
+            p_amenity_links:
+                formData.amenities && formData.amenities.length > 0
+                    ? buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions)
+                    : null,
         });
 
         if (createEstateError) throw createEstateError;
@@ -1441,6 +1446,7 @@ const updateProperty = async (
             p_property_documents: allDocuments,
             p_property_videos: videos,
             p_amenity_ids: formData.amenities || [],
+            p_amenity_links: buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions),
             p_user_id: userId
         });
 

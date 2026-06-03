@@ -16,6 +16,7 @@ import type { DisplayDocument } from './DocumentManager';
 import type { DisplayVideo } from './VideoManager';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
 import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../../../models/properties/propertyTypeLabels';
+import { amenityDescriptionsFromAmenities } from '../../../models/properties/amenityDescriptions';
 
 export function PropertyEditPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -82,6 +83,7 @@ export function PropertyEditPage() {
       hasGarage: (property as any).hasGarage ?? false,
       garageSpaces: (property as any).garageSpaces ?? 0,
       amenities: ((property as any).amenities || []).map((a: any) => a.id),
+      amenityDescriptions: amenityDescriptionsFromAmenities((property as any).amenities || []),
       contentSections: ((property as any).contentSections ?? []),
       additionalExtensionType: undefined,
       allowsFinancing: (property as any).allowsFinancing ?? false,

@@ -27,6 +27,16 @@ export const propertySectionTypeSchema = z.enum(['SummerRent', 'EventVenue', 'Re
 export const propertySectionLayoutTypeSchema = z.enum(['split', 'carousel', 'stacked']);
 export const propertySectionDisplayVariantSchema = z.enum(['default', 'compact', 'hero']);
 
+export const amenityLanguageSchema = z.enum(['en', 'es', 'pt']);
+
+const amenityDescriptionsEntrySchema = z
+  .object({
+    en: z.string().max(500).optional(),
+    es: z.string().max(500).optional(),
+    pt: z.string().max(500).optional(),
+  })
+  .optional();
+
 export const propertyContentSectionSchema = z.object({
   name: z.string().min(1, 'El nombre de la sección es requerido.'),
   description: z.string().max(500, 'La descripción no puede exceder los 500 caracteres.').optional(),
@@ -111,6 +121,8 @@ export const propertyFormBaseSchema = z.object({
 
   // --- Amenities ---
   amenities: z.array(z.string()).optional(),
+  /** amenityId -> optional descriptions per language */
+  amenityDescriptions: z.record(z.string(), amenityDescriptionsEntrySchema).optional(),
   // --- Extension-specific fields (RealEstate, SummerRent, EventVenue) ---
   // RealEstateExtension-like fields
   allowsFinancing: z.boolean().optional(),
