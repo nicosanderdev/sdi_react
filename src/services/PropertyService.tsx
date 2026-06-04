@@ -1324,6 +1324,7 @@ const updateProperty = async (
 
                     return {
                         id: img.id || crypto.randomUUID(),
+                        sourceKey: img.key,
                         url: publicUrl,
                         altText: img.alt || '',
                         isMain: img.isMain,
@@ -1338,6 +1339,7 @@ const updateProperty = async (
             .filter(img => img.source === 'existing')
             .map(img => ({
                 id: img.id || crypto.randomUUID(),
+                sourceKey: img.key,
                 url: img.previewUrl,
                 altText: img.alt || '',
                 isMain: img.isMain,
@@ -1395,11 +1397,9 @@ const updateProperty = async (
             }));
 
         const imageIdByKey: Record<string, string> = {};
-        for (const img of allImages) {
-            if (img.sourceKey && img.id) imageIdByKey[img.sourceKey] = img.id;
-        }
         for (const disp of displayImages) {
-            if (disp.key && disp.id) imageIdByKey[disp.key] = disp.id;
+            const id = allImages.find(i => i.sourceKey === disp.key)?.id ?? disp.id;
+            if (disp.key && id) imageIdByKey[disp.key] = id;
         }
 
         const sectionsPayload = buildContentSectionsForRpc(formData.contentSections, imageIdByKey);

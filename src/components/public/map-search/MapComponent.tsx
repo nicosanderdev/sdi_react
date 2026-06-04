@@ -1,11 +1,10 @@
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents, Popup } from 'react-leaflet';
 import { PublicProperty, PropertyImage } from '../../../models/properties';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
 
 function MapEvents({ setMapBounds }: { setMapBounds: (bounds: L.LatLngBoundsExpression) => void }) {
     const initialBoundsSet = useRef(false);
@@ -161,7 +160,7 @@ const MapComponent = ({
                                 {mainImage ? (
                                     <img
                                         className="popup-img"
-                                        src={`${API_BASE_URL}${mainImage?.url?.startsWith('/') ? '' : '/'}${mainImage?.url}`}
+                                        src={resolveAssetUrl(mainImage?.url)}
                                         alt={mainImage.altText || property.title}
                                     />
                                 ) : (
