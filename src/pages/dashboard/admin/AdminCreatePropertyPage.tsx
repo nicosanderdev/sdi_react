@@ -99,6 +99,7 @@ export function AdminCreatePropertyPage() {
       blockedForBooking: false,
       amenities: [],
       contentSections: [],
+      propertyPolicies: [],
     },
   });
 

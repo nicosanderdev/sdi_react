@@ -34,10 +34,10 @@ import { PropertyImage } from '../../models/properties/PropertyImage';
 import { PropertyVideo } from '../../models/properties/PropertyVideo';
 import { PropertyDocument } from '../../models/properties/PropertyDocument';
 import { Amenity } from '../../models/properties/Amenity';
+import { pickAmenityDescription } from '../../models/properties/amenityDescriptions';
 import { DuplicatedEstateProperty } from '../../models/properties/DuplicatedEstateProperty';
 import { EstatePropertyValues } from '../../models/properties/EstatePropertyValues';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 const InfoField: React.FC<{ icon: React.ReactNode; label: string; value?: string | number | null; children?: React.ReactNode; }> = ({ icon, label, value, children }) => {
     if (!value && !children) return null;
@@ -154,7 +154,7 @@ export function PropertyViewPage() {
                     }
                     setCurrentImageIndex(mainImageIndex);
                     const mainImage = data.propertyImages[mainImageIndex];
-                    const fullUrl = `${API_BASE_URL}${mainImage.url.startsWith('/') ? '' : '/'}${mainImage.url}`;
+                    const fullUrl = resolveAssetUrl(mainImage.url);
                     setSelectedImage(fullUrl);
                 } else {
                     setSelectedImage('https://placehold.co/600x400');
@@ -201,7 +201,7 @@ export function PropertyViewPage() {
         const nextIndex = (currentImageIndex + 1) % property.propertyImages.length;
         setCurrentImageIndex(nextIndex);
         const nextImage = property.propertyImages[nextIndex];
-        const fullUrl = `${API_BASE_URL}${nextImage.url.startsWith('/') ? '' : '/'}${nextImage.url}`;
+        const fullUrl = resolveAssetUrl(nextImage.url);
         setSelectedImage(fullUrl);
     };
 
@@ -210,7 +210,7 @@ export function PropertyViewPage() {
         const prevIndex = currentImageIndex === 0 ? property.propertyImages.length - 1 : currentImageIndex - 1;
         setCurrentImageIndex(prevIndex);
         const prevImage = property.propertyImages[prevIndex];
-        const fullUrl = `${API_BASE_URL}${prevImage.url.startsWith('/') ? '' : '/'}${prevImage.url}`;
+        const fullUrl = resolveAssetUrl(prevImage.url);
         setSelectedImage(fullUrl);
     };
 
@@ -218,7 +218,7 @@ export function PropertyViewPage() {
         if (!property?.propertyImages) return;
         setCurrentImageIndex(index);
         const selectedImg = property.propertyImages[index];
-        const fullUrl = `${API_BASE_URL}${selectedImg.url.startsWith('/') ? '' : '/'}${selectedImg.url}`;
+        const fullUrl = resolveAssetUrl(selectedImg.url);
         setSelectedImage(fullUrl);
     };
 
@@ -374,7 +374,7 @@ export function PropertyViewPage() {
                                     className="flex-shrink-0 relative"
                                 >
                                     <img
-                                        src={`${API_BASE_URL}${img.url.startsWith('/') ? '' : '/'}${img.url}`}
+                                        src={resolveAssetUrl(img.url)}
                                         alt={img.altText || `Thumbnail ${index + 1}`}
                                         className={`h-20 w-28 object-cover rounded-md border-2 transition-all ${currentImageIndex === index ? 'border-primary-400 scale-105' : 'border-transparent'
                                             }`}
@@ -472,7 +472,7 @@ export function PropertyViewPage() {
                                             </div>
                                         )}
                                         <a
-                                            href={`${API_BASE_URL}${doc.url.startsWith('/') ? '' : '/'}${doc.url}`}
+                                            href={resolveAssetUrl(doc.url)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="p-1 text-[#62B6CB] hover:bg-[#62B6CB] hover:text-white rounded transition-colors"
@@ -570,12 +570,20 @@ export function PropertyViewPage() {
                     <div className='mb-8'>
                         <h3 className="text-xl font-semibold mb-4 border-b pb-2">Servicios y Amenidades</h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {property.amenities.map((amenity: Amenity) => (
-                                <div key={amenity.id} className="flex items-center space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
-                                    <CheckCircle size={20} className="text-green-500 flex-shrink-0" />
-                                    <span className="text-sm font-medium text-[#1B4965]">{amenity.name}</span>
+                            {property.amenities.map((amenity: Amenity) => {
+                                const description = pickAmenityDescription(amenity.descriptions, 'es');
+                                return (
+                                <div key={amenity.id} className="flex items-start space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
+                                    <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                      <span className="text-sm font-medium text-[#1B4965]">{amenity.name}</span>
+                                      {description && (
+                                        <p className="text-xs text-[#1B4965]/80 mt-1 whitespace-pre-line">{description}</p>
+                                      )}
+                                    </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
                 )}

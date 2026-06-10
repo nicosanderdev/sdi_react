@@ -248,11 +248,40 @@ interface AmenitiesRow {
 interface EstatePropertyAmenityRow {
   EstatePropertyId: string;
   AmenityId: string;
-  IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
+  LocalizedDescriptions?: Record<string, string> | null;
+  IsDeleted?: boolean;
+  Created?: string;
+  LastModified?: string;
+  CreatedBy?: string | null;
+  LastModifiedBy?: string | null;
+}
+
+function mapLocalizedDescriptions(
+  raw: Record<string, unknown> | null | undefined
+): import('../models/properties/Amenity').Amenity['descriptions'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Partial<Record<'en' | 'es' | 'pt', string>> = {};
+  for (const lang of ['en', 'es', 'pt'] as const) {
+    const v = raw[lang];
+    if (typeof v === 'string' && v.trim()) out[lang] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function mapEstatePropertyAmenityRows(
+  epaSource: unknown
+): import('../models/properties/Amenity').Amenity[] {
+  const epaList = Array.isArray(epaSource) ? epaSource : epaSource ? [epaSource] : [];
+  return epaList
+    .filter((epa: any) => epa?.Amenities)
+    .map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
+      id: epa.Amenities.Id,
+      name: epa.Amenities.Name,
+      iconId: epa.Amenities.IconId || undefined,
+      descriptions: mapLocalizedDescriptions(
+        epa.LocalizedDescriptions as Record<string, unknown> | null | undefined
+      ),
+    }));
 }
 
 interface MessageThreadsRow {
@@ -730,14 +759,7 @@ export const mapDbToPropertyData = (
 
   const epaSource =
     raw.EstatePropertyAmenity ?? property.EstatePropertyAmenities ?? [];
-  const epaList = Array.isArray(epaSource) ? epaSource : [epaSource];
-  const amenities: Amenity[] = epaList
-    .filter((epa: any) => epa?.Amenities)
-    .map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
-      id: epa.Amenities.Id,
-      name: epa.Amenities.Name,
-      iconId: epa.Amenities.IconId || undefined
-    }));
+  const amenities: Amenity[] = mapEstatePropertyAmenityRows(epaSource);
 
   return {
     id: property.Id,
@@ -870,11 +892,11 @@ export const mapDbToPublicProperty = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
-    id: epa.Amenities.Id,
-    name: epa.Amenities.Name,
-    iconId: epa.Amenities.IconId || undefined
-  })) || [];
+  const epaSource =
+    (property as any).EstatePropertyAmenity ??
+    property.EstatePropertyAmenities ??
+    [];
+  const amenities: Amenity[] = mapEstatePropertyAmenityRows(epaSource);
 
   return {
     id: property.Id,

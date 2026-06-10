@@ -47,3 +47,5 @@ e2e/.auth/*.json
 supabase/snippets/
 
 supabase/public_schema.sql
+
+docs/handoffs/

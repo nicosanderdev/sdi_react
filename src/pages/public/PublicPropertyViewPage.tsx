@@ -8,7 +8,8 @@ import { Badge, Card } from 'flowbite-react';
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
-import { PropertyParams, PublicProperty } from '../../models/properties';
+import { PropertyParams, PublicProperty, Amenity } from '../../models/properties';
+import { pickAmenityDescription } from '../../models/properties/amenityDescriptions';
 
 
 
@@ -133,12 +134,20 @@ function PublicPropertyViewPage() {
           <Card className='mb-8 p-3'>
             <h2 className="text-2xl font-bold mb-4">Otros servicios y características</h2>
             <div className='grid grid-cols-1 md:grid-cols-3 gap-4 p-4'>
-              {property.amenities.map(e => (
-                <div key={e.name} className='flex items-center space-x-2'>
-                  <IconWrapper icon={Home} hoverable={true} size={25} />
-                  <span>{e.name}</span>
-                </div>
-              ))}
+              {property.amenities.map((e: Amenity) => {
+                const description = pickAmenityDescription(e.descriptions, 'es');
+                return (
+                  <div key={e.id} className='flex items-start space-x-2'>
+                    <IconWrapper icon={Home} hoverable={true} size={25} />
+                    <div>
+                      <span className={description ? 'font-semibold' : ''}>{e.name}</span>
+                      {description && (
+                        <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">{description}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
           

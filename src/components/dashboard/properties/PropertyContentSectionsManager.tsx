@@ -1,11 +1,13 @@
 import { useCallback, useEffect } from 'react';
-import { Button, Label, Select, TextInput, Textarea } from 'flowbite-react';
+import { Button, Label, Select } from 'flowbite-react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { DisplayImage } from './ImageManager';
 import type { PropertyFormData, PropertyContentSectionFormData } from '../../../models/properties/PropertyFormSchema';
 import type { PropertyType } from '../../../models/properties';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
+import { localizedFromLegacyNameDescription } from '../../../models/properties/propertyContentSections';
+import { LocalizedTitleDescriptionFields } from './LocalizedTextFields';
 
 type LayoutType = PropertyContentSectionFormData['layoutType'];
 type DisplayVariant = PropertyContentSectionFormData['displayVariant'];
@@ -34,7 +36,9 @@ const DISPLAY_LABEL_ES: Record<DisplayVariant, string> = {
   hero: 'Destacado',
 };
 
-const SECTION_TEMPLATES: Partial<Record<PropertyType, Array<{ name: string; description: string }>>> = {
+const SECTION_TEMPLATES: Partial<
+  Record<PropertyType, Array<{ name: string; description: string }>>
+> = {
   SummerRent: [
     {
       name: 'Espacios exteriores',
@@ -111,13 +115,15 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
     append(createSectionDraft());
   };
 
-  const createSectionDraft = (overrides?: Partial<Pick<PropertyContentSectionFormData, 'name' | 'description'>>) => {
+  const createSectionDraft = (
+    overrides?: Partial<Pick<PropertyContentSectionFormData, 'localizedName' | 'localizedDescription'>>
+  ) => {
     const defaultLayoutType = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[rootPropertyType][0] ?? 'split';
     const defaultVariant = DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[defaultLayoutType][0] ?? 'default';
 
     return {
-      name: overrides?.name ?? '',
-      description: overrides?.description ?? '',
+      localizedName: overrides?.localizedName ?? {},
+      localizedDescription: overrides?.localizedDescription ?? {},
       propertyType: rootPropertyType,
       layoutType: defaultLayoutType,
       displayVariant: defaultVariant,
@@ -126,7 +132,11 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
   };
 
   const handleAddTemplateSection = (template: { name: string; description: string }) => {
-    append(createSectionDraft(template));
+    const { localizedName, localizedDescription } = localizedFromLegacyNameDescription(
+      template.name,
+      template.description
+    );
+    append(createSectionDraft({ localizedName, localizedDescription }));
   };
 
   const toggleSectionImage = (sectionIndex: number, imageKey: string) => {
@@ -141,7 +151,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
         <div>
           <h3 className="text-xl font-semibold">Secciones de contenido</h3>
           <p className="text-sm text-gray-500">
-            Configura secciones dinámicas para la página de detalle de la propiedad.
+            Configura secciones dinámicas para la página de detalle de la propiedad (texto por idioma).
           </p>
         </div>
         <Button type="button" onClick={handleAddSection}>
@@ -218,37 +228,31 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`contentSections.${index}.name`}>Nombre</Label>
-                  <TextInput
-                    id={`contentSections.${index}.name`}
-                    placeholder="Ej: Sala principal"
-                    className="mt-2"
-                    {...register(`contentSections.${index}.name`)}
-                  />
-                </div>
-                <div>
-                  <Label>Tipo de propiedad</Label>
-                  <TextInput
-                    value={getPropertyTypeLabelEs(rootPropertyType)}
-                    disabled
-                    readOnly
-                    className="mt-2"
-                  />
-                </div>
+              <div className="max-w-xs">
+                <Label>Tipo de propiedad</Label>
+                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                  {getPropertyTypeLabelEs(rootPropertyType)}
+                </p>
               </div>
 
-              <div>
-                <Label htmlFor={`contentSections.${index}.description`}>Descripción</Label>
-                <Textarea
-                  id={`contentSections.${index}.description`}
-                  rows={2}
-                  placeholder="Describe brevemente esta sección."
-                  className="mt-2"
-                  {...register(`contentSections.${index}.description`)}
-                />
-              </div>
+              <LocalizedTitleDescriptionFields
+                idPrefix={`section-${index}`}
+                title={section?.localizedName ?? {}}
+                description={section?.localizedDescription ?? {}}
+                titleMaxLength={120}
+                descriptionMaxLength={500}
+                onTitleChange={next =>
+                  setValue(`contentSections.${index}.localizedName`, next, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                onDescriptionChange={next =>
+                  setValue(`contentSections.${index}.localizedDescription`, next, {
+                    shouldDirty: true,
+                  })
+                }
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -317,7 +321,9 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                   </div>
                 )}
                 {displayImages.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">Toca una miniatura para incluirla o quitarla de la sección.</p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Toca una miniatura para incluirla o quitarla de la sección.
+                  </p>
                 )}
               </div>
             </div>

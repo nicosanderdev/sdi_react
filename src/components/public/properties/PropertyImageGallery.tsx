@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PropertyImage } from '../../../models/properties';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_FILES_URL || '';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 interface Props {
   images: PropertyImage[];
@@ -46,7 +45,7 @@ function PropertyImageGallery({ images, mainImageId }: Props) {
       {/* Main Image Display with Navigation */}
       <div className="relative aspect-video mb-4 rounded-lg overflow-hidden shadow-lg">
         <img
-          src={`${API_BASE_URL}${selectedImage?.url?.startsWith('/') ? '' : '/'}${selectedImage?.url}`}
+          src={resolveAssetUrl(selectedImage?.url)}
           alt="Selected property view"
           className="w-full h-full object-cover"
         />
@@ -93,7 +92,7 @@ function PropertyImageGallery({ images, mainImageId }: Props) {
               }`}
             >
               <img
-                src={`${API_BASE_URL}${image.url?.startsWith('/') ? '' : '/'}${image.url}`}
+                src={resolveAssetUrl(image.url)}
                 alt={`Property thumbnail ${image.id}`}
                 className="w-full h-full object-cover"
               />

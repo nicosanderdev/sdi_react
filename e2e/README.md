@@ -19,17 +19,13 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 ```
 
-### 3. File uploads (Cloudflare R2)
+### 3. File uploads (property create/edit)
 
-Specs such as `create-property-new-member.spec.ts` and `create-property-existing-member.spec.ts` **upload real image files** through the app. Uploads go to **Cloudflare R2** via the Edge Function **`storage-r2`**, not Supabase Storage.
+Specs such as `create-property-new-member.spec.ts` upload images through the app.
 
-For those tests to pass you need:
+**Local Supabase (recommended):** set `VITE_STORAGE_BACKEND=supabase` and point `VITE_SUPABASE_URL` at `http://127.0.0.1:54321`. Requires local Supabase running with storage buckets (see root [`README.md`](../README.md)).
 
-1. **`storage-r2` deployed** (or served locally) on the same Supabase project referenced by `VITE_SUPABASE_URL`.
-2. **Edge Function secrets** for R2 (`R2_ENDPOINT`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and the three `R2_PUBLIC_BASE_*` variables) as documented in the root [`README.md`](../README.md) under *File storage (Cloudflare R2)*.
-3. **CORS** on each R2 bucket allowing **PUT** from your test origin (for example the Playwright base URL or `http://localhost:5173`).
-
-If R2 is not configured, image upload steps will fail when the app invokes `storage-r2` or when the browser sends the presigned `PUT` to R2.
+**Cloudflare R2:** set `VITE_STORAGE_BACKEND=r2` (default). Requires `storage-r2` deployed and R2 secrets as documented in the root README. Without R2 configured, upload steps fail when invoking `storage-r2` or on the presigned `PUT`.
 
 ### 4. Database Setup
 

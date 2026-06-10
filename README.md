@@ -49,9 +49,18 @@ VITE_TENANT_API_KEY=your-tenant-api-key
 
 The `supabase-trigger.sql` file also includes RLS policies. Make sure to review and adjust them based on your security requirements.
 
-## File storage (Cloudflare R2)
+## File storage (Cloudflare R2 + Supabase Storage local)
 
-Property images, property documents, and profile avatars are stored in **Cloudflare R2**, not Supabase Storage. The browser calls the Supabase Edge Function **`storage-r2`**, which returns a **presigned PUT** URL; the client uploads the file directly to R2, then stores the **public URL** returned by the function (same pattern as before: full URLs in the database).
+Property images, property documents, and profile avatars use a **single storage abstraction** in [`src/services/storage/`](src/services/storage/index.ts):
+
+| Environment | Backend | Config |
+|-------------|---------|--------|
+| **Production** | **Cloudflare R2** via Edge Function `storage-r2` | `VITE_STORAGE_BACKEND=r2` (default) |
+| **Local dev** | **Supabase Storage** (local stack) | `VITE_STORAGE_BACKEND=supabase` in `.env.local` |
+
+The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work.
+
+Guest portals are **read-only** for property media; see [`docs/handoffs/portal-property-image-storage.md`](docs/handoffs/portal-property-image-storage.md).
 
 ### Cloudflare setup
 
@@ -87,13 +96,24 @@ supabase functions deploy storage-r2
 - **New uploads** use R2 URLs only. Existing database rows that still point at Supabase Storage are unchanged; re-upload if you need those assets on R2.
 - Profile pictures use the **`avatars`** bucket (the app previously referenced a `profile_pictures` bucket in code; that path is removed).
 
-### Local development
+### Local development (Supabase Storage — recommended)
 
-Run Supabase locally with secrets configured (see [Supabase secrets](https://supabase.com/docs/guides/functions/secrets)), then serve functions so `storage-r2` is reachable from the Vite app. Without R2 secrets and bucket CORS, uploads will fail when calling `storage-r2` or when `PUT`ing to R2.
+1. Start local Supabase (`supabase start`). Buckets are defined in [`supabase/config.toml`](supabase/config.toml) and RLS in migration `20260611120200_storage_buckets_rls.sql`.
+2. In `.env.local`:
 
-#### MinIO (Docker) instead of R2
+   ```env
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_ANON_KEY=<local anon key from supabase status>
+   VITE_STORAGE_BACKEND=supabase
+   ```
 
-You can run [MinIO](https://min.io/) locally as an S3-compatible stand-in for R2. The app already uses path-style URLs and the same bucket names as in production: **`property-images`**, **`property-documents`**, and **`avatars`**.
+3. Run the Vite app (`npm run dev`). Property create/edit uploads go to `property-images`, `property-documents`, and `avatars` buckets on the local stack. Public URLs look like `http://127.0.0.1:54321/storage/v1/object/public/property-images/properties/...`.
+
+No R2 secrets or MinIO required for normal local dashboard work.
+
+#### MinIO (optional — test R2 edge function locally)
+
+You can run [MinIO](https://min.io/) locally as an S3-compatible stand-in for R2 when testing the **`storage-r2`** edge path (`VITE_STORAGE_BACKEND=r2`). The app uses the same bucket names as in production: **`property-images`**, **`property-documents`**, and **`avatars`**.
 
 1. **Start MinIO with API CORS enabled.** The Supabase edge runtime runs in Docker, so the browser will send a cross-origin `PUT` to the presigned URL on MinIO. Open-source MinIO does **not** support per-bucket CORS via `mc cors set`; configure **server-wide** CORS with `MINIO_API_CORS_ALLOW_ORIGIN` (comma-separated origins). Example (adjust ports and origins to match your Vite dev server):
 
