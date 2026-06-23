@@ -6,7 +6,6 @@ import { fetchUserProfile, clearUserState } from '../store/slices/userSlice'
 import { store } from '../store'
 import userAdminService from '../services/UserAdminService'
 import authService from '../services/AuthService'
-import { debugSessionLog } from '../lib/debugSessionLog'
 
 interface AuthContextType {
   session: Session | null
@@ -99,11 +98,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        debugSessionLog('AuthContext.tsx:onAuthStateChange', 'auth state changed', {
-          event,
-          hasSession: Boolean(session),
-          userId: session?.user?.id ?? null,
-        }, 'B');
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -113,10 +107,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (event === 'SIGNED_IN' && session?.user) {
           const { status, profile } = store.getState().user
           const alreadyLoaded = status === 'succeeded' && profile !== null
-          debugSessionLog('AuthContext.tsx:onAuthStateChange', 'SIGNED_IN profile fetch decision', {
-            alreadyLoaded,
-            userStatus: status,
-          }, 'G')
           if (!alreadyLoaded) {
             dispatch(fetchUserProfile(session.user))
           }

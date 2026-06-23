@@ -1,5 +1,5 @@
 // src/pages/dashboard/admin/AdminCreatePropertyPage.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,7 +27,6 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../config/supabase';
 import type { PropertyType } from '../../../models/properties';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
-import { debugSessionLog } from '../../../lib/debugSessionLog';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -36,7 +35,6 @@ const adminPropertyCreateFormSchema = propertyCreatePublishSchema;
 type AdminPropertyCreateFormData = z.infer<typeof adminPropertyCreateFormSchema>;
 
 export function AdminCreatePropertyPage() {
-  const instanceIdRef = useRef(`admin-create-property-${Math.random().toString(36).slice(2, 8)}`);
   const navigate = useNavigate();
   const { user } = useAuth();
   const currentUserEmail = user?.email ?? '';
@@ -106,35 +104,6 @@ export function AdminCreatePropertyPage() {
   });
 
   const { handleSubmit, register, watch, setValue } = methods;
-
-  useEffect(() => {
-    debugSessionLog('AdminCreatePropertyPage.tsx:mount', 'property create page mounted', {
-      instanceId: instanceIdRef.current,
-    }, 'H');
-
-    return () => {
-      debugSessionLog('AdminCreatePropertyPage.tsx:unmount', 'property create page unmounted', {
-        instanceId: instanceIdRef.current,
-      }, 'H');
-    };
-  }, []);
-
-  useEffect(() => {
-    const onVisibility = () => {
-      debugSessionLog('AdminCreatePropertyPage.tsx:visibility', 'tab visibility while on create property', {
-        instanceId: instanceIdRef.current,
-        hidden: document.hidden,
-        phase,
-        propertyStep,
-        ownerUserId,
-        title: watch('title'),
-        streetName: watch('streetName'),
-      }, document.hidden ? 'D' : 'G');
-    };
-
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [phase, propertyStep, ownerUserId, watch]);
 
   const watchedPropertyType = watch('propertyType');
   const watchedRealEstateOfferMode = watch('realEstateOfferMode');

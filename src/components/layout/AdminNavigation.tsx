@@ -1,6 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from 'flowbite-react';
-import { debugSessionLog } from '../../lib/debugSessionLog';
 import {
   UserIcon,
   UserCircleIcon,
@@ -46,16 +45,7 @@ export function AdminNavigation() {
       {adminNavItems.map(item => (
         <SidebarItem
           key={item.id}
-          onClick={(event) => {
-            debugSessionLog('AdminNavigation.tsx:click', 'admin sidebar nav click', {
-              itemId: item.id,
-              path: item.path,
-              fromPath: location.pathname,
-              defaultPrevented: event.defaultPrevented,
-              targetTag: (event.target as HTMLElement | null)?.tagName ?? null,
-            }, 'A');
-            navigate(item.path);
-          }}
+          onClick={() => navigate(item.path)}
           icon={item.icon}
           active={location.pathname === item.path || location.pathname.startsWith(item.path)}
           className="hover:bg-green-50 dark:hover:bg-green-900/20"

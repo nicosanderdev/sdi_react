@@ -8,7 +8,6 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import { useAdminPayments } from '../../../hooks/useAdminPayments';
 import { BookingsReceiptGenerationSection } from '../../../components/admin/payments/BookingsReceiptGenerationSection';
 import { ReceiptsManagementSection } from '../../../components/admin/payments/ReceiptsManagementSection';
-import { debugSessionLog } from '../../../lib/debugSessionLog';
 
 export function AdminPaymentsPage() {
   const {
@@ -49,13 +48,9 @@ export function AdminPaymentsPage() {
 
       <Card>
         <Tabs
-          onActiveTabChange={(activeTab) => {
-            debugSessionLog('AdminPaymentsPage.tsx:tab', 'in-page tab changed', {
-              activeTab,
-              nextSection: activeTab === 0 ? 'bookings' : 'receipts',
-            }, 'E');
-            setActiveSection(activeTab === 0 ? 'bookings' : 'receipts');
-          }}
+          onActiveTabChange={(activeTab) =>
+            setActiveSection(activeTab === 0 ? 'bookings' : 'receipts')
+          }
         >
           <TabItem active={activeSection === 'bookings'} title="Operaciones - Generación de Facturas">
             <BookingsReceiptGenerationSection

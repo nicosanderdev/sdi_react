@@ -1,6 +1,5 @@
-import React, { memo, useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { debugSessionLog } from '../../lib/debugSessionLog';
+import React, { memo } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { getPrimaryRole, getRedirectPath } from '../../utils/RoleUtils';
@@ -27,41 +26,11 @@ const ProtectedRouteComponent = ({
   const { user: supabaseUser, loading: authLoading } = useAuth();
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
-  const location = useLocation();
 
-  useEffect(() => {
-    const awaitingInitialProfile = userStatus === 'idle' || (userStatus === 'loading' && !user);
-    let branch = 'render-children';
-    if (authLoading) branch = 'auth-loading-spinner';
-    else if (requireAuth && !supabaseUser) branch = 'redirect-login-no-user';
-    else if (supabaseUser && awaitingInitialProfile) branch = 'profile-loading-spinner';
-    else if (supabaseUser && userStatus === 'failed') branch = 'redirect-login-profile-failed';
-    else if (supabaseUser && userStatus === 'succeeded') {
-      const userRole = getPrimaryRole(user);
-      if (!userRole) branch = 'redirect-login-no-role';
-      else if (!allowedRoles.includes(userRole as typeof Roles.Admin | typeof Roles.User)) branch = 'redirect-role-mismatch';
-    } else if (supabaseUser && userStatus === 'loading' && user) {
-      branch = 'profile-refetch-keep-children';
-    }
-
-    debugSessionLog('ProtectedRoute.tsx:guard', 'route guard evaluated', {
-      pathname: location.pathname,
-      branch,
-      authLoading,
-      hasSupabaseUser: Boolean(supabaseUser),
-      userStatus,
-      hasProfile: Boolean(user),
-      allowedRoles,
-    }, 'G');
-  }, [authLoading, supabaseUser, userStatus, user, location.pathname, requireAuth, allowedRoles]);
-
-  // Show loading only while auth state is being determined, not while profile is loading.
-  // When we have a session, render children and let the dashboard handle profile loading/null.
   if (authLoading) {
     return <LoadingSpinner />;
   }
 
-  // If route requires auth and we don't have a Supabase user, redirect to login
   if (requireAuth && !supabaseUser) {
     return <Navigate to="/login" replace />;
   }

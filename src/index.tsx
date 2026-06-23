@@ -1,10 +1,6 @@
 import './index.css';
 import React from "react";
 import { App } from "./App";
-import { debugSessionLogBoot, debugSessionLogLifecycle } from './lib/debugSessionLog';
-
-debugSessionLogBoot();
-debugSessionLogLifecycle();
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider } from 'react-redux';
