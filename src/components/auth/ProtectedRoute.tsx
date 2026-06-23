@@ -27,18 +27,15 @@ const ProtectedRouteComponent = ({
   const user = useSelector((state: RootState) => state.user.profile);
   const userStatus = useSelector((state: RootState) => state.user.status);
 
-  // Show loading only while auth state is being determined, not while profile is loading.
-  // When we have a session, render children and let the dashboard handle profile loading/null.
   if (authLoading) {
     return <LoadingSpinner />;
   }
 
-  // If route requires auth and we don't have a Supabase user, redirect to login
   if (requireAuth && !supabaseUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (supabaseUser && (userStatus === 'idle' || userStatus === 'loading')) {
+  if (supabaseUser && (userStatus === 'idle' || (userStatus === 'loading' && !user))) {
     return <LoadingSpinner />;
   }
 
