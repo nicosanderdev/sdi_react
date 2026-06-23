@@ -5,6 +5,7 @@ import { useAppDispatch } from '../hooks/reduxHooks'
 import { fetchUserProfile, clearUserState } from '../store/slices/userSlice'
 import userAdminService from '../services/UserAdminService'
 import authService from '../services/AuthService'
+import { debugSessionLog } from '../lib/debugSessionLog'
 
 interface AuthContextType {
   session: Session | null
@@ -97,6 +98,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        debugSessionLog('AuthContext.tsx:onAuthStateChange', 'auth state changed', {
+          event,
+          hasSession: Boolean(session),
+          userId: session?.user?.id ?? null,
+        }, 'B');
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)

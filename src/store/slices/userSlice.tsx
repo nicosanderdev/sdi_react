@@ -2,6 +2,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import profileService, { ProfileData, UserCompany, ChangeRoleRequest, ChangeRoleResponse } from '../../services/ProfileService';
 import { RootState } from '../store';
+import { debugSessionLog } from '../../lib/debugSessionLog';
 
 interface UserState {
   profile: ProfileData | null;
@@ -60,6 +61,9 @@ const userSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(fetchUserProfile.pending, (state) => {
+        debugSessionLog('userSlice.tsx:fetchUserProfile', 'profile fetch started', {
+          previousStatus: state.status,
+        }, 'C');
         state.status = 'loading';
       })
       .addCase(fetchUserProfile.fulfilled, (state, action: PayloadAction<ProfileData>) => {
