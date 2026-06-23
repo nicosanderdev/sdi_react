@@ -3,6 +3,7 @@ import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '../config/supabase'
 import { useAppDispatch } from '../hooks/reduxHooks'
 import { fetchUserProfile, clearUserState } from '../store/slices/userSlice'
+import { store } from '../store'
 import userAdminService from '../services/UserAdminService'
 import authService from '../services/AuthService'
 import { debugSessionLog } from '../lib/debugSessionLog'
@@ -107,10 +108,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(session?.user ?? null)
         setLoading(false)
 
-        // Handle auth state changes - only fetch profile on SIGNED_IN event
+        // SIGNED_IN also fires when Supabase recovers the session on tab focus.
+        // Skip redundant profile fetch when we already have a loaded profile.
         if (event === 'SIGNED_IN' && session?.user) {
-          dispatch(fetchUserProfile(session.user))
-          // Check for force logout after signing in
+          const { status, profile } = store.getState().user
+          const alreadyLoaded = status === 'succeeded' && profile !== null
+          debugSessionLog('AuthContext.tsx:onAuthStateChange', 'SIGNED_IN profile fetch decision', {
+            alreadyLoaded,
+            userStatus: status,
+          }, 'G')
+          if (!alreadyLoaded) {
+            dispatch(fetchUserProfile(session.user))
+          }
           setTimeout(() => checkForceLogoutRef.current?.(), 1000)
         } else if (event === 'SIGNED_OUT') {
           dispatch(clearUserState())

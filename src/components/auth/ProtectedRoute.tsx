@@ -30,15 +30,18 @@ const ProtectedRouteComponent = ({
   const location = useLocation();
 
   useEffect(() => {
+    const awaitingInitialProfile = userStatus === 'idle' || (userStatus === 'loading' && !user);
     let branch = 'render-children';
     if (authLoading) branch = 'auth-loading-spinner';
     else if (requireAuth && !supabaseUser) branch = 'redirect-login-no-user';
-    else if (supabaseUser && (userStatus === 'idle' || userStatus === 'loading')) branch = 'profile-loading-spinner';
+    else if (supabaseUser && awaitingInitialProfile) branch = 'profile-loading-spinner';
     else if (supabaseUser && userStatus === 'failed') branch = 'redirect-login-profile-failed';
     else if (supabaseUser && userStatus === 'succeeded') {
       const userRole = getPrimaryRole(user);
       if (!userRole) branch = 'redirect-login-no-role';
       else if (!allowedRoles.includes(userRole as typeof Roles.Admin | typeof Roles.User)) branch = 'redirect-role-mismatch';
+    } else if (supabaseUser && userStatus === 'loading' && user) {
+      branch = 'profile-refetch-keep-children';
     }
 
     debugSessionLog('ProtectedRoute.tsx:guard', 'route guard evaluated', {
@@ -47,8 +50,9 @@ const ProtectedRouteComponent = ({
       authLoading,
       hasSupabaseUser: Boolean(supabaseUser),
       userStatus,
+      hasProfile: Boolean(user),
       allowedRoles,
-    }, 'B');
+    }, 'G');
   }, [authLoading, supabaseUser, userStatus, user, location.pathname, requireAuth, allowedRoles]);
 
   // Show loading only while auth state is being determined, not while profile is loading.
@@ -62,7 +66,7 @@ const ProtectedRouteComponent = ({
     return <Navigate to="/login" replace />;
   }
 
-  if (supabaseUser && (userStatus === 'idle' || userStatus === 'loading')) {
+  if (supabaseUser && (userStatus === 'idle' || (userStatus === 'loading' && !user))) {
     return <LoadingSpinner />;
   }
 

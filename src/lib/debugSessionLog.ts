@@ -1,4 +1,4 @@
-export const RELOAD_DEBUG_VERSION = '977cd8-v3';
+export const RELOAD_DEBUG_VERSION = '977cd8-v4-postfix';
 
 const DEBUG_SESSION_ID = '977cd8';
 const STORAGE_KEY = `debug-${DEBUG_SESSION_ID}-events`;
