@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { UserDetail, SubscriptionTier } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 interface UserDetailModalProps {
   hook: UseAdminUsersReturn;
@@ -116,7 +117,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
       <Modal.Header>
         <div className="flex items-center space-x-3">
           <Avatar
-            img={selectedUser.avatarUrl || undefined}
+            img={resolveAssetUrl(selectedUser.avatarUrl) || undefined}
             placeholderInitials={getFullName(selectedUser).split(' ').map(n => n[0]).join('').toUpperCase()}
             rounded
             size="lg"

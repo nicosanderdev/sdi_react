@@ -58,7 +58,13 @@ Property images, property documents, and profile avatars use a **single storage 
 | **Production** | **Cloudflare R2** via Edge Function `storage-r2` | `VITE_STORAGE_BACKEND=r2` (default) |
 | **Local dev** | **Supabase Storage** (local stack) | `VITE_STORAGE_BACKEND=supabase` in `.env.local` |
 
-The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work.
+The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work. When the database still has legacy private R2 S3 API URLs (`*.r2.cloudflarestorage.com`), the client rewrites them to your public custom domains if these **frontend** env vars are set (same hostnames as `R2_PUBLIC_BASE_*` on the edge function):
+
+```env
+VITE_R2_PUBLIC_BASE_PROPERTY_IMAGES=https://property-images.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_PROPERTY_DOCUMENTS=https://property-documents.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_AVATARS=https://avatars.staging.yourdomain.com
+```
 
 Guest portals are **read-only** for property media; see [`docs/handoffs/portal-property-image-storage.md`](docs/handoffs/portal-property-image-storage.md).
 
