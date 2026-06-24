@@ -49,3 +49,5 @@ supabase/snippets/
 supabase/public_schema.sql
 
 docs/handoffs/
+
+scripts/
