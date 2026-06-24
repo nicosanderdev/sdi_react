@@ -13,14 +13,27 @@ export const R2_BUCKETS = [
 
 export type R2BucketName = (typeof R2_BUCKETS)[number]
 
-/** R2 bucket names in Cloudflare (S3 `Bucket`); API/clients still use logical underscore names. */
-export function physicalR2BucketName(logical: R2BucketName): string {
-  const map: Record<R2BucketName, string> = {
-    property_images: 'property-images',
-    property_documents: 'property-documents',
-    avatars: 'avatars',
+/** S3 bucket name from a path-style public base URL (final pathname segment). */
+export function physicalBucketFromPublicBase(publicBase: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(publicBase)
+  } catch {
+    throw new Error(`Invalid R2 public base URL: ${publicBase}`)
   }
-  return map[logical]
+  const segments = parsed.pathname.split('/').filter((segment) => segment.length > 0)
+  if (segments.length === 0) {
+    throw new Error(
+      `R2 public base URL must include the bucket name as the final path segment ` +
+        `(e.g. https://<account>.r2.cloudflarestorage.com/staging-avatars). Got: ${publicBase}`,
+    )
+  }
+  return segments[segments.length - 1]
+}
+
+/** R2 bucket name in Cloudflare (S3 `Bucket`); derived from `R2_PUBLIC_BASE_*` env vars. */
+export function physicalR2BucketName(logical: R2BucketName): string {
+  return physicalBucketFromPublicBase(publicBaseForBucket(logical))
 }
 
 function requireEnv(name: string): string {

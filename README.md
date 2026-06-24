@@ -64,10 +64,13 @@ Guest portals are **read-only** for property media; see [`docs/handoffs/portal-p
 
 ### Cloudflare setup
 
-1. In the Cloudflare dashboard, create three **R2 buckets** (the names Cloudflare expects; the app still uses logical names `property_images` / `property_documents` in code and in the Edge API): **`property-images`**, **`property-documents`**, and **`avatars`**.
-2. For each bucket, enable **public access** (for example **R2.dev subdomain** or a **custom domain**) so public URLs resolve in `<img>` and document links. Note the public base URL for each bucket (no trailing slash), for example `https://pub-xxxxx.r2.dev`.
+1. In the Cloudflare dashboard, create three **R2 buckets** per environment (the app still uses logical names `property_images` / `property_documents` in code and in the Edge API). Production might use **`property-images`**, **`property-documents`**, and **`avatars`**; staging might use **`staging-property-images`**, **`staging-property-documents`**, and **`staging-avatars`**.
+2. For each bucket, enable **public access** so public URLs resolve in `<img>` and document links. The edge function derives the S3 bucket name from the **`R2_PUBLIC_BASE_*`** secrets (see below), so each base URL must be **path-style** and include the bucket name as the **final path segment** (no trailing slash). Examples:
+   - Production: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com/property-images`
+   - Staging: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com/staging-property-images`
+   - Bare subdomain-only URLs such as `https://pub-xxxxx.r2.dev` (no bucket path) are **not** supported.
 3. Create an **R2 API token** (S3-compatible) with read/write on these buckets. Copy the **access key id**, **secret access key**, and **S3 API endpoint** (`https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
-4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173` and your production origin), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
+4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173`, your production origin, and Vercel preview origins for staging), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
 
 ### Supabase Edge Function secrets
 
@@ -79,9 +82,9 @@ Set these for **all** environments where `storage-r2` runs (Dashboard → Projec
 | `R2_ACCESS_KEY_ID` | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret |
 | `R2_REGION` | Optional; defaults to `auto` if omitted |
-| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Public URL base for the **`property-images`** R2 bucket (no trailing slash) |
-| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Public URL base for the **`property-documents`** R2 bucket |
-| `R2_PUBLIC_BASE_AVATARS` | Public URL base for the **`avatars`** R2 bucket |
+| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Path-style public URL base including bucket name as final segment (no trailing slash), e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com/property-images` or `.../staging-property-images` |
+| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Same pattern for property documents bucket |
+| `R2_PUBLIC_BASE_AVATARS` | Same pattern for avatars bucket, e.g. `.../avatars` or `.../staging-avatars` |
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already available to Edge Functions.
 
