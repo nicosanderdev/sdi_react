@@ -16,8 +16,8 @@ const GuestManagementPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <DashboardPageTitle
-          title="Administración de invitados"
-          subtitle="Consulta invitados registrados desde reservas del sitio público (solo lectura)"
+          title="Administración de huéspedes"
+          subtitle="Consulta huéspedes registrados desde reservas del sitio público (solo lectura)"
         />
 
         <Button
@@ -46,7 +46,7 @@ const GuestManagementPage: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total de invitados</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total de huéspedes</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
                 {totalGuests.toLocaleString()}
               </p>
@@ -70,7 +70,7 @@ const GuestManagementPage: React.FC = () => {
       <Card>
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Invitados registrados
+            Huéspedes registrados
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Solo consulta. Los datos se crean al confirmar reservas en el sitio de viajes.

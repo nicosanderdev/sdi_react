@@ -158,7 +158,7 @@ export const useAdminGuests = (): UseAdminGuestsReturn => {
     try {
       const detail = await guestAdminService.getGuestDetail(guestId);
       if (!detail) {
-        setViewModalError('Invitado no encontrado');
+        setViewModalError('Huésped no encontrado');
         return;
       }
       setViewGuest(detail);

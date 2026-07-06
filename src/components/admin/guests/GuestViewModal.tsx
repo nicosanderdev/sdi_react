@@ -17,7 +17,7 @@ export const GuestViewModal: React.FC<GuestViewModalProps> = ({ hook }) => {
 
   return (
     <Modal show={viewModalOpen} onClose={closeViewModal} size="md">
-      <ModalHeader>Ver invitado</ModalHeader>
+      <ModalHeader>Ver huésped</ModalHeader>
       <ModalBody>
         {viewGuestLoading ? (
           <div className="flex justify-center py-10">
