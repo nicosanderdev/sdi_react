@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Upload, Trash2, Star } from 'lucide-react';
 import { Button } from 'flowbite-react';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 export interface DisplayImage {
     key: string;
@@ -114,7 +115,7 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                     {displayImages.map((img) => (
                         <div key={img.key} className="relative group aspect-square">
                             <img
-                                src={img.previewUrl}
+                                src={resolveAssetUrl(img.previewUrl)}
                                 alt={img.alt}
                                 className="w-full h-full object-cover rounded-lg"
                             />

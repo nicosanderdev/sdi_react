@@ -14,7 +14,7 @@ const formatDate = (dateString: string | null): string => {
 };
 
 const getFullName = (guest: GuestListItem): string => {
-  return `${guest.firstName} ${guest.lastName}`.trim() || 'Invitado desconocido';
+  return `${guest.firstName} ${guest.lastName}`.trim() || 'Huésped desconocido';
 };
 
 export const GuestManagementTable: React.FC<GuestManagementTableProps> = ({ hook }) => {
@@ -53,7 +53,7 @@ export const GuestManagementTable: React.FC<GuestManagementTableProps> = ({ hook
     return (
       <div className="text-center py-12" data-testid="admin-guests-table">
         <p className="text-gray-500 dark:text-gray-400">
-          No se encontraron invitados con los filtros actuales.
+          No se encontraron huéspedes con los filtros actuales.
         </p>
       </div>
     );

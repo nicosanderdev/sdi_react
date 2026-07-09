@@ -4,6 +4,7 @@ import { Users, UserPlus, Trash2, AlertCircle } from 'lucide-react';
 import { CompanyUser } from '../../models/companies/CompanyUser';
 import companyService from '../../services/CompanyService';
 import { AddUserModal } from './AddUserModal';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 interface CompanyUsersListProps {
   users: CompanyUser[];
@@ -131,7 +132,7 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
                       <div className="flex items-center space-x-3">
                         {user.avatarUrl ? (
                           <img
-                            src={user.avatarUrl}
+                            src={resolveAssetUrl(user.avatarUrl)}
                             alt={`${user.firstName} ${user.lastName}`}
                             className="w-8 h-8 rounded-full object-cover"
                           />

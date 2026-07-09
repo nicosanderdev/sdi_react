@@ -8,6 +8,7 @@ import type { PropertyType } from '../../../models/properties';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 import { localizedFromLegacyNameDescription } from '../../../models/properties/propertyContentSections';
 import { LocalizedTitleDescriptionFields } from './LocalizedTextFields';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 type LayoutType = PropertyContentSectionFormData['layoutType'];
 type DisplayVariant = PropertyContentSectionFormData['displayVariant'];
@@ -311,7 +312,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                           title={image.alt || image.key}
                         >
                           <img
-                            src={image.previewUrl}
+                            src={resolveAssetUrl(image.previewUrl)}
                             alt={image.alt || ''}
                             className="h-full w-full object-cover"
                           />

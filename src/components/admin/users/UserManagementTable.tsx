@@ -4,6 +4,7 @@ import { Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, T
 import { ChevronUpIcon, ChevronDownIcon, Loader2Icon } from 'lucide-react';
 import { UserListItem, SubscriptionTier } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn, SortField } from '../../../hooks/useAdminUsers';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 interface UserManagementTableProps {
   hook: UseAdminUsersReturn;
@@ -154,7 +155,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
 
               <TableCell>
                 <Avatar
-                  img={user.avatarUrl || undefined}
+                  img={resolveAssetUrl(user.avatarUrl) || undefined}
                   placeholderInitials={getFullName(user).split(' ').map(n => n[0]).join('').toUpperCase()}
                   rounded
                   size="sm"

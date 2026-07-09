@@ -4,6 +4,7 @@ import { Avatar, Dropdown, DropdownDivider, DropdownHeader, DropdownItem, Navbar
 import { CustomDarkThemeToggle } from '../ui/CustomDarkThemeToggle';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 export function HeaderLayout() {
   const userProfile = useSelector(selectUserProfile);
@@ -91,7 +92,7 @@ export function HeaderLayout() {
                   {userProfile?.avatarUrl ? (
                     <Avatar
                       alt="User settings"
-                      img={userProfile.avatarUrl}
+                      img={resolveAssetUrl(userProfile.avatarUrl)}
                       rounded
                       theme={{ root: { img: { base: "rounded object-cover" } } }}
                     />

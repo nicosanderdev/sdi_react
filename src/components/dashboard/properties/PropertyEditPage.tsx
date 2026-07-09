@@ -17,6 +17,7 @@ import type { DisplayVideo } from './VideoManager';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
 import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../../../models/properties/propertyTypeLabels';
 import { amenityDescriptionsFromAmenities } from '../../../models/properties/amenityDescriptions';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 export function PropertyEditPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -112,7 +113,7 @@ export function PropertyEditPage() {
         key: img.id,
         id: img.id,
         source: 'existing',
-        previewUrl: img.url,
+        previewUrl: resolveAssetUrl(img.url),
         alt: img.altText || '',
         isMain: !!img.isMain,
       }))
@@ -122,7 +123,7 @@ export function PropertyEditPage() {
         key: doc.id,
         id: doc.id,
         source: 'existing',
-        url: doc.url,
+        url: resolveAssetUrl(doc.url),
         name: doc.name || '',
         fileName: doc.fileName || doc.name || '',
         fileType: 'pdf',

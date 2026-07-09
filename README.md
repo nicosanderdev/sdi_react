@@ -58,16 +58,34 @@ Property images, property documents, and profile avatars use a **single storage 
 | **Production** | **Cloudflare R2** via Edge Function `storage-r2` | `VITE_STORAGE_BACKEND=r2` (default) |
 | **Local dev** | **Supabase Storage** (local stack) | `VITE_STORAGE_BACKEND=supabase` in `.env.local` |
 
-The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work.
+The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work. When the database still has legacy private R2 S3 API URLs (`*.r2.cloudflarestorage.com`), the client rewrites them to your public custom domains if these **frontend** env vars are set (same hostnames as `R2_PUBLIC_BASE_*` on the edge function):
+
+```env
+VITE_R2_PUBLIC_BASE_PROPERTY_IMAGES=https://property-images.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_PROPERTY_DOCUMENTS=https://property-documents.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_AVATARS=https://avatars.staging.yourdomain.com
+```
 
 Guest portals are **read-only** for property media; see [`docs/handoffs/portal-property-image-storage.md`](docs/handoffs/portal-property-image-storage.md).
 
 ### Cloudflare setup
 
-1. In the Cloudflare dashboard, create three **R2 buckets** (the names Cloudflare expects; the app still uses logical names `property_images` / `property_documents` in code and in the Edge API): **`property-images`**, **`property-documents`**, and **`avatars`**.
-2. For each bucket, enable **public access** (for example **R2.dev subdomain** or a **custom domain**) so public URLs resolve in `<img>` and document links. Note the public base URL for each bucket (no trailing slash), for example `https://pub-xxxxx.r2.dev`.
+1. In the Cloudflare dashboard, create three **R2 buckets** per environment (the app still uses logical names `property_images` / `property_documents` in code and in the Edge API). Production might use **`property-images`**, **`property-documents`**, and **`avatars`**; staging might use **`staging-property-images`**, **`staging-property-documents`**, and **`staging-avatars`**.
+2. For each bucket, attach a **custom domain** for public read access (R2 → bucket → Settings → Public access → Custom Domains). The domain (or parent zone) must be on Cloudflare. Example staging hostnames:
+   - `property-images.staging.<your-domain>`
+   - `property-documents.staging.<your-domain>`
+   - `avatars.staging.<your-domain>`
+   Wait until each custom domain shows **Active**, then verify anonymous GET in an incognito tab:
+
+   `https://property-images.staging.<your-domain>/properties/<object-key>.jpg`
+
+   You should see the image (or 404 if the key is wrong), **not** an XML `Authorization` error.
+
+   **Do not** use `*.r2.cloudflarestorage.com` for public reads. That host is the private S3 API and rejects unsigned GET requests. It is only for `R2_ENDPOINT` and presigned uploads.
 3. Create an **R2 API token** (S3-compatible) with read/write on these buckets. Copy the **access key id**, **secret access key**, and **S3 API endpoint** (`https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
-4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173` and your production origin), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
+4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173`, your production origin, and Vercel preview origins for staging), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
+
+For non-production smoke tests you may use an **r2.dev** public URL instead of a custom domain; set `R2_PUBLIC_BASE_*` to that base (no trailing slash) and set the matching `R2_S3_BUCKET_*` secret because r2.dev URLs have no bucket path segment.
 
 ### Supabase Edge Function secrets
 
@@ -75,13 +93,24 @@ Set these for **all** environments where `storage-r2` runs (Dashboard → Projec
 
 | Secret | Description |
 |--------|-------------|
-| `R2_ENDPOINT` | S3 API endpoint, e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| `R2_ENDPOINT` | Private S3 API endpoint for presigned uploads/deletes, e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | `R2_ACCESS_KEY_ID` | R2 API token access key |
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret |
 | `R2_REGION` | Optional; defaults to `auto` if omitted |
-| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Public URL base for the **`property-images`** R2 bucket (no trailing slash) |
-| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Public URL base for the **`property-documents`** R2 bucket |
-| `R2_PUBLIC_BASE_AVATARS` | Public URL base for the **`avatars`** R2 bucket |
+| `R2_S3_BUCKET_PROPERTY_IMAGES` | Physical R2 bucket name for S3 API calls, e.g. `staging-property-images` or `property-images` |
+| `R2_S3_BUCKET_PROPERTY_DOCUMENTS` | Physical bucket for documents |
+| `R2_S3_BUCKET_AVATARS` | Physical bucket for avatars |
+| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Public read base URL (custom domain or r2.dev), **no trailing slash**, e.g. `https://property-images.staging.<your-domain>` |
+| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Same pattern for property documents |
+| `R2_PUBLIC_BASE_AVATARS` | Same pattern for avatars, e.g. `https://avatars.staging.<your-domain>` |
+
+`R2_S3_BUCKET_*` is required when `R2_PUBLIC_BASE_*` is a custom domain or r2.dev URL (no `/bucket-name` path). Local MinIO can omit `R2_S3_BUCKET_*`; the edge function derives the bucket from the final path segment of path-style `R2_PUBLIC_BASE_*` URLs.
+
+Staging helper script (edit hostnames, then run after `supabase link`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ./scripts/set-r2-staging-secrets.ps1 -StagingApex yourdomain.com
+```
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already available to Edge Functions.
 
@@ -94,6 +123,7 @@ supabase functions deploy storage-r2
 ### Breaking changes / behavior notes
 
 - **New uploads** use R2 URLs only. Existing database rows that still point at Supabase Storage are unchanged; re-upload if you need those assets on R2.
+- **Legacy R2 S3 API URLs** (`*.r2.cloudflarestorage.com/<bucket>/...`) stored before custom domains were configured are rewritten by migration `20260624120000_rewrite_r2_legacy_urls.sql`. Edit the `custom_base_*` hostnames in that migration before applying, or run the updates manually after custom domains are active.
 - Profile pictures use the **`avatars`** bucket (the app previously referenced a `profile_pictures` bucket in code; that path is removed).
 
 ### Local development (Supabase Storage — recommended)

@@ -1,5 +1,6 @@
 import React from 'react';
 import { User } from 'lucide-react';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 interface Props {
   name: string;
@@ -12,7 +13,7 @@ function UserAvatar({ name, avatarUrl }: Props) {
   if (avatarUrl) {
     return (
       <img
-        src={avatarUrl}
+        src={resolveAssetUrl(avatarUrl)}
         alt={name}
         className="w-12 h-12 rounded-full object-cover flex-shrink-0"
       />

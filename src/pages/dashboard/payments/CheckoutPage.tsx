@@ -6,6 +6,7 @@ import { PaymentForm } from '../../../components/payments/PaymentForm';
 import { PaymentStatusModal } from '../../../components/payments/PaymentStatusModal';
 import propertyService from '../../../services/PropertyService';
 import { PropertyData } from '../../../models/properties/PropertyData';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 export function CheckoutPage() {
     const navigate = useNavigate();
@@ -136,7 +137,7 @@ export function CheckoutPage() {
                         <div className="flex items-center space-x-4">
                             {property.images && property.images.length > 0 && (
                                 <img
-                                    src={property.images[0].url}
+                                    src={resolveAssetUrl(property.images[0].url)}
                                     alt={property.title}
                                     className="w-20 h-20 object-cover rounded-lg"
                                 />
