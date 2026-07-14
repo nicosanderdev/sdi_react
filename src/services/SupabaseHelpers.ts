@@ -774,7 +774,8 @@ export const mapDbToPropertyData = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    // Title lives on Listings (EstateProperties has no Title column).
+    title: featuredListing?.Title ?? '',
     type: (propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||
       'house') as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
@@ -789,7 +790,7 @@ export const mapDbToPropertyData = (
     propertyDocuments,
     propertyVideos,
     amenities,
-    description: latestValues?.Description || undefined,
+    description: featuredListing?.Description || latestValues?.Description || undefined,
     availableFrom: latestValues ? new Date(latestValues.AvailableFrom) : new Date(),
     availableFromText: latestValues ? new Date(latestValues.AvailableFrom).toLocaleDateString() : '',
     ownerId: property.OwnerId,
@@ -911,7 +912,7 @@ export const mapDbToPublicProperty = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    title: listing?.Title ?? '',
     type:
       propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||

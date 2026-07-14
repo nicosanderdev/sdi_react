@@ -21,6 +21,7 @@ import { ResetPasswordPage } from './components/user/ResetPasswordPage';
 // import { PublicUserFavoritesPage } from './pages/public/PublicUserFavoritesPage';
 // Keeping UpgradeToManagerPage for pricing route
 import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
+import { HowItWorksPage } from './pages/public/HowItWorksPage';
 
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -112,6 +113,7 @@ export function App() {
           {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
+          <Route path="/how-it-works" element={<PublicRoute><HowItWorksPage /></PublicRoute>} />
           
           {/* Dashboard Routes (Authentication Required, All Users) */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} >
