@@ -14,7 +14,7 @@ export function paramNumber(
   return fallback;
 }
 
-export function paramJson<T extends Record<string, unknown>>(
+export function paramJson<T extends object>(
   params: AppParametersMap,
   key: string,
   fallback: T,
