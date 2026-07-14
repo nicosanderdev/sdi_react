@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
+import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import propertyService from '../../../services/PropertyService';
 import type { DisplayImage } from './ImageManager';
@@ -18,6 +19,21 @@ import type { ListingType, PropertyType } from '../../../models/properties/Prope
 import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../../../models/properties/propertyTypeLabels';
 import { amenityDescriptionsFromAmenities } from '../../../models/properties/amenityDescriptions';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
+
+function firstValidationMessage(errors: FieldErrors<PropertyFormData>): string {
+  const walk = (node: unknown): string | null => {
+    if (!node || typeof node !== 'object') return null;
+    if ('message' in node && typeof (node as { message?: unknown }).message === 'string') {
+      return (node as { message: string }).message;
+    }
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      const found = walk(value);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(errors) || 'Revisá los campos del formulario. Hay datos incompletos o inválidos.';
+}
 
 export function PropertyEditPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
@@ -141,6 +157,10 @@ export function PropertyEditPage() {
     );
   }, [property, reset]);
 
+  const onInvalid = (errors: FieldErrors<PropertyFormData>) => {
+    setApiError(firstValidationMessage(errors));
+  };
+
   const onSubmit = async (formData: PropertyFormData) => {
     if (!propertyId) return;
     try {
@@ -152,7 +172,8 @@ export function PropertyEditPage() {
       }
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
-      navigate('/dashboard/properties');
+      queryClient.invalidateQueries({ queryKey: ['admin-properties'] });
+      navigate(-1);
     } catch (e: any) {
       setApiError(e.message || 'No se pudieron guardar los cambios.');
     } finally {
@@ -223,23 +244,28 @@ export function PropertyEditPage() {
             />
           )}
           {currentStep === 4 && (
-            <PropertyFormStep4Sections
-              onBack={() => setCurrentStep(3)}
-              displayImages={displayImages}
-              allowedListingTypes={activeListingTypesForEdit}
-              hideNextButton
-              footerExtra={
-                <>
-                  <Button color="alternative" onClick={() => navigate(-1)} disabled={isSaving}>
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSubmit(onSubmit)} disabled={isSaving}>
-                    <Save size={16} className="mr-2" />
-                    {isSaving ? 'Guardando...' : 'Guardar cambios'}
-                  </Button>
-                </>
-              }
-            />
+            <div className="space-y-8">
+              <div className="max-w-4xl mx-auto w-full">
+                <PropertyListingCopyFields />
+              </div>
+              <PropertyFormStep4Sections
+                onBack={() => setCurrentStep(3)}
+                displayImages={displayImages}
+                allowedListingTypes={activeListingTypesForEdit}
+                hideNextButton
+                footerExtra={
+                  <>
+                    <Button color="alternative" onClick={() => navigate(-1)} disabled={isSaving}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleSubmit(onSubmit, onInvalid)} disabled={isSaving}>
+                      <Save size={16} className="mr-2" />
+                      {isSaving ? 'Guardando...' : 'Guardar cambios'}
+                    </Button>
+                  </>
+                }
+              />
+            </div>
           )}
         </div>
       </Card>

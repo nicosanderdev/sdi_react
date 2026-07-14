@@ -60,7 +60,8 @@ const isMissingPropertyEditorContentRpcError = (error: unknown): boolean => {
     return (
         message.includes('replace_estate_property_content_sections') ||
         message.includes('replace_estate_property_policies') ||
-        message.includes('get_estate_property_editor_content')
+        message.includes('get_estate_property_editor_content') ||
+        message.includes('update_estate_property_wizard_extensions')
     );
 };
 
@@ -1185,6 +1186,10 @@ const updatePropertyWizard = async (
     const featuredListing = await getFeaturedListingForProperty(id);
     const payload: PropertyFormData = {
         ...formData,
+        title: formData.title?.trim() ? formData.title : (featuredListing?.title || formData.title),
+        description: formData.description?.trim()
+            ? formData.description
+            : (featuredListing?.description || formData.description),
         currency: featuredListing?.currency ?? formData.currency ?? 'USD',
         salePrice: featuredListing?.salePrice ?? formData.salePrice,
         rentPrice: featuredListing?.rentPrice ?? formData.rentPrice,
@@ -1470,7 +1475,9 @@ const updateProperty = async (
             p_closing_hour: formData.closingHour || null,
             p_allowed_events_description: formData.allowedEventsDescription || null,
         });
-        if (wizardExtError) throw wizardExtError;
+        if (wizardExtError && !isMissingPropertyEditorContentRpcError(wizardExtError)) {
+            throw wizardExtError;
+        }
 
         const isPublishedNow = !!(formData.isPropertyVisible && formData.isActive);
         if (!wasPublished && isPublishedNow) {

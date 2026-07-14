@@ -29,6 +29,8 @@ const PRICING_MODELS: PricingModel[] = ['per_booking', 'per_listing', 'hybrid'];
 
 const PROPERTY_TYPES: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
 
+const HELPER_TEXT_CLASS = 'mt-1 text-xs text-gray-500 dark:text-gray-300';
+
 type FormState = {
   id?: string;
   key: string;
@@ -58,8 +60,8 @@ type FormState = {
   isDeleted: boolean;
 };
 
-const emptyForm = (): FormState => ({
-  key: '',
+const emptyForm = (key = ''): FormState => ({
+  key,
   name: '',
   currency: 'USD',
   pricingModel: 'hybrid',
@@ -102,7 +104,13 @@ function parseRequiredNumber(text: string, fallback = 0): number {
   return n ?? fallback;
 }
 
+function nextPlanKey(rows: AdminPlanRow[]): number {
+  if (rows.length === 0) return 0;
+  return Math.max(...rows.map(r => r.key)) + 1;
+}
+
 function rowToForm(row: AdminPlanRow): FormState {
+  const active = row.isActiveV2 ?? row.isActive;
   return {
     id: row.id,
     key: String(row.key),
@@ -127,8 +135,8 @@ function rowToForm(row: AdminPlanRow): FormState {
     extraPropertiesPrice31Plus: numToText(row.extraPropertiesPrice31Plus),
     bookingReceiptMinimumAmount: numToText(row.bookingReceiptMinimumAmount),
     propertyType: row.propertyType ?? '',
-    isActive: row.isActive,
-    isActiveV2: row.isActiveV2 ?? row.isActive,
+    isActive: active,
+    isActiveV2: active,
     isDeleted: row.isDeleted,
   };
 }
@@ -136,6 +144,7 @@ function rowToForm(row: AdminPlanRow): FormState {
 function formToPayload(form: FormState): AdminPlanUpsertPayload {
   const propertyType =
     form.propertyType.trim() === '' ? null : (form.propertyType as PropertyType);
+  const isActive = form.isActiveV2;
 
   const payload: AdminPlanUpsertPayload = {
     Name: form.name.trim(),
@@ -159,8 +168,8 @@ function formToPayload(form: FormState): AdminPlanUpsertPayload {
     ExtraPropertiesPrice31Plus: parseOptionalNumber(form.extraPropertiesPrice31Plus),
     BookingReceiptMinimumAmount: parseOptionalNumber(form.bookingReceiptMinimumAmount),
     PropertyType: propertyType,
-    IsActive: form.isActive,
-    IsActiveV2: form.isActiveV2,
+    IsActive: isActive,
+    IsActiveV2: isActive,
     IsDeleted: form.isDeleted,
   };
 
@@ -174,17 +183,20 @@ function formToPayload(form: FormState): AdminPlanUpsertPayload {
 }
 
 function formatPricingSummary(row: AdminPlanRow): string {
+  const currency = row.currency?.trim() || '';
+  const money = (amount: number) => (currency ? `${amount} ${currency}` : String(amount));
   const parts: string[] = [];
-  if (row.price != null) parts.push(`Precio: ${row.price}`);
-  if (row.minMonthlyFee != null) parts.push(`Mín: ${row.minMonthlyFee}`);
-  if (row.pricePerBooking != null) parts.push(`/reserva: ${row.pricePerBooking}`);
+  if (row.price != null) parts.push(`Precio: ${money(row.price)}`);
+  if (row.minMonthlyFee != null) parts.push(`Mín: ${money(row.minMonthlyFee)}`);
+  if (row.pricePerBooking != null) parts.push(`/reserva: ${money(row.pricePerBooking)}`);
+  if (row.commissionPercentage != null) parts.push(`Comisión: ${row.commissionPercentage}%`);
   return parts.length > 0 ? parts.join(' · ') : '—';
 }
 
 function FieldGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <fieldset className="space-y-3 rounded border border-gray-200 p-4 dark:border-gray-700">
-      <legend className="px-1 text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</legend>
+      <legend className="px-1 text-lg font-semibold text-gray-800 dark:text-gray-100">{title}</legend>
       {children}
     </fieldset>
   );
@@ -207,7 +219,7 @@ function NumberField({
     <div>
       <Label htmlFor={id}>{label}</Label>
       <TextInput id={id} type="number" step="any" value={value} onChange={e => onChange(e.target.value)} />
-      {helper && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
+      {helper && <p className={HELPER_TEXT_CLASS}>{helper}</p>}
     </div>
   );
 }
@@ -238,7 +250,7 @@ export function PlansManager() {
   }, [load]);
 
   const openCreate = () => {
-    setForm(emptyForm());
+    setForm(emptyForm(String(nextPlanKey(rows))));
     setModalOpen(true);
   };
 
@@ -257,7 +269,7 @@ export function PlansManager() {
         return;
       }
       if (!form.id && (form.key.trim() === '' || Number.isNaN(parseInt(form.key, 10)))) {
-        setError('La clave (Key) es obligatoria y debe ser un número entero');
+        setError('No se pudo asignar la clave (Key) del plan');
         return;
       }
 
@@ -272,6 +284,7 @@ export function PlansManager() {
   };
 
   const isEdit = Boolean(form.id);
+  const isActive = form.isActiveV2;
 
   return (
     <div className="space-y-4">
@@ -309,7 +322,7 @@ export function PlansManager() {
                 <TableHeadCell>Precios</TableHeadCell>
                 <TableHeadCell>Límite listados</TableHeadCell>
                 <TableHeadCell>Límite reservas</TableHeadCell>
-                <TableHeadCell>Activo V2</TableHeadCell>
+                <TableHeadCell>Activo</TableHeadCell>
                 <TableHeadCell>Tipo propiedad</TableHeadCell>
                 <TableHeadCell>Acciones</TableHeadCell>
               </TableRow>
@@ -323,7 +336,7 @@ export function PlansManager() {
                   <TableCell className="text-sm">{formatPricingSummary(row)}</TableCell>
                   <TableCell>{row.listingLimit ?? row.maxPublishedProperties ?? '—'}</TableCell>
                   <TableCell>{row.bookingLimit ?? '∞'}</TableCell>
-                  <TableCell>{row.isActiveV2 ? 'Sí' : 'No'}</TableCell>
+                  <TableCell>{(row.isActiveV2 ?? row.isActive) ? 'Sí' : 'No'}</TableCell>
                   <TableCell>{row.propertyType ?? '—'}</TableCell>
                   <TableCell>
                     <Button size="xs" color="alternative" onClick={() => openEdit(row)}>
@@ -344,29 +357,28 @@ export function PlansManager() {
             <FieldGroup title="Identificación">
               {isEdit && (
                 <div>
-                  <Label htmlFor="planId">Id</Label>
+                  <Label htmlFor="planId">Id (Id)</Label>
                   <TextInput id="planId" value={form.id ?? ''} readOnly disabled />
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="planKey">Key</Label>
+                  <Label htmlFor="planKey">Clave (Key)</Label>
                   <TextInput
                     id="planKey"
                     type="number"
                     value={form.key}
-                    onChange={e => setForm(f => ({ ...f, key: e.target.value }))}
-                    readOnly={isEdit}
-                    disabled={isEdit}
+                    readOnly
+                    disabled
                   />
                   {!isEdit && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Entero único. Debe coincidir con el mapeo de la app.
+                    <p className={HELPER_TEXT_CLASS}>
+                      Se asigna automáticamente al crear el plan.
                     </p>
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="planName">Nombre</Label>
+                  <Label htmlFor="planName">Nombre (Name)</Label>
                   <TextInput
                     id="planName"
                     value={form.name}
@@ -379,18 +391,15 @@ export function PlansManager() {
             <FieldGroup title="Estado">
               <div className="flex flex-wrap gap-6">
                 <ToggleSwitch
-                  checked={form.isActive}
-                  label="IsActive (legacy)"
-                  onChange={checked => setForm(f => ({ ...f, isActive: checked }))}
-                />
-                <ToggleSwitch
-                  checked={form.isActiveV2}
-                  label="IsActiveV2"
-                  onChange={checked => setForm(f => ({ ...f, isActiveV2: checked }))}
+                  checked={isActive}
+                  label="Activo"
+                  onChange={checked =>
+                    setForm(f => ({ ...f, isActive: checked, isActiveV2: checked }))
+                  }
                 />
                 <ToggleSwitch
                   checked={form.isDeleted}
-                  label="Eliminado (soft)"
+                  label="Eliminado (IsDeleted)"
                   onChange={checked => setForm(f => ({ ...f, isDeleted: checked }))}
                 />
               </div>
@@ -399,7 +408,7 @@ export function PlansManager() {
             <FieldGroup title="Precios flexibles">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="pricingModel">PricingModel</Label>
+                  <Label htmlFor="pricingModel">Modelo de precio (PricingModel)</Label>
                   <Select
                     id="pricingModel"
                     value={form.pricingModel}
@@ -415,7 +424,7 @@ export function PlansManager() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="currency">Moneda</Label>
+                  <Label htmlFor="currency">Moneda (Currency)</Label>
                   <TextInput
                     id="currency"
                     value={form.currency}
@@ -424,26 +433,26 @@ export function PlansManager() {
                 </div>
                 <NumberField
                   id="price"
-                  label="Price"
+                  label="Precio (Price)"
                   value={form.price}
                   onChange={v => setForm(f => ({ ...f, price: v }))}
                 />
                 <NumberField
                   id="monthlyPrice"
-                  label="MonthlyPrice (legacy)"
+                  label="Precio mensual (MonthlyPrice)"
                   value={form.monthlyPrice}
                   onChange={v => setForm(f => ({ ...f, monthlyPrice: v }))}
                 />
                 <NumberField
                   id="minMonthlyFee"
-                  label="MinMonthlyFee"
+                  label="Mínimo mensual (MinMonthlyFee)"
                   value={form.minMonthlyFee}
                   onChange={v => setForm(f => ({ ...f, minMonthlyFee: v }))}
                   helper="Vacío = sin mínimo"
                 />
                 <NumberField
                   id="pricePerBooking"
-                  label="PricePerBooking"
+                  label="Precio por reserva (PricePerBooking)"
                   value={form.pricePerBooking}
                   onChange={v => setForm(f => ({ ...f, pricePerBooking: v }))}
                   helper="Vacío = no aplica"
@@ -455,38 +464,38 @@ export function PlansManager() {
               <div className="grid grid-cols-2 gap-4">
                 <NumberField
                   id="listingLimit"
-                  label="ListingLimit"
+                  label="Límite de listados (ListingLimit)"
                   value={form.listingLimit}
                   onChange={v => setForm(f => ({ ...f, listingLimit: v }))}
                 />
                 <NumberField
                   id="bookingLimit"
-                  label="BookingLimit"
+                  label="Límite de reservas (BookingLimit)"
                   value={form.bookingLimit}
                   onChange={v => setForm(f => ({ ...f, bookingLimit: v }))}
                   helper="Vacío = ilimitado"
                 />
                 <NumberField
                   id="maxProperties"
-                  label="MaxProperties"
+                  label="Máx. propiedades (MaxProperties)"
                   value={form.maxProperties}
                   onChange={v => setForm(f => ({ ...f, maxProperties: v }))}
                 />
                 <NumberField
                   id="maxPublishedProperties"
-                  label="MaxPublishedProperties"
+                  label="Máx. publicadas (MaxPublishedProperties)"
                   value={form.maxPublishedProperties}
                   onChange={v => setForm(f => ({ ...f, maxPublishedProperties: v }))}
                 />
                 <NumberField
                   id="maxUsers"
-                  label="MaxUsers"
+                  label="Máx. usuarios (MaxUsers)"
                   value={form.maxUsers}
                   onChange={v => setForm(f => ({ ...f, maxUsers: v }))}
                 />
                 <NumberField
                   id="maxStorageMb"
-                  label="MaxStorageMb"
+                  label="Máx. almacenamiento MB (MaxStorageMb)"
                   value={form.maxStorageMb}
                   onChange={v => setForm(f => ({ ...f, maxStorageMb: v }))}
                 />
@@ -497,13 +506,13 @@ export function PlansManager() {
               <div className="grid grid-cols-2 gap-4">
                 <NumberField
                   id="durationDays"
-                  label="DurationDays"
+                  label="Duración en días (DurationDays)"
                   value={form.durationDays}
                   onChange={v => setForm(f => ({ ...f, durationDays: v }))}
                 />
                 <NumberField
                   id="billingCycle"
-                  label="BillingCycle (legacy)"
+                  label="Ciclo de facturación (BillingCycle)"
                   value={form.billingCycle}
                   onChange={v => setForm(f => ({ ...f, billingCycle: v }))}
                 />
@@ -514,31 +523,31 @@ export function PlansManager() {
               <div className="grid grid-cols-2 gap-4">
                 <NumberField
                   id="commissionPercentage"
-                  label="CommissionPercentage"
+                  label="Comisión % (CommissionPercentage)"
                   value={form.commissionPercentage}
                   onChange={v => setForm(f => ({ ...f, commissionPercentage: v }))}
                 />
                 <NumberField
                   id="commissionMinimumAmount"
-                  label="CommissionMinimumAmount"
+                  label="Comisión mínima (CommissionMinimumAmount)"
                   value={form.commissionMinimumAmount}
                   onChange={v => setForm(f => ({ ...f, commissionMinimumAmount: v }))}
                 />
                 <NumberField
                   id="extraPropertiesPrice11to30"
-                  label="ExtraPropertiesPrice11to30"
+                  label="Extra propiedades 11–30 (ExtraPropertiesPrice11to30)"
                   value={form.extraPropertiesPrice11to30}
                   onChange={v => setForm(f => ({ ...f, extraPropertiesPrice11to30: v }))}
                 />
                 <NumberField
                   id="extraPropertiesPrice31Plus"
-                  label="ExtraPropertiesPrice31Plus"
+                  label="Extra propiedades 31+ (ExtraPropertiesPrice31Plus)"
                   value={form.extraPropertiesPrice31Plus}
                   onChange={v => setForm(f => ({ ...f, extraPropertiesPrice31Plus: v }))}
                 />
                 <NumberField
                   id="bookingReceiptMinimumAmount"
-                  label="BookingReceiptMinimumAmount"
+                  label="Mín. recibo reserva (BookingReceiptMinimumAmount)"
                   value={form.bookingReceiptMinimumAmount}
                   onChange={v => setForm(f => ({ ...f, bookingReceiptMinimumAmount: v }))}
                 />
@@ -547,7 +556,7 @@ export function PlansManager() {
 
             <FieldGroup title="Ámbito">
               <div>
-                <Label htmlFor="propertyType">PropertyType</Label>
+                <Label htmlFor="propertyType">Tipo de propiedad (PropertyType)</Label>
                 <Select
                   id="propertyType"
                   value={form.propertyType}
