@@ -7,8 +7,10 @@ export function CTASection({ contactLabel, contactTo, demoLabel }: HeroSectionCt
   return (
     <PublicSection background="gray">
       <div className="text-center">
-        <h2 className="text-3xl font-bold mb-6">¿Gestionas portales de alquiler?</h2>
-        <p className="text-xl mb-12 text-gray-800 dark:text-gray-600 max-w-2xl mx-auto">
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+          ¿Gestionas portales de alquiler?
+        </h2>
+        <p className="text-xl mb-12 text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
           Encuentra en un solo software la base para administrar viviendas temporales y espacios para eventos, con el
           mismo rigor operativo para ambos.
         </p>
