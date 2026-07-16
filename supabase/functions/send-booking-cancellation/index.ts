@@ -7,12 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface HostContact {
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-}
-
 interface GuestProfile {
   firstName?: string | null;
   lastName?: string | null;
@@ -30,6 +24,7 @@ interface BookingRow {
   ReservationCode: string | null;
   ListingType: string | null;
   Status: number;
+  Notes: string | null;
   EstatePropertyId: string;
   EstateProperties: {
     Title: string | null;
@@ -81,6 +76,7 @@ serve(async (req) => {
         ReservationCode,
         ListingType,
         Status,
+        Notes,
         EstatePropertyId,
         EstateProperties (
           Title,
@@ -106,7 +102,7 @@ serve(async (req) => {
       );
     }
 
-    const booking = bookingData as BookingRow;
+    const booking = bookingData as unknown as BookingRow;
 
     let guestProfile: GuestProfile | null = null;
     if (booking.GuestId) {
@@ -136,23 +132,6 @@ serve(async (req) => {
       );
     }
 
-    let host: HostContact = { name: null, email: null, phone: null };
-    if (booking.Status === 1) {
-      const { data: hostContact, error: hostError } = await supabase.rpc(
-        'resolve_host_contact_for_property',
-        { p_estate_property_id: booking.EstatePropertyId }
-      );
-      if (hostError) {
-        console.error('Error resolving host contact:', hostError);
-      } else if (hostContact) {
-        host = {
-          name: (hostContact as HostContact).name ?? null,
-          email: (hostContact as HostContact).email ?? null,
-          phone: (hostContact as HostContact).phone ?? null,
-        };
-      }
-    }
-
     const property = booking.EstateProperties;
     const propertyTitle = property?.Title || 'Property';
     const reservationCode = booking.ReservationCode ?? booking.Id;
@@ -173,11 +152,6 @@ serve(async (req) => {
       day: 'numeric',
     });
 
-    const checkIn = new Date(booking.CheckInDate);
-    const checkOut = new Date(booking.CheckOutDate);
-    const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-    const totalAmount = booking.TotalAmount ?? 0;
-
     const locationParts = [
       property?.HouseNumber,
       property?.StreetName,
@@ -189,33 +163,13 @@ serve(async (req) => {
 
     const manageLinkHtml = manageUrl
       ? `<p style="text-align: center; margin: 30px 0;">
-                <a href="${manageUrl}" class="button">Manage Your Booking</a>
+                <a href="${manageUrl}" class="button">View Booking Details</a>
               </p>`
       : '';
 
-    const hostContactHtml =
-      booking.Status === 1 && (host.name || host.email || host.phone)
-        ? `
-              <h2>Host Contact</h2>
-              <p>If you need to contact your host before your arrival:</p>
-              <div class="booking-details">
-                ${host.name ? `
-                <div class="detail-row">
-                  <span><strong>Name:</strong></span>
-                  <span>${host.name}</span>
-                </div>` : ''}
-                ${host.email ? `
-                <div class="detail-row">
-                  <span><strong>Email:</strong></span>
-                  <span>${host.email}</span>
-                </div>` : ''}
-                ${host.phone ? `
-                <div class="detail-row">
-                  <span><strong>Phone:</strong></span>
-                  <span>${host.phone}</span>
-                </div>` : ''}
-              </div>`
-        : '';
+    const notesHtml = booking.Notes?.trim()
+      ? `<p><strong>Note:</strong> ${booking.Notes.trim()}</p>`
+      : '';
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -223,18 +177,16 @@ serve(async (req) => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Confirmation - Holiday Trips</title>
+          <title>Booking Cancelled - Holiday Trips</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f8f9fa; }
             .container { max-width: 600px; margin: 0 auto; background-color: white; }
-            .header { background: linear-gradient(135deg, #E5C469 0%, #0A1A2F 100%); color: white; padding: 40px 30px; text-align: center; }
+            .header { background: linear-gradient(135deg, #0A1A2F 0%, #4a5568 100%); color: white; padding: 40px 30px; text-align: center; }
             .content { padding: 40px 30px; }
-            .booking-details { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #E5C469; }
+            .booking-details { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; border-left: 4px solid #4a5568; }
             .detail-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            .total { font-weight: bold; font-size: 18px; color: #0A1A2F; border-top: 1px solid #ddd; padding-top: 10px; margin-top: 10px; }
             .footer { background: #f8f9fa; padding: 20px 30px; text-align: center; color: #666; font-size: 14px; }
             .button { display: inline-block; background: #E5C469; color: #0A1A2F; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: bold; margin: 20px 0; }
-            .highlight { color: #E5C469; font-weight: bold; }
             h1 { margin: 0; font-size: 28px; }
             h2 { color: #0A1A2F; margin-top: 30px; margin-bottom: 15px; }
           </style>
@@ -242,12 +194,12 @@ serve(async (req) => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Booking Confirmed!</h1>
-              <p>Hi ${guestName}, your reservation has been successfully confirmed</p>
+              <h1>Booking Cancelled</h1>
+              <p>Hi ${guestName}, your reservation has been cancelled</p>
             </div>
 
             <div class="content">
-              <h2>Booking Details</h2>
+              <h2>Cancelled Booking Details</h2>
 
               <div class="booking-details">
                 <div class="detail-row">
@@ -271,25 +223,17 @@ serve(async (req) => {
                   <span>${checkOutDate}</span>
                 </div>
                 <div class="detail-row">
-                  <span><strong>Nights:</strong></span>
-                  <span>${nights}</span>
-                </div>
-                <div class="detail-row">
                   <span><strong>Guests:</strong></span>
                   <span>${booking.GuestCount}</span>
                 </div>
-                <div class="detail-row total">
-                  <span><strong>Total:</strong></span>
-                  <span>$${totalAmount.toFixed(2)}</span>
-                </div>
               </div>
 
-              ${hostContactHtml}
+              ${notesHtml}
               ${manageLinkHtml}
 
-              <p>We hope you have an amazing stay! If you have any questions, please don't hesitate to contact us.</p>
+              <p>If you believe this was a mistake or need help booking again, please contact us.</p>
 
-              <p class="highlight">Safe travels,<br>The Holiday Trips Team</p>
+              <p>Best regards,<br>The Holiday Trips Team</p>
             </div>
 
             <div class="footer">
@@ -303,10 +247,10 @@ serve(async (req) => {
     `;
 
     const fromEmail = 'Holiday Trips <bookings@holidaytrips.com>';
-    const subject = `Booking Confirmed: ${propertyTitle}`;
+    const subject = `Booking Cancelled: ${propertyTitle}`;
 
     if (!sendEmailsEnabled) {
-      console.log('Dry-run booking confirmation email:', {
+      console.log('Dry-run booking cancellation email:', {
         mode: 'dry-run',
         from: fromEmail,
         to: [guestEmail],
@@ -316,7 +260,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Confirmation email simulated (dry-run)',
+          message: 'Cancellation email simulated (dry-run)',
           mode: 'dry-run',
         }),
         {
@@ -354,9 +298,9 @@ serve(async (req) => {
 
     if (!emailResponse.ok) {
       const errorData = await emailResponse.text();
-      console.error('Failed to send email:', errorData);
+      console.error('Failed to send cancellation email:', errorData);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to send confirmation email' }),
+        JSON.stringify({ success: false, error: 'Failed to send cancellation email' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 500,
@@ -365,12 +309,12 @@ serve(async (req) => {
     }
 
     const emailResult = await emailResponse.json();
-    console.log('Email sent successfully:', emailResult);
+    console.log('Cancellation email sent successfully:', emailResult);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Confirmation email sent successfully',
+        message: 'Cancellation email sent successfully',
         mode: 'live',
         emailId: emailResult.id,
       }),

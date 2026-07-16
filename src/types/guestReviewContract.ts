@@ -8,7 +8,8 @@
  *          supabase/migrations/20260602120000_dynamic_pricing_schema.sql
  *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
- * See docs/handoffs/dynamic-pricing-guest-client.md
+ * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
+ * See also docs/handoffs/dynamic-pricing-guest-client.md
  */
 
 /** Listing types allowed on public guest sites (excludes AnnualRent). */

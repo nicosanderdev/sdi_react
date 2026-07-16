@@ -1,4 +1,5 @@
 import { supabase } from '../config/supabase';
+import BookingCancellationService from './BookingCancellationService';
 import BookingConfirmationService from './BookingConfirmationService';
 import { SdiApiResponse } from '../models/SdiApiResponse';
 import { Booking, BookingStatus, ValidationStatus } from '../models/calendar/CalendarSync';
@@ -126,7 +127,7 @@ type BookingWithGuestSiteFields = BookingWithMember & {
   EstateProperty?: { Title?: string };
 };
 
-function buildConfirmationPayload(
+function buildGuestNotificationPayload(
   booking: BookingWithGuestSiteFields
 ): Parameters<typeof BookingConfirmationService.handlePostConfirmation>[0] {
   return {
@@ -537,7 +538,7 @@ class BookingService {
 
       if (status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
         await BookingConfirmationService.handlePostConfirmation(
-          buildConfirmationPayload(withGuest as BookingWithGuestSiteFields)
+          buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
         );
       }
 
@@ -631,8 +632,18 @@ class BookingService {
 
       if (updates.status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
         await BookingConfirmationService.handlePostConfirmation(
-          buildConfirmationPayload(withGuest as BookingWithGuestSiteFields)
+          buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
         );
+      }
+
+      if (updates.status === BookingStatus.Cancelled && withGuest?.Id && withGuest?.EstatePropertyId) {
+        try {
+          await BookingCancellationService.handlePostCancellation(
+            buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
+          );
+        } catch (notifyError) {
+          console.warn('Booking cancellation notification failed:', notifyError);
+        }
       }
 
       return {

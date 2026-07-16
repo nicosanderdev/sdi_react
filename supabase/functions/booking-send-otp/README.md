@@ -1,6 +1,8 @@
 # booking-send-otp
 
-Sends a booking verification OTP via WhatsApp (Meta Cloud API) with SMS fallback.
+Sends a booking verification OTP via WhatsApp (Meta Cloud API) with SMS fallback on WhatsApp failure.
+
+Guest sites should offer a **Resend code** action that calls this function again with the same `holdId` and `phone` (rate-limited: 3 requests per phone per 10 minutes).
 
 ## Local mock mode (dry-run)
 
@@ -44,6 +46,12 @@ Copy `code` from the functions serve console, then call verify as above.
 npx supabase functions serve --env-file supabase/functions/.env
 ```
 
-## Production
+## Production / staging
 
-Hosted Supabase URLs do not match local hosts, so Meta WhatsApp and SMS fallback run as implemented. Ensure secrets are set in the project dashboard (`META_WHATSAPP_TOKEN`, `META_WHATSAPP_PHONE_NUMBER_ID`, `SMS_FALLBACK_WEBHOOK_URL`).
+Hosted Supabase URLs do not match local hosts, so Meta WhatsApp and SMS fallback run as implemented. Ensure secrets are set in the project dashboard:
+
+- `META_WHATSAPP_TOKEN`
+- `META_WHATSAPP_PHONE_NUMBER_ID`
+- `SMS_FALLBACK_WEBHOOK_URL` — POST `{ phone, message }`
+
+See also `docs/handoffs/guest-booking-messaging.md`.

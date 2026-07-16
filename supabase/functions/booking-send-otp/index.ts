@@ -3,6 +3,7 @@ import {
   logBookingOtpMockMessage,
   shouldUseBookingOtpMock,
 } from '../_shared/bookingOtpDev.ts';
+import { sendWhatsappViaMeta } from '../_shared/whatsapp.ts';
 
 interface SendOtpBody {
   holdId: string;
@@ -19,7 +20,6 @@ function jsonResponse(payload: unknown, status = 200): Response {
 
 const PHONE_E164_REGEX = /^\+[1-9]\d{7,14}$/;
 const OTP_TTL_SECONDS = 5 * 60;
-const FALLBACK_DELAY_SECONDS = 30;
 
 function getClientIp(req: Request, bodyIp?: string | null): string | null {
   if (bodyIp && bodyIp.trim().length > 0) {
@@ -52,38 +52,8 @@ async function makeOtpHash(otpCode: string): Promise<string> {
   return `${salt}$${hash}`;
 }
 
-async function sendWhatsappViaMeta(phone: string, otpCode: string): Promise<{ ok: boolean; messageId?: string; error?: string }> {
-  const token = Deno.env.get('META_WHATSAPP_TOKEN');
-  const phoneNumberId = Deno.env.get('META_WHATSAPP_PHONE_NUMBER_ID');
-  if (!token || !phoneNumberId) {
-    return { ok: false, error: 'Meta WhatsApp credentials are missing' };
-  }
-
-  const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: phone,
-      type: 'text',
-      text: {
-        body: `Your booking verification code is ${otpCode}. It expires in 5 minutes.`,
-      },
-    }),
-  });
-
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    const apiError = (payload.error as { message?: string } | undefined)?.message;
-    return { ok: false, error: apiError ?? `Meta API returned ${response.status}` };
-  }
-
-  const messageId = ((payload.messages as Array<{ id?: string }> | undefined)?.[0]?.id ?? undefined);
-  return { ok: true, messageId };
+function buildOtpMessage(otpCode: string): string {
+  return `Your booking verification code is ${otpCode}. It expires in 5 minutes.`;
 }
 
 async function sendSmsFallback(phone: string, otpCode: string): Promise<{ ok: boolean; error?: string }> {
@@ -97,7 +67,7 @@ async function sendSmsFallback(phone: string, otpCode: string): Promise<{ ok: bo
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       phone,
-      message: `Your booking verification code is ${otpCode}. It expires in 5 minutes.`,
+      message: buildOtpMessage(otpCode),
     }),
   });
 
@@ -135,7 +105,6 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Contract placeholder: hold/rate-limit validation should be strict in production.
     const { data: holdData, error: holdError } = await supabaseAdmin
       .from('booking_holds')
       .select('id, status, expires_at')
@@ -238,7 +207,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const waResult = await sendWhatsappViaMeta(phone, otpCode);
+    const waResult = await sendWhatsappViaMeta(phone, buildOtpMessage(otpCode));
     if (!waResult.ok) {
       const smsResult = await sendSmsFallback(phone, otpCode);
       await supabaseAdmin
@@ -266,7 +235,6 @@ Deno.serve(async (req: Request) => {
       .update({
         whatsapp_status: 'sent',
         whatsapp_message_id: waResult.messageId ?? null,
-        fallback_required_at: new Date(Date.now() + FALLBACK_DELAY_SECONDS * 1000).toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', otpRequestId);
@@ -280,11 +248,9 @@ Deno.serve(async (req: Request) => {
       success: true,
       channel: 'whatsapp',
       otpRequestId,
-      fallbackCheckAfterSeconds: FALLBACK_DELAY_SECONDS,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error';
     return jsonResponse({ success: false, error: message }, 500);
   }
 });
-
