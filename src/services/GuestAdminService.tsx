@@ -4,7 +4,7 @@ export interface GuestListItem {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email: string | null;
   phoneNumber: string;
   created: string;
   bookingsCount: number;
@@ -21,7 +21,7 @@ export interface GuestDetail {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email: string | null;
   phoneNumber: string;
   created: string;
   lastModified: string;
@@ -61,7 +61,7 @@ class GuestAdminService {
       id: row.id as string,
       firstName: row.first_name as string,
       lastName: row.last_name as string,
-      email: row.email as string,
+      email: (row.email as string | null) ?? null,
       phoneNumber: row.phone_number as string,
       created: row.created as string,
       bookingsCount: Number(row.bookings_count ?? 0),
@@ -97,7 +97,7 @@ class GuestAdminService {
       id: g.id as string,
       firstName: g.firstName as string,
       lastName: g.lastName as string,
-      email: g.email as string,
+      email: (g.email as string | null) ?? null,
       phoneNumber: g.phoneNumber as string,
       created: g.created as string,
       lastModified: g.lastModified as string,

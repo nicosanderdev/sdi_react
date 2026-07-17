@@ -82,7 +82,7 @@ export const GuestManagementTable: React.FC<GuestManagementTableProps> = ({ hook
                   {getFullName(guest)}
                 </button>
               </TableCell>
-              <TableCell className="text-gray-600 dark:text-gray-300">{guest.email}</TableCell>
+              <TableCell className="text-gray-600 dark:text-gray-300">{guest.email ?? '—'}</TableCell>
               <TableCell className="text-gray-600 dark:text-gray-300">{guest.phoneNumber}</TableCell>
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {formatDate(guest.created)}

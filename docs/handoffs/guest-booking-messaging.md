@@ -9,7 +9,7 @@ TypeScript contracts: [`src/types/guestReviewContract.ts`](../../src/types/guest
 
 | Use case | Primary | Fallback |
 |----------|---------|----------|
-| Guest OTP (hold verification) | WhatsApp (Meta Cloud API) | SMS webhook on WhatsApp failure |
+| Guest OTP (hold verification) | WhatsApp template `informacion_reserva` (Meta Cloud API) | SMS webhook on WhatsApp failure |
 | Booking confirmed / cancelled | Email (Resend) | WhatsApp if guest has no email |
 
 OTP resend: guest UI should call `booking-send-otp` again (same `holdId` + `phone`). Rate limit: 3 requests per phone per 10 minutes.

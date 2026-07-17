@@ -60,7 +60,7 @@ function sortGuests(guests: GuestListItem[], sortConfig: GuestSortConfig): Guest
         return na.localeCompare(nb) * dir;
       }
       case 'email':
-        return a.email.localeCompare(b.email) * dir;
+        return (a.email ?? '').localeCompare(b.email ?? '') * dir;
       case 'phone':
         return a.phoneNumber.localeCompare(b.phoneNumber) * dir;
       case 'created':

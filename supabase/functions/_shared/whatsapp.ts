@@ -22,20 +22,16 @@ export interface WhatsappSendResult {
   mode?: 'live' | 'dry-run';
 }
 
-export async function sendWhatsappViaMeta(
-  phone: string,
-  messageBody: string
-): Promise<WhatsappSendResult> {
-  if (shouldUseWhatsappMock()) {
-    console.log([
-      '========== WHATSAPP (local mock) ==========',
-      `phone: ${phone}`,
-      `message: ${messageBody}`,
-      '==========================================',
-    ].join('\n'));
-    return { ok: true, mode: 'dry-run', messageId: 'local-mock' };
-  }
+export interface WhatsappTemplateSendParams {
+  name: string;
+  languageCode: string;
+  bodyParameters?: string[];
+}
 
+async function postWhatsappMessage(
+  phone: string,
+  payloadBody: Record<string, unknown>
+): Promise<WhatsappSendResult> {
   const token = Deno.env.get('META_WHATSAPP_TOKEN');
   const phoneNumberId = Deno.env.get('META_WHATSAPP_PHONE_NUMBER_ID');
   if (!token || !phoneNumberId) {
@@ -52,10 +48,7 @@ export async function sendWhatsappViaMeta(
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: phone,
-      type: 'text',
-      text: {
-        body: messageBody,
-      },
+      ...payloadBody,
     }),
   });
 
@@ -67,4 +60,64 @@ export async function sendWhatsappViaMeta(
 
   const messageId = ((payload.messages as Array<{ id?: string }> | undefined)?.[0]?.id ?? undefined);
   return { ok: true, mode: 'live', messageId };
+}
+
+export async function sendWhatsappViaMeta(
+  phone: string,
+  messageBody: string
+): Promise<WhatsappSendResult> {
+  if (shouldUseWhatsappMock()) {
+    console.log([
+      '========== WHATSAPP (local mock) ==========',
+      `phone: ${phone}`,
+      `message: ${messageBody}`,
+      '==========================================',
+    ].join('\n'));
+    return { ok: true, mode: 'dry-run', messageId: 'local-mock' };
+  }
+
+  return postWhatsappMessage(phone, {
+    type: 'text',
+    text: {
+      body: messageBody,
+    },
+  });
+}
+
+export async function sendWhatsappTemplateViaMeta(
+  phone: string,
+  template: WhatsappTemplateSendParams
+): Promise<WhatsappSendResult> {
+  const bodyParameters = template.bodyParameters ?? [];
+
+  if (shouldUseWhatsappMock()) {
+    console.log([
+      '========== WHATSAPP TEMPLATE (local mock) ==========',
+      `phone: ${phone}`,
+      `template: ${template.name}`,
+      `language: ${template.languageCode}`,
+      `bodyParameters: ${JSON.stringify(bodyParameters)}`,
+      '===================================================',
+    ].join('\n'));
+    return { ok: true, mode: 'dry-run', messageId: 'local-mock' };
+  }
+
+  const components =
+    bodyParameters.length > 0
+      ? [
+          {
+            type: 'body',
+            parameters: bodyParameters.map((text) => ({ type: 'text', text })),
+          },
+        ]
+      : undefined;
+
+  return postWhatsappMessage(phone, {
+    type: 'template',
+    template: {
+      name: template.name,
+      language: { code: template.languageCode },
+      ...(components ? { components } : {}),
+    },
+  });
 }

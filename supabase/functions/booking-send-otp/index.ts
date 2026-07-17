@@ -3,7 +3,7 @@ import {
   logBookingOtpMockMessage,
   shouldUseBookingOtpMock,
 } from '../_shared/bookingOtpDev.ts';
-import { sendWhatsappViaMeta } from '../_shared/whatsapp.ts';
+import { sendWhatsappTemplateViaMeta } from '../_shared/whatsapp.ts';
 
 interface SendOtpBody {
   holdId: string;
@@ -20,6 +20,8 @@ function jsonResponse(payload: unknown, status = 200): Response {
 
 const PHONE_E164_REGEX = /^\+[1-9]\d{7,14}$/;
 const OTP_TTL_SECONDS = 5 * 60;
+const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva';
+const OTP_WHATSAPP_TEMPLATE_LANGUAGE = 'es';
 
 function getClientIp(req: Request, bodyIp?: string | null): string | null {
   if (bodyIp && bodyIp.trim().length > 0) {
@@ -53,7 +55,15 @@ async function makeOtpHash(otpCode: string): Promise<string> {
 }
 
 function buildOtpMessage(otpCode: string): string {
-  return `Your booking verification code is ${otpCode}. It expires in 5 minutes.`;
+  return [
+    'Hola.',
+    '',
+    'La información solicitada es:',
+    '',
+    otpCode,
+    '',
+    'Si no realizaste esta solicitud, ignora este mensaje',
+  ].join('\n');
 }
 
 async function sendSmsFallback(phone: string, otpCode: string): Promise<{ ok: boolean; error?: string }> {
@@ -207,7 +217,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const waResult = await sendWhatsappViaMeta(phone, buildOtpMessage(otpCode));
+    const waResult = await sendWhatsappTemplateViaMeta(phone, {
+      name: OTP_WHATSAPP_TEMPLATE_NAME,
+      languageCode: OTP_WHATSAPP_TEMPLATE_LANGUAGE,
+      bodyParameters: [otpCode],
+    });
     if (!waResult.ok) {
       const smsResult = await sendSmsFallback(phone, otpCode);
       await supabaseAdmin

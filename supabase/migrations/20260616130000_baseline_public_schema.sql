@@ -2307,7 +2307,7 @@ begin
 
   v_first_name := trim(coalesce(p_guest_payload->>'firstName', ''));
   v_last_name := trim(coalesce(p_guest_payload->>'lastName', ''));
-  v_email := trim(coalesce(p_guest_payload->>'email', ''));
+  v_email := nullif(trim(coalesce(p_guest_payload->>'email', '')), '');
   v_phone := trim(coalesce(p_guest_payload->>'phone', ''));
 
   if v_first_name = '' or v_last_name = '' then
@@ -2321,10 +2321,10 @@ begin
     end if;
   end if;
 
-  if v_first_name = '' or v_last_name = '' or v_email = '' or v_phone = '' then
+  if v_first_name = '' or v_last_name = '' or v_phone = '' then
     return jsonb_build_object(
       'success', false,
-      'error', 'Guest first name, last name, email, and phone are required'
+      'error', 'Guest first name, last name, and phone are required'
     );
   end if;
 
@@ -11876,7 +11876,7 @@ CREATE FUNCTION public.upsert_guest_by_email(p_first_name text, p_last_name text
 declare
   v_first text := trim(coalesce(p_first_name, ''));
   v_last text := trim(coalesce(p_last_name, ''));
-  v_email text := lower(trim(coalesce(p_email, '')));
+  v_email text := nullif(lower(trim(coalesce(p_email, ''))), '');
   v_phone text := trim(coalesce(p_phone_number, ''));
   v_id uuid;
 begin
@@ -11888,12 +11888,56 @@ begin
     raise exception 'Last name is required';
   end if;
 
-  if v_email = '' then
-    raise exception 'Email is required';
-  end if;
-
   if v_phone = '' then
     raise exception 'Phone number is required';
+  end if;
+
+  if v_email is not null then
+    insert into public."Guests" (
+      "FirstName",
+      "LastName",
+      "Email",
+      "PhoneNumber",
+      "Created",
+      "LastModified"
+    ) values (
+      v_first,
+      v_last,
+      v_email,
+      v_phone,
+      now(),
+      now()
+    )
+    on conflict ((lower(TRIM(BOTH FROM "Email"))))
+      where ("Email" is not null and length(TRIM(BOTH FROM "Email")) > 0)
+    do update set
+      "FirstName" = excluded."FirstName",
+      "LastName" = excluded."LastName",
+      "PhoneNumber" = excluded."PhoneNumber",
+      "LastModified" = now()
+    returning "Id" into v_id;
+
+    return v_id;
+  end if;
+
+  select g."Id"
+  into v_id
+  from public."Guests" g
+  where trim(g."PhoneNumber") = v_phone
+    and (g."Email" is null or length(trim(g."Email")) = 0)
+  order by g."LastModified" desc
+  limit 1;
+
+  if v_id is not null then
+    update public."Guests" g
+    set
+      "FirstName" = v_first,
+      "LastName" = v_last,
+      "PhoneNumber" = v_phone,
+      "LastModified" = now()
+    where g."Id" = v_id;
+
+    return v_id;
   end if;
 
   insert into public."Guests" (
@@ -11906,17 +11950,11 @@ begin
   ) values (
     v_first,
     v_last,
-    v_email,
+    null,
     v_phone,
     now(),
     now()
   )
-  on conflict ((lower(trim("Email"))))
-  do update set
-    "FirstName" = excluded."FirstName",
-    "LastName" = excluded."LastName",
-    "PhoneNumber" = excluded."PhoneNumber",
-    "LastModified" = now()
   returning "Id" into v_id;
 
   return v_id;
@@ -12167,95 +12205,6 @@ $$;
 --
 
 COMMENT ON FUNCTION public.user_owns_owner_record(p_owner_id uuid) IS 'True when the current auth user is the member owner or a company Admin/Manager for the Owners row.';
-
-
---
--- Name: validate_booking_selection(uuid, date, date, integer, date); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.validate_booking_selection(p_property_id uuid, p_check_in date, p_check_out date, p_guests integer, p_visible_check_out date DEFAULT NULL::date) RETURNS jsonb
-    LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-declare
-  v_nights integer;
-  v_rules record;
-  v_errors text[] := array[]::text[];
-  v_effective_check_out date;
-begin
-  v_effective_check_out := coalesce(p_visible_check_out, p_check_out);
-
-  if p_property_id is null or p_check_in is null or p_check_out is null then
-    return jsonb_build_object(
-      'is_valid', false,
-      'errors', jsonb_build_array('Missing required fields')
-    );
-  end if;
-
-  if v_effective_check_out <= p_check_in then
-    v_errors := array_append(v_errors, 'Check-out date must be after check-in date');
-  end if;
-
-  if p_guests is null or p_guests < 1 then
-    v_errors := array_append(v_errors, 'Guests must be at least 1');
-  end if;
-
-  select
-    sx."MinStayDays" as min_stay_days,
-    sx."MaxStayDays" as max_stay_days,
-    sx."LeadTimeDays" as lead_time_days,
-    sx."BufferDays" as buffer_days,
-    coalesce(l."RentPrice", 0) as rent_price,
-    coalesce(l."Capacity", ep."Capacity", 0) as max_guests
-  into v_rules
-  from public."EstateProperties" ep
-  join public."Listings" l on l."EstatePropertyId" = ep."Id"
-  left join public."SummerRentExtension" sx on sx."EstatePropertyId" = ep."Id"
-  where ep."Id" = p_property_id
-    and ep."IsDeleted" = false
-    and l."IsDeleted" = false
-    and l."IsActive" = true
-  limit 1;
-
-  if not found then
-    v_errors := array_append(v_errors, 'Property not found or inactive');
-  end if;
-
-  v_nights := greatest((v_effective_check_out - p_check_in), 0);
-
-  if v_rules.min_stay_days is not null and v_nights < v_rules.min_stay_days then
-    v_errors := array_append(v_errors, 'Minimum stay rule not met');
-  end if;
-
-  if v_rules.max_stay_days is not null and v_nights > v_rules.max_stay_days then
-    v_errors := array_append(v_errors, 'Maximum stay rule exceeded');
-  end if;
-
-  if v_rules.lead_time_days is not null and p_check_in < (current_date + v_rules.lead_time_days) then
-    v_errors := array_append(v_errors, 'Lead time rule not met');
-  end if;
-
-  if v_rules.max_guests > 0 and p_guests > v_rules.max_guests then
-    v_errors := array_append(v_errors, 'Guest count exceeds property capacity');
-  end if;
-
-  return jsonb_build_object(
-    'is_valid', array_length(v_errors, 1) is null,
-    'errors', to_jsonb(coalesce(v_errors, array[]::text[])),
-    'pricing', jsonb_build_object(
-      'nightly_price', coalesce(v_rules.rent_price, 0),
-      'nights', v_nights,
-      'total_price', coalesce(v_rules.rent_price, 0) * v_nights
-    ),
-    'normalized_rules', jsonb_build_object(
-      'min_stay_days', v_rules.min_stay_days,
-      'max_stay_days', v_rules.max_stay_days,
-      'lead_time_days', v_rules.lead_time_days,
-      'buffer_days', v_rules.buffer_days,
-      'max_guests', v_rules.max_guests
-    )
-  );
-end;
-$$;
 
 
 --
@@ -13002,11 +12951,10 @@ CREATE TABLE public."Guests" (
     "Id" uuid DEFAULT gen_random_uuid() NOT NULL,
     "FirstName" text NOT NULL,
     "LastName" text NOT NULL,
-    "Email" text NOT NULL,
+    "Email" text,
     "PhoneNumber" text NOT NULL,
     "Created" timestamp with time zone DEFAULT now() NOT NULL,
     "LastModified" timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT "CHK_Guests_Email" CHECK ((length(TRIM(BOTH FROM "Email")) > 0)),
     CONSTRAINT "CHK_Guests_FirstName" CHECK ((length(TRIM(BOTH FROM "FirstName")) > 0)),
     CONSTRAINT "CHK_Guests_LastName" CHECK ((length(TRIM(BOTH FROM "LastName")) > 0)),
     CONSTRAINT "CHK_Guests_PhoneNumber" CHECK ((length(TRIM(BOTH FROM "PhoneNumber")) > 0))
@@ -13017,7 +12965,7 @@ CREATE TABLE public."Guests" (
 -- Name: TABLE "Guests"; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public."Guests" IS 'Non-member guests for client-side bookings. Unique by normalized email; upsert updates name and phone.';
+COMMENT ON TABLE public."Guests" IS 'Non-member guests for client-side bookings. Unique by normalized email when present; phone used to match when email is absent.';
 
 
 --
@@ -15209,7 +15157,7 @@ CREATE UNIQUE INDEX "UX_Bookings_ReservationCode_Active" ON public."Bookings" US
 -- Name: UX_Guests_Email_Normalized; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX "UX_Guests_Email_Normalized" ON public."Guests" USING btree (lower(TRIM(BOTH FROM "Email")));
+CREATE UNIQUE INDEX "UX_Guests_Email_Normalized" ON public."Guests" USING btree (lower(TRIM(BOTH FROM "Email"))) WHERE (("Email" IS NOT NULL) AND (length(TRIM(BOTH FROM "Email")) > 0));
 
 
 --
