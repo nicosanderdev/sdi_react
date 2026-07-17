@@ -22,6 +22,8 @@ import { ResetPasswordPage } from './components/user/ResetPasswordPage';
 // Keeping UpgradeToManagerPage for pricing route
 import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
 import { HowItWorksPage } from './pages/public/HowItWorksPage';
+import MercadoPagoConnectPage from './pages/public/MercadoPagoConnectPage';
+import MercadoPagoConnectResultPage from './pages/public/MercadoPagoConnectResultPage';
 
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -114,6 +116,14 @@ export function App() {
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
           <Route path="/how-it-works" element={<PublicRoute><HowItWorksPage /></PublicRoute>} />
+          <Route
+            path="/conectar-con-mercado-pago"
+            element={<PublicRoute><MercadoPagoConnectPage /></PublicRoute>}
+          />
+          <Route
+            path="/conectar-con-mercado-pago/resultado"
+            element={<PublicRoute><MercadoPagoConnectResultPage /></PublicRoute>}
+          />
           
           {/* Dashboard Routes (Authentication Required, All Users) */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} >

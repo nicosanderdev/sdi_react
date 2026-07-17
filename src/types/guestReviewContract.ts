@@ -9,6 +9,7 @@
  *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
+ * Mercado Pago payments handoff: docs/handoffs/guest-mercado-pago-payments.md
  * See also docs/handoffs/dynamic-pricing-guest-client.md
  */
 
@@ -70,6 +71,16 @@ export interface GuestReservation {
   canEditGuestReview: boolean;
   existingGuestReview?: ExistingGuestReview | null;
   guestReviewWindowEnd?: string;
+  /** Authoritative booking total from server quote. */
+  totalAmount?: number | null;
+  currency?: number | null;
+  currencyCode?: string | null;
+  /** True when a verified Mercado Pago webhook marked approval (audit only). */
+  mercadoPagoApproved?: boolean;
+  mercadoPagoApprovedAt?: string | null;
+  /** True when seller is connected, booking unpaid via MP, and amount > 0. */
+  canPayOnline?: boolean;
+  sellerConnected?: boolean;
 }
 
 export interface GetReservationByCodeSuccess {
@@ -83,8 +94,17 @@ export interface RpcFailure {
   error_code?: GuestBookingErrorCode;
 }
 
-/** Stable error codes returned by guest booking RPCs. */
-export type GuestBookingErrorCode = 'GUEST_BOOKING_OVERLAP' | 'PRICE_QUOTE_MISMATCH';
+/** Stable error codes returned by guest booking RPCs / payment edges. */
+export type GuestBookingErrorCode =
+  | 'GUEST_BOOKING_OVERLAP'
+  | 'PRICE_QUOTE_MISMATCH'
+  | 'SELLER_NOT_CONNECTED'
+  | 'NO_DESIGNATED_SELLER'
+  | 'ALREADY_APPROVED'
+  | 'CANNOT_PAY'
+  | 'INVALID_AMOUNT'
+  | 'AMOUNT_MISMATCH'
+  | 'CURRENCY_MISMATCH';
 
 export type GetReservationByCodeResponse =
   | GetReservationByCodeSuccess
@@ -103,7 +123,62 @@ export interface ManageBookingView {
   hostEmail?: string | null;
   hostPhone?: string | null;
   hostContact?: HostContactInfo | null;
+  totalAmount?: number | null;
+  currency?: number | null;
+  currencyCode?: string | null;
+  mercadoPagoApproved?: boolean;
+  mercadoPagoApprovedAt?: string | null;
+  canPayOnline?: boolean;
+  sellerConnected?: boolean;
 }
+
+/** create_booking_hold / confirm_booking_from_hold Mercado Pago eligibility. */
+export interface MercadoPagoBookingEligibility {
+  can_pay_online: boolean;
+  seller_connected: boolean;
+  mercado_pago_approved: boolean;
+}
+
+export interface CreateMercadoPagoPreferenceRequest {
+  manageToken?: string;
+  reservationCode?: string;
+  listingType?: GuestSiteListingType;
+}
+
+export interface CreateMercadoPagoPreferenceSuccess {
+  success: true;
+  attemptId: string;
+  preferenceId: string | null;
+  initPoint?: string;
+  sandboxInitPoint?: string;
+  amount: number;
+  currencyCode: string;
+  reused: boolean;
+  disclaimerKey: 'mercado_pago_bridge_disclaimer';
+}
+
+export type CreateMercadoPagoPreferenceResponse =
+  | CreateMercadoPagoPreferenceSuccess
+  | RpcFailure;
+
+export interface BookingPaymentStatusSuccess {
+  success: true;
+  booking_id: string;
+  reservation_code: string | null;
+  amount: number | null;
+  currency: number | null;
+  currency_code: string;
+  mercado_pago_approved: boolean;
+  mercado_pago_approved_at: string | null;
+  can_pay_online: boolean;
+  seller_connected: boolean;
+  seller_error_code?: string | null;
+  seller_member_id?: string | null;
+}
+
+export type BookingPaymentStatusResponse =
+  | BookingPaymentStatusSuccess
+  | RpcFailure;
 
 export interface GetBookingByManageTokenSuccess {
   success: true;
@@ -203,6 +278,10 @@ export interface ConfirmBookingFromHoldSuccess {
   listing_type?: GuestSiteListingType;
   manage_token: string;
   manage_expires_at: string;
+  total_amount?: number;
+  currency?: number;
+  currency_code?: string;
+  mercado_pago?: MercadoPagoBookingEligibility;
 }
 
 export type ConfirmBookingFromHoldResponse =

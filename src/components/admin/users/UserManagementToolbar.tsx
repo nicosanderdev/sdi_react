@@ -1,7 +1,7 @@
 // src/components/admin/users/UserManagementToolbar.tsx
 import React from 'react';
 import { Button } from 'flowbite-react';
-import { EyeIcon, Edit2Icon, TrashIcon } from 'lucide-react';
+import { EyeIcon, Edit2Icon, TrashIcon, LinkIcon, UnlinkIcon } from 'lucide-react';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 import { UserActionsMenu } from './UserActionsMenu';
 
@@ -16,12 +16,18 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
     openUserView,
     openUserEdit,
     openDeleteConfirmModal,
+    sendMercadoPagoLink,
+    openUnlinkMercadoPagoModal,
+    actionLoading,
   } = hook;
 
   const singleSelection = selectedUserIds.length === 1;
   const selectedId = primarySelectedUser?.id ?? null;
 
-  const disabled = !singleSelection || !primarySelectedUser;
+  const disabled = !singleSelection || !primarySelectedUser || actionLoading;
+  const mpStatus = primarySelectedUser?.mercadoPagoStatus;
+  const canSendMpLink = !!primarySelectedUser && mpStatus !== 'connected';
+  const canUnlinkMp = !!primarySelectedUser && mpStatus === 'connected';
 
   const handleView = () => {
     if (!selectedId) return;
@@ -36,6 +42,16 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
   const handleDelete = () => {
     if (!primarySelectedUser) return;
     openDeleteConfirmModal(primarySelectedUser);
+  };
+
+  const handleSendMpLink = () => {
+    if (!selectedId) return;
+    void sendMercadoPagoLink(selectedId);
+  };
+
+  const handleUnlinkMp = () => {
+    if (!primarySelectedUser) return;
+    openUnlinkMercadoPagoModal(primarySelectedUser);
   };
 
   return (
@@ -63,6 +79,37 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
         >
           <Edit2Icon className="w-4 h-4 shrink-0" />
           <span>Editar</span>
+        </Button>
+        <Button
+          size="sm"
+          color="light"
+          disabled={disabled || !canSendMpLink}
+          onClick={handleSendMpLink}
+          className="flex items-center gap-2"
+          data-testid="admin-users-send-mp-link"
+          title={
+            mpStatus === 'connected'
+              ? 'El usuario ya está conectado a Mercado Pago'
+              : 'Enviar enlace de conexión por WhatsApp (válido 10 minutos)'
+          }
+        >
+          <LinkIcon className="w-4 h-4 shrink-0" />
+          <span>
+            {mpStatus === 'invite_sent'
+              ? 'Reenviar enlace Mercado Pago'
+              : 'Enviar enlace Mercado Pago'}
+          </span>
+        </Button>
+        <Button
+          size="sm"
+          color="light"
+          disabled={disabled || !canUnlinkMp}
+          onClick={handleUnlinkMp}
+          className="flex items-center gap-2 text-amber-700 dark:text-amber-400"
+          data-testid="admin-users-unlink-mp"
+        >
+          <UnlinkIcon className="w-4 h-4 shrink-0" />
+          <span>Desvincular Mercado Pago</span>
         </Button>
         <UserActionsMenu user={primarySelectedUser} hook={hook} />
         <Button

@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
 import { ChevronUpIcon, ChevronDownIcon, Loader2Icon } from 'lucide-react';
-import { UserListItem, SubscriptionTier } from '../../../services/UserAdminService';
+import { UserListItem, SubscriptionTier, MercadoPagoLinkStatus } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn, SortField } from '../../../hooks/useAdminUsers';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
@@ -36,6 +36,24 @@ const getSubscriptionStatusBadgeColor = (status: string) => {
     case 'expired': return 'warning';
     case 'none': return 'gray';
     default: return 'gray';
+  }
+};
+
+const getMercadoPagoBadgeColor = (status: MercadoPagoLinkStatus) => {
+  switch (status) {
+    case 'connected': return 'success';
+    case 'invite_sent': return 'warning';
+    case 'not_connected':
+    default: return 'gray';
+  }
+};
+
+const getMercadoPagoLabel = (status: MercadoPagoLinkStatus): string => {
+  switch (status) {
+    case 'connected': return 'Conectado';
+    case 'invite_sent': return 'Invitación enviada';
+    case 'not_connected':
+    default: return 'No conectado';
   }
 };
 
@@ -137,6 +155,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
           <SortableHeader field="role">Rol</SortableHeader>
           <SortableHeader field="status">Estado</SortableHeader>
           <SortableHeader field="subscription">Suscripción</SortableHeader>
+          <TableHeadCell>Mercado Pago</TableHeadCell>
           <SortableHeader field="registrationDate">Registrado</SortableHeader>
           <SortableHeader field="lastLogin">Último acceso</SortableHeader>
         </TableHead>
@@ -207,6 +226,16 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                     {getSubscriptionTierLabel(user.subscriptionTier)}
                   </div>
                 </div>
+              </TableCell>
+
+              <TableCell>
+                <Badge
+                  color={getMercadoPagoBadgeColor(user.mercadoPagoStatus)}
+                  size="sm"
+                  data-testid={`admin-users-mp-status-${user.id}`}
+                >
+                  {getMercadoPagoLabel(user.mercadoPagoStatus)}
+                </Badge>
               </TableCell>
 
               <TableCell className="text-gray-600 dark:text-gray-300">
