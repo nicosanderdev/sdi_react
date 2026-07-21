@@ -107,10 +107,20 @@ export async function encryptSecret(plaintext: string): Promise<string> {
 
 export async function decryptSecret(payload: string): Promise<string> {
   const key = await getAesKey();
-  const blob = JSON.parse(payload) as EncryptedBlob;
+  const blob = JSON.parse(payload) as EncryptedBlob & { mock?: boolean };
+  if (blob.mock === true || String(blob.ciphertext ?? '').startsWith('MOCK_')) {
+    throw new Error(
+      'Seller Mercado Pago credentials are mock placeholders. Reconnect the seller via OAuth (admin invite link).',
+    );
+  }
   const ciphertext = fromBase64Url(blob.ciphertext);
   const iv = fromBase64Url(blob.iv);
   const tag = fromBase64Url(blob.tag);
+  if (iv.length !== 12 && iv.length !== 16) {
+    throw new Error(
+      `Invalid encrypted token IV length (${iv.length}); expected 12 or 16. Reconnect the seller via OAuth.`,
+    );
+  }
   const combined = new Uint8Array(ciphertext.length + tag.length);
   combined.set(ciphertext, 0);
   combined.set(tag, ciphertext.length);

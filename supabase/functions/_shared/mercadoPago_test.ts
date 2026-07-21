@@ -43,6 +43,23 @@ Deno.test('AES-GCM encrypt/decrypt round trip', async () => {
   assertEquals(await decryptSecret(encrypted), secret);
 });
 
+Deno.test('decryptSecret rejects mock placeholder blobs', async () => {
+  Deno.env.set('MERCADO_PAGO_TOKEN_ENCRYPTION_KEY', 'unit-test-encryption-key');
+  await assertRejects(
+    () =>
+      decryptSecret(
+        JSON.stringify({
+          ciphertext: 'MOCK_PLACEHOLDER_ACCESS_TOKEN',
+          iv: 'AAAAAAAAAAAA',
+          tag: 'AAAAAAAAAAAAAAAAAAAAAA',
+          mock: true,
+        }),
+      ),
+    Error,
+    'mock placeholders',
+  );
+});
+
 Deno.test('buildAuthorizationUrl includes required OAuth params', () => {
   Deno.env.set('MERCADO_PAGO_CLIENT_ID', 'app-123');
   Deno.env.set('MERCADO_PAGO_REDIRECT_URI', 'https://example.com/callback');

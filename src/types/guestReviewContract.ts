@@ -201,15 +201,30 @@ export type CreateGuestReviewResponse =
 
 export type UpdateGuestReviewResponse = CreateGuestReviewResponse;
 
-/** Parameters for create_booking_hold (9-arg). */
+/**
+ * Parameters for create_booking_hold.
+ *
+ * Guest count rules (backend does not distinguish Spanish labels):
+ * - `p_guests` is required and must be >= 1. It becomes `Bookings.GuestCount`.
+ * - SummerRent: send overnight headcount here (UI label: "huéspedes").
+ * - EventVenue: send party/attendee headcount here (UI label: "invitados").
+ * - `p_estimated_guests` is optional metadata only (hold + booking notes); it does
+ *   not replace `p_guests` and is not written to `GuestCount`.
+ * - Confirm guest form does not require a guest count; optional `estimatedGuests`
+ *   in the JSON payload only updates hold `estimated_guests` / notes.
+ * - Capacity (`EstateProperties.Capacity` / `EventVenueExtension.MaxGuests`) is
+ *   not enforced by validate_booking_selection — UI may warn, RPC only checks >= 1.
+ */
 export interface CreateBookingHoldParams {
   p_property_id: string;
   p_check_in: string;
   p_check_out: string;
+  /** Required >= 1. SummerRent = huéspedes; EventVenue = invitados. → GuestCount */
   p_guests: number;
   p_ip_hash?: string | null;
   p_idempotency_key?: string | null;
   p_visible_check_out?: string | null;
+  /** Optional; does not become GuestCount. Prefer putting the real count in p_guests. */
   p_estimated_guests?: number | null;
   p_listing_type: GuestSiteListingType;
   /** Client-computed total; server rejects hold if outside PRICE_QUOTE_TOLERANCE. */

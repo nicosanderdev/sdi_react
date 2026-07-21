@@ -766,6 +766,11 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 5) Admin list / detail: Mercado Pago status
 -- ---------------------------------------------------------------------------
+-- DROP required: Postgres cannot change RETURNS TABLE via CREATE OR REPLACE (42P13).
+
+DROP FUNCTION IF EXISTS public.get_admin_users_list(
+  integer, integer, text, integer, text, date, date, text
+);
 
 CREATE OR REPLACE FUNCTION public.get_admin_users_list(
   p_page integer DEFAULT 1,
@@ -961,6 +966,8 @@ begin
 end;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_admin_user_detail(uuid);
+
 CREATE OR REPLACE FUNCTION public.get_admin_user_detail(p_user_id uuid)
 RETURNS TABLE(
   id uuid,
@@ -1039,6 +1046,12 @@ begin
   limit 1;
 end;
 $$;
+
+GRANT EXECUTE ON FUNCTION public.get_admin_users_list(
+  integer, integer, text, integer, text, date, date, text
+) TO authenticated, service_role;
+
+GRANT EXECUTE ON FUNCTION public.get_admin_user_detail(uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- 6) Guest lookup / manage token: payment eligibility fields
