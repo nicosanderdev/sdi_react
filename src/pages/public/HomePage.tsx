@@ -8,7 +8,8 @@ import { PublicLayout } from '../../components/layout/PublicLayout';
 const homeCtas = {
   contactLabel: 'Contacto',
   contactTo: '/contact',
-  demoLabel: 'Solicitar demostracion',
+  demoLabel: 'Cómo funciona',
+  demoTo: '/how-it-works',
 } as const;
 
 export function HomePage() {

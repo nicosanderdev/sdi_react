@@ -7,6 +7,7 @@
  *          supabase/migrations/20260601120000_host_contact_for_guests.sql
  *          supabase/migrations/20260602120000_dynamic_pricing_schema.sql
  *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
+ *          supabase/migrations/20260721220000_get_public_property_owner.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
  * Mercado Pago payments handoff: docs/handoffs/guest-mercado-pago-payments.md
@@ -45,6 +46,56 @@ export interface HostContactInfo {
   email: string | null;
   phone: string | null;
 }
+
+/** Public host card from `get_public_property_owner` (no email/phone). */
+export type PublicPropertyOwnerType = 'member' | 'company';
+
+export interface PublicPropertyOwner {
+  ownerId: string;
+  ownerType: PublicPropertyOwnerType;
+  fullName: string | null;
+  avatarUrl: string | null;
+  /** Company `Description`, or member `Title` (job title) when no bio column exists. */
+  description: string | null;
+  city: string | null;
+  state: string | null;
+  country: string | null;
+  /** Always null on the public RPC; present on booking-gated owner when contact is allowed. */
+  email?: string | null;
+  phone?: string | null;
+}
+
+/** Params for `get_public_property_owner`. */
+export interface GetPublicPropertyOwnerParams {
+  p_property_id: string;
+}
+
+/** Null when the property is missing or has no public guest listing. */
+export type GetPublicPropertyOwnerResponse = PublicPropertyOwner | null;
+
+/**
+ * Booked-guest host profile from `get_booking_property_owner`.
+ * Auth with manage token OR reservation code + listing type.
+ * `email` / `phone` are set only when the booking is confirmed or completed.
+ */
+export type GetBookingPropertyOwnerParams =
+  | { p_manage_token: string; p_reservation_code?: never; p_listing_type?: never }
+  | {
+      p_manage_token?: never;
+      p_reservation_code: string;
+      p_listing_type: GuestSiteListingType;
+    };
+
+export interface GetBookingPropertyOwnerSuccess {
+  success: true;
+  owner: PublicPropertyOwner;
+  /** True when email/phone were included (confirmed or completed booking). */
+  contactAvailable: boolean;
+}
+
+export type GetBookingPropertyOwnerResponse =
+  | GetBookingPropertyOwnerSuccess
+  | RpcFailure;
 
 export interface GuestReservation {
   bookingId: string;
