@@ -11,8 +11,10 @@ import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dash
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
+import { useContactVerificationGate } from '../../hooks/useContactVerificationGate';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 import { EditListingModal } from '../../components/dashboard/properties/EditListingModal';
+import { ContactVerificationGateBanner } from '../../components/user/ContactVerificationGateBanner';
 
 type PropertyPurposeType = 'RealEstate' | 'AnnualRent' | 'EventVenue' | 'SummerRent';
 
@@ -48,13 +50,11 @@ const PropertiesManagerComponent = () => {
     isExperiencedOwner,
     currentStep,
     completedAt,
-    emailVerified,
-    phoneVerified,
     setStep,
     dismiss,
   } = useOwnerOnboarding();
 
-  const needsVerification = isEligibleForOnboarding && (!emailVerified || !phoneVerified);
+  const { needsVerification } = useContactVerificationGate();
   const showVerificationBanner = needsVerification;
 
   // Property quota information
@@ -286,21 +286,7 @@ const PropertiesManagerComponent = () => {
       )}
 
       {showVerificationBanner && (
-        <div
-          id="onboarding-verification-gate"
-          className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
-        >
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            Before publishing properties, we need to verify your email and phone number.
-            This helps maintain trust and communication with guests.
-          </p>
-          <Link
-            to="/dashboard/profile"
-            className="inline-block mt-2 text-sm font-medium text-[#62B6CB] hover:text-[#4a9bb0] underline"
-          >
-            Go to profile to verify
-          </Link>
-        </div>
+        <ContactVerificationGateBanner id="onboarding-verification-gate" />
       )}
 
       {error && !isDeleting && ( 
@@ -345,7 +331,15 @@ const PropertiesManagerComponent = () => {
             properties={filteredProperties}
             onViewBookings={handleViewBookings}
             onDeleteProperty={handleDeleteRequest}
-            onEditListing={(property) => setEditingListingPropertyId(property.id)}
+            onEditListing={(property) => {
+              if (needsVerification) {
+                setShowVerificationGateTooltip(true);
+                return;
+              }
+              setEditingListingPropertyId(property.id);
+            }}
+            editBlocked={needsVerification}
+            onEditBlocked={() => setShowVerificationGateTooltip(true)}
           />
         )}
       </Card>
@@ -502,10 +496,10 @@ const PropertiesManagerComponent = () => {
             showVerificationGateTooltip
               ? {
                   element: '#onboarding-verification-gate',
-                  title: 'Verify your email and phone',
+                  title: 'Verifica tu correo y teléfono',
                   description:
-                    'Before publishing properties, we need to verify your email and phone number. This helps maintain trust and communication with guests.',
-                  nextBtnText: 'Go to profile',
+                    'Antes de crear o editar propiedades, necesitamos verificar tu correo electrónico y teléfono. Esto ayuda a mantener la confianza y la comunicación con los huéspedes.',
+                  nextBtnText: 'Ir al perfil',
                 }
               : null
           }

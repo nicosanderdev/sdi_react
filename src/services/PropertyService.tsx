@@ -23,6 +23,7 @@ import {
 } from '../models/properties/propertyPolicies';
 import { assertListingPublishAllowed, tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
+import { assertCurrentUserContactVerified } from '../utils/contactVerification';
 
 // Import types for Supabase property creation
 import { PropertyFormData, resolveCreationListingType } from '../models/properties/PropertyFormSchema';
@@ -1076,6 +1077,7 @@ const createProperty = async (
     displayImages: DisplayImage[],
     displayDocuments: DisplayDocument[]
 ): Promise<PropertyData> => {
+    await assertCurrentUserContactVerified();
     const userId = await getCurrentUserId();
     return createPropertyWithOwnerUserId(userId, formData, displayImages, displayDocuments);
 };
@@ -1253,6 +1255,7 @@ interface CreateListingVersionPayload {
 }
 
 const createListingVersion = async (propertyId: string, payload: CreateListingVersionPayload): Promise<void> => {
+    await assertCurrentUserContactVerified();
     const isDynamic =
         payload.listingType === 'SummerRent' || payload.listingType === 'EventVenue';
     const baseNum =
@@ -1297,6 +1300,7 @@ const updateProperty = async (
     displayDocuments: DisplayDocument[]
 ): Promise<PropertyData> => {
     try {
+        await assertCurrentUserContactVerified();
         const userId = await getCurrentUserId();
 
         const { data: listingBefore } = await supabase

@@ -4,6 +4,7 @@ import { CompanyInfo } from '../models/companies/CompanyInfo';
 import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyRequest';
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
 import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
+import { assertCurrentUserContactVerified } from '../utils/contactVerification';
 
 const COMPANY_ROLES = { MEMBER: 'Member', ADMIN: 'Admin', MANAGER: 'Manager' } as const;
 
@@ -80,6 +81,7 @@ const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
 };
 
 const createCompany = async (companyData: { name: string; description?: string; billingEmail?: string }): Promise<CompanyInfo> => {
+  await assertCurrentUserContactVerified();
   const userId = await getCurrentUserId();
   const now = new Date().toISOString();
   const { data: profile, error: profileError } = await supabase.from('Members').select('Id').eq('UserId', userId).eq('IsDeleted', false).single();
@@ -128,7 +130,10 @@ const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<Compa
 };
 
 const removeUserFromCompany = async (membershipId: string): Promise<void> => { await supabase.from('CompanyMembers').update({ IsDeleted: true }).eq('Id', membershipId); };
-const updateCompanyProfile = async (_payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => getCompanyInfo();
+const updateCompanyProfile = async (_payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => {
+  await assertCurrentUserContactVerified();
+  return getCompanyInfo();
+};
 const uploadCompanyLogo = async (_formData: FormData): Promise<{ logoUrl: string }> => ({ logoUrl: '' });
 const uploadCompanyBanner = async (_formData: FormData): Promise<{ bannerUrl: string }> => ({ bannerUrl: '' });
 

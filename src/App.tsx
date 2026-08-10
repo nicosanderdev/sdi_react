@@ -10,8 +10,7 @@ import { ContactPage } from './pages/public/ContactPage';
 import { AboutPage } from './pages/public/AboutPage';
 import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
-// Re-enable when public registration is needed
-// import { RegisterPage } from './pages/public/RegisterPage';
+import { RegisterPage } from './pages/public/RegisterPage';
 import { ResetPasswordPage } from './components/user/ResetPasswordPage';
 
 // New public user pages - COMMENTED OUT: for reuse in new project managing public view
@@ -108,7 +107,7 @@ export function App() {
           <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
           <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          {/* <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} /> */}
+          <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
           {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />

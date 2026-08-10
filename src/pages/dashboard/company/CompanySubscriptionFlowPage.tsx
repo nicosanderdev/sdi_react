@@ -21,10 +21,13 @@ import { CreateCompanyModal } from '../../../components/company/CreateCompanyMod
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePayment } from '../../../contexts/PaymentContext';
 import { CreatePaymentRequest } from '../../../models/payments/PaymentData';
+import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
+import { ContactVerificationGateBanner } from '../../../components/user/ContactVerificationGateBanner';
 
 export function CompanySubscriptionFlowPage() {
     const user = useSelector((state: RootState) => state.user.profile);
     const navigate = useNavigate();
+    const { needsVerification } = useContactVerificationGate();
 
     // Subscription gate state
     const {
@@ -42,6 +45,7 @@ export function CompanySubscriptionFlowPage() {
     const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
+    const [showVerificationRequired, setShowVerificationRequired] = useState(false);
 
     const hasMultipleCompanies = companyIds.length > 1;
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -163,8 +167,19 @@ export function CompanySubscriptionFlowPage() {
                         <p className="text-gray-600 mb-6">
                             No perteneces a ninguna empresa actualmente. Para suscribirte a un plan de empresa, primero necesitas crear una empresa.
                         </p>
+                        {showVerificationRequired && needsVerification && (
+                            <div className="max-w-lg mx-auto mb-6 text-left">
+                                <ContactVerificationGateBanner />
+                            </div>
+                        )}
                         <Button
-                            onClick={() => setShowCreateCompanyModal(true)}
+                            onClick={() => {
+                                if (needsVerification) {
+                                    setShowVerificationRequired(true);
+                                    return;
+                                }
+                                setShowCreateCompanyModal(true);
+                            }}
                             className="bg-[#1B4965] text-white px-6 py-3 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2 mx-auto"
                         >
                             <Plus className="w-5 h-5" />

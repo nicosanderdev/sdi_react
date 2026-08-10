@@ -18,6 +18,8 @@ import { DisplayImage } from './ImageManager';
 import { DisplayDocument } from './DocumentManager';
 import { DisplayVideo } from './VideoManager';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
+import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
+import { CONTACT_VERIFICATION_REQUIRED_MESSAGE } from '../../../utils/contactVerification';
 import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { ErrorDisplay } from '../../ui/ErrorDisplay';
 import {
@@ -76,6 +78,7 @@ export function PropertyCreationWizard({
   const [propertyTypeLocked, setPropertyTypeLocked] = useState(false);
 
   const { canCreateProperty, isAtPublishedLimit, totalLimit, publishedLimit } = usePropertyQuota();
+  const { needsVerification } = useContactVerificationGate();
 
   const methods = useForm<PropertyCreationFormData>({
     resolver: zodResolver(propertyCreationFormSchema as any),
@@ -123,6 +126,10 @@ export function PropertyCreationWizard({
     try {
       setIsSubmitting(true);
       setApiError(null);
+
+      if (!initialContext.isAdmin && needsVerification) {
+        throw new Error(CONTACT_VERIFICATION_REQUIRED_MESSAGE);
+      }
 
       if (!canCreateProperty) {
         throw new Error(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
