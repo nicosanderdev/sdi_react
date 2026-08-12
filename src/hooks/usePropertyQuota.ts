@@ -3,193 +3,131 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscriptionGate } from './useSubscriptionGate';
 import propertyService from '../services/PropertyService';
+import subscriptionService from '../services/SubscriptionService';
 
 export interface PropertyQuotaState {
-  // Subscription status
   hasPersonalSubscription: boolean;
-
-  // Counts
   ownedCount: number;
   publishedCount: number;
-
-  // Limits
-  totalLimit: number; // Hard cap of 10
-  publishedLimit: number; // From subscription plan
-
-  // Remaining
-  remainingTotal: number;
-  remainingPublished: number;
-
-  // Status flags
+  /** Null = unlimited */
+  totalLimit: number | null;
+  /** Null = unlimited */
+  publishedLimit: number | null;
+  remainingTotal: number | null;
+  remainingPublished: number | null;
   isAtTotalLimit: boolean;
   isAtPublishedLimit: boolean;
   isOverTotalLimit: boolean;
   isOverPublishedLimit: boolean;
-
-  // Loading and error states
   isLoading: boolean;
   error: string | null;
-
-  // Utility methods
   canCreateProperty: boolean;
   canPublishProperty: boolean;
+  maxPhotosPerProperty: number | null;
 }
 
-export function usePropertyQuota(): PropertyQuotaState {
+function deriveQuota(
+  hasPersonalSubscription: boolean,
+  ownedCount: number,
+  publishedCount: number,
+  totalLimit: number | null,
+  publishedLimit: number | null,
+  maxPhotosPerProperty: number | null
+): Omit<PropertyQuotaState, 'isLoading' | 'error'> {
+  const remainingTotal = totalLimit == null ? null : Math.max(0, totalLimit - ownedCount);
+  const remainingPublished = publishedLimit == null ? null : Math.max(0, publishedLimit - publishedCount);
+  const isAtTotalLimit = totalLimit != null && ownedCount >= totalLimit;
+  const isAtPublishedLimit = publishedLimit != null && publishedCount >= publishedLimit;
+  const isOverTotalLimit = totalLimit != null && ownedCount > totalLimit;
+  const isOverPublishedLimit = publishedLimit != null && publishedCount > publishedLimit;
+
+  return {
+    hasPersonalSubscription,
+    ownedCount,
+    publishedCount,
+    totalLimit,
+    publishedLimit,
+    remainingTotal,
+    remainingPublished,
+    isAtTotalLimit,
+    isAtPublishedLimit,
+    isOverTotalLimit,
+    isOverPublishedLimit,
+    canCreateProperty: totalLimit == null || ownedCount < totalLimit,
+    canPublishProperty: publishedLimit == null || publishedCount < publishedLimit,
+    maxPhotosPerProperty,
+  };
+}
+
+export function usePropertyQuota(companyId?: string | null): PropertyQuotaState {
   const [state, setState] = useState<PropertyQuotaState>({
-    hasPersonalSubscription: false,
-    ownedCount: 0,
-    publishedCount: 0,
-    totalLimit: 7, // Default to Inicial plan total limit
-    publishedLimit: 5, // Default to Inicial plan published limit
-    remainingTotal: 7,
-    remainingPublished: 5,
-    isAtTotalLimit: false,
-    isAtPublishedLimit: false,
-    isOverTotalLimit: false,
-    isOverPublishedLimit: false,
+    ...deriveQuota(false, 0, 0, 20, 15, null),
     isLoading: true,
     error: null,
-    canCreateProperty: true,
-    canPublishProperty: true,
   });
 
   const { personalSubscription, hasPersonalSubscription } = useSubscriptionGate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchPropertyCounts = async () => {
-      try {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
+  const fetchPropertyCounts = async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-        // Fetch counts in parallel
-        const [ownedCount, publishedCount] = await Promise.all([
-          propertyService.getOwnedPropertiesCount(user),
-          propertyService.getPublishedPropertiesCount(user)
-        ]);
+      const countOpts = companyId ? { companyId } : undefined;
+      const [ownedCount, publishedCount, companySubscription] = await Promise.all([
+        propertyService.getOwnedPropertiesCount(user, countOpts),
+        propertyService.getPublishedPropertiesCount(user, countOpts),
+        companyId
+          ? subscriptionService.getCompanySubscription(companyId).catch(() => null)
+          : Promise.resolve(null),
+      ]);
 
-        // Get limits from subscription plan (Inicial plan: 5 published, 7 total)
-        const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.publishedProperties
-          ? personalSubscription.plan.publishedProperties
-          : (personalSubscription?.plan.publishedProperties ?? 5); // Default to Inicial plan
+      const plan = companyId ? companySubscription?.plan : personalSubscription?.plan;
+      const totalLimit = plan?.totalProperties ?? plan?.maxProperties ?? null;
+      const publishedLimit = plan?.publishedProperties ?? null;
+      const maxPhotosPerProperty = plan?.maxPhotosPerProperty ?? null;
 
-        const totalLimit = hasPersonalSubscription && personalSubscription?.plan.totalProperties
-          ? personalSubscription.plan.totalProperties
-          : (personalSubscription?.plan.totalProperties ?? 7); // Default to Inicial plan
-
-        // Calculate derived values
-        const remainingTotal = Math.max(0, totalLimit - ownedCount);
-        const remainingPublished = Math.max(0, publishedLimit - publishedCount);
-
-        const isAtTotalLimit = ownedCount >= totalLimit;
-        const isAtPublishedLimit = publishedCount >= publishedLimit;
-        const isOverTotalLimit = ownedCount > totalLimit;
-        const isOverPublishedLimit = publishedCount > publishedLimit;
-
-        setState({
-          hasPersonalSubscription,
+      setState({
+        ...deriveQuota(
+          !!hasPersonalSubscription || !!companySubscription,
           ownedCount,
           publishedCount,
           totalLimit,
           publishedLimit,
-          remainingTotal,
-          remainingPublished,
-          isAtTotalLimit,
-          isAtPublishedLimit,
-          isOverTotalLimit,
-          isOverPublishedLimit,
-          isLoading: false,
-          error: null,
-          canCreateProperty: ownedCount < totalLimit,
-          canPublishProperty: publishedCount < publishedLimit,
-        });
-      } catch (error: any) {
-        console.error('Error fetching property quota data:', error);
-        setState(prev => ({
-          ...prev,
-          hasPersonalSubscription: false,
-          isLoading: false,
-          error: error.message || 'Failed to fetch property quota information'
-        }));
-      }
-    };
+          maxPhotosPerProperty
+        ),
+        isLoading: false,
+        error: null,
+      });
+    } catch (error: any) {
+      console.error('Error fetching property quota data:', error);
+      setState(prev => ({
+        ...prev,
+        hasPersonalSubscription: false,
+        isLoading: false,
+        error: error.message || 'Failed to fetch property quota information'
+      }));
+    }
+  };
 
-    // Only fetch if we have subscription data available
-    if (hasPersonalSubscription !== undefined) {
+  useEffect(() => {
+    if (companyId || hasPersonalSubscription !== undefined) {
       fetchPropertyCounts();
     }
-  }, [personalSubscription, hasPersonalSubscription]);
+  }, [personalSubscription, hasPersonalSubscription, companyId]);
 
-  // Refresh quota when properties query is invalidated
   useEffect(() => {
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       if (event.type === 'removed' || (event.type === 'updated' && event.query.queryKey[0] === 'properties')) {
-        // Properties were invalidated or removed, refresh quota
-        if (hasPersonalSubscription !== undefined) {
-          // Trigger a re-fetch by calling the effect again
-          const fetchPropertyCounts = async () => {
-            try {
-              setState(prev => ({ ...prev, isLoading: true, error: null }));
-
-              // Fetch counts in parallel
-              const [ownedCount, publishedCount] = await Promise.all([
-                propertyService.getOwnedPropertiesCount(user),
-                propertyService.getPublishedPropertiesCount(user)
-              ]);
-
-              // Get limits from subscription plan (Inicial plan: 5 published, 7 total)
-              const publishedLimit = hasPersonalSubscription && personalSubscription?.plan.publishedProperties
-                ? personalSubscription.plan.publishedProperties
-                : (personalSubscription?.plan.publishedProperties ?? 5); // Default to Inicial plan
-
-              const totalLimit = hasPersonalSubscription && personalSubscription?.plan.totalProperties
-                ? personalSubscription.plan.totalProperties
-                : (personalSubscription?.plan.totalProperties ?? 7); // Default to Inicial plan
-
-              // Calculate derived values
-              const remainingTotal = Math.max(0, totalLimit - ownedCount);
-              const remainingPublished = Math.max(0, publishedLimit - publishedCount);
-
-              const isAtTotalLimit = ownedCount >= totalLimit;
-              const isAtPublishedLimit = publishedCount >= publishedLimit;
-              const isOverTotalLimit = ownedCount > totalLimit;
-              const isOverPublishedLimit = publishedCount > publishedLimit;
-
-              setState({
-                hasPersonalSubscription,
-                ownedCount,
-                publishedCount,
-                totalLimit,
-                publishedLimit,
-                remainingTotal,
-                remainingPublished,
-                isAtTotalLimit,
-                isAtPublishedLimit,
-                isOverTotalLimit,
-                isOverPublishedLimit,
-                isLoading: false,
-                error: null,
-                canCreateProperty: ownedCount < totalLimit,
-                canPublishProperty: publishedCount < publishedLimit,
-              });
-            } catch (error: any) {
-              console.error('Error fetching property quota data:', error);
-              setState(prev => ({
-                ...prev,
-                hasPersonalSubscription: false,
-                isLoading: false,
-                error: error.message || 'Failed to fetch property quota information'
-              }));
-            }
-          };
+        if (companyId || hasPersonalSubscription !== undefined) {
           fetchPropertyCounts();
         }
       }
     });
 
     return unsubscribe;
-  }, [queryClient, hasPersonalSubscription, personalSubscription, user]);
+  }, [queryClient, hasPersonalSubscription, personalSubscription, user, companyId]);
 
   return state;
 }

@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Upload, Trash2, Star } from 'lucide-react';
 import { Button } from 'flowbite-react';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
+import { GLOBAL_MAX_PHOTOS_PER_PROPERTY, effectivePhotoCap } from '../../../utils/photoLimits';
 
 export interface DisplayImage {
     key: string;
@@ -16,20 +17,39 @@ export interface DisplayImage {
 interface ImageManagerProps {
     displayImages: DisplayImage[];
     onImagesChange: (images: DisplayImage[] | ((prev: DisplayImage[]) => DisplayImage[])) => void;
+    /** Plan MaxPhotosPerProperty (null/undefined → global max). */
+    maxPhotosPerProperty?: number | null;
 }
 
 export const ImageManager: React.FC<ImageManagerProps> = ({
     displayImages,
-    onImagesChange
+    onImagesChange,
+    maxPhotosPerProperty
 }) => {
     const imageFileInputRef = useRef<HTMLInputElement>(null);
+    const maxPhotos = useMemo(
+        () => effectivePhotoCap(maxPhotosPerProperty),
+        [maxPhotosPerProperty]
+    );
+    const remainingSlots = Math.max(0, maxPhotos - displayImages.length);
+    const isAtCap = remainingSlots <= 0;
 
-    // --- Image Handlers ---
     const handleProcessImages = (files: FileList | null) => {
-        if (!files) return;
-        const newFiles = Array.from(files);
+        if (!files || files.length === 0) return;
+        if (isAtCap) {
+            alert(`Has alcanzado el límite de ${maxPhotos} fotos por propiedad.`);
+            return;
+        }
+
+        const newFiles = Array.from(files).slice(0, remainingSlots);
+        if (newFiles.length < files.length) {
+            alert(
+                `Solo puedes agregar ${remainingSlots} foto(s) más (máximo ${maxPhotos} por propiedad).`
+            );
+        }
+
         const newDisplayImages: DisplayImage[] = newFiles.map(file => ({
-            key: `${file.name}-${file.lastModified}`,
+            key: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`,
             previewUrl: URL.createObjectURL(file),
             alt: file.name,
             isMain: false,
@@ -46,11 +66,17 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
         });
     };
 
-    const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         handleProcessImages(e.target.files);
+        e.target.value = '';
+    };
 
     const handleImageDrop = (e: React.DragEvent<HTMLDivElement>) => {
         e.preventDefault();
+        if (isAtCap) {
+            alert(`Has alcanzado el límite de ${maxPhotos} fotos por propiedad.`);
+            return;
+        }
         handleProcessImages(e.dataTransfer.files);
     };
 
@@ -82,13 +108,27 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
 
     return (
         <div className='p-4 md:p-6'>
-            <h3 className="text-xl font-semibold mb-4 border-b pb-2">Imágenes</h3>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-4 border-b pb-2">
+                <h3 className="text-xl font-semibold">Imágenes</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {displayImages.length}/{maxPhotos} fotos
+                    {maxPhotos < GLOBAL_MAX_PHOTOS_PER_PROPERTY
+                        ? ` (límite del plan; máximo global ${GLOBAL_MAX_PHOTOS_PER_PROPERTY})`
+                        : ''}
+                </p>
+            </div>
 
             <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary-400 transition-colors"
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isAtCap
+                        ? 'border-gray-200 cursor-not-allowed opacity-60'
+                        : 'border-gray-300 cursor-pointer hover:border-primary-400'
+                }`}
                 onDrop={handleImageDrop}
                 onDragOver={handleDragOver}
-                onClick={() => imageFileInputRef.current?.click()}
+                onClick={() => {
+                    if (!isAtCap) imageFileInputRef.current?.click();
+                }}
             >
                 <input
                     type="file"
@@ -97,16 +137,33 @@ export const ImageManager: React.FC<ImageManagerProps> = ({
                     multiple
                     accept="image/*"
                     className="hidden"
+                    disabled={isAtCap}
                 />
                 <div className="flex flex-col items-center">
                     <Upload size={40} className="text-gray-400 mb-4" />
-                    <p className="font-medium mb-2">Arrastra y suelta las imágenes aquí</p>
-                    <p className="text-sm mb-4">o</p>
-                    <Button
-                        onClick={(e) => { e.stopPropagation(); imageFileInputRef.current?.click(); }}
-                    >
-                        Seleccionar archivos
-                    </Button>
+                    {isAtCap ? (
+                        <>
+                            <p className="font-medium mb-2">Límite de fotos alcanzado</p>
+                            <p className="text-sm mb-4">
+                                Elimina alguna imagen para poder agregar otras (máximo {maxPhotos}).
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="font-medium mb-2">Arrastra y suelta las imágenes aquí</p>
+                            <p className="text-sm mb-4">
+                                Puedes agregar hasta {remainingSlots} más
+                            </p>
+                            <Button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    imageFileInputRef.current?.click();
+                                }}
+                            >
+                                Seleccionar archivos
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 

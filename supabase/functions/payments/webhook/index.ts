@@ -97,6 +97,16 @@ Deno.serve(async (req) => {
     currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1) // 1 month subscription
 
     if (status === 'PAID') {
+      if (paymentIntent.entity_type === 'user') {
+        console.error('Rejected member plan activation via payment webhook:', paymentIntentId)
+        return new Response(JSON.stringify({
+          error: 'Member self-serve plan changes are disabled. Platform admins must assign member plans.'
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       const { error: updateIntentError } = await supabase
         .from('payment_intents')
         .update({
@@ -111,18 +121,7 @@ Deno.serve(async (req) => {
 
       let subject: BillingSubject | null = null
 
-      if (paymentIntent.entity_type === 'user') {
-        const { data: member } = await supabase
-          .from('Members')
-          .select('Id')
-          .eq('UserId', paymentIntent.entity_id)
-          .eq('IsDeleted', false)
-          .maybeSingle()
-
-        if (member?.Id) {
-          subject = { subjectType: 'member', memberOrCompanyId: member.Id }
-        }
-      } else if (paymentIntent.entity_type === 'company') {
+      if (paymentIntent.entity_type === 'company') {
         subject = { subjectType: 'company', memberOrCompanyId: paymentIntent.entity_id }
       }
 

@@ -100,6 +100,7 @@ interface PlansRow {
   MaxPublishedProperties: number | null;
   MaxUsers: number | null;
   MaxStorageMb: number | null;
+  MaxPhotosPerProperty?: number | null;
   BillingCycle: number;
   IsActive: boolean;
   IsDeleted: boolean;
@@ -364,7 +365,8 @@ export const mapDbToProfile = (
 ): ProfileData => {
   const companies: UserCompany[] = userCompanies?.map(uc => ({
     id: uc.Companies.Id,
-    name: uc.Companies.Name
+    name: uc.Companies.Name,
+    role: uc.Role != null ? String(uc.Role) : undefined,
   })) || [];
 
   return {
@@ -398,15 +400,15 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     name: subscription.Plans.Name,
     monthlyPrice: subscription.Plans.MonthlyPrice,
     currency: subscription.Plans.Currency,
-    maxProperties: subscription.Plans.MaxProperties || 0, // Keep for backward compatibility
-    maxUsers: subscription.Plans.MaxUsers || 0,
-    maxStorageMb: subscription.Plans.MaxStorageMb || 0,
+    maxProperties: subscription.Plans.MaxProperties ?? null,
+    maxUsers: subscription.Plans.MaxUsers ?? null,
+    maxStorageMb: subscription.Plans.MaxStorageMb ?? null,
     billingCycle: subscription.Plans.BillingCycle.toString(),
     isActive: subscription.Plans.IsActive,
-    publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
-    totalProperties: subscription.Plans.MaxProperties || 0,
+    publishedProperties: subscription.Plans.MaxPublishedProperties ?? null,
+    totalProperties: subscription.Plans.MaxProperties ?? null,
     bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
-    propertyType: subscription.Plans.PropertyType as any
+    maxPhotosPerProperty: subscription.Plans.MaxPhotosPerProperty ?? null
   };
 
   return {
@@ -457,7 +459,8 @@ export const mapDbToCompany = (company: CompaniesRow): CompanyInfo => {
  */
 export const mapDbToCompanyUser = (userCompany: CompanyMembersRow & { Members: MembersRow }): CompanyUser => {
   return {
-    id: userCompany.Members.Id,
+    id: userCompany.Id,
+    memberId: userCompany.Members.Id,
     firstName: userCompany.Members.FirstName || '',
     lastName: userCompany.Members.LastName || '',
     email: userCompany.Members.Email || '',

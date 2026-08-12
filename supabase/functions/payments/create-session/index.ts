@@ -54,19 +54,76 @@ Deno.serve(async (req) => {
       })
     }
 
-    if (!['user', 'company'].includes(entity_type)) {
+    if (entity_type === 'user') {
       return new Response(JSON.stringify({
-        error: 'entity_type must be either "user" or "company"'
+        error: 'Member self-serve plan changes are disabled. Platform admins must assign member plans.'
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (entity_type !== 'company') {
+      return new Response(JSON.stringify({
+        error: 'entity_type must be "company"'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase clients
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: authData, error: authError } = await userClient.auth.getUser()
+    if (authError || !authData.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const { data: member } = await supabase
+      .from('Members')
+      .select('Id, Role')
+      .eq('UserId', authData.user.id)
+      .eq('IsDeleted', false)
+      .maybeSingle()
+
+    const isPlatformAdmin = String(member?.Role ?? '').toLowerCase() === 'admin'
+    if (!isPlatformAdmin) {
+      const { data: companyAdmin } = await supabase
+        .from('CompanyMembers')
+        .select('Id')
+        .eq('CompanyId', entity_id)
+        .eq('MemberId', member?.Id ?? '')
+        .eq('Role', 'Admin')
+        .eq('IsDeleted', false)
+        .maybeSingle()
+
+      if (!companyAdmin) {
+        return new Response(JSON.stringify({
+          error: 'Only company Admins can subscribe or change the company plan.'
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+    }
 
     // Get plan details
     const { data: plan, error: planError } = await supabase

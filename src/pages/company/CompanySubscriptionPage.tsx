@@ -14,7 +14,6 @@ import {
 import subscriptionService from '../../services/SubscriptionService';
 import { SubscriptionData } from '../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
-import { ChangeSubscriptionPage } from '../dashboard/subscription/ChangeSubscriptionPage';
 import { CancelSubscriptionPage } from '../dashboard/subscription/CancelSubscriptionPage';
 
 export function CompanySubscriptionPage() {
@@ -202,7 +201,22 @@ export function CompanySubscriptionPage() {
                     )}
                 </TabItem>
                 <TabItem title="Cambiar Plan" icon={Settings}>
-                    <ChangeSubscriptionPage />
+                    <Card>
+                        <div className="text-center py-8">
+                            <Settings className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold mb-2">Cambiar plan de empresa</h3>
+                            <p className="text-gray-600 mb-4">
+                                Los cambios de plan de empresa se gestionan desde el flujo de suscripción de empresa.
+                                El plan personal permanece congelado.
+                            </p>
+                            <Button
+                              onClick={() => navigate('/dashboard/company/subscription')}
+                              color="purple"
+                            >
+                              Ir a suscripción de empresa
+                            </Button>
+                        </div>
+                    </Card>
                 </TabItem>
                 <TabItem title="Cancelar" icon={AlertCircle}>
                     <CancelSubscriptionPage />

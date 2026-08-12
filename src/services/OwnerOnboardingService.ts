@@ -41,7 +41,7 @@ export async function getOwnerOnboardingState(
     publishedPropertiesCount: data?.published_properties_count ?? 0,
     emailVerified: data?.email_verified ?? false,
     phoneVerified: data?.phone_verified ?? false,
-    planPublishedLimit: data?.plan_published_limit ?? 5,
+    planPublishedLimit: data?.plan_published_limit ?? 15,
     planKey: data?.plan_key ?? 0,
   };
 }

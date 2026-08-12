@@ -24,6 +24,7 @@ import {
 import { assertListingPublishAllowed, tryRecordListingUsageOnPublish } from './BillingUsageRecords';
 import { storageService } from './storage';
 import { assertCurrentUserContactVerified } from '../utils/contactVerification';
+import { effectivePhotoCap } from '../utils/photoLimits';
 
 // Import types for Supabase property creation
 import { PropertyFormData, resolveCreationListingType } from '../models/properties/PropertyFormSchema';
@@ -31,6 +32,44 @@ import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 import type { ListingType } from '../models/properties/PropertyData';
 
+async function resolveSubjectPhotoCap(
+    subjectType: 'member' | 'company',
+    subjectId: string
+): Promise<number> {
+    const { data, error } = await supabase
+        .from('BillingPlanAssignments')
+        .select('Plans(MaxPhotosPerProperty)')
+        .eq('SubjectType', subjectType)
+        .eq('MemberOrCompanyId', subjectId)
+        .eq('IsActive', true)
+        .order('StartDate', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) throw error;
+    const planCap = (data as { Plans?: { MaxPhotosPerProperty?: number | null } } | null)?.Plans?.MaxPhotosPerProperty;
+    return effectivePhotoCap(planCap);
+}
+
+async function resolveMemberPhotoCap(memberId: string): Promise<number> {
+    return resolveSubjectPhotoCap('member', memberId);
+}
+
+async function resolvePropertyPhotoCap(propertyId: string): Promise<number> {
+    const { data, error } = await supabase.rpc('resolve_estate_property_photo_cap', {
+        p_estate_property_id: propertyId,
+    });
+    if (error) throw error;
+    return effectivePhotoCap(typeof data === 'number' ? data : Number(data ?? null));
+}
+
+function assertImageCountWithinCap(imageCount: number, cap: number): void {
+    if (imageCount > cap) {
+        throw new Error(
+            `Photo limit exceeded. This property allows a maximum of ${cap} photos (requested ${imageCount}).`
+        );
+    }
+}
 
 // Enum mappings for Supabase PostgreSQL function
 const propertyStatusMap: { [key: string]: number } = {
@@ -580,7 +619,8 @@ const createPropertyWithOwnerUserId = async (
     ownerUserId: string,
     formData: PropertyFormData,
     displayImages: DisplayImage[],
-    displayDocuments: DisplayDocument[]
+    displayDocuments: DisplayDocument[],
+    companyId?: string | null
 ): Promise<PropertyData> => {
     try {
         // Reverse UI labels (string) from DB enum codes (number).
@@ -638,6 +678,10 @@ const createPropertyWithOwnerUserId = async (
         }
 
         const memberId = memberRow.Id as string;
+        const photoCap = companyId
+            ? await resolveSubjectPhotoCap('company', companyId)
+            : await resolveMemberPhotoCap(memberId);
+        assertImageCountWithinCap(displayImages.length, photoCap);
 
         const uploadedImages = await Promise.all(
             displayImages
@@ -799,6 +843,7 @@ const createPropertyWithOwnerUserId = async (
                 formData.amenities && formData.amenities.length > 0
                     ? buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions)
                     : null,
+            p_company_id: companyId || null,
         });
 
         if (createEstateError) throw createEstateError;
@@ -1075,11 +1120,12 @@ const createPropertyWithOwnerUserId = async (
 const createProperty = async (
     formData: PropertyFormData,
     displayImages: DisplayImage[],
-    displayDocuments: DisplayDocument[]
+    displayDocuments: DisplayDocument[],
+    companyId?: string | null
 ): Promise<PropertyData> => {
     await assertCurrentUserContactVerified();
     const userId = await getCurrentUserId();
-    return createPropertyWithOwnerUserId(userId, formData, displayImages, displayDocuments);
+    return createPropertyWithOwnerUserId(userId, formData, displayImages, displayDocuments, companyId);
 };
 
 // Admin: create a property on behalf of another user (ownerUserId = that user's auth id)
@@ -1256,6 +1302,23 @@ interface CreateListingVersionPayload {
 
 const createListingVersion = async (propertyId: string, payload: CreateListingVersionPayload): Promise<void> => {
     await assertCurrentUserContactVerified();
+
+    const { data: listingBefore } = await supabase
+        .from('Listings')
+        .select('Id, IsPropertyVisible, IsActive')
+        .eq('EstatePropertyId', propertyId)
+        .eq('IsDeleted', false)
+        .eq('IsFeatured', true)
+        .limit(1)
+        .maybeSingle();
+
+    const wasPublished = !!(listingBefore?.IsPropertyVisible && listingBefore?.IsActive);
+    const willPublish = !!(payload.isPropertyVisible && payload.isActive);
+
+    if (!wasPublished && willPublish) {
+        await assertListingPublishAllowed(propertyId, listingBefore?.Id ?? null);
+    }
+
     const isDynamic =
         payload.listingType === 'SummerRent' || payload.listingType === 'EventVenue';
     const baseNum =
@@ -1290,6 +1353,10 @@ const createListingVersion = async (propertyId: string, payload: CreateListingVe
             : null,
     });
     if (error) throw error;
+
+    if (willPublish) {
+        await tryRecordListingUsageOnPublish(propertyId);
+    }
 };
 
 // Update an existing property
@@ -1318,6 +1385,9 @@ const updateProperty = async (
         if (!wasPublished && willPublish) {
             await assertListingPublishAllowed(id, listingBefore?.Id ?? null);
         }
+
+        const photoCap = await resolvePropertyPhotoCap(id);
+        assertImageCountWithinCap(displayImages.length, photoCap);
 
         const uploadedImages = await Promise.all(
             displayImages
@@ -1566,18 +1636,9 @@ const deleteProperty = async (id: string): Promise<void> => {
     try {
         const userId = await getCurrentUserId();
 
-        // Get member ID for the user
-        const { data: member, error: memberError } = await supabase
-            .from('Members')
-            .select('Id')
-            .eq('UserId', userId)
-            .eq('IsDeleted', false)
-            .single();
-
-        if (memberError) throw memberError;
-
-        // Soft delete the property (only if user owns it)
-        const { error } = await supabase
+        // Soft delete when RLS allows (member owner or company Admin/Manager).
+        // OwnerId is Owners.Id, not Members.Id — do not filter by member id.
+        const { data, error } = await supabase
             .from('EstateProperties')
             .update({
                 IsDeleted: true,
@@ -1585,10 +1646,13 @@ const deleteProperty = async (id: string): Promise<void> => {
                 LastModifiedBy: userId
             })
             .eq('Id', id)
-            .eq('OwnerId', member.Id)
-            .eq('IsDeleted', false);
+            .eq('IsDeleted', false)
+            .select('Id');
 
         if (error) throw error;
+        if (!data?.length) {
+            throw new Error('Property not found or you do not have permission to delete it.');
+        }
     } catch (error: any) {
         console.error(`Error deleting property ${id}:`, error.message);
         throw error;
@@ -1649,8 +1713,11 @@ const duplicateProperty = async (id: string): Promise<DuplicatedEstateProperty> 
 
 
 
-// Get count of all owned properties (active, non-deleted)
-const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
+// Get count of owned properties for quota. Personal = member-owned only; company = that company.
+const getOwnedPropertiesCount = async (
+    user?: any,
+    options?: { companyId?: string | null }
+): Promise<number> => {
     try {
         const userId = await getCurrentUserId(user);
 
@@ -1667,23 +1734,26 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
             return 0;
         }
 
-        // Get company IDs that this user belongs to
-        const { data: userCompanies, error: companiesError } = await supabase
-            .from('CompanyMembers')
-            .select('CompanyId')
-            .eq('MemberId', member.Id)
-            .eq('IsDeleted', false);
+        if (options?.companyId) {
+            const { count, error } = await supabase
+                .from('EstateProperties')
+                .select('*, Owners!inner(OwnerType, CompanyId)', { count: 'exact', head: true })
+                .eq('IsDeleted', false)
+                .eq('Owners.OwnerType', 'company')
+                .eq('Owners.CompanyId', options.companyId)
+                .eq('Owners.IsDeleted', false);
 
-        if (companiesError) throw companiesError;
+            if (error) throw error;
+            return count || 0;
+        }
 
-        const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-
-        // Count all active, non-deleted properties owned by this member or their companies
         const { count, error } = await supabase
             .from('EstateProperties')
-            .select('*, Owners!inner(OwnerType, MemberId, CompanyId)', { count: 'exact', head: true })
+            .select('*, Owners!inner(OwnerType, MemberId)', { count: 'exact', head: true })
             .eq('IsDeleted', false)
-            .or(`and(Owners.OwnerType.eq.member,Owners.MemberId.eq.${member.Id}),and(Owners.OwnerType.eq.company,Owners.CompanyId.in.(${companyIds.length > 0 ? companyIds.join(',') : 'null'}))`);
+            .eq('Owners.OwnerType', 'member')
+            .eq('Owners.MemberId', member.Id)
+            .eq('Owners.IsDeleted', false);
 
         if (error) throw error;
 
@@ -1694,8 +1764,11 @@ const getOwnedPropertiesCount = async (user?: any): Promise<number> => {
     }
 };
 
-// Get count of published properties (visible/active)
-const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
+// Published count for billing subject (member personal or company).
+const getPublishedPropertiesCount = async (
+    user?: any,
+    options?: { companyId?: string | null }
+): Promise<number> => {
     try {
         const userId = await getCurrentUserId(user);
 
@@ -1712,15 +1785,29 @@ const getPublishedPropertiesCount = async (user?: any): Promise<number> => {
             return 0;
         }
 
-        // Count all visible, active properties owned by this member
-        const { count, error } = await supabase
+        let query = supabase
             .from('EstateProperties')
-            .select('*, Listings!inner(*)', { count: 'exact', head: true })
-            .eq('OwnerId', member.Id)
+            .select('*, Owners!inner(OwnerType, MemberId, CompanyId), Listings!inner(*)', {
+                count: 'exact',
+                head: true,
+            })
+            .eq('Owners.IsDeleted', false)
             .eq('IsDeleted', false)
             .eq('Listings.IsDeleted', false)
             .eq('Listings.IsPropertyVisible', true)
             .eq('Listings.IsActive', true);
+
+        if (options?.companyId) {
+            query = query
+                .eq('Owners.OwnerType', 'company')
+                .eq('Owners.CompanyId', options.companyId);
+        } else {
+            query = query
+                .eq('Owners.OwnerType', 'member')
+                .eq('Owners.MemberId', member.Id);
+        }
+
+        const { count, error } = await query;
 
         if (error) throw error;
 

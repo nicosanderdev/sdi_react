@@ -18,6 +18,7 @@ interface PropertyFormStep3Props {
   setDisplayVideos: React.Dispatch<React.SetStateAction<DisplayVideo[]>>;
   displayDocuments: DisplayDocument[];
   setDisplayDocuments: React.Dispatch<React.SetStateAction<DisplayDocument[]>>;
+  maxPhotosPerProperty?: number | null;
 }
 
 
@@ -29,7 +30,8 @@ export function PropertyFormStep3({
   displayVideos, 
   setDisplayVideos,
   displayDocuments,
-  setDisplayDocuments
+  setDisplayDocuments,
+  maxPhotosPerProperty
 }: PropertyFormStep3Props) {
   const { watch } = useFormContext<PropertyFormData>();
   const propertyType = watch('propertyType');
@@ -41,6 +43,7 @@ export function PropertyFormStep3({
         <ImageManager
           displayImages={displayImages}
           onImagesChange={setDisplayImages}
+          maxPhotosPerProperty={maxPhotosPerProperty}
         />
 
         {/* Videos Section */}

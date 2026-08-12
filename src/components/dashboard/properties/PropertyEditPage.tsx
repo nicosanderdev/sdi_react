@@ -21,6 +21,8 @@ import { amenityDescriptionsFromAmenities } from '../../../models/properties/ame
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
 import { ContactVerificationGateBanner } from '../../user/ContactVerificationGateBanner';
+import { supabase } from '../../../config/supabase';
+import { GLOBAL_MAX_PHOTOS_PER_PROPERTY } from '../../../utils/photoLimits';
 
 function firstValidationMessage(errors: FieldErrors<PropertyFormData>): string {
   const walk = (node: unknown): string | null => {
@@ -67,6 +69,18 @@ export function PropertyEditPage() {
   const { data: property, isLoading, isError, error } = useQuery({
     queryKey: ['property', propertyId],
     queryFn: () => propertyService.getOwnersPropertyById(propertyId!),
+    enabled: !!propertyId,
+  });
+
+  const { data: photoCap = GLOBAL_MAX_PHOTOS_PER_PROPERTY } = useQuery({
+    queryKey: ['property-photo-cap', propertyId],
+    queryFn: async () => {
+      const { data, error: capError } = await supabase.rpc('resolve_estate_property_photo_cap', {
+        p_estate_property_id: propertyId!,
+      });
+      if (capError) throw capError;
+      return Number(data ?? GLOBAL_MAX_PHOTOS_PER_PROPERTY);
+    },
     enabled: !!propertyId,
   });
 
@@ -169,6 +183,11 @@ export function PropertyEditPage() {
     try {
       setIsSaving(true);
       setApiError(null);
+      if (displayImages.length > photoCap) {
+        throw new Error(
+          `Photo limit exceeded. This property allows a maximum of ${photoCap} photos (requested ${displayImages.length}).`
+        );
+      }
       await propertyService.updatePropertyWizard(propertyId, formData, displayImages, displayDocuments);
       if (formData.additionalExtensionType) {
         await propertyService.addPropertyExtension(propertyId, formData.additionalExtensionType, formData);
@@ -260,6 +279,7 @@ export function PropertyEditPage() {
               setDisplayVideos={setDisplayVideos}
               displayDocuments={displayDocuments}
               setDisplayDocuments={setDisplayDocuments}
+              maxPhotosPerProperty={photoCap}
             />
           )}
           {currentStep === 4 && (
