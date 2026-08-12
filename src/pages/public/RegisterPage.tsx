@@ -5,6 +5,7 @@ import AuthService, { RegisterUserPayload } from '../../services/AuthService';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
 import { AuthCard } from '../../components/public/AuthCard';
+import { SocialAuthButtons } from '../../components/public/SocialAuthButtons';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Button, TextInput, Checkbox } from 'flowbite-react';
 
@@ -19,6 +20,7 @@ export function RegisterPage() {
     password: '',
     repeatPassword: '',
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -112,10 +114,37 @@ export function RegisterPage() {
     return isValid;
   };
 
+  const handleOAuthRegister = async (provider: 'google' | 'facebook') => {
+    if (!acceptedTerms) {
+      setApiError('Debes aceptar los términos y condiciones para continuar.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      const { error } = await AuthService.signInWithOAuthProvider(provider);
+
+      if (error) {
+        setApiError(error.message);
+      }
+    } catch (err: any) {
+      setApiError(err.message || `Error al registrarse con ${provider}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isLoading) {
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setApiError('Debes aceptar los términos y condiciones para continuar.');
       return;
     }
 
@@ -196,6 +225,11 @@ export function RegisterPage() {
       >
         {view === 'form' && (
           <>
+            {apiError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6" role="alert">
+                <span>{apiError}</span>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -363,6 +397,8 @@ export function RegisterPage() {
               <div className="flex items-center pt-2">
                 <Checkbox
                   id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
                   required
                 />
                 <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -381,6 +417,11 @@ export function RegisterPage() {
               >
                 {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
               </Button>
+              <SocialAuthButtons
+                onGoogle={() => void handleOAuthRegister('google')}
+                onFacebook={() => void handleOAuthRegister('facebook')}
+                disabled={isLoading || !acceptedTerms}
+              />
             </form>
             <div className="text-center mt-5">
               <p className="text-sm text-gray-600 dark:text-gray-400">

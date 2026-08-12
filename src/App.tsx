@@ -109,7 +109,7 @@ export function App() {
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
-          {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
+          <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
           <Route path="/how-it-works" element={<PublicRoute><HowItWorksPage /></PublicRoute>} />

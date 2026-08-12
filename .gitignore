@@ -54,3 +54,5 @@ docs/handoffs/*
 !docs/handoffs/guest-booking-messaging.md
 
 scripts/
+.scripts/
+.agents/

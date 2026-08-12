@@ -207,6 +207,21 @@ const login = async (
   }
 };
 
+export type OAuthProvider = 'google' | 'facebook'
+
+/**
+ * Starts OAuth sign-in (Google or Facebook). Redirects to /dashboard on success.
+ */
+const signInWithOAuthProvider = async (provider: OAuthProvider) => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`,
+    },
+  })
+  return { data, error }
+}
+
 /**
  * Logs out the user using Supabase authentication.
  */
@@ -596,6 +611,7 @@ const validateRecoveryPasswordChange = async (_payload: ValidateRecoveryPayload)
 const authService = {
   login,
   logout,
+  signInWithOAuthProvider,
   forgotPassword,
   resetPassword,
   verifyAuth,
