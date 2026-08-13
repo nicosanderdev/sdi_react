@@ -5,9 +5,10 @@ export type HeroSectionCtaProps = {
   contactLabel: string;
   contactTo: string;
   demoLabel: string;
+  demoTo: string;
 };
 
-export function HeroSection({ contactLabel, contactTo, demoLabel }: HeroSectionCtaProps) {
+export function HeroSection({ contactLabel, contactTo, demoLabel, demoTo }: HeroSectionCtaProps) {
   return (
     <section className="relative min-h-[22rem] sm:min-h-[28rem] flex items-center py-20 overflow-hidden">
       <div
@@ -36,7 +37,8 @@ export function HeroSection({ contactLabel, contactTo, demoLabel }: HeroSectionC
               {contactLabel}
             </Button>
             <Button
-              type="button"
+              as={Link}
+              to={demoTo}
               color="alternative"
               size="xl"
             >

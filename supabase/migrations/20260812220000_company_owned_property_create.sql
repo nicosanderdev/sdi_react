@@ -1,4 +1,4 @@
-﻿-- Company-owned property create: optional p_company_id, company plan limits,
+-- Company-owned property create: optional p_company_id, company plan limits,
 -- member-owned-only personal create counts, and read access for company Members.
 
 DROP FUNCTION IF EXISTS public.create_estate_property(uuid, text, text, text, text, text, text, text, double precision, double precision, integer, double precision, integer, integer, integer, integer, boolean, boolean, boolean, boolean, integer, integer, integer, boolean, boolean, boolean, double precision, integer, boolean, text, boolean, integer, boolean, boolean, text, text, integer, integer, integer, integer, text, uuid[]);

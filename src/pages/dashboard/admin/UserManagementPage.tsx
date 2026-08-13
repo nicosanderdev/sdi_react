@@ -11,6 +11,7 @@ import { UserDetailModal } from '../../../components/admin/users/UserDetailModal
 import { UserViewModal } from '../../../components/admin/users/UserViewModal';
 import { UserEditModal } from '../../../components/admin/users/UserEditModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
+import { UnlinkMercadoPagoConfirmModal } from '../../../components/admin/users/UnlinkMercadoPagoConfirmModal';
 import { UserStatistics } from '../../../components/admin/users/UserStatistics';
 import { CreateUserModal } from '../../../components/admin/users/CreateUserModal';
 
@@ -27,6 +28,7 @@ const UserManagementPage: React.FC = () => {
     loading,
     error,
     actionError,
+    actionSuccess,
     fetchUsers,
   } = hook;
 
@@ -72,6 +74,14 @@ const UserManagementPage: React.FC = () => {
         <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20">
           <div className="text-amber-900 dark:text-amber-100">
             <strong>Acción:</strong> {actionError}
+          </div>
+        </Card>
+      )}
+
+      {actionSuccess && (
+        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20">
+          <div className="text-green-900 dark:text-green-100">
+            <strong>Listo:</strong> {actionSuccess}
           </div>
         </Card>
       )}
@@ -193,6 +203,7 @@ const UserManagementPage: React.FC = () => {
       <UserEditModal hook={hook} />
       <UserDetailModal hook={hook} />
       <DeleteUserConfirmModal hook={hook} />
+      <UnlinkMercadoPagoConfirmModal hook={hook} />
       <CreateUserModal
         open={createUserModalOpen}
         onClose={() => setCreateUserModalOpen(false)}

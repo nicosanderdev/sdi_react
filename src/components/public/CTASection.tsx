@@ -3,7 +3,7 @@ import { PublicSection } from './PublicSection';
 import { Button } from 'flowbite-react';
 import type { HeroSectionCtaProps } from './HeroSection';
 
-export function CTASection({ contactLabel, contactTo, demoLabel }: HeroSectionCtaProps) {
+export function CTASection({ contactLabel, contactTo, demoLabel, demoTo }: HeroSectionCtaProps) {
   return (
     <PublicSection background="gray">
       <div className="text-center">
@@ -18,7 +18,7 @@ export function CTASection({ contactLabel, contactTo, demoLabel }: HeroSectionCt
           <Button as={Link} to={contactTo} color="green">
             {contactLabel}
           </Button>
-          <Button type="button" color="alternative">
+          <Button as={Link} to={demoTo} color="alternative">
             {demoLabel}
           </Button>
         </div>
