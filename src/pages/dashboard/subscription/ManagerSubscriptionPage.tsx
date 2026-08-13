@@ -21,6 +21,7 @@ import { Button, Card, Spinner, Alert } from 'flowbite-react';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
 import type { PropertyType } from '../../../models/properties/PropertyData';
+import { formatPlanLimit } from '../../../models/subscriptions/PlanData';
 
 export function ManagerSubscriptionPage() {
     const user = useSelector((state: RootState) => state.user.profile);
@@ -145,10 +146,6 @@ export function ManagerSubscriptionPage() {
         }
     };
 
-    const handleUpdatePlan = () => {
-        navigate('/dashboard/subscription/change');
-    };
-
     const handleDownloadInvoice = async (invoiceId: string) => {
         try {
             const blob = await subscriptionService.downloadInvoice(invoiceId);
@@ -165,12 +162,16 @@ export function ManagerSubscriptionPage() {
         }
     };
 
-    // Calculate progress bar percentages
-    const publishedLimitValue = subscription?.plan.publishedProperties ?? publishedLimit ?? 1;
-    const publishedPercentage = isQuotaLoading ? 0 : Math.min(100, (publishedCount / publishedLimitValue) * 100);
-    
-    const totalLimitValue = subscription?.plan.totalProperties ?? totalLimit ?? 1;
-    const totalPercentage = isQuotaLoading ? 0 : Math.min(100, (ownedCount / totalLimitValue) * 100);
+    const displayPublishedLimit = subscription?.plan.publishedProperties ?? publishedLimit;
+    const displayTotalLimit = subscription?.plan.totalProperties ?? totalLimit;
+    const publishedPercentage =
+        isQuotaLoading || displayPublishedLimit == null || displayPublishedLimit <= 0
+            ? 0
+            : Math.min(100, (publishedCount / displayPublishedLimit) * 100);
+    const totalPercentage =
+        isQuotaLoading || displayTotalLimit == null || displayTotalLimit <= 0
+            ? 0
+            : Math.min(100, (ownedCount / displayTotalLimit) * 100);
 
     return (
         <div className="max-w-6xl mx-auto p-6">
@@ -241,16 +242,9 @@ export function ManagerSubscriptionPage() {
                                         Plan gratuito - Sin facturación
                                     </p>
                                 )}
-                                <div className="flex flex-col space-y-2">
-                                    <Button
-                                        color="green"
-                                        onClick={() => navigate('/dashboard/subscription/change')}
-                                        className="px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
-                                    >
-                                        <Crown className="w-4 h-4" />
-                                        <span>{subscription.plan.key === PlanKey.FREE ? 'Ver Planes' : 'Cambiar Plan'}</span>
-                                    </Button>
-                                </div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    El cambio de plan personal no está disponible por ahora. Tu plan y uso se muestran a continuación.
+                                </p>
                             </div>
 
                             <div className="space-y-4">
@@ -258,7 +252,7 @@ export function ManagerSubscriptionPage() {
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-gray-600 dark:text-gray-300">Propiedades publicadas</span>
                                         <span className="font-medium">
-                                            {isQuotaLoading ? '...' : publishedCount}/{subscription?.plan.publishedProperties ?? publishedLimit ?? '0'}
+                                            {isQuotaLoading ? '...' : `${publishedCount}/${formatPlanLimit(displayPublishedLimit)}`}
                                         </span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -278,7 +272,7 @@ export function ManagerSubscriptionPage() {
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-gray-600 dark:text-gray-300">Propiedades totales</span>
                                         <span className="font-medium">
-                                            {isQuotaLoading ? '...' : ownedCount}/{subscription?.plan.totalProperties ?? totalLimit ?? '0'}
+                                            {isQuotaLoading ? '...' : `${ownedCount}/${formatPlanLimit(displayTotalLimit)}`}
                                         </span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -354,28 +348,12 @@ export function ManagerSubscriptionPage() {
                         <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
                         <div className="space-y-3">
                             <button 
-                                onClick={() => navigate('/dashboard/subscription/change')}
-                                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                            >
-                                <Crown className="w-5 h-5" />
-                                <span>Cambiar Plan</span>
-                            </button>
-                            <button 
                                 onClick={() => navigate('/dashboard/subscription/billing-history')}
                                 className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
                             >
                                 <CreditCard className="w-5 h-5" />
                                 <span>Historial de Facturación</span>
                             </button>
-                            {subscription.plan.key !== PlanKey.FREE && (
-                                <button 
-                                    onClick={() => navigate('/dashboard/subscription/cancel')}
-                                    className="w-full flex items-center space-x-3 p-3 text-left hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-red-600"
-                                >
-                                    <AlertCircle className="w-5 h-5" />
-                                    <span>Cancelar Suscripción</span>
-                                </button>
-                            )}
                         </div>
                     </Card>
 

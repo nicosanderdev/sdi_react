@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Button, Table, Badge, Spinner, Alert, TableHead, TableHeadCell, TableCell, TableBody, TableRow } from 'flowbite-react';
+import { Card, Button, Table, Badge, Spinner, Alert, TableHead, TableHeadCell, TableCell, TableBody, TableRow, Select } from 'flowbite-react';
 import { Users, UserPlus, Trash2, AlertCircle } from 'lucide-react';
 import { CompanyUser } from '../../models/companies/CompanyUser';
 import companyService from '../../services/CompanyService';
@@ -11,31 +11,52 @@ interface CompanyUsersListProps {
   isLoading: boolean;
   error: string | null;
   onRefresh: () => void;
+  canManage?: boolean;
+  companyId?: string;
 }
 
-export function CompanyUsersList({ users, isLoading, error, onRefresh }: CompanyUsersListProps) {
+const ROLES: Array<'Admin' | 'Manager' | 'Member'> = ['Admin', 'Manager', 'Member'];
+
+export function CompanyUsersList({
+  users,
+  isLoading,
+  error,
+  onRefresh,
+  canManage = false,
+  companyId,
+}: CompanyUsersListProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const handleRemoveUser = async (userId: string) => {
+  const handleRemoveUser = async (membershipId: string) => {
     if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario de la empresa?')) {
       return;
     }
 
-    setRemoveError(null);
-    setRemovingUserId(userId);
+    setActionError(null);
+    setRemovingUserId(membershipId);
     try {
-      await companyService.removeUserFromCompany(userId);
+      await companyService.removeUserFromCompany(membershipId);
       onRefresh();
     } catch (err: any) {
-      setRemoveError(
-        err.response?.data?.message || 
-        err.message || 
-        'Error al eliminar el usuario'
-      );
+      setActionError(err.message || 'Error al eliminar el usuario');
     } finally {
       setRemovingUserId(null);
+    }
+  };
+
+  const handleRoleChange = async (membershipId: string, role: 'Admin' | 'Manager' | 'Member') => {
+    setActionError(null);
+    setUpdatingRoleId(membershipId);
+    try {
+      await companyService.updateCompanyMemberRole(membershipId, role);
+      onRefresh();
+    } catch (err: any) {
+      setActionError(err.message || 'Error al cambiar el rol');
+    } finally {
+      setUpdatingRoleId(null);
     }
   };
 
@@ -53,6 +74,7 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
         return 'failure';
       case 'manager':
         return 'warning';
+      case 'member':
       case 'user':
         return 'info';
       default:
@@ -78,18 +100,20 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
             <Users className="w-6 h-6" />
             <h2 className="text-xl font-bold">Usuarios de la empresa</h2>
           </div>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center space-x-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Agregar Usuario</span>
-          </Button>
+          {canManage && (
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center space-x-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Agregar Usuario</span>
+            </Button>
+          )}
         </div>
 
-        {removeError && (
+        {actionError && (
           <Alert color="failure" icon={AlertCircle} className="mb-4">
-            {removeError}
+            {actionError}
           </Alert>
         )}
 
@@ -104,14 +128,16 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
             <p className="text-gray-600 dark:text-gray-400 mb-4">
               Comienza agregando usuarios a tu empresa.
             </p>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              color="blue"
-              className="flex items-center space-x-2 mx-auto"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Agregar Primer Usuario</span>
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => setShowAddModal(true)}
+                color="blue"
+                className="flex items-center space-x-2 mx-auto"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Agregar Primer Usuario</span>
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -121,9 +147,11 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
                 <TableHeadCell>Correo</TableHeadCell>
                 <TableHeadCell>Rol</TableHeadCell>
                 <TableHeadCell>Fecha de Ingreso</TableHeadCell>
-                <TableHeadCell>
-                  <span className="sr-only">Acciones</span>
-                </TableHeadCell>
+                {canManage && (
+                  <TableHeadCell>
+                    <span className="sr-only">Acciones</span>
+                  </TableHeadCell>
+                )}
               </TableHead>
               <TableBody className="divide-y">
                 {users.map((user) => (
@@ -150,32 +178,52 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge color="">
-                        {user.role}
-                      </Badge>
+                      {canManage ? (
+                        <Select
+                          sizing="sm"
+                          value={user.role}
+                          disabled={updatingRoleId === user.id}
+                          onChange={e =>
+                            handleRoleChange(
+                              user.id,
+                              e.target.value as 'Admin' | 'Manager' | 'Member'
+                            )
+                          }
+                        >
+                          {ROLES.map(role => (
+                            <option key={role} value={role}>
+                              {role}
+                            </option>
+                          ))}
+                        </Select>
+                      ) : (
+                        <Badge color={getRoleBadgeColor(user.role)}>{user.role}</Badge>
+                      )}
                     </TableCell>
                     <TableCell>{formatDate(user.joinDate)}</TableCell>
-                    <TableCell>
-                      <Button
-                        onClick={() => handleRemoveUser(user.id)}
-                        color="alternative"
-                        size="sm"
-                        disabled={removingUserId === user.id}
-                        className="flex items-center space-x-1"
-                      >
-                        {removingUserId === user.id ? (
-                          <>
-                            <Spinner size="sm" />
-                            <span>Eliminando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Trash2 className="w-4 h-4" />
-                            <span>Eliminar</span>
-                          </>
-                        )}
-                      </Button>
-                    </TableCell>
+                    {canManage && (
+                      <TableCell>
+                        <Button
+                          onClick={() => handleRemoveUser(user.id)}
+                          color="alternative"
+                          size="sm"
+                          disabled={removingUserId === user.id}
+                          className="flex items-center space-x-1"
+                        >
+                          {removingUserId === user.id ? (
+                            <>
+                              <Spinner size="sm" />
+                              <span>Eliminando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4" />
+                              <span>Eliminar</span>
+                            </>
+                          )}
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -184,12 +232,14 @@ export function CompanyUsersList({ users, isLoading, error, onRefresh }: Company
         )}
       </Card>
 
-      <AddUserModal
-        show={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={onRefresh}
-      />
+      {canManage && (
+        <AddUserModal
+          show={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={onRefresh}
+          companyId={companyId}
+        />
+      )}
     </>
   );
 }
-

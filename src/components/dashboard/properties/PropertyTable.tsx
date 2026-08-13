@@ -8,6 +8,9 @@ interface PropertyTableProps {
   onViewBookings: (property: PropertyData) => void;
   onDeleteProperty: (property: PropertyData) => void;
   onEditListing: (property: PropertyData) => void;
+  /** When true, property/listing edit actions are blocked until contact verification */
+  editBlocked?: boolean;
+  onEditBlocked?: () => void;
 }
 
 export function PropertyTable({
@@ -15,6 +18,8 @@ export function PropertyTable({
   onViewBookings,
   onDeleteProperty,
   onEditListing,
+  editBlocked = false,
+  onEditBlocked,
 }: PropertyTableProps) {
   const navigate = useNavigate();
 
@@ -32,6 +37,10 @@ export function PropertyTable({
   };
 
   const handleEditClick = (property: PropertyData) => {
+    if (editBlocked) {
+      onEditBlocked?.();
+      return;
+    }
     navigate(`/dashboard/property/${property.id}/edit`);
   };
 

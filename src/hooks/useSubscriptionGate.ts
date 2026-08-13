@@ -65,11 +65,14 @@ export function useSubscriptionGate(): SubscriptionGateState {
             name: 'Free',
             monthlyPrice: 0,
             currency: 'USD',
-            maxProperties: 0,
+            maxProperties: 20,
             maxUsers: 1,
             maxStorageMb: 0,
             billingCycle: '1',
-            isActive: true
+            isActive: true,
+            publishedProperties: 15,
+            totalProperties: 20,
+            maxPhotosPerProperty: null
           },
           status: '0', // 0 = inactive/cancelled (no active subscription)
           currentPeriodStart: new Date(),

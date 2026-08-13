@@ -163,7 +163,11 @@ BEGIN
       "PricePerBooking",
       "ListingLimit",
       "DurationDays",
-      "IsActiveV2"
+      "IsActiveV2",
+      "BookingLimit",
+      "CommissionPercentage",
+      "CommissionMinimumAmount",
+      "BookingReceiptMinimumAmount"
     )
     VALUES
       (
@@ -187,7 +191,11 @@ BEGIN
         NULL,
         3,
         30,
-        true
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
       ),
       (
         '22222222-2222-4222-8222-222222222222'::uuid,
@@ -210,7 +218,11 @@ BEGIN
         2.5,
         25,
         30,
-        true
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
       ),
       (
         '33333333-3333-4333-8333-333333333333'::uuid,
@@ -233,7 +245,38 @@ BEGIN
         NULL,
         200,
         30,
-        true
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+      ),
+      (
+        '44444444-4444-4444-8444-444444444444'::uuid,
+        3,
+        'Plan BASE-Inicial',
+        0,
+        'UYU',
+        20,
+        15,
+        NULL,
+        NULL,
+        30,
+        true,
+        false,
+        now(),
+        now(),
+        'per_booking',
+        0,
+        NULL,
+        NULL,
+        20,
+        30,
+        true,
+        NULL,
+        10,
+        700,
+        700
       )
     ON CONFLICT ("Id") DO UPDATE SET
       "Key" = excluded."Key",
@@ -254,7 +297,11 @@ BEGIN
       "PricePerBooking" = excluded."PricePerBooking",
       "ListingLimit" = excluded."ListingLimit",
       "DurationDays" = excluded."DurationDays",
-      "IsActiveV2" = excluded."IsActiveV2";
+      "IsActiveV2" = excluded."IsActiveV2",
+      "BookingLimit" = excluded."BookingLimit",
+      "CommissionPercentage" = excluded."CommissionPercentage",
+      "CommissionMinimumAmount" = excluded."CommissionMinimumAmount",
+      "BookingReceiptMinimumAmount" = excluded."BookingReceiptMinimumAmount";
   END IF;
 END $$;
 
