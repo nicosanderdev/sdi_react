@@ -9,6 +9,7 @@ import userAdminService, {
   UserRole,
   AdminUserDeletable,
 } from '../services/UserAdminService';
+import mercadoPagoAdminService from '../services/MercadoPagoAdminService';
 
 // Sorting options
 export type SortField = 'name' | 'email' | 'role' | 'status' | 'subscription' | 'registrationDate' | 'lastLogin';
@@ -51,11 +52,14 @@ export interface UseAdminUsersReturn {
   detailModalOpen: boolean;
   deleteConfirmModalOpen: boolean;
   userToDelete: AdminUserDeletable | null;
+  unlinkMercadoPagoModalOpen: boolean;
+  userToUnlinkMercadoPago: UserListItem | null;
   viewModalOpen: boolean;
   viewUser: UserDetail | null;
   editModalOpen: boolean;
   editUser: UserDetail | null;
   editFieldErrors: { email?: string; phone?: string };
+  actionSuccess: string | null;
 
   // Table selection (admin list)
   selectedUserIds: string[];
@@ -89,6 +93,11 @@ export interface UseAdminUsersReturn {
   openDeleteConfirmModal: (user: AdminUserDeletable) => void;
   closeDeleteConfirmModal: (options?: { preserveActionError?: boolean }) => void;
   confirmDeleteUser: (reason?: string) => Promise<void>;
+
+  sendMercadoPagoLink: (memberId: string) => Promise<void>;
+  openUnlinkMercadoPagoModal: (user: UserListItem) => void;
+  closeUnlinkMercadoPagoModal: () => void;
+  confirmUnlinkMercadoPago: () => Promise<void>;
 
   toggleUserSelection: (memberId: string) => void;
   toggleSelectAllUsersOnPage: (pageMemberIds: string[]) => void;
@@ -125,6 +134,7 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
   const [error, setError] = useState<string | null>(null);
   const [userDetailError, setUserDetailError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [viewModalError, setViewModalError] = useState<string | null>(null);
   const [editModalError, setEditModalError] = useState<string | null>(null);
 
@@ -136,6 +146,8 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [deleteConfirmModalOpen, setDeleteConfirmModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<AdminUserDeletable | null>(null);
+  const [unlinkMercadoPagoModalOpen, setUnlinkMercadoPagoModalOpen] = useState(false);
+  const [userToUnlinkMercadoPago, setUserToUnlinkMercadoPago] = useState<UserListItem | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewUser, setViewUser] = useState<UserDetail | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -413,9 +425,65 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
 
   const openDeleteConfirmModal = useCallback((user: AdminUserDeletable) => {
     setActionError(null);
+    setActionSuccess(null);
     setUserToDelete(user);
     setDeleteConfirmModalOpen(true);
   }, []);
+
+  const sendMercadoPagoLink = useCallback(
+    async (memberId: string) => {
+      setActionLoading(true);
+      setActionError(null);
+      setActionSuccess(null);
+      try {
+        const result = await mercadoPagoAdminService.sendLink(memberId);
+        if (!result.success) {
+          setActionError(result.message || 'No se pudo enviar el enlace de Mercado Pago');
+          return;
+        }
+        setActionSuccess(result.message || 'Enlace de Mercado Pago enviado por WhatsApp');
+        await fetchUsers();
+      } catch (err: any) {
+        setActionError(err.message || 'No se pudo enviar el enlace de Mercado Pago');
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [fetchUsers],
+  );
+
+  const openUnlinkMercadoPagoModal = useCallback((user: UserListItem) => {
+    setActionError(null);
+    setActionSuccess(null);
+    setUserToUnlinkMercadoPago(user);
+    setUnlinkMercadoPagoModalOpen(true);
+  }, []);
+
+  const closeUnlinkMercadoPagoModal = useCallback(() => {
+    setUnlinkMercadoPagoModalOpen(false);
+    setUserToUnlinkMercadoPago(null);
+  }, []);
+
+  const confirmUnlinkMercadoPago = useCallback(async () => {
+    if (!userToUnlinkMercadoPago) return;
+    setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      const result = await mercadoPagoAdminService.unlink(userToUnlinkMercadoPago.id);
+      if (!result.success) {
+        setActionError(result.message || 'No se pudo desvincular Mercado Pago');
+        return;
+      }
+      setActionSuccess(result.message || 'Mercado Pago desvinculado');
+      closeUnlinkMercadoPagoModal();
+      await fetchUsers();
+    } catch (err: any) {
+      setActionError(err.message || 'No se pudo desvincular Mercado Pago');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [userToUnlinkMercadoPago, closeUnlinkMercadoPagoModal, fetchUsers]);
 
   const confirmDeleteUser = useCallback(
     async (reason?: string) => {
@@ -498,6 +566,7 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     error,
     userDetailError,
     actionError,
+    actionSuccess,
     viewModalError,
     editModalError,
 
@@ -507,6 +576,8 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     detailModalOpen,
     deleteConfirmModalOpen,
     userToDelete,
+    unlinkMercadoPagoModalOpen,
+    userToUnlinkMercadoPago,
     viewModalOpen,
     viewUser,
     editModalOpen,
@@ -541,6 +612,11 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     openDeleteConfirmModal,
     closeDeleteConfirmModal,
     confirmDeleteUser,
+
+    sendMercadoPagoLink,
+    openUnlinkMercadoPagoModal,
+    closeUnlinkMercadoPagoModal,
+    confirmUnlinkMercadoPago,
 
     toggleUserSelection,
     toggleSelectAllUsersOnPage,

@@ -23,8 +23,18 @@ export type SubscriptionStatus = 'active' | 'expired' | 'none';
 // Payment status types
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'none' | 'unknown';
 
+/** Mercado Pago seller-link status for admin UI. */
+export type MercadoPagoLinkStatus = 'not_connected' | 'invite_sent' | 'connected';
+
 // Action history types
 export type ActionType = 'suspend' | 'reactivate' | 'role_change' | 'reset_onboarding' | 'force_logout' | 'delete';
+
+export function normalizeMercadoPagoStatus(value: unknown): MercadoPagoLinkStatus {
+  if (value === 'connected' || value === 'invite_sent' || value === 'not_connected') {
+    return value;
+  }
+  return 'not_connected';
+}
 
 // Interfaces
 export interface UserListItem {
@@ -43,6 +53,7 @@ export interface UserListItem {
   lastLogin: string | null;
   propertiesCount: number;
   paymentStatus: PaymentStatus;
+  mercadoPagoStatus: MercadoPagoLinkStatus;
 }
 
 export interface UserListResponse {
@@ -89,6 +100,7 @@ export interface UserDetail {
   onboardingStep: number;
   onboardingComplete: boolean;
   actionHistory: ActionHistoryItem[];
+  mercadoPagoStatus: MercadoPagoLinkStatus;
 }
 
 export interface ActionHistoryItem {
@@ -173,6 +185,7 @@ class UserAdminService {
       lastLogin: user.last_login,
       propertiesCount: user.properties_count,
       paymentStatus: user.payment_status,
+      mercadoPagoStatus: normalizeMercadoPagoStatus(user.mercado_pago_status),
     }));
 
     return {
@@ -225,6 +238,7 @@ class UserAdminService {
       onboardingStep: user.onboarding_step,
       onboardingComplete: user.onboarding_complete,
       actionHistory: user.action_history || [],
+      mercadoPagoStatus: normalizeMercadoPagoStatus(user.mercado_pago_status),
     };
   }
 

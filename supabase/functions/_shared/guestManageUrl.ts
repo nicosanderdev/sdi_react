@@ -22,6 +22,22 @@ function getManageBaseUrl(listingType: string | null | undefined): string | null
   return resolved ?? legacy ?? null;
 }
 
+/**
+ * Origin of the guest site for Mercado Pago Checkout Pro back_urls.
+ * Uses GUEST_BOOKING_MANAGE_BASE_URL_MAIN/ALT (or legacy) by listing type.
+ */
+export function getGuestPaymentReturnOrigin(
+  listingType: string | null | undefined,
+): string | null {
+  const base = getManageBaseUrl(listingType);
+  if (!base) return null;
+  try {
+    return new URL(base).origin;
+  } catch {
+    return null;
+  }
+}
+
 export function buildGuestManageUrl(
   reservationCode: string | null | undefined,
   listingType: string | null | undefined

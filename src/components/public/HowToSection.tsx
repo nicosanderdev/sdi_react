@@ -11,12 +11,17 @@ import {
 } from 'lucide-react';
 import { PublicSection } from './PublicSection';
 
+type StepPreview = {
+  label: string;
+  youtubeId?: string;
+};
+
 type Step = {
   id: string;
   label: string;
   title: string;
   description: string;
-  cardPreview: string;
+  previews: StepPreview[];
   videoTitle: string;
   videoMeta: string;
   icon: LucideIcon;
@@ -29,7 +34,10 @@ const STEPS: Step[] = [
     title: 'Crear propiedad',
     description:
       'Carga los datos básicos de tu inmueble o venue, añade fotos y publica el anuncio en minutos.',
-    cardPreview: 'Formulario simple de alta',
+    previews: [
+      { label: 'Formulario de propiedad', youtubeId: 'GkI7L_jGUOU' },
+      { label: 'Tipos de propiedades', youtubeId: '5qo5rg9Weno' },
+    ],
     videoTitle: 'Cómo crear tu primera propiedad',
     videoMeta: '3 min 20 seg',
     icon: Building2,
@@ -40,28 +48,44 @@ const STEPS: Step[] = [
     title: 'Proceso de reserva',
     description:
       'Recibe solicitudes, confirma disponibilidad y gestiona el ciclo de la reserva desde un solo panel.',
-    cardPreview: 'Flujo de confirmación',
+    previews: [{ label: 'Flujo de confirmación' }],
     videoTitle: 'Cómo gestionar una reserva',
-    videoMeta: '4 min 10 seg',
+    videoMeta: '00:52',
     icon: CalendarCheck,
   },
   {
     id: 'sincronizacion',
     label: 'PASO - 03',
-    title: 'Sincronización con otros sitios',
+    title: 'Administración de calendario',
     description:
       'Mantén calendarios y disponibilidad alineados entre tu portal y canales externos sin trabajo duplicado.',
-    cardPreview: 'Canales conectados',
+    previews: [
+      { label: 'Administrar mi calendario' },
+      { label: 'Canales conectados' },
+    ],
     videoTitle: 'Cómo sincronizar con otros sitios',
-    videoMeta: '5 min 00 seg',
+    videoMeta: '00:58',
     icon: RefreshCw,
   },
 ];
 
 export function HowToSection() {
   const [activeStep, setActiveStep] = useState(0);
+  const [activePreview, setActivePreview] = useState(0);
   const current = STEPS[activeStep];
   const ActiveIcon = current.icon;
+  const selectedPreview = current.previews[activePreview] ?? current.previews[0];
+  const youtubeId = selectedPreview?.youtubeId;
+
+  const selectStep = (index: number) => {
+    setActiveStep(index);
+    setActivePreview(0);
+  };
+
+  const selectPreview = (stepIndex: number, previewIndex: number) => {
+    setActiveStep(stepIndex);
+    setActivePreview(previewIndex);
+  };
 
   return (
     <PublicSection background="gray">
@@ -86,21 +110,34 @@ export function HowToSection() {
           </div>
 
           <div className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-800 to-gray-950 aspect-video shadow-md">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-green-900/40 via-transparent to-transparent" />
-            <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur border border-white/20">
-                  <Play className="w-5 h-5 text-white fill-white" />
+            {youtubeId ? (
+              <iframe
+                key={youtubeId}
+                className="absolute inset-0 h-full w-full"
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                title={selectedPreview.label}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-green-900/40 via-transparent to-transparent" />
+                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur border border-white/20">
+                      <Play className="w-5 h-5 text-white fill-white" />
+                    </div>
+                    <div>
+                      <p className="text-white font-semibold text-lg leading-snug">{current.videoTitle}</p>
+                      <p className="text-gray-300 text-sm mt-0.5">{current.videoMeta}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-white font-semibold text-lg leading-snug">{current.videoTitle}</p>
-                  <p className="text-gray-300 text-sm mt-0.5">{current.videoMeta}</p>
+                <div className="absolute top-6 right-6 rounded-xl bg-white/10 backdrop-blur p-3 border border-white/10">
+                  <ActiveIcon className="w-8 h-8 text-green-400" />
                 </div>
-              </div>
-            </div>
-            <div className="absolute top-6 right-6 rounded-xl bg-white/10 backdrop-blur p-3 border border-white/10">
-              <ActiveIcon className="w-8 h-8 text-green-400" />
-            </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -130,11 +167,18 @@ export function HowToSection() {
                     <StepIcon className="w-4 h-4" />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveStep(index)}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => selectStep(index)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        selectStep(index);
+                      }
+                    }}
                     aria-pressed={isActive}
-                    className={`w-full text-left rounded-2xl border p-5 md:p-6 transition-all ${
+                    className={`w-full text-left rounded-2xl border p-5 md:p-6 transition-all cursor-pointer ${
                       isActive
                         ? 'bg-white dark:bg-gray-800 border-green-500 shadow-md opacity-100'
                         : 'bg-white/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-80'
@@ -145,27 +189,47 @@ export function HowToSection() {
                     </p>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{step.title}</h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{step.description}</p>
-                    <div
-                      className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${
-                        isActive
-                          ? 'border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20'
-                          : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40'
-                      }`}
-                    >
-                      <StepIcon
-                        className={`w-5 h-5 shrink-0 ${
-                          isActive ? 'text-green-600 dark:text-green-400' : 'text-gray-400'
-                        }`}
-                      />
-                      <span
-                        className={`text-sm font-medium ${
-                          isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'
-                        }`}
-                      >
-                        {step.cardPreview}
-                      </span>
+                    <div className="space-y-2">
+                      {step.previews.map((preview, previewIndex) => {
+                        const isPreviewActive = isActive && activePreview === previewIndex;
+
+                        return (
+                          <button
+                            key={preview.label}
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              selectPreview(index, previewIndex);
+                            }}
+                            className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                              isPreviewActive
+                                ? 'border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20'
+                                : isActive
+                                  ? 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 hover:border-green-200 dark:hover:border-green-800'
+                                  : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40'
+                            }`}
+                          >
+                            <StepIcon
+                              className={`w-5 h-5 shrink-0 ${
+                                isPreviewActive || isActive
+                                  ? 'text-green-600 dark:text-green-400'
+                                  : 'text-gray-400'
+                              }`}
+                            />
+                            <span
+                              className={`text-sm font-medium ${
+                                isPreviewActive || isActive
+                                  ? 'text-gray-900 dark:text-white'
+                                  : 'text-gray-500 dark:text-gray-400'
+                              }`}
+                            >
+                              {preview.label}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </button>
+                  </div>
                 </div>
               );
             })}

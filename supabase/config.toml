@@ -412,6 +412,19 @@ verify_jwt = false
 [functions.calendar-sync]
 verify_jwt = false
 
+# Mercado Pago marketplace: auth/signature checks are enforced inside each handler.
+[functions.mercado-pago-admin]
+verify_jwt = false
+
+[functions.mercado-pago-connect]
+verify_jwt = false
+
+[functions.mercado-pago-create-preference]
+verify_jwt = false
+
+[functions.mercado-pago-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
