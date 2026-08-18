@@ -1,17 +1,38 @@
 /**
  * Mercado Pago webhook receiver.
- * Verifies x-signature, fetches payment with seller token, marks booking audit only.
+ * Verifies x-signature, fetches payment with seller/platform token, updates PaymentStatus.
  */
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 import {
+  allowUnsignedMercadoPagoWebhooks,
   decryptSecret,
   encryptSecret,
+  logAndPublicError,
   mpApiRequest,
+  parseMpExternalReference,
   redactSensitive,
   refreshSellerAccessToken,
+  resolveWebhookDataId,
   verifyWebhookSignature,
 } from '../_shared/mercadoPago.ts';
+
+const WEBHOOK_TS_MAX_AGE_MS = 10 * 60 * 1000;
+const HANDLED_OK_RESULTS = new Set([
+  'approved',
+  'already_approved',
+  'pending',
+  'rejected',
+  'cancelled',
+  'refunded',
+  'charged_back',
+  'unlinked',
+  'duplicate',
+  'ignored',
+  'mp_connect_ignored',
+  'mp_connect_noop',
+  'merchant_order_no_payments',
+]);
 
 interface MpPayment {
   id: number | string;
@@ -25,6 +46,18 @@ interface MpPayment {
   metadata?: Record<string, unknown>;
 }
 
+interface MpMerchantOrder {
+  id?: number | string;
+  collector?: { id?: number | string };
+  payments?: Array<{ id?: string | number }>;
+}
+
+interface MpChargeback {
+  id?: number | string;
+  payment_id?: string | number;
+  payments?: Array<{ id?: string | number }>;
+}
+
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -32,14 +65,8 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
-function parseExternalReference(ref: string | undefined | null): {
-  bookingId: string | null;
-  attemptId: string | null;
-} {
-  if (!ref) return { bookingId: null, attemptId: null };
-  const match = /^booking:([0-9a-f-]{36}):attempt:([0-9a-f-]{36})$/i.exec(ref.trim());
-  if (!match) return { bookingId: null, attemptId: null };
-  return { bookingId: match[1], attemptId: match[2] };
+function retryable(result: string): boolean {
+  return !HANDLED_OK_RESULTS.has(result);
 }
 
 async function getSellerAccessToken(
@@ -90,79 +117,144 @@ async function getSellerAccessToken(
   return { accessToken: refreshed.accessToken, mpUserId: account.mp_user_id };
 }
 
+async function lookupMemberFromPayment(
+  supabase: SupabaseClient,
+  payment: MpPayment,
+  preferredMemberId?: string,
+): Promise<{ memberId: string; mpUserId: string } | null> {
+  if (preferredMemberId) {
+    const seller = await getSellerAccessToken(supabase, preferredMemberId);
+    if (seller) {
+      return { memberId: preferredMemberId, mpUserId: seller.mpUserId };
+    }
+  }
+
+  const refs = parseMpExternalReference(payment.external_reference);
+  if (refs.attemptId) {
+    const { data: attempt } = await supabase
+      .from('mercado_pago_payment_attempts')
+      .select('member_id')
+      .eq('id', refs.attemptId)
+      .maybeSingle();
+    if (attempt?.member_id) {
+      const seller = await getSellerAccessToken(supabase, attempt.member_id);
+      return {
+        memberId: attempt.member_id,
+        mpUserId: seller?.mpUserId ?? String(payment.collector_id ?? ''),
+      };
+    }
+  }
+
+  if (payment.collector_id != null) {
+    const { data: account } = await supabase
+      .from('mercado_pago_accounts')
+      .select('member_id, mp_user_id')
+      .eq('mp_user_id', String(payment.collector_id))
+      .maybeSingle();
+    if (account) {
+      return { memberId: account.member_id, mpUserId: account.mp_user_id };
+    }
+  }
+
+  return null;
+}
+
+async function getPaymentWithToken(
+  paymentId: string,
+  accessToken: string,
+): Promise<MpPayment | null> {
+  try {
+    return await mpApiRequest<MpPayment>(`/v1/payments/${paymentId}`, { accessToken });
+  } catch (error) {
+    console.error('GET /v1/payments failed', error);
+    return null;
+  }
+}
+
+async function fetchPaymentWithSeller(
+  supabase: SupabaseClient,
+  paymentId: string,
+  memberId: string,
+): Promise<{ payment: MpPayment; sellerMpUserId: string; memberId: string } | null> {
+  const seller = await getSellerAccessToken(supabase, memberId);
+  if (!seller) return null;
+  const payment = await getPaymentWithToken(paymentId, seller.accessToken);
+  if (!payment) return null;
+  return { payment, sellerMpUserId: seller.mpUserId, memberId };
+}
+
 async function fetchPayment(
   supabase: SupabaseClient,
   paymentId: string,
   preferredMemberId?: string,
+  collectorHint?: string,
 ): Promise<{ payment: MpPayment; sellerMpUserId: string; memberId: string } | null> {
+  if (preferredMemberId) {
+    const fromSeller = await fetchPaymentWithSeller(supabase, paymentId, preferredMemberId);
+    if (fromSeller) return fromSeller;
+  }
+
   const platformToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
   if (platformToken) {
-    try {
-      const payment = await mpApiRequest<MpPayment>(`/v1/payments/${paymentId}`, {
-        accessToken: platformToken,
-      });
-      const refs = parseExternalReference(payment.external_reference);
-      let memberId = preferredMemberId;
-      if (!memberId && refs.attemptId) {
-        const { data: attempt } = await supabase
-          .from('mercado_pago_payment_attempts')
-          .select('member_id')
-          .eq('id', refs.attemptId)
-          .maybeSingle();
-        memberId = attempt?.member_id;
-      }
-      if (!memberId && payment.collector_id != null) {
-        const { data: account } = await supabase
-          .from('mercado_pago_accounts')
-          .select('member_id, mp_user_id')
-          .eq('mp_user_id', String(payment.collector_id))
-          .maybeSingle();
-        if (account) {
-          return {
-            payment,
-            sellerMpUserId: account.mp_user_id,
-            memberId: account.member_id,
-          };
-        }
-      }
-      if (memberId) {
-        const seller = await getSellerAccessToken(supabase, memberId);
-        return {
-          payment,
-          sellerMpUserId: seller?.mpUserId ?? String(payment.collector_id ?? ''),
-          memberId,
-        };
-      }
-    } catch (error) {
-      console.error('Platform token payment fetch failed', error);
+    const payment = await getPaymentWithToken(paymentId, platformToken);
+    if (payment) {
+      const resolved = await lookupMemberFromPayment(supabase, payment, preferredMemberId);
+      return {
+        payment,
+        sellerMpUserId: resolved?.mpUserId ?? String(payment.collector_id ?? ''),
+        memberId: resolved?.memberId ?? preferredMemberId ?? '',
+      };
     }
   }
 
-  const memberIds: string[] = [];
-  if (preferredMemberId) memberIds.push(preferredMemberId);
-
-  const { data: candidates } = await supabase
-    .from('mercado_pago_payment_attempts')
-    .select('member_id')
-    .in('status', ['created', 'preference_created', 'pending'])
-    .order('created_at', { ascending: false })
-    .limit(25);
-
-  for (const row of candidates ?? []) {
-    if (!memberIds.includes(row.member_id)) memberIds.push(row.member_id);
+  const collectorId = collectorHint?.trim();
+  if (collectorId) {
+    const { data: account } = await supabase
+      .from('mercado_pago_accounts')
+      .select('member_id')
+      .eq('mp_user_id', collectorId)
+      .maybeSingle();
+    if (account?.member_id && account.member_id !== preferredMemberId) {
+      const fromCollector = await fetchPaymentWithSeller(
+        supabase,
+        paymentId,
+        account.member_id,
+      );
+      if (fromCollector) return fromCollector;
+    }
   }
 
-  for (const memberId of memberIds) {
-    const seller = await getSellerAccessToken(supabase, memberId);
-    if (!seller) continue;
-    try {
-      const payment = await mpApiRequest<MpPayment>(`/v1/payments/${paymentId}`, {
-        accessToken: seller.accessToken,
-      });
-      return { payment, sellerMpUserId: seller.mpUserId, memberId };
-    } catch {
-      // Try next seller token.
-    }
+  return null;
+}
+
+async function resolveAttempt(
+  supabase: SupabaseClient,
+  payment: MpPayment,
+  attemptByPayment: Record<string, unknown> | null,
+): Promise<Record<string, unknown> | null> {
+  if (attemptByPayment) return attemptByPayment;
+
+  const refs = parseMpExternalReference(payment.external_reference);
+
+  if (refs.attemptId) {
+    const { data } = await supabase
+      .from('mercado_pago_payment_attempts')
+      .select('*')
+      .eq('id', refs.attemptId)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  if (refs.bookingId) {
+    const { data } = await supabase
+      .from('mercado_pago_payment_attempts')
+      .select('*')
+      .eq('booking_id', refs.bookingId)
+      .in('status', ['created', 'preference_created', 'pending', 'approved'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) return data;
   }
 
   return null;
@@ -171,6 +263,7 @@ async function fetchPayment(
 async function handlePaymentNotification(
   supabase: SupabaseClient,
   paymentId: string,
+  collectorHint?: string,
 ): Promise<{ ok: boolean; result: string }> {
   const { data: attemptByPayment } = await supabase
     .from('mercado_pago_payment_attempts')
@@ -182,37 +275,19 @@ async function handlePaymentNotification(
     supabase,
     paymentId,
     attemptByPayment?.member_id as string | undefined,
+    collectorHint,
   );
   if (!fetched) {
-    return { ok: true, result: 'payment_not_matched' };
+    return { ok: false, result: 'payment_not_matched' };
   }
 
-  const refs = parseExternalReference(fetched.payment.external_reference);
-  let attempt = attemptByPayment;
-
-  if (!attempt && refs.attemptId) {
-    const { data } = await supabase
-      .from('mercado_pago_payment_attempts')
-      .select('*')
-      .eq('id', refs.attemptId)
-      .maybeSingle();
-    attempt = data;
-  }
-
-  if (!attempt && refs.bookingId) {
-    const { data } = await supabase
-      .from('mercado_pago_payment_attempts')
-      .select('*')
-      .eq('booking_id', refs.bookingId)
-      .in('status', ['created', 'preference_created', 'pending'])
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    attempt = data;
-  }
-
+  const attempt = await resolveAttempt(
+    supabase,
+    fetched.payment,
+    attemptByPayment as Record<string, unknown> | null,
+  );
   if (!attempt) {
-    return { ok: true, result: 'attempt_not_found' };
+    return { ok: false, result: 'attempt_not_found' };
   }
 
   return applyPayment(supabase, attempt, fetched.payment, fetched.sellerMpUserId);
@@ -224,7 +299,7 @@ async function applyPayment(
   payment: MpPayment,
   sellerMpUserId: string,
 ): Promise<{ ok: boolean; result: string }> {
-  const refs = parseExternalReference(payment.external_reference);
+  const refs = parseMpExternalReference(payment.external_reference);
   if (refs.attemptId && refs.attemptId !== attempt.id) {
     return { ok: false, result: 'attempt_mismatch' };
   }
@@ -238,20 +313,21 @@ async function applyPayment(
 
   const providerStatus = payment.status ?? 'unknown';
   const now = new Date().toISOString();
+  const rpcArgs = {
+    p_booking_id: attempt.booking_id,
+    p_attempt_id: attempt.id,
+    p_mp_payment_id: String(payment.id),
+    p_provider_status: providerStatus,
+    p_provider_status_detail: payment.status_detail ?? null,
+    p_payer_email: payment.payer?.email ?? null,
+    p_amount: payment.transaction_amount ?? null,
+    p_currency_code: payment.currency_id ?? null,
+  };
 
   if (providerStatus === 'approved') {
     const { data: markResult, error: markError } = await supabase.rpc(
       'mark_booking_mercado_pago_approved',
-      {
-        p_booking_id: attempt.booking_id,
-        p_attempt_id: attempt.id,
-        p_mp_payment_id: String(payment.id),
-        p_provider_status: providerStatus,
-        p_provider_status_detail: payment.status_detail ?? null,
-        p_payer_email: payment.payer?.email ?? null,
-        p_amount: payment.transaction_amount ?? null,
-        p_currency_code: payment.currency_id ?? null,
-      },
+      rpcArgs,
     );
 
     if (markError || !markResult?.success) {
@@ -261,18 +337,30 @@ async function applyPayment(
     return { ok: true, result: markResult.already_approved ? 'already_approved' : 'approved' };
   }
 
+  if (providerStatus === 'refunded' || providerStatus === 'charged_back') {
+    const { data: clearResult, error: clearError } = await supabase.rpc(
+      'clear_booking_mercado_pago_approval',
+      rpcArgs,
+    );
+
+    if (clearError || !clearResult?.success) {
+      console.error('clear_booking_mercado_pago_approval failed', clearError, redactSensitive(clearResult));
+      return { ok: false, result: clearResult?.error_code || clearResult?.error || 'clear_failed' };
+    }
+    return { ok: true, result: providerStatus };
+  }
+
   const mappedStatus =
-    providerStatus === 'pending' || providerStatus === 'in_process'
+    providerStatus === 'pending'
+    || providerStatus === 'in_process'
+    || providerStatus === 'authorized'
+    || providerStatus === 'in_mediation'
       ? 'pending'
       : providerStatus === 'rejected'
         ? 'rejected'
         : providerStatus === 'cancelled'
           ? 'cancelled'
-          : providerStatus === 'refunded'
-            ? 'refunded'
-            : providerStatus === 'charged_back'
-              ? 'charged_back'
-              : 'pending';
+          : 'pending';
 
   await supabase
     .from('mercado_pago_payment_attempts')
@@ -301,12 +389,11 @@ async function handleMpConnect(
     return { ok: true, result: 'mp_connect_ignored' };
   }
 
-  // Unlink / revoke style events erase local credentials.
   if (
-    action.includes('unlink') ||
-    action.includes('revoke') ||
-    action.includes('remove') ||
-    action === 'application_deauthorized'
+    action.includes('unlink')
+    || action.includes('revoke')
+    || action.includes('remove')
+    || action === 'application_deauthorized'
   ) {
     const { error } = await supabase
       .from('mercado_pago_accounts')
@@ -320,6 +407,81 @@ async function handleMpConnect(
   }
 
   return { ok: true, result: 'mp_connect_noop' };
+}
+
+async function platformAccessToken(): Promise<string | null> {
+  return Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN') ?? null;
+}
+
+async function handleMerchantOrder(
+  supabase: SupabaseClient,
+  orderId: string,
+): Promise<{ ok: boolean; result: string }> {
+  const token = await platformAccessToken();
+  if (!token) {
+    return { ok: false, result: 'payment_not_matched' };
+  }
+
+  let order: MpMerchantOrder;
+  try {
+    order = await mpApiRequest<MpMerchantOrder>(`/merchant_orders/${orderId}`, {
+      accessToken: token,
+    });
+  } catch (error) {
+    console.error('GET /merchant_orders failed', error);
+    return { ok: false, result: 'payment_not_matched' };
+  }
+
+  const payments = order.payments ?? [];
+  if (!payments.length) {
+    return { ok: true, result: 'merchant_order_no_payments' };
+  }
+
+  const collectorHint = order.collector?.id != null ? String(order.collector.id) : undefined;
+  let last: { ok: boolean; result: string } = { ok: true, result: 'merchant_order_no_payments' };
+  for (const p of payments) {
+    if (p.id == null) continue;
+    last = await handlePaymentNotification(supabase, String(p.id), collectorHint);
+    if (!last.ok) return last;
+  }
+  return last;
+}
+
+async function handleChargeback(
+  supabase: SupabaseClient,
+  chargebackId: string,
+): Promise<{ ok: boolean; result: string }> {
+  const token = await platformAccessToken();
+  if (!token) {
+    return { ok: false, result: 'payment_not_matched' };
+  }
+
+  let chargeback: MpChargeback;
+  try {
+    chargeback = await mpApiRequest<MpChargeback>(`/v1/chargebacks/${chargebackId}`, {
+      accessToken: token,
+    });
+  } catch (error) {
+    console.error('GET /v1/chargebacks failed', error);
+    return { ok: false, result: 'payment_not_matched' };
+  }
+
+  const paymentIds: string[] = [];
+  if (chargeback.payment_id != null) paymentIds.push(String(chargeback.payment_id));
+  for (const p of chargeback.payments ?? []) {
+    if (p.id != null) paymentIds.push(String(p.id));
+  }
+
+  if (!paymentIds.length) {
+    return { ok: false, result: 'attempt_not_found' };
+  }
+
+  let last: { ok: boolean; result: string } = { ok: false, result: 'attempt_not_found' };
+  for (const id of paymentIds) {
+    last = await handlePaymentNotification(supabase, id);
+    if (!last.ok) return last;
+  }
+  return last;
 }
 
 Deno.serve(async (req: Request) => {
@@ -345,19 +507,19 @@ Deno.serve(async (req: Request) => {
     const payload = JSON.parse(rawBody || '{}') as Record<string, unknown>;
     const xSignature = req.headers.get('x-signature');
     const xRequestId = req.headers.get('x-request-id');
-    const dataObj = (payload.data ?? {}) as Record<string, unknown>;
-    const dataId = String(dataObj.id ?? payload.id ?? '');
+    const url = new URL(req.url);
+    const dataId = resolveWebhookDataId(url, payload);
     const topic = String(payload.type ?? payload.topic ?? payload.action ?? 'unknown');
 
     const signatureOk = await verifyWebhookSignature({
       xSignature,
       xRequestId,
       dataId: dataId || null,
+      nowMs: Date.now(),
+      maxAgeMs: WEBHOOK_TS_MAX_AGE_MS,
     });
 
-    // Allow local dry-run / simulator without secret only when explicitly enabled.
-    const allowUnsigned = Deno.env.get('MERCADO_PAGO_ALLOW_UNSIGNED_WEBHOOKS') === 'true';
-    if (!signatureOk && !allowUnsigned) {
+    if (!signatureOk && !allowUnsignedMercadoPagoWebhooks()) {
       return json({ success: false, error: 'Invalid signature' }, 401);
     }
 
@@ -372,7 +534,7 @@ Deno.serve(async (req: Request) => {
       .eq('provider_event_id', providerEventId)
       .maybeSingle();
 
-    if (existingEvent?.processing_result) {
+    if (existingEvent?.processing_result && HANDLED_OK_RESULTS.has(existingEvent.processing_result)) {
       return json({ success: true, result: 'duplicate', previous: existingEvent.processing_result });
     }
 
@@ -391,22 +553,27 @@ Deno.serve(async (req: Request) => {
 
     if (topic.includes('payment') || topic === 'topic_payment') {
       if (!dataId) {
-        outcome = { ok: true, result: 'missing_payment_id' };
+        outcome = { ok: false, result: 'missing_payment_id' };
       } else {
-        outcome = await handlePaymentNotification(supabase, dataId);
+        outcome = await handlePaymentNotification(
+          supabase,
+          dataId,
+          payload.user_id != null ? String(payload.user_id) : undefined,
+        );
       }
     } else if (topic.includes('mp-connect') || topic.includes('mp_connect') || topic === 'mp-connect') {
       outcome = await handleMpConnect(supabase, payload);
     } else if (topic.includes('merchant_order')) {
-      // Checkout Pro may notify merchant orders; extract payment ids if present.
-      const payments = ((payload as { payments?: Array<{ id?: string | number }> }).payments) ?? [];
-      for (const p of payments) {
-        if (p.id != null) {
-          outcome = await handlePaymentNotification(supabase, String(p.id));
-        }
+      if (!dataId) {
+        outcome = { ok: false, result: 'missing_payment_id' };
+      } else {
+        outcome = await handleMerchantOrder(supabase, dataId);
       }
-      if (!payments.length) {
-        outcome = { ok: true, result: 'merchant_order_no_payments' };
+    } else if (topic.includes('chargeback')) {
+      if (!dataId) {
+        outcome = { ok: false, result: 'missing_payment_id' };
+      } else {
+        outcome = await handleChargeback(supabase, dataId);
       }
     }
 
@@ -418,14 +585,9 @@ Deno.serve(async (req: Request) => {
       })
       .eq('provider_event_id', providerEventId);
 
-    // Always ack quickly with 200 when signature verified to stop retries for handled noise.
-    return json({ success: outcome.ok, result: outcome.result });
+    const status = !outcome.ok || retryable(outcome.result) ? 500 : 200;
+    return json({ success: outcome.ok, result: outcome.result }, status);
   } catch (error) {
-    console.error('mercado-pago-webhook error', error);
-    // Return 500 so MP retries transient failures.
-    return json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    }, 500);
+    return json(logAndPublicError(error), 500);
   }
 });

@@ -3,6 +3,7 @@ import {
   logBookingOtpMockMessage,
   shouldUseBookingOtpMock,
 } from '../_shared/bookingOtpDev.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 import { sendWhatsappTemplateViaMeta } from '../_shared/whatsapp.ts';
 
 interface SendOtpBody {
@@ -14,7 +15,7 @@ interface SendOtpBody {
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -89,6 +90,10 @@ async function sendSmsFallback(phone: string, otpCode: string): Promise<{ ok: bo
 }
 
 Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   if (req.method !== 'POST') {
     return jsonResponse({ success: false, error: 'Method not allowed' }, 405);
   }

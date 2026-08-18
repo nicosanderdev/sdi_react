@@ -86,6 +86,7 @@ Guest sites do **not** need to call these today.
 | `GUEST_BOOKING_MANAGE_BASE_URL_ALT` | Manage links for `EventVenue` (espacios site) |
 | `GUEST_BOOKING_MANAGE_BASE_URL` | Deprecated legacy fallback if MAIN/ALT unset |
 | `BOOKING_OTP_LIVE_ENABLED` | Optional: `true` to force live WhatsApp/SMS on local Supabase |
+| `BOOKING_OTP_MOCK` | Optional: `true` on hosted projects to log OTP to function logs instead of WhatsApp/SMS |
 
 Manage URLs are resolved server-side from the booking’s `ListingType`:
 
@@ -147,8 +148,11 @@ See also [`supabase/functions/booking-send-otp/README.md`](../../supabase/functi
      booking-send-confirmation send-booking-confirmation send-booking-cancellation
    ```
 
-3. Use Meta test / verified recipient numbers and a Resend test inbox.
-4. To force OTP SMS fallback: temporarily use invalid Meta credentials or a phone Meta rejects, with `SMS_FALLBACK_WEBHOOK_URL` pointing at your staging SMS adapter (or a request bin).
+3. **Staging without WhatsApp:** set `BOOKING_OTP_MOCK=true`, redeploy `booking-send-otp`, create a fresh hold from the guest site, call send OTP, then copy `code` from the `booking-send-otp` function logs and verify. Turn the secret off when testing live Meta delivery.
+4. Use Meta test / verified recipient numbers and a Resend test inbox.
+5. To force OTP SMS fallback: temporarily use invalid Meta credentials or a phone Meta rejects, with `SMS_FALLBACK_WEBHOOK_URL` pointing at your staging SMS adapter (or a request bin).
+
+Note: guest sites are cross-origin; both OTP functions must answer `OPTIONS` with CORS headers (same pattern as other guest-facing functions).
 
 ## Listing types
 

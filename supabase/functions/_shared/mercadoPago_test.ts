@@ -7,14 +7,20 @@ import {
   assertRejects,
 } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
+  allowUnsignedMercadoPagoWebhooks,
   buildAuthorizationUrl,
   createPkcePair,
   currencyCodeFromInt,
   decryptSecret,
+  encodeMpExternalReference,
   encryptSecret,
+  isWebhookTimestampFresh,
+  logAndPublicError,
   normalizeMemberPhone,
+  parseMpExternalReference,
   randomToken,
   redactSensitive,
+  resolveWebhookDataId,
   sha256Hex,
   verifyWebhookSignature,
 } from './mercadoPago.ts';
@@ -136,4 +142,96 @@ Deno.test('redactSensitive hides token-like keys', () => {
 Deno.test('encryptSecret requires encryption key', async () => {
   Deno.env.delete('MERCADO_PAGO_TOKEN_ENCRYPTION_KEY');
   await assertRejects(() => encryptSecret('x'), Error, 'Missing required env');
+});
+
+const ATTEMPT_ID = '6f1c3b2a-8e4d-4a91-9c07-1b2e3f4a5b6c';
+const BOOKING_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
+Deno.test('encodeMpExternalReference is 32 hex chars from attempt UUID', () => {
+  const ref = encodeMpExternalReference(ATTEMPT_ID);
+  assertEquals(ref.length, 32);
+  assertEquals(ref, '6f1c3b2a8e4d4a919c071b2e3f4a5b6c');
+  assertEquals(parseMpExternalReference(ref), {
+    bookingId: null,
+    attemptId: ATTEMPT_ID,
+  });
+});
+
+Deno.test('parseMpExternalReference accepts legacy booking:uuid:attempt:uuid', () => {
+  const legacy = `booking:${BOOKING_ID}:attempt:${ATTEMPT_ID}`;
+  assertEquals(parseMpExternalReference(legacy), {
+    bookingId: BOOKING_ID,
+    attemptId: ATTEMPT_ID,
+  });
+});
+
+Deno.test('parseMpExternalReference rejects empty and invalid refs', () => {
+  assertEquals(parseMpExternalReference(null), { bookingId: null, attemptId: null });
+  assertEquals(parseMpExternalReference('not-a-ref'), { bookingId: null, attemptId: null });
+});
+
+Deno.test('resolveWebhookDataId prefers query data.id over JSON body', () => {
+  const url = new URL('https://example.com/webhook?data.id=query-id');
+  const fromQuery = resolveWebhookDataId(url, { data: { id: 'body-id' } });
+  assertEquals(fromQuery, 'query-id');
+  const fromBody = resolveWebhookDataId(
+    new URL('https://example.com/webhook'),
+    { data: { id: 'body-id' } },
+  );
+  assertEquals(fromBody, 'body-id');
+});
+
+Deno.test('allowUnsignedMercadoPagoWebhooks is local-only', () => {
+  Deno.env.set('MERCADO_PAGO_ALLOW_UNSIGNED_WEBHOOKS', 'true');
+  Deno.env.set('SUPABASE_URL', 'http://127.0.0.1:54321');
+  assertEquals(allowUnsignedMercadoPagoWebhooks(), true);
+
+  Deno.env.set('SUPABASE_URL', 'https://abcdefghijklmnop.supabase.co');
+  assertEquals(allowUnsignedMercadoPagoWebhooks(), false);
+
+  Deno.env.set('SUPABASE_URL', 'http://127.0.0.1:54321');
+  Deno.env.set('MERCADO_PAGO_ALLOW_UNSIGNED_WEBHOOKS', 'false');
+  assertEquals(allowUnsignedMercadoPagoWebhooks(), false);
+});
+
+Deno.test('isWebhookTimestampFresh accepts unix seconds within 10 minutes', () => {
+  const now = 1_700_000_000_000;
+  assertEquals(isWebhookTimestampFresh('1700000000', now), true);
+  assertEquals(isWebhookTimestampFresh('1699990000', now), false);
+});
+
+Deno.test('verifyWebhookSignature rejects stale ts when maxAgeMs is set', async () => {
+  const secret = 'whsec-test';
+  const dataId = '123456';
+  const requestId = 'req-1';
+  const ts = '1700000000';
+  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(manifest));
+  const v1 = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const stale = await verifyWebhookSignature({
+    xSignature: `ts=${ts},v1=${v1}`,
+    xRequestId: requestId,
+    dataId,
+    secret,
+    nowMs: 1_800_000_000_000,
+    maxAgeMs: 10 * 60 * 1000,
+  });
+  assertEquals(stale, false);
+});
+
+Deno.test('logAndPublicError never returns the underlying message', () => {
+  const payload = logAndPublicError(new Error('Missing required env: MERCADO_PAGO_CLIENT_SECRET'));
+  assertEquals(payload.success, false);
+  assertEquals(payload.error, 'Internal server error');
 });

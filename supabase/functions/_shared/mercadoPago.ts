@@ -3,8 +3,21 @@
  * OAuth exchange/refresh, webhook HMAC verification, and redaction.
  */
 
+import { isLocalSupabaseRuntime } from './whatsapp.ts';
+
 const MP_AUTH_URL = 'https://auth.mercadopago.com/authorization';
 const MP_API_BASE = 'https://api.mercadopago.com';
+const WEBHOOK_TS_MAX_AGE_MS = 10 * 60 * 1000;
+const COMPACT_UUID_RE = /^[0-9a-f]{32}$/i;
+const HYPHENATED_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const LEGACY_EXTERNAL_REFERENCE_RE =
+  /^booking:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}):attempt:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
+export interface MpExternalReference {
+  bookingId: string | null;
+  attemptId: string | null;
+}
 
 export interface EncryptedBlob {
   ciphertext: string;
@@ -268,6 +281,79 @@ export async function mpApiRequest<T>(
   return payload as T;
 }
 
+export function compactUuid(id: string): string {
+  return id.replace(/-/g, '').toLowerCase();
+}
+
+export function expandCompactUuid(compact: string): string | null {
+  const hex = compact.trim().toLowerCase();
+  if (!COMPACT_UUID_RE.test(hex)) return null;
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/** Official charset/length: 32 hex chars from the payment attempt UUID. */
+export function encodeMpExternalReference(attemptId: string): string {
+  if (!HYPHENATED_UUID_RE.test(attemptId) && !COMPACT_UUID_RE.test(attemptId)) {
+    throw new Error('attemptId must be a UUID');
+  }
+  return compactUuid(attemptId);
+}
+
+export function parseMpExternalReference(
+  ref: string | null | undefined,
+): MpExternalReference {
+  if (!ref) return { bookingId: null, attemptId: null };
+  const trimmed = ref.trim();
+  const legacy = LEGACY_EXTERNAL_REFERENCE_RE.exec(trimmed);
+  if (legacy) {
+    return { bookingId: legacy[1], attemptId: legacy[2] };
+  }
+  const attemptId = expandCompactUuid(trimmed);
+  return { bookingId: null, attemptId };
+}
+
+export function resolveWebhookDataId(
+  url: URL,
+  payload: Record<string, unknown>,
+): string {
+  const fromQuery = url.searchParams.get('data.id') ?? url.searchParams.get('id');
+  if (fromQuery?.trim()) return fromQuery.trim();
+  const dataObj = (payload.data ?? {}) as Record<string, unknown>;
+  return String(dataObj.id ?? payload.id ?? '');
+}
+
+/**
+ * Unsigned webhooks are local-simulator only. Hosted projects always require HMAC
+ * even if MERCADO_PAGO_ALLOW_UNSIGNED_WEBHOOKS is set.
+ */
+export function allowUnsignedMercadoPagoWebhooks(): boolean {
+  return Deno.env.get('MERCADO_PAGO_ALLOW_UNSIGNED_WEBHOOKS') === 'true'
+    && isLocalSupabaseRuntime();
+}
+
+/** Official ts is documented as ms; live examples are often unix seconds. */
+export function parseWebhookTimestampMs(ts: string | undefined): number | null {
+  if (!ts) return null;
+  const n = Number(ts);
+  if (!Number.isFinite(n)) return null;
+  return n < 1e12 ? n * 1000 : n;
+}
+
+export function isWebhookTimestampFresh(
+  ts: string | undefined,
+  nowMs = Date.now(),
+  maxAgeMs = WEBHOOK_TS_MAX_AGE_MS,
+): boolean {
+  const tsMs = parseWebhookTimestampMs(ts);
+  if (tsMs == null) return false;
+  return Math.abs(nowMs - tsMs) <= maxAgeMs;
+}
+
+export function logAndPublicError(error: unknown): { success: false; error: string } {
+  console.error(error);
+  return { success: false, error: 'Internal server error' };
+}
+
 /**
  * Official webhook signature verification.
  * Manifest: id:[data.id];request-id:[x-request-id];ts:[ts];
@@ -277,6 +363,8 @@ export async function verifyWebhookSignature(params: {
   xRequestId: string | null;
   dataId: string | null;
   secret?: string;
+  nowMs?: number;
+  maxAgeMs?: number;
 }): Promise<boolean> {
   const secret = params.secret ?? Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET');
   if (!secret || !params.xSignature) return false;
@@ -291,6 +379,13 @@ export async function verifyWebhookSignature(params: {
   const ts = parts.ts;
   const v1 = parts.v1;
   if (!ts || !v1) return false;
+
+  if (
+    params.maxAgeMs != null
+    && !isWebhookTimestampFresh(ts, params.nowMs, params.maxAgeMs)
+  ) {
+    return false;
+  }
 
   let manifest = '';
   if (params.dataId) {
