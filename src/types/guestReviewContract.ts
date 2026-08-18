@@ -10,7 +10,8 @@
  *          supabase/migrations/20260721220000_get_public_property_owner.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
- * Mercado Pago payments handoff: docs/handoffs/guest-mercado-pago-payments.md
+ * Mercado Pago guest UI: docs/handoffs/guest-mercado-pago-frontend.md
+ * Mercado Pago backend/operator: docs/handoffs/guest-mercado-pago-payments.md
  * See also docs/handoffs/dynamic-pricing-guest-client.md
  */
 
@@ -126,7 +127,7 @@ export interface GuestReservation {
   totalAmount?: number | null;
   currency?: number | null;
   currencyCode?: string | null;
-  /** True when a verified Mercado Pago webhook marked approval (audit only). */
+  /** True after a verified Mercado Pago webhook (PaymentStatus = 1). Independent of booking Status. */
   mercadoPagoApproved?: boolean;
   mercadoPagoApprovedAt?: string | null;
   /** True when seller is connected, booking unpaid via MP, and amount > 0. */
@@ -191,9 +192,7 @@ export interface MercadoPagoBookingEligibility {
 }
 
 export interface CreateMercadoPagoPreferenceRequest {
-  manageToken?: string;
-  reservationCode?: string;
-  listingType?: GuestSiteListingType;
+  manageToken: string;
 }
 
 export interface CreateMercadoPagoPreferenceSuccess {
@@ -224,7 +223,6 @@ export interface BookingPaymentStatusSuccess {
   can_pay_online: boolean;
   seller_connected: boolean;
   seller_error_code?: string | null;
-  seller_member_id?: string | null;
 }
 
 export type BookingPaymentStatusResponse =

@@ -1,11 +1,7 @@
 /**
  * Create Mercado Pago Checkout Pro preference for a booking.
  *
- * POST {
- *   manageToken?: string,
- *   reservationCode?: string,
- *   listingType?: string
- * }
+ * POST { "manageToken": "<opaque manage token>" }
  *
  * No marketplace_fee (zero-fee marketplace policy).
  */
@@ -15,13 +11,16 @@ import { getGuestPaymentReturnOrigin } from '../_shared/guestManageUrl.ts';
 import {
   currencyCodeFromInt,
   decryptSecret,
+  encodeMpExternalReference,
   encryptSecret,
   getPublicAppBaseUrl,
+  logAndPublicError,
   mpApiRequest,
-  randomToken,
   refreshSellerAccessToken,
   sha256Hex,
 } from '../_shared/mercadoPago.ts';
+
+const DISCLAIMER_KEY = 'mercado_pago_bridge_disclaimer';
 
 interface PreferenceResponse {
   id: string;
@@ -36,44 +35,46 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+function reusePayload(params: {
+  attemptId: string;
+  preferenceId: string | null;
+  initPoint: string | null;
+  sandboxInitPoint: string | null;
+  amount: number;
+  currencyCode: string;
+}) {
+  return {
+    success: true,
+    attemptId: params.attemptId,
+    preferenceId: params.preferenceId,
+    initPoint: params.initPoint,
+    sandboxInitPoint: params.sandboxInitPoint,
+    amount: params.amount,
+    currencyCode: params.currencyCode,
+    reused: true,
+    disclaimerKey: DISCLAIMER_KEY,
+  };
+}
+
 async function resolveBookingId(
   supabase: SupabaseClient,
-  body: { manageToken?: string; reservationCode?: string; listingType?: string },
+  manageToken: string | undefined,
 ): Promise<{ bookingId: string | null; error?: string; status?: number }> {
-  if (body.manageToken?.trim()) {
-    const tokenHash = await sha256Hex(body.manageToken.trim());
-    const { data, error } = await supabase
-      .from('booking_manage_tokens')
-      .select('booking_id, expires_at, revoked_at')
-      .eq('token_hash', tokenHash)
-      .maybeSingle();
-
-    if (error || !data || data.revoked_at || new Date(data.expires_at).getTime() <= Date.now()) {
-      return { bookingId: null, error: 'Invalid or expired manage token', status: 401 };
-    }
-    return { bookingId: data.booking_id };
+  if (!manageToken?.trim()) {
+    return { bookingId: null, error: 'manageToken is required', status: 400 };
   }
 
-  if (body.reservationCode?.trim() && body.listingType?.trim()) {
-    const { data, error } = await supabase.rpc('get_reservation_by_code', {
-      reservation_code: body.reservationCode.trim(),
-      p_listing_type: body.listingType.trim(),
-    });
-    if (error || !data?.success) {
-      return {
-        bookingId: null,
-        error: data?.error || error?.message || 'Reservation not found',
-        status: 404,
-      };
-    }
-    return { bookingId: data.reservation.bookingId as string };
-  }
+  const tokenHash = await sha256Hex(manageToken.trim());
+  const { data, error } = await supabase
+    .from('booking_manage_tokens')
+    .select('booking_id, expires_at, revoked_at')
+    .eq('token_hash', tokenHash)
+    .maybeSingle();
 
-  return {
-    bookingId: null,
-    error: 'manageToken or (reservationCode + listingType) is required',
-    status: 400,
-  };
+  if (error || !data || data.revoked_at || new Date(data.expires_at).getTime() <= Date.now()) {
+    return { bookingId: null, error: 'Invalid or expired manage token', status: 401 };
+  }
+  return { bookingId: data.booking_id };
 }
 
 async function getValidSellerAccessToken(
@@ -141,13 +142,9 @@ Deno.serve(async (req: Request) => {
   });
 
   try {
-    const body = (await req.json()) as {
-      manageToken?: string;
-      reservationCode?: string;
-      listingType?: string;
-    };
+    const body = (await req.json()) as { manageToken?: string };
 
-    const resolved = await resolveBookingId(supabase, body);
+    const resolved = await resolveBookingId(supabase, body.manageToken);
     if (!resolved.bookingId) {
       return json({ success: false, error: resolved.error }, resolved.status ?? 400);
     }
@@ -197,7 +194,6 @@ Deno.serve(async (req: Request) => {
       return json({ success: false, error: 'Seller Mercado Pago account missing', error_code: 'SELLER_NOT_CONNECTED' }, 409);
     }
 
-    // Reuse an active preference created recently for the same booking.
     const { data: existingAttempt } = await supabase
       .from('mercado_pago_payment_attempts')
       .select('id, preference_id, init_point, sandbox_init_point, status, expected_amount, expected_currency_code')
@@ -212,20 +208,18 @@ Deno.serve(async (req: Request) => {
       Number(existingAttempt.expected_amount) === amount &&
       existingAttempt.expected_currency_code === currencyCode
     ) {
-      return json({
-        success: true,
+      return json(reusePayload({
         attemptId: existingAttempt.id,
         preferenceId: existingAttempt.preference_id,
         initPoint: existingAttempt.init_point,
         sandboxInitPoint: existingAttempt.sandbox_init_point,
         amount,
         currencyCode,
-        reused: true,
-      });
+      }));
     }
 
     const attemptId = crypto.randomUUID();
-    const externalReference = `booking:${resolved.bookingId}:attempt:${attemptId}`;
+    const externalReference = encodeMpExternalReference(attemptId);
     const idempotencyKey = await sha256Hex(`mp-pref:${resolved.bookingId}:${amount}:${currencyCode}`);
 
     const { data: attempt, error: attemptError } = await supabase
@@ -245,18 +239,15 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (attemptError || !attempt) {
-      // Unique conflict: try to return the existing active attempt.
       if (attemptError?.code === '23505' && existingAttempt?.init_point) {
-        return json({
-          success: true,
+        return json(reusePayload({
           attemptId: existingAttempt.id,
           preferenceId: existingAttempt.preference_id,
           initPoint: existingAttempt.init_point,
           sandboxInitPoint: existingAttempt.sandbox_init_point,
           amount,
           currencyCode,
-          reused: true,
-        });
+        }));
       }
       console.error('Failed to create payment attempt', attemptError);
       return json({ success: false, error: 'Failed to create payment attempt' }, 500);
@@ -271,9 +262,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     const listingType =
-      (bookingRow as { ListingType?: string } | null)?.ListingType ??
-      body.listingType?.trim() ??
-      null;
+      (bookingRow as { ListingType?: string } | null)?.ListingType ?? null;
     const guestOrigin = getGuestPaymentReturnOrigin(listingType);
     const returnBase = guestOrigin || getPublicAppBaseUrl();
 
@@ -284,7 +273,7 @@ Deno.serve(async (req: Request) => {
     const preference = await mpApiRequest<PreferenceResponse>('/checkout/preferences', {
       accessToken,
       method: 'POST',
-      idempotencyKey: randomToken(16),
+      idempotencyKey,
       body: {
         items: [
           {
@@ -332,13 +321,9 @@ Deno.serve(async (req: Request) => {
       amount,
       currencyCode,
       reused: false,
-      disclaimerKey: 'mercado_pago_bridge_disclaimer',
+      disclaimerKey: DISCLAIMER_KEY,
     });
   } catch (error) {
-    console.error('mercado-pago-create-preference error', error);
-    return json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    }, 500);
+    return json(logAndPublicError(error), 500);
   }
 });

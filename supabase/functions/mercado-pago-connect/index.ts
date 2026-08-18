@@ -13,6 +13,7 @@ import {
   decryptSecret,
   encryptSecret,
   exchangeAuthorizationCode,
+  logAndPublicError,
   randomToken,
   sha256Hex,
 } from '../_shared/mercadoPago.ts';
@@ -213,13 +214,10 @@ Deno.serve(async (req: Request) => {
 
     return json({ success: false, error: 'Unknown endpoint' }, 404);
   } catch (error) {
-    console.error('mercado-pago-connect error', error);
     if (action === 'callback') {
+      console.error('mercado-pago-connect error', error);
       return redirect(buildConnectResultUrl('error', 'oauth_failed'));
     }
-    return json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    }, 500);
+    return json(logAndPublicError(error), 500);
   }
 });

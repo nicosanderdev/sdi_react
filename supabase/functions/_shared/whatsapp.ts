@@ -10,8 +10,17 @@ export function isLocalSupabaseRuntime(): boolean {
   }
 }
 
-/** When true on local Supabase, call Meta instead of dry-run logging. */
+/**
+ * Skip Meta and log the message/template to the edge function console.
+ * - Local Supabase: on by default (unless BOOKING_OTP_LIVE_ENABLED=true)
+ * - Hosted (staging/prod): only when BOOKING_OTP_MOCK=true
+ *
+ * Same flag as booking OTP so one staging secret covers invites + OTP.
+ */
 export function shouldUseWhatsappMock(): boolean {
+  if (Deno.env.get('BOOKING_OTP_MOCK') === 'true') {
+    return true;
+  }
   return isLocalSupabaseRuntime() && Deno.env.get('BOOKING_OTP_LIVE_ENABLED') !== 'true';
 }
 

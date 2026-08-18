@@ -15,6 +15,7 @@ import {
 import { sendWhatsappTemplateViaMeta } from '../_shared/whatsapp.ts';
 import {
   buildConnectLink,
+  logAndPublicError,
   normalizeMemberPhone,
   randomToken,
   sha256Hex,
@@ -212,10 +213,6 @@ Deno.serve(async (req: Request) => {
 
     return json({ success: false, error: 'Unknown action' }, 400);
   } catch (error) {
-    console.error('mercado-pago-admin error', error);
-    return json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    }, 500);
+    return json(logAndPublicError(error), 500);
   }
 });
