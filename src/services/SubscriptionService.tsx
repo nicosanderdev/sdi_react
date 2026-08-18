@@ -81,31 +81,33 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                     name: plan.Name,
                     monthlyPrice: plan.MonthlyPrice,
                     currency: plan.Currency,
-                    maxProperties: plan.MaxProperties || 0,
-                    maxUsers: plan.MaxUsers || 0,
-                    maxStorageMb: plan.MaxStorageMb || 0,
+                    maxProperties: plan.MaxProperties ?? null,
+                    maxUsers: plan.MaxUsers ?? null,
+                    maxStorageMb: plan.MaxStorageMb ?? null,
                     billingCycle: plan.BillingCycle.toString(),
                     isActive: plan.IsActive,
-                    publishedProperties: plan.MaxPublishedProperties || 0,
-                    totalProperties: plan.MaxProperties || 0,
-                    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined
+                    publishedProperties: plan.MaxPublishedProperties ?? null,
+                    totalProperties: plan.MaxProperties ?? null,
+                    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+                    maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
                 };
             } else {
-                // Create default free plan object if not found in database (Inicial plan: 5 published, 7 total)
+                // Fallback when Free plan row is missing — match Plan BASE-Inicial defaults
                 freePlan = {
                     id: '',
                     key: PlanKey.FREE,
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',
-                    maxProperties: 7, // Total properties limit
+                    maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,
                     billingCycle: '1',
                     isActive: true,
-                    publishedProperties: 5, // Published properties limit
-                    totalProperties: 7, // Total properties limit
-                    bookingReceiptMinimumAmount: undefined
+                    publishedProperties: 15,
+                    totalProperties: 20,
+                    bookingReceiptMinimumAmount: undefined,
+                    maxPhotosPerProperty: null
                 };
             }
 
@@ -145,15 +147,16 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 name: plan.Name,
                 monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
                 currency: plan.Currency ?? 'USD',
-                maxProperties: plan.MaxProperties || 0,
-                maxUsers: plan.MaxUsers || 0,
-                maxStorageMb: plan.MaxStorageMb || 0,
+                maxProperties: plan.MaxProperties ?? null,
+                maxUsers: plan.MaxUsers ?? null,
+                maxStorageMb: plan.MaxStorageMb ?? null,
                 billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
                 isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
-                publishedProperties: plan.MaxPublishedProperties || 0,
-                totalProperties: plan.MaxProperties || 0,
+                publishedProperties: plan.MaxPublishedProperties ?? null,
+                totalProperties: plan.MaxProperties ?? null,
                 bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
-                propertyType: plan.PropertyType as any
+                propertyType: plan.PropertyType as any,
+                maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
             },
             status: row.IsActive ? '1' : '0',
             currentPeriodStart: startDate,
@@ -181,14 +184,15 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 name: 'Free',
                 monthlyPrice: 0,
                 currency: 'USD',
-                maxProperties: 7, // Total properties limit
+                maxProperties: 20,
                 maxUsers: 1,
                 maxStorageMb: 0,
                 billingCycle: '1',
                 isActive: true,
-                publishedProperties: 5, // Published properties limit
-                totalProperties: 7, // Total properties limit
-                bookingReceiptMinimumAmount: undefined
+                publishedProperties: 15,
+                totalProperties: 20,
+                bookingReceiptMinimumAmount: undefined,
+                maxPhotosPerProperty: null
             },
             status: '0',
             currentPeriodStart: new Date(),
@@ -221,17 +225,70 @@ const createPaymentSession = async (params: {
     entityType: 'personal' | 'company';
     entityId: string;
 }) => {
+    if (params.entityType === 'personal') {
+        throw new Error('Member self-serve plan changes are disabled. Platform admins must assign member plans.');
+    }
     try {
         const response = await apiClient.post<{
             checkoutUrl: string;
             sessionId: string;
-        }>(ENDPOINTS.CREATE_PAYMENT_SESSION, params);
+        }>(ENDPOINTS.CREATE_PAYMENT_SESSION, {
+            plan_id: params.planId,
+            entity_type: 'company',
+            entity_id: params.entityId,
+        });
         return response;
     } catch (error: any) {
         console.error('Error creating payment session:', error.message);
         throw error;
     }
 }
+
+/**
+ * Company Admin (or platform admin via RLS) changes the active company plan assignment.
+ * Paid checkout can still use createPaymentSession; this covers assign/change when payment is not required.
+ */
+const changeCompanyPlan = async (companyId: string, planId: string): Promise<SubscriptionData> => {
+    const now = new Date().toISOString();
+
+    const { data: plan, error: planError } = await supabase
+        .from('Plans')
+        .select('*')
+        .eq('Id', planId)
+        .eq('IsDeleted', false)
+        .maybeSingle();
+    if (planError) throw planError;
+    if (!plan || !(plan.IsActiveV2 ?? plan.IsActive)) {
+        throw new Error('Plan not found or inactive');
+    }
+
+    const { error: deactivateError } = await supabase
+        .from('BillingPlanAssignments')
+        .update({ IsActive: false, EndDate: now, LastModified: now })
+        .eq('SubjectType', 'company')
+        .eq('MemberOrCompanyId', companyId)
+        .eq('IsActive', true);
+    if (deactivateError) throw deactivateError;
+
+    const { error: insertError } = await supabase
+        .from('BillingPlanAssignments')
+        .insert({
+            SubjectType: 'company',
+            MemberOrCompanyId: companyId,
+            PlanId: planId,
+            StartDate: now,
+            IsActive: true,
+            Created: now,
+            LastModified: now,
+        });
+    if (insertError) throw insertError;
+
+    const subscription = await getCompanySubscription(companyId);
+    if (!subscription) {
+        throw new Error('Failed to load company subscription after plan change');
+    }
+    return subscription;
+};
 
 /**
  * Gets the checkout URL for changing subscription plan
@@ -330,15 +387,16 @@ const getPlans = async (): Promise<PlanData[]> => {
             name: plan.Name,
             monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
             currency: plan.Currency,
-            maxProperties: plan.MaxProperties || 0,
-            maxUsers: plan.MaxUsers || 0,
-            maxStorageMb: plan.MaxStorageMb || 0,
+            maxProperties: plan.MaxProperties ?? null,
+            maxUsers: plan.MaxUsers ?? null,
+            maxStorageMb: plan.MaxStorageMb ?? null,
             billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
             isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
-            publishedProperties: plan.MaxPublishedProperties || 0,
-            totalProperties: plan.MaxProperties || 0,
+            publishedProperties: plan.MaxPublishedProperties ?? null,
+            totalProperties: plan.MaxProperties ?? null,
             bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
-            propertyType: plan.PropertyType as any
+            propertyType: plan.PropertyType as any,
+            maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
         })) || [];
 
     } catch (error: any) {
@@ -348,15 +406,61 @@ const getPlans = async (): Promise<PlanData[]> => {
 }
 
 /**
- * Gets subscription for a specific company
- * @param companyId - The company ID
- * @returns The company subscription
+ * Active company-subject BillingPlanAssignment, or null when none.
  */
-const getCompanySubscription = async (companyId: string) => {
-    const url = ENDPOINTS.COMPANY_SUBSCRIPTION.replace('{id}', companyId);
-    const response = await apiClient.get<SubscriptionData>(url);
-    return response;
-}
+const getCompanySubscription = async (companyId: string): Promise<SubscriptionData | null> => {
+    const { data, error } = await supabase
+        .from('BillingPlanAssignments')
+        .select(`*, Plans (*)`)
+        .eq('SubjectType', 'company')
+        .eq('MemberOrCompanyId', companyId)
+        .eq('IsActive', true)
+        .order('StartDate', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    if (!data?.length) return null;
+
+    const row = data[0];
+    const plan = row.Plans;
+    const billingCycle = plan?.DurationDays ?? 30;
+    const startDate = new Date(row.StartDate ?? row.Created ?? new Date().toISOString());
+    const endDate = row.EndDate
+        ? new Date(row.EndDate)
+        : new Date(startDate.getTime() + billingCycle * 24 * 60 * 60 * 1000);
+
+    return {
+        id: row.Id,
+        ownerType: '1',
+        ownerId: row.MemberOrCompanyId,
+        providerCustomerId: '',
+        providerSubscriptionId: '',
+        planId: row.PlanId,
+        plan: {
+            id: plan.Id,
+            key: intToPlanKey(plan.Key ?? 0),
+            name: plan.Name,
+            monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
+            currency: plan.Currency ?? 'USD',
+            maxProperties: plan.MaxProperties ?? null,
+            maxUsers: plan.MaxUsers ?? null,
+            maxStorageMb: plan.MaxStorageMb ?? null,
+            billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
+            isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
+            publishedProperties: plan.MaxPublishedProperties ?? null,
+            totalProperties: plan.MaxProperties ?? null,
+            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+            propertyType: plan.PropertyType as any,
+            maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null,
+        },
+        status: row.IsActive ? '1' : '0',
+        currentPeriodStart: startDate,
+        currentPeriodEnd: endDate,
+        cancelAtPeriodEnd: false,
+        createdAt: new Date(row.Created ?? new Date().toISOString()),
+        updatedAt: new Date(row.LastModified ?? new Date().toISOString()),
+    };
+};
 
 /**
  * Gets all subscriptions (admin only)
@@ -386,15 +490,16 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
                 name: row.Plans?.Name ?? 'Plan',
                 monthlyPrice: Number(row.Plans?.Price ?? row.Plans?.MonthlyPrice ?? 0),
                 currency: row.Plans?.Currency ?? 'USD',
-                maxProperties: row.Plans?.MaxProperties || 0,
-                maxUsers: row.Plans?.MaxUsers || 0,
-                maxStorageMb: row.Plans?.MaxStorageMb || 0,
+                maxProperties: row.Plans?.MaxProperties ?? null,
+                maxUsers: row.Plans?.MaxUsers ?? null,
+                maxStorageMb: row.Plans?.MaxStorageMb ?? null,
                 billingCycle: String(row.Plans?.DurationDays ?? row.Plans?.BillingCycle ?? 30),
                 isActive: Boolean(row.Plans?.IsActiveV2 ?? row.Plans?.IsActive ?? true),
-                publishedProperties: row.Plans?.MaxPublishedProperties || 0,
-                totalProperties: row.Plans?.MaxProperties || 0,
+                publishedProperties: row.Plans?.MaxPublishedProperties ?? null,
+                totalProperties: row.Plans?.MaxProperties ?? null,
                 bookingReceiptMinimumAmount: row.Plans?.BookingReceiptMinimumAmount ?? undefined,
-                propertyType: row.Plans?.PropertyType
+                propertyType: row.Plans?.PropertyType,
+                maxPhotosPerProperty: row.Plans?.MaxPhotosPerProperty ?? null
             },
             status: row.IsActive ? '1' : '0',
             currentPeriodStart: new Date(row.StartDate),
@@ -497,14 +602,15 @@ const getSubscriptionStatus = async (user?: any): Promise<{
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',
-                    maxProperties: 7, // Total properties limit
+                    maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,
                     billingCycle: '1',
                     isActive: true,
-                    publishedProperties: 5, // Published properties limit
-                    totalProperties: 7, // Total properties limit
-                    bookingReceiptMinimumAmount: undefined
+                    publishedProperties: 15,
+                    totalProperties: 20,
+                    bookingReceiptMinimumAmount: undefined,
+                    maxPhotosPerProperty: null
                 },
                 status: '0', // Assuming 0 = inactive/cancelled
                 currentPeriodStart: new Date(),
@@ -533,6 +639,7 @@ const subscriptionService = {
     getCurrentSubscription,
     getCheckout,
     createPaymentSession,
+    changeCompanyPlan,
     getCheckoutChange,
     cancelSubscription,
     getBillingHistory,

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, Save } from 'lucide-react';
 import { Button, Card } from 'flowbite-react';
 import { PropertyFormStep1 } from './PropertyFormStep1';
@@ -19,6 +19,10 @@ import type { ListingType, PropertyType } from '../../../models/properties/Prope
 import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../../../models/properties/propertyTypeLabels';
 import { amenityDescriptionsFromAmenities } from '../../../models/properties/amenityDescriptions';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
+import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
+import { ContactVerificationGateBanner } from '../../user/ContactVerificationGateBanner';
+import { supabase } from '../../../config/supabase';
+import { GLOBAL_MAX_PHOTOS_PER_PROPERTY } from '../../../utils/photoLimits';
 
 function firstValidationMessage(errors: FieldErrors<PropertyFormData>): string {
   const walk = (node: unknown): string | null => {
@@ -39,6 +43,7 @@ export function PropertyEditPage() {
   const { propertyId } = useParams<{ propertyId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { needsVerification, isLoading: isVerificationLoading } = useContactVerificationGate();
   const [currentStep, setCurrentStep] = useState(1);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +69,18 @@ export function PropertyEditPage() {
   const { data: property, isLoading, isError, error } = useQuery({
     queryKey: ['property', propertyId],
     queryFn: () => propertyService.getOwnersPropertyById(propertyId!),
+    enabled: !!propertyId,
+  });
+
+  const { data: photoCap = GLOBAL_MAX_PHOTOS_PER_PROPERTY } = useQuery({
+    queryKey: ['property-photo-cap', propertyId],
+    queryFn: async () => {
+      const { data, error: capError } = await supabase.rpc('resolve_estate_property_photo_cap', {
+        p_estate_property_id: propertyId!,
+      });
+      if (capError) throw capError;
+      return Number(data ?? GLOBAL_MAX_PHOTOS_PER_PROPERTY);
+    },
     enabled: !!propertyId,
   });
 
@@ -166,6 +183,11 @@ export function PropertyEditPage() {
     try {
       setIsSaving(true);
       setApiError(null);
+      if (displayImages.length > photoCap) {
+        throw new Error(
+          `Photo limit exceeded. This property allows a maximum of ${photoCap} photos (requested ${displayImages.length}).`
+        );
+      }
       await propertyService.updatePropertyWizard(propertyId, formData, displayImages, displayDocuments);
       if (formData.additionalExtensionType) {
         await propertyService.addPropertyExtension(propertyId, formData.additionalExtensionType, formData);
@@ -182,7 +204,23 @@ export function PropertyEditPage() {
   };
 
   if (!propertyId) return <div className="mt-8 text-center text-red-600">No se encontro la propiedad.</div>;
-  if (isLoading) return <div className="mt-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  if (isLoading || isVerificationLoading) {
+    return <div className="mt-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+  }
+  if (needsVerification) {
+    return (
+      <Card className="min-h-full mt-4">
+        <div className="p-6 space-y-4">
+          <h1 className="text-xl font-semibold">Editar propiedad</h1>
+          <ContactVerificationGateBanner />
+          <div className="flex gap-2">
+            <Button color="alternative" onClick={() => navigate(-1)}>Volver</Button>
+            <Button as={Link} to="/dashboard/profile" color="primary">Ir al perfil</Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
   if (isError) return <div className="mt-8 text-center text-red-600">{(error as Error).message}</div>;
 
   const stepCount = 4;
@@ -241,6 +279,7 @@ export function PropertyEditPage() {
               setDisplayVideos={setDisplayVideos}
               displayDocuments={displayDocuments}
               setDisplayDocuments={setDisplayDocuments}
+              maxPhotosPerProperty={photoCap}
             />
           )}
           {currentStep === 4 && (

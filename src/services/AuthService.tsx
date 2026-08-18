@@ -43,6 +43,7 @@ export interface RegisterUserPayload {
   lastName: string;
   email: string;
   password: string;
+  phone: string;
 }
 
 export interface ConfirmPasswordChangePayload {
@@ -205,6 +206,21 @@ const login = async (
     }
   }
 };
+
+export type OAuthProvider = 'google' | 'facebook'
+
+/**
+ * Starts OAuth sign-in (Google or Facebook). Redirects to /dashboard on success.
+ */
+const signInWithOAuthProvider = async (provider: OAuthProvider) => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/dashboard`,
+    },
+  })
+  return { data, error }
+}
 
 /**
  * Logs out the user using Supabase authentication.
@@ -417,7 +433,8 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<{ suc
       options: {
         data: {
           firstName: userData.firstName,
-          lastName: userData.lastName
+          lastName: userData.lastName,
+          phone: userData.phone,
         }
       }
     })
@@ -428,6 +445,14 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<{ suc
 
       if (errorMessage.includes('email') && errorMessage.includes('already')) {
         throw new Error('This email address is already registered. Please try logging in or use a different email address.');
+      } else if (
+        (errorMessage.includes('phone') && (errorMessage.includes('unique') || errorMessage.includes('duplicate') || errorMessage.includes('already'))) ||
+        errorMessage.includes('members_phone') ||
+        errorMessage.includes('ix_members_phone')
+      ) {
+        throw new Error('This phone number is already registered. Please use a different phone number.');
+      } else if (errorMessage.includes('plan base-inicial') || errorMessage.includes('default signup plan')) {
+        throw new Error('Registration is temporarily unavailable. Please try again later.');
       } else if (errorMessage.includes('password') && errorMessage.includes('weak')) {
         throw new Error('Password is too weak. Please choose a stronger password.');
       } else if (errorMessage.includes('invalid') && errorMessage.includes('email')) {
@@ -586,6 +611,7 @@ const validateRecoveryPasswordChange = async (_payload: ValidateRecoveryPayload)
 const authService = {
   login,
   logout,
+  signInWithOAuthProvider,
   forgotPassword,
   resetPassword,
   verifyAuth,

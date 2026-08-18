@@ -25,6 +25,8 @@ export interface AddressData {
 export interface UserCompany {
   id: string;
   name: string;
+  /** CompanyMembers.Role: Admin | Manager | Member */
+  role?: string;
 }
 
 export interface ProfileData {

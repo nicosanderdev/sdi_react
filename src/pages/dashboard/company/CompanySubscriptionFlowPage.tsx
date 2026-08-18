@@ -19,12 +19,16 @@ import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData
 import { CompanyInfo } from '../../../models/companies/CompanyInfo';
 import { CreateCompanyModal } from '../../../components/company/CreateCompanyModal';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
-import { usePayment } from '../../../contexts/PaymentContext';
-import { CreatePaymentRequest } from '../../../models/payments/PaymentData';
+import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
+import { ContactVerificationGateBanner } from '../../../components/user/ContactVerificationGateBanner';
+import { selectUserCompanies } from '../../../store/slices/userSlice';
+import { hasRole } from '../../../utils/RoleUtils';
+import { Roles } from '../../../models/Roles';
 
 export function CompanySubscriptionFlowPage() {
     const user = useSelector((state: RootState) => state.user.profile);
     const navigate = useNavigate();
+    const { needsVerification } = useContactVerificationGate();
 
     // Subscription gate state
     const {
@@ -42,6 +46,7 @@ export function CompanySubscriptionFlowPage() {
     const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
+    const [showVerificationRequired, setShowVerificationRequired] = useState(false);
 
     const hasMultipleCompanies = companyIds.length > 1;
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -163,8 +168,19 @@ export function CompanySubscriptionFlowPage() {
                         <p className="text-gray-600 mb-6">
                             No perteneces a ninguna empresa actualmente. Para suscribirte a un plan de empresa, primero necesitas crear una empresa.
                         </p>
+                        {showVerificationRequired && needsVerification && (
+                            <div className="max-w-lg mx-auto mb-6 text-left">
+                                <ContactVerificationGateBanner />
+                            </div>
+                        )}
                         <Button
-                            onClick={() => setShowCreateCompanyModal(true)}
+                            onClick={() => {
+                                if (needsVerification) {
+                                    setShowVerificationRequired(true);
+                                    return;
+                                }
+                                setShowCreateCompanyModal(true);
+                            }}
                             className="bg-[#1B4965] text-white px-6 py-3 rounded-lg hover:bg-[#153a52] transition-colors flex items-center space-x-2 mx-auto"
                         >
                             <Plus className="w-5 h-5" />
@@ -217,7 +233,11 @@ export function CompanySubscriptionFlowPage() {
 
             {/* Company exists but no subscription - show company plan selection */}
             {hasCompanyMembership && companyInfo && !isLoadingCompany && !companySubscription && !isLoadingSubscription && (
-                <CompanyPlanSelection companyId={companyInfo.id} companyName={companyInfo.name} />
+                <CompanyPlanSelection
+                    companyId={companyInfo.id}
+                    companyName={companyInfo.name}
+                    onChanged={loadCompanySubscription}
+                />
             )}
 
             {/* Company has active subscription - show subscription details */}
@@ -239,10 +259,29 @@ export function CompanySubscriptionFlowPage() {
     );
 }
 
-// Component for company plan selection
-function CompanyPlanSelection({ companyId, companyName }: { companyId: string; companyName: string }) {
-    const { createPayment } = usePayment();
+function canManageCompanyPlan(role: string | undefined, isPlatformAdmin: boolean): boolean {
+    if (isPlatformAdmin) return true;
+    if (!role) return false;
+    const r = String(role).trim().toLowerCase();
+    return r === 'admin' || r === '2';
+}
+
+// Component for company plan selection / change
+function CompanyPlanSelection({
+    companyId,
+    companyName,
+    onChanged,
+}: {
+    companyId: string;
+    companyName: string;
+    onChanged?: () => void;
+}) {
     const user = useSelector((state: RootState) => state.user.profile);
+    const userCompanies = useSelector(selectUserCompanies);
+    const companyRole = userCompanies.find(c => c.id === companyId)?.role;
+    const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
+    const canManage = canManageCompanyPlan(companyRole, isPlatformAdmin);
+
     const [plans, setPlans] = useState<any[]>([]);
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -254,8 +293,13 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
             try {
                 setIsLoading(true);
                 const plansData = await subscriptionService.getPlans();
-                // Filter to company plans only (company_small and company_unlimited)
-                const companyPlans = plansData.filter(plan => (plan.key === PlanKey.COMPANY_SMALL || plan.key === PlanKey.COMPANY_UNLIMITED) && plan.isActive);
+                const companyPlans = plansData.filter(
+                    plan =>
+                        plan.isActive &&
+                        (plan.key === PlanKey.COMPANY_SMALL ||
+                            plan.key === PlanKey.COMPANY_UNLIMITED ||
+                            plan.name === 'Plan BASE-Inicial')
+                );
                 setPlans(companyPlans);
             } catch (err: any) {
                 setError(err.message || 'Error al cargar los planes');
@@ -271,13 +315,12 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
     };
 
     const handleProceedToPayment = async () => {
-        if (!selectedPlanId) {
-            setError('Por favor selecciona un plan');
+        if (!canManage) {
+            setError('Solo los administradores de la empresa pueden cambiar el plan.');
             return;
         }
-
-        if (!user) {
-            setError('Usuario no encontrado. Por favor inicia sesión nuevamente.');
+        if (!selectedPlanId) {
+            setError('Por favor selecciona un plan');
             return;
         }
 
@@ -285,45 +328,33 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
             setIsProcessing(true);
             setError(null);
 
-            // Find the selected plan details
             const selectedPlan = plans.find(plan => plan.id === selectedPlanId);
             if (!selectedPlan) {
                 throw new Error('Plan seleccionado no encontrado');
             }
 
-            // Create order ID for subscription payment
-            const orderId = `sub_company_${companyId}_${selectedPlanId}_${Date.now()}`;
-
-            // Create payment request for DLocal
-            const paymentRequest: CreatePaymentRequest = {
-                amount: selectedPlan.monthlyPrice,
-                currency: selectedPlan.currency,
-                paymentMethod: 'card', // Default to card payment, can be expanded later
-                orderId,
-                description: `Subscription to ${selectedPlan.name} plan for ${companyName}`,
-                customerInfo: {
-                    name: user.firstName && user.lastName
-                        ? `${user.firstName} ${user.lastName}`
-                        : user.email?.split('@')[0] || 'User',
-                    email: user.email || '',
-                    phone: user.phone || ''
-                },
-                callbackUrl: `${window.location.origin}/dashboard/payments/callback`
-            };
-
-            // Create payment using DLocal
-            const paymentResponse = await createPayment(paymentRequest);
-
-            if (paymentResponse.redirectUrl) {
-                // Redirect to DLocal payment page
-                window.location.href = paymentResponse.redirectUrl;
-            } else {
-                throw new Error('No redirect URL received from payment service');
+            if (selectedPlan.monthlyPrice > 0) {
+                try {
+                    const session = await subscriptionService.createPaymentSession({
+                        planId: selectedPlanId,
+                        entityType: 'company',
+                        entityId: companyId,
+                    });
+                    if (session?.checkoutUrl) {
+                        window.location.href = session.checkoutUrl;
+                        return;
+                    }
+                } catch (paymentErr) {
+                    console.warn('Payment session unavailable; applying plan assignment directly', paymentErr);
+                }
             }
 
+            await subscriptionService.changeCompanyPlan(companyId, selectedPlanId);
+            onChanged?.();
         } catch (err: any) {
-            console.error('Payment creation error:', err);
-            setError(err.message || 'Error al iniciar el proceso de pago. Por favor, inténtalo de nuevo.');
+            console.error('Company plan change error:', err);
+            setError(err.message || 'Error al cambiar el plan de la empresa.');
+        } finally {
             setIsProcessing(false);
         }
     };
@@ -409,8 +440,14 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
                 )}
             </Card>
 
+            {!canManage && (
+                <Alert color="warning" icon={AlertCircle}>
+                    Solo los administradores de la empresa pueden suscribirse o cambiar el plan.
+                </Alert>
+            )}
+
             {/* Proceed Button */}
-            {selectedPlanId && (
+            {selectedPlanId && canManage && (
                 <div className="flex justify-center">
                     <Button
                         onClick={handleProceedToPayment}
@@ -425,7 +462,7 @@ function CompanyPlanSelection({ companyId, companyName }: { companyId: string; c
                         ) : (
                             <>
                                 <CreditCard className="w-5 h-5" />
-                                <span>Proceder al Pago</span>
+                                <span>Confirmar plan</span>
                             </>
                         )}
                     </Button>
@@ -446,6 +483,12 @@ function CompanySubscriptionDetails({
     onRefresh: () => void;
 }) {
     const navigate = useNavigate();
+    const user = useSelector((state: RootState) => state.user.profile);
+    const userCompanies = useSelector(selectUserCompanies);
+    const companyRole = userCompanies.find(c => c.id === companyInfo.id)?.role;
+    const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
+    const canManage = canManageCompanyPlan(companyRole, isPlatformAdmin);
+    const [showChangePlan, setShowChangePlan] = useState(false);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -462,6 +505,25 @@ function CompanySubscriptionDetails({
         const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
         return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
     };
+
+    if (showChangePlan) {
+        return (
+            <div className="space-y-4">
+                <Button color="light" onClick={() => setShowChangePlan(false)}>
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Volver al plan actual
+                </Button>
+                <CompanyPlanSelection
+                    companyId={companyInfo.id}
+                    companyName={companyInfo.name}
+                    onChanged={() => {
+                        setShowChangePlan(false);
+                        onRefresh();
+                    }}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
@@ -520,14 +582,21 @@ function CompanySubscriptionDetails({
                         <Crown className="w-4 h-4" />
                         <span>Gestionar Detalles</span>
                     </Button>
-                    <Button
-                        onClick={() => navigate('/dashboard/subscription/change')}
-                        color="gray"
-                        className="flex items-center justify-center space-x-2"
-                    >
-                        <CreditCard className="w-4 h-4" />
-                        <span>Cambiar Plan</span>
-                    </Button>
+                    {canManage ? (
+                        <Button
+                            onClick={() => setShowChangePlan(true)}
+                            color="gray"
+                            className="flex items-center justify-center space-x-2"
+                        >
+                            <CreditCard className="w-4 h-4" />
+                            <span>Cambiar Plan</span>
+                        </Button>
+                    ) : (
+                        <Button color="gray" disabled className="flex items-center justify-center space-x-2">
+                            <CreditCard className="w-4 h-4" />
+                            <span>Solo Admin</span>
+                        </Button>
+                    )}
                     <Button
                         onClick={onRefresh}
                         color="light"

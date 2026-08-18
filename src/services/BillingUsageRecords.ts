@@ -200,7 +200,8 @@ export async function assertBookingConfirmationAllowed(propertyId: string, booki
 }
 
 /**
- * Before publishing a listing (visible + active): enforce listing usage limits (throws if blocked).
+ * Before publishing a listing (visible + active): enforce plan published-property caps
+ * (always, regardless of pricing model), then listing usage limits for billing models that use them.
  */
 export async function assertListingPublishAllowed(
   estatePropertyId: string,
@@ -208,6 +209,13 @@ export async function assertListingPublishAllowed(
 ): Promise<void> {
   const subject = await resolveBillingSubjectByPropertyId(estatePropertyId);
   if (!subject) return;
+
+  const { error: publishedCapError } = await supabase.rpc('assert_published_property_within_plan', {
+    p_subject_type: subject.subjectType,
+    p_subject_id: subject.memberOrCompanyId,
+    p_estate_property_id: estatePropertyId
+  });
+  if (publishedCapError) throw publishedCapError;
 
   const snapshot = await getActivePlanSnapshotForSubject(subject);
   if (!snapshot || !pricingModelAllowsListingUsage(snapshot.pricingModel)) {

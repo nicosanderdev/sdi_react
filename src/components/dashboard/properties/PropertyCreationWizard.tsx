@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, Dropdown, DropdownItem } from 'flowbite-react';
+import { Card, Dropdown, DropdownItem, Label, Select } from 'flowbite-react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
 
 import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
@@ -18,6 +19,9 @@ import { DisplayImage } from './ImageManager';
 import { DisplayDocument } from './DocumentManager';
 import { DisplayVideo } from './VideoManager';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
+import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
+import { CONTACT_VERIFICATION_REQUIRED_MESSAGE } from '../../../utils/contactVerification';
+import { effectivePhotoCap } from '../../../utils/photoLimits';
 import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { ErrorDisplay } from '../../ui/ErrorDisplay';
 import {
@@ -26,6 +30,15 @@ import {
   resolveCreationListingType,
 } from '../../../models/properties/PropertyFormSchema';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
+import { selectUserCompanies } from '../../../store/slices/userSlice';
+
+const PERSONAL_OWNERSHIP = '__personal__';
+
+function isManageableCompanyRole(role?: string | null): boolean {
+  if (!role) return false;
+  const r = String(role).trim().toLowerCase();
+  return r === 'admin' || r === 'manager' || r === '2' || r === '1';
+}
 
 export type PropertyCreationMode = 'user' | 'admin';
 
@@ -47,6 +60,8 @@ export interface PropertyCreationInitialContext {
   availablePropertyTypes: PropertyType[];
   /** If the admin is creating on behalf of a specific user, their userId. */
   ownerUserId?: string;
+  /** Prefill ownership to a company the creator manages. */
+  companyId?: string;
 }
 
 export const propertyCreationFormSchema = propertyCreatePublishSchema;
@@ -74,8 +89,26 @@ export function PropertyCreationWizard({
   const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [propertyTypeLocked, setPropertyTypeLocked] = useState(false);
+  const userCompanies = useSelector(selectUserCompanies);
+  const manageableCompanies = useMemo(
+    () => (userCompanies ?? []).filter(c => isManageableCompanyRole(c.role)),
+    [userCompanies]
+  );
+  const [ownershipKey, setOwnershipKey] = useState<string>(
+    initialContext.companyId && manageableCompanies.some(c => c.id === initialContext.companyId)
+      ? initialContext.companyId
+      : PERSONAL_OWNERSHIP
+  );
+  const selectedCompanyId = ownershipKey === PERSONAL_OWNERSHIP ? null : ownershipKey;
 
-  const { canCreateProperty, isAtPublishedLimit, totalLimit, publishedLimit } = usePropertyQuota();
+  const {
+    canCreateProperty,
+    isAtPublishedLimit,
+    totalLimit,
+    publishedLimit,
+    maxPhotosPerProperty,
+  } = usePropertyQuota(selectedCompanyId);
+  const { needsVerification } = useContactVerificationGate();
 
   const methods = useForm<PropertyCreationFormData>({
     resolver: zodResolver(propertyCreationFormSchema as any),
@@ -124,6 +157,10 @@ export function PropertyCreationWizard({
       setIsSubmitting(true);
       setApiError(null);
 
+      if (!initialContext.isAdmin && needsVerification) {
+        throw new Error(CONTACT_VERIFICATION_REQUIRED_MESSAGE);
+      }
+
       if (!canCreateProperty) {
         throw new Error(`Your plan limits have reached. You cannot create more than ${totalLimit} properties.`);
       }
@@ -132,6 +169,11 @@ export function PropertyCreationWizard({
 
       if (publishNow && isAtPublishedLimit) {
         throw new Error(`Your plan limits have reached. You cannot publish more than ${publishedLimit} properties.`);
+      }
+
+      const photoCap = effectivePhotoCap(maxPhotosPerProperty);
+      if (displayImages.length > photoCap) {
+        throw new Error(`Photo limit exceeded. Your plan allows a maximum of ${photoCap} photos per property.`);
       }
 
       const effectiveFormData: any = {
@@ -152,7 +194,8 @@ export function PropertyCreationWizard({
         created = await PropertyService.createProperty(
           effectiveFormData,
           displayImages,
-          displayDocuments
+          displayDocuments,
+          selectedCompanyId
         );
       }
 
@@ -242,6 +285,29 @@ export function PropertyCreationWizard({
             </div>
 
             <div className="p-6">
+              {currentStep === 1 && !initialContext.isAdmin && manageableCompanies.length > 0 && (
+                <div className="mb-6 border border-gray-200 rounded-lg mx-auto max-w-md p-4">
+                  <Label htmlFor="ownership" className="mb-2 block text-sm font-semibold">
+                    Titularidad
+                  </Label>
+                  <Select
+                    id="ownership"
+                    value={ownershipKey}
+                    onChange={e => setOwnershipKey(e.target.value)}
+                  >
+                    <option value={PERSONAL_OWNERSHIP}>Personal (mi plan)</option>
+                    {manageableCompanies.map(company => (
+                      <option key={company.id} value={company.id}>
+                        Empresa: {company.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Los límites de creación y publicación siguen el plan del titular elegido.
+                  </p>
+                </div>
+              )}
+
               {/* ContextoUsuario: simple property type selector based on available types */}
               {currentStep === 1 && (
                 <div className="mb-6 border border-gray-200 rounded-lg mx-auto max-w-xs p-4">
@@ -314,6 +380,7 @@ export function PropertyCreationWizard({
                   setDisplayVideos={setDisplayVideos}
                   displayDocuments={displayDocuments}
                   setDisplayDocuments={setDisplayDocuments}
+                  maxPhotosPerProperty={maxPhotosPerProperty}
                 />
               )}
               {currentStep === 4 && (

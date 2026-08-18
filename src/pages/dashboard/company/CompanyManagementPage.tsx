@@ -34,13 +34,15 @@ export function CompanyManagementPage() {
   } = useQuery({
     queryKey: ['companyInfo', selectedCompanyId],
     queryFn: async () => {
-      const [info, subscription, propertiesData, messageCounts, totalsData] = await Promise.all([
+      const [info, propertiesData, messageCounts, totalsData] = await Promise.all([
         (selectedCompanyId
           ? companyService.getCompanyInfo(selectedCompanyId)
           : companyService.getCompanyInfo()
         ).catch(() => null),
-        subscriptionService.getCurrentSubscription().catch(() => null),
-        propertyService.getOwnersProperties({ pageSize: 1 }).catch(() => null),
+        propertyService.getOwnersProperties({
+          pageSize: 1,
+          ...(selectedCompanyId ? { companyId: selectedCompanyId } : {}),
+        }).catch(() => null),
         messageService.getMessageCounts().catch(() => null),
         reportService.getGeneralTotals().catch(() => null),
       ]);
@@ -51,13 +53,6 @@ export function CompanyManagementPage() {
         name: '',
         createdAt: new Date().toISOString(),
       };
-
-      if (subscription) {
-        mergedInfo.subscription = {
-          planName: subscription.plan.name,
-          endDate: subscription.currentPeriodEnd,
-        };
-      }
 
       // Add statistics if not present in company info
       if (!mergedInfo.statistics) {
@@ -102,7 +97,20 @@ export function CompanyManagementPage() {
   });
 
   // Use companyInfo directly as it's already enhanced with statistics
-  const enhancedCompanyInfo = companyInfo;
+  const enhancedCompanyInfo = companyInfo
+    ? {
+        ...companyInfo,
+        subscription: companySubscription
+          ? {
+              planName: companySubscription.plan.name,
+              endDate:
+                companySubscription.currentPeriodEnd instanceof Date
+                  ? companySubscription.currentPeriodEnd.toISOString()
+                  : String(companySubscription.currentPeriodEnd),
+            }
+          : companyInfo.subscription,
+      }
+    : companyInfo;
 
   const handleRefresh = () => {
     refetchCompanyInfo();
@@ -143,6 +151,12 @@ export function CompanyManagementPage() {
       : null;
 
   const isGlobalAdmin = userProfile ? hasRole(userProfile, Roles.Admin) : false;
+  const selectedCompanyRole = selectedCompanyId
+    ? userCompanies.find(c => c.id === selectedCompanyId)?.role
+    : userCompanies[0]?.role;
+  const isCompanyAdmin =
+    isGlobalAdmin ||
+    (!!selectedCompanyRole && companyService.isCompanyAdminRole(selectedCompanyRole));
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-6">
@@ -241,15 +255,31 @@ export function CompanyManagementPage() {
               {/* Company Subscription Management */}
               <section>
                 <Card>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center space-x-3">
                       <Crown className="w-8 h-8 text-purple-500" />
                       <div>
                         <h3 className="text-lg font-semibold">Suscripción de Empresa</h3>
-                        <p className="text-sm text-gray-600">Gestiona el plan de suscripción de tu empresa</p>
+                        <p className="text-sm text-gray-600">
+                          {companySubscription
+                            ? `Plan: ${companySubscription.plan.name}`
+                            : 'Gestiona el plan de suscripción de tu empresa'}
+                        </p>
+                        {companySubscription && (
+                          <p className="text-sm text-gray-500 mt-1">
+                            Uso: {enhancedCompanyInfo?.statistics?.totalProperties ?? 0}
+                            {companySubscription.plan.totalProperties != null
+                              ? ` / ${companySubscription.plan.totalProperties}`
+                              : ' / ilimitado'}{' '}
+                            propiedades
+                            {companySubscription.plan.maxUsers != null
+                              ? ` · ${companyUsers?.length ?? 0} / ${companySubscription.plan.maxUsers} usuarios`
+                              : ` · ${companyUsers?.length ?? 0} usuarios`}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {isGlobalAdmin && (
+                    {isCompanyAdmin && (
                       <Button
                         onClick={() => navigate('/dashboard/company/subscription')}
                         className="bg-purple-600 hover:bg-purple-700 text-white"
@@ -262,7 +292,7 @@ export function CompanyManagementPage() {
               </section>
 
               {/* Company Profile Editor */}
-              {isGlobalAdmin ? (
+              {isCompanyAdmin ? (
                 <section>
                   <CompanyProfileEditor
                     companyInfo={enhancedCompanyInfo}
@@ -273,16 +303,16 @@ export function CompanyManagementPage() {
               ) : null}
 
               {/* Company Users Management */}
-              {isGlobalAdmin ? (
-                <section>
-                  <CompanyUsersList
-                    users={companyUsers}
-                    isLoading={isLoadingUsers}
-                    error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
-                    onRefresh={handleRefresh}
-                  />
-                </section>
-              ) : null}
+              <section>
+                <CompanyUsersList
+                  users={companyUsers}
+                  isLoading={isLoadingUsers}
+                  error={usersError ? (usersError instanceof Error ? usersError.message : 'Error desconocido') : null}
+                  onRefresh={handleRefresh}
+                  canManage={isCompanyAdmin}
+                  companyId={enhancedCompanyInfo?.id || selectedCompanyId}
+                />
+              </section>
             </>
           )}
         </>

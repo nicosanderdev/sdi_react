@@ -8,9 +8,10 @@ interface AddUserModalProps {
   show: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  companyId?: string;
 }
 
-export function AddUserModal({ show, onClose, onSuccess }: AddUserModalProps) {
+export function AddUserModal({ show, onClose, onSuccess, companyId }: AddUserModalProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,8 +36,8 @@ export function AddUserModal({ show, onClose, onSuccess }: AddUserModalProps) {
 
     setIsLoading(true);
     try {
-      const request: AddUserToCompanyRequest = { email: email.trim() };
-      await companyService.addUserToCompany(request);
+      const request: AddUserToCompanyRequest = { email: email.trim(), role: 'Member' };
+      await companyService.addUserToCompany(request, companyId);
       setSuccess(true);
       setEmail('');
       setTimeout(() => {
