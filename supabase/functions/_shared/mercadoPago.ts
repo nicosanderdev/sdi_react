@@ -5,7 +5,8 @@
 
 import { isLocalSupabaseRuntime } from './whatsapp.ts';
 
-const MP_AUTH_URL = 'https://auth.mercadopago.com/authorization';
+/** Uruguay Split Payments 1:1 authorize host. Override with MERCADO_PAGO_AUTH_URL. */
+export const DEFAULT_MP_AUTH_URL = 'https://auth.mercadopago.com.uy/authorization';
 const MP_API_BASE = 'https://api.mercadopago.com';
 const WEBHOOK_TS_MAX_AGE_MS = 10 * 60 * 1000;
 const COMPACT_UUID_RE = /^[0-9a-f]{32}$/i;
@@ -145,13 +146,58 @@ export async function decryptSecret(payload: string): Promise<string> {
   return new TextDecoder().decode(decrypted);
 }
 
+export function getMercadoPagoAuthUrl(): string {
+  const override = Deno.env.get('MERCADO_PAGO_AUTH_URL')?.trim();
+  return override && override.length > 0 ? override.replace(/\/+$/, '') : DEFAULT_MP_AUTH_URL;
+}
+
+/**
+ * Mercado Pago requires a static HTTPS redirect_uri that exactly matches the
+ * application setting. Localhost / HTTP / query / fragment are rejected.
+ */
+export function assertOAuthRedirectUri(redirectUri: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(redirectUri.trim());
+  } catch {
+    throw new Error('Invalid MERCADO_PAGO_REDIRECT_URI');
+  }
+  if (parsed.protocol !== 'https:') {
+    throw new Error('MERCADO_PAGO_REDIRECT_URI must be HTTPS');
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1') {
+    throw new Error('MERCADO_PAGO_REDIRECT_URI cannot be localhost');
+  }
+  if (parsed.search || parsed.hash) {
+    throw new Error('MERCADO_PAGO_REDIRECT_URI must be a static URL with no query or fragment');
+  }
+}
+
+/** Safe fields to log when starting seller OAuth. Never includes secrets or PKCE. */
+export function getOAuthStartDiagnostics(): {
+  client_id: string;
+  auth_host: string;
+  redirect_uri: string;
+} {
+  const clientId = requireEnv('MERCADO_PAGO_CLIENT_ID');
+  const redirectUri = requireEnv('MERCADO_PAGO_REDIRECT_URI').trim();
+  assertOAuthRedirectUri(redirectUri);
+  return {
+    client_id: clientId,
+    auth_host: getMercadoPagoAuthUrl(),
+    redirect_uri: redirectUri,
+  };
+}
+
 export function buildAuthorizationUrl(params: {
   state: string;
   codeChallenge: string;
   redirectUri?: string;
 }): string {
   const clientId = requireEnv('MERCADO_PAGO_CLIENT_ID');
-  const redirectUri = params.redirectUri ?? requireEnv('MERCADO_PAGO_REDIRECT_URI');
+  const redirectUri = (params.redirectUri ?? requireEnv('MERCADO_PAGO_REDIRECT_URI')).trim();
+  assertOAuthRedirectUri(redirectUri);
   const query = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
@@ -161,7 +207,7 @@ export function buildAuthorizationUrl(params: {
     code_challenge: params.codeChallenge,
     code_challenge_method: 'S256',
   });
-  return `${MP_AUTH_URL}?${query.toString()}`;
+  return `${getMercadoPagoAuthUrl()}?${query.toString()}`;
 }
 
 export async function exchangeAuthorizationCode(params: {
@@ -175,7 +221,7 @@ export async function exchangeAuthorizationCode(params: {
     client_secret: requireEnv('MERCADO_PAGO_CLIENT_SECRET'),
     grant_type: 'authorization_code',
     code: params.code,
-    redirect_uri: params.redirectUri ?? requireEnv('MERCADO_PAGO_REDIRECT_URI'),
+    redirect_uri: params.redirectUri ?? requireEnv('MERCADO_PAGO_REDIRECT_URI').trim(),
     code_verifier: params.codeVerifier,
   };
   if (params.testToken) {

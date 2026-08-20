@@ -13,6 +13,7 @@ import {
   decryptSecret,
   encryptSecret,
   exchangeAuthorizationCode,
+  getOAuthStartDiagnostics,
   logAndPublicError,
   randomToken,
   sha256Hex,
@@ -106,6 +107,9 @@ Deno.serve(async (req: Request) => {
           error_code: 'ALREADY_CONNECTED',
         }, 409);
       }
+
+      const oauthStart = getOAuthStartDiagnostics();
+      console.info('mercado-pago-connect oauth start', oauthStart);
 
       const oauthState = randomToken(24);
       const oauthStateHash = await sha256Hex(oauthState);

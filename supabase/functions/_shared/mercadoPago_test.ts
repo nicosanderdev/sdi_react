@@ -5,15 +5,19 @@ import {
   assert,
   assertEquals,
   assertRejects,
+  assertThrows,
 } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
   allowUnsignedMercadoPagoWebhooks,
+  assertOAuthRedirectUri,
   buildAuthorizationUrl,
   createPkcePair,
   currencyCodeFromInt,
   decryptSecret,
   encodeMpExternalReference,
   encryptSecret,
+  getMercadoPagoAuthUrl,
+  getOAuthStartDiagnostics,
   isWebhookTimestampFresh,
   logAndPublicError,
   normalizeMemberPhone,
@@ -66,13 +70,15 @@ Deno.test('decryptSecret rejects mock placeholder blobs', async () => {
   );
 });
 
-Deno.test('buildAuthorizationUrl includes required OAuth params', () => {
+Deno.test('buildAuthorizationUrl uses Uruguay host, PKCE, and no secrets', () => {
+  Deno.env.delete('MERCADO_PAGO_AUTH_URL');
   Deno.env.set('MERCADO_PAGO_CLIENT_ID', 'app-123');
   Deno.env.set('MERCADO_PAGO_REDIRECT_URI', 'https://example.com/callback');
+  Deno.env.set('MERCADO_PAGO_CLIENT_SECRET', 'must-not-appear');
   const url = new URL(
     buildAuthorizationUrl({ state: 'state-1', codeChallenge: 'challenge-1' }),
   );
-  assertEquals(url.origin + url.pathname, 'https://auth.mercadopago.com/authorization');
+  assertEquals(url.origin + url.pathname, 'https://auth.mercadopago.com.uy/authorization');
   assertEquals(url.searchParams.get('client_id'), 'app-123');
   assertEquals(url.searchParams.get('response_type'), 'code');
   assertEquals(url.searchParams.get('platform_id'), 'mp');
@@ -80,6 +86,52 @@ Deno.test('buildAuthorizationUrl includes required OAuth params', () => {
   assertEquals(url.searchParams.get('code_challenge'), 'challenge-1');
   assertEquals(url.searchParams.get('code_challenge_method'), 'S256');
   assertEquals(url.searchParams.get('redirect_uri'), 'https://example.com/callback');
+  assertEquals(url.searchParams.get('client_secret'), null);
+  assertEquals(url.searchParams.get('access_token'), null);
+  assertEquals(url.searchParams.get('refresh_token'), null);
+  assertEquals(url.href.includes('must-not-appear'), false);
+});
+
+Deno.test('MERCADO_PAGO_AUTH_URL overrides the default authorize host', () => {
+  Deno.env.set('MERCADO_PAGO_AUTH_URL', 'https://auth.mercadopago.com/authorization');
+  Deno.env.set('MERCADO_PAGO_CLIENT_ID', 'app-123');
+  Deno.env.set('MERCADO_PAGO_REDIRECT_URI', 'https://example.com/callback');
+  try {
+    assertEquals(getMercadoPagoAuthUrl(), 'https://auth.mercadopago.com/authorization');
+    const url = new URL(
+      buildAuthorizationUrl({ state: 'state-1', codeChallenge: 'challenge-1' }),
+    );
+    assertEquals(url.origin + url.pathname, 'https://auth.mercadopago.com/authorization');
+    assertEquals(url.searchParams.get('code_challenge_method'), 'S256');
+  } finally {
+    Deno.env.delete('MERCADO_PAGO_AUTH_URL');
+  }
+});
+
+Deno.test('assertOAuthRedirectUri rejects HTTP, localhost, and query params', () => {
+  assertThrows(() => assertOAuthRedirectUri('http://example.com/callback'), Error, 'HTTPS');
+  assertThrows(() => assertOAuthRedirectUri('https://localhost/callback'), Error, 'localhost');
+  assertThrows(() => assertOAuthRedirectUri('https://127.0.0.1/callback'), Error, 'localhost');
+  assertThrows(
+    () => assertOAuthRedirectUri('https://example.com/callback?foo=1'),
+    Error,
+    'static URL',
+  );
+  assertOAuthRedirectUri('https://example.supabase.co/functions/v1/mercado-pago-connect/callback');
+});
+
+Deno.test('getOAuthStartDiagnostics returns only safe fields', () => {
+  Deno.env.delete('MERCADO_PAGO_AUTH_URL');
+  Deno.env.set('MERCADO_PAGO_CLIENT_ID', 'app-123');
+  Deno.env.set('MERCADO_PAGO_REDIRECT_URI', 'https://example.com/callback');
+  Deno.env.set('MERCADO_PAGO_CLIENT_SECRET', 'must-not-appear');
+  const diagnostics = getOAuthStartDiagnostics();
+  assertEquals(diagnostics, {
+    client_id: 'app-123',
+    auth_host: 'https://auth.mercadopago.com.uy/authorization',
+    redirect_uri: 'https://example.com/callback',
+  });
+  assertEquals('client_secret' in diagnostics, false);
 });
 
 Deno.test('verifyWebhookSignature accepts valid HMAC manifest', async () => {
