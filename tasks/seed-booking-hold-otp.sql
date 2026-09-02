@@ -3,7 +3,7 @@
 -- ============================================================================
 -- Prerequisites:
 --   - Local Supabase running with schema applied
---   - Prefer running tasks/mock-data.sql first so property
+--   - Prefer running tasks/insert-property.sql first so property
 --     'cccccccc-cccc-cccc-cccc-cccccccc0001' exists
 --
 -- Usage (psql example):

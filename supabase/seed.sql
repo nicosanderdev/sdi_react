@@ -386,3 +386,7 @@ BEGIN
       "LastModified" = now();
   END IF;
 END $$;
+
+-- Local only (seed is not applied to hosted projects): print booking manage
+-- tokens to postgres logs / SQL editor notices even without an Origin header.
+ALTER DATABASE postgres SET app.log_booking_dev_secrets = 'true';
