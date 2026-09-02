@@ -92,7 +92,7 @@ export function CreateCompanyModal({ show, onClose, onSuccess }: CreateCompanyMo
   };
 
   return (
-    <Modal show={show} onClose={handleClose} size="md">
+    <Modal show={show} onClose={handleClose} size="md" data-testid="create-company-modal">
       <ModalHeader>
         <div className="flex items-center space-x-2">
           <Building2 className="w-5 h-5" />
@@ -191,6 +191,7 @@ export function CreateCompanyModal({ show, onClose, onSuccess }: CreateCompanyMo
               </Button>
               <Button
                 type="submit"
+                data-testid="create-company-submit"
                 disabled={isLoading || success || isVerificationLoading}
               >
                 {isLoading ? (

@@ -363,11 +363,13 @@ export const mapDbToProfile = (
   member: MembersRow,
   userCompanies?: (CompanyMembersRow & { Companies: CompaniesRow })[]
 ): ProfileData => {
-  const companies: UserCompany[] = userCompanies?.map(uc => ({
-    id: uc.Companies.Id,
-    name: uc.Companies.Name,
-    role: uc.Role != null ? String(uc.Role) : undefined,
-  })) || [];
+  const companies: UserCompany[] = userCompanies
+    ?.filter(uc => !uc.IsDeleted && uc.Companies)
+    .map(uc => ({
+      id: uc.Companies.Id,
+      name: uc.Companies.Name,
+      role: uc.Role != null ? String(uc.Role) : undefined,
+    })) || [];
 
   return {
     id: member.Id,

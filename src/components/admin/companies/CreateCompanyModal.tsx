@@ -37,12 +37,12 @@ export function CreateCompanyModal({ open, onClose, hook }: Props) {
           {formError && <Alert color="failure">{formError}</Alert>}
           {hook.actionError && <Alert color="failure">{hook.actionError}</Alert>}
           <div>
-            <Label>Nombre</Label>
-            <TextInput value={name} onChange={e => setName(e.target.value)} />
+            <Label htmlFor="admin-company-name">Nombre</Label>
+            <TextInput id="admin-company-name" value={name} onChange={e => setName(e.target.value)} />
           </div>
           <div>
-            <Label>Email de contacto/facturación</Label>
-            <TextInput type="email" value={billingEmail} onChange={e => setBillingEmail(e.target.value)} />
+            <Label htmlFor="admin-company-billing-email">Email de contacto/facturación</Label>
+            <TextInput id="admin-company-billing-email" type="email" value={billingEmail} onChange={e => setBillingEmail(e.target.value)} />
           </div>
           <div>
             <Label>Descripción (opcional)</Label>
@@ -50,7 +50,7 @@ export function CreateCompanyModal({ open, onClose, hook }: Props) {
           </div>
           <div className="flex justify-end gap-2">
             <Button color="light" onClick={onClose} type="button">Cancelar</Button>
-            <Button type="submit">Crear</Button>
+            <Button type="submit" data-testid="admin-create-company-submit">Crear</Button>
           </div>
         </form>
       </ModalBody>

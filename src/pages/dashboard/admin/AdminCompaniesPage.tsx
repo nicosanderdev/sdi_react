@@ -34,7 +34,7 @@ export function AdminCompaniesPage() {
       <Card>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Compañías</h3>
-          <Button color="green" onClick={() => setCreateOpen(true)}>Crear compañía</Button>
+          <Button color="green" data-testid="admin-create-company-button" onClick={() => setCreateOpen(true)}>Crear compañía</Button>
         </div>
         <CompaniesTable hook={hook} />
       </Card>

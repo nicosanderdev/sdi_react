@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store/store';
+import { fetchUserProfile } from '../../../store/slices/userSlice';
 import { Card, Button, Spinner, Alert, Select } from 'flowbite-react';
 import {
     Building2,
@@ -26,7 +27,7 @@ import { hasRole } from '../../../utils/RoleUtils';
 import { Roles } from '../../../models/Roles';
 
 export function CompanySubscriptionFlowPage() {
-    const user = useSelector((state: RootState) => state.user.profile);
+    const dispatch = useDispatch();
     const navigate = useNavigate();
     const { needsVerification } = useContactVerificationGate();
 
@@ -34,9 +35,9 @@ export function CompanySubscriptionFlowPage() {
     const {
         hasCompanyMembership,
         companyIds,
-        hasPersonalSubscription,
         isLoading: isGatingLoading,
-        error: gatingError
+        error: gatingError,
+        refetch: refetchSubscriptionGate,
     } = useSubscriptionGate();
 
     // Local state
@@ -103,7 +104,9 @@ export function CompanySubscriptionFlowPage() {
     const handleCreateCompanySuccess = async (newCompany: any) => {
         setShowCreateCompanyModal(false);
         setCompanyInfo(newCompany);
-        // The subscription loading will trigger automatically via useEffect
+        await dispatch(fetchUserProfile() as any).unwrap();
+        await refetchSubscriptionGate();
+        navigate('/dashboard/company');
     };
 
     // Show loading state while determining access
@@ -161,7 +164,7 @@ export function CompanySubscriptionFlowPage() {
 
             {/* No company membership - show create company prompt */}
             {!hasCompanyMembership && (
-                <Card>
+                <Card data-testid="company-create-empty-state">
                     <div className="text-center py-12">
                         <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">Necesitas una Empresa</h3>
@@ -174,6 +177,7 @@ export function CompanySubscriptionFlowPage() {
                             </div>
                         )}
                         <Button
+                            data-testid="company-create-cta"
                             onClick={() => {
                                 if (needsVerification) {
                                     setShowVerificationRequired(true);

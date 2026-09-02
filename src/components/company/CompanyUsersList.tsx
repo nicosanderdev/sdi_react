@@ -60,6 +60,18 @@ export function CompanyUsersList({
     }
   };
 
+  const adminCount = users.filter(user => {
+    const role = String(user.role ?? '').trim().toLowerCase();
+    return role === 'admin' || role === '2';
+  }).length;
+
+  const canRemoveUser = (user: CompanyUser) => {
+    if (!canManage) return false;
+    const role = String(user.role ?? '').trim().toLowerCase();
+    const isAdminRow = role === 'admin' || role === '2';
+    return !(isAdminRow && adminCount <= 1);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
       year: 'numeric',
@@ -102,6 +114,7 @@ export function CompanyUsersList({
           </div>
           {canManage && (
             <Button
+              data-testid="add-company-user-button"
               onClick={() => setShowAddModal(true)}
               className="flex items-center space-x-2"
             >
@@ -140,7 +153,7 @@ export function CompanyUsersList({
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" data-testid="company-users-table">
             <Table hoverable>
               <TableHead>
                 <TableHeadCell>Nombre</TableHeadCell>
@@ -155,7 +168,11 @@ export function CompanyUsersList({
               </TableHead>
               <TableBody className="divide-y">
                 {users.map((user) => (
-                  <TableRow key={user.id} className="bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <TableRow
+                    key={user.id}
+                    className="bg-white dark:border-gray-700 dark:bg-gray-800"
+                    data-testid={`company-user-row-${user.email}`}
+                  >
                     <TableCell className="whitespace-nowrap font-medium text-gray-900 dark:text-white">
                       <div className="flex items-center space-x-3">
                         {user.avatarUrl ? (
@@ -182,7 +199,7 @@ export function CompanyUsersList({
                         <Select
                           sizing="sm"
                           value={user.role}
-                          disabled={updatingRoleId === user.id}
+                          disabled={updatingRoleId === user.id || !canRemoveUser(user)}
                           onChange={e =>
                             handleRoleChange(
                               user.id,
@@ -207,7 +224,8 @@ export function CompanyUsersList({
                           onClick={() => handleRemoveUser(user.id)}
                           color="alternative"
                           size="sm"
-                          disabled={removingUserId === user.id}
+                          data-testid={`company-user-remove-${user.email}`}
+                          disabled={removingUserId === user.id || !canRemoveUser(user)}
                           className="flex items-center space-x-1"
                         >
                           {removingUserId === user.id ? (
