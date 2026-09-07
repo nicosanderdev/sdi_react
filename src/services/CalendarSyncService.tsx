@@ -84,9 +84,9 @@ export class ICalSyncService {
   /**
    * Import ICS feed
    */
-  static async importICS(integrationId: string, icsUrl: string): Promise<{ eventsProcessed: number }> {
+  static async importICS(integrationId: string, icsUrl?: string): Promise<{ eventsProcessed: number }> {
     const { data, error } = await supabase.functions.invoke('calendar-sync/ical-sync/import', {
-      body: { integrationId, icsUrl }
+      body: { integrationId, icsUrl, action: 'import' }
     })
 
     if (error) throw error
@@ -204,7 +204,14 @@ export class CalendarSyncService {
       const { data, error } = await supabase
         .from('CalendarIntegrations')
         .insert({
-          ...integration,
+          EstatePropertyId: integration.EstatePropertyId,
+          PlatformType: integration.PlatformType,
+          ExternalCalendarId: integration.ExternalCalendarId,
+          ExternalCalendarName: integration.ExternalCalendarName,
+          ICalUrl: integration.ICalUrl,
+          IsActive: integration.IsActive ?? true,
+          SyncStatus: integration.SyncStatus ?? 0,
+          IsDeleted: false,
           CreatedBy: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
@@ -470,7 +477,7 @@ export class CalendarSyncService {
         .eq('EstatePropertyId', propertyId)
         .eq('ICalUrl', iCalUrl)
         .eq('IsDeleted', false)
-        .single()
+        .maybeSingle()
 
       if (existing) {
         return {
@@ -489,7 +496,6 @@ export class CalendarSyncService {
           ICalUrl: iCalUrl,
           IsActive: true,
           SyncStatus: 0, // idle
-          SyncDirection: SyncDirection.Inbound,
           IsDeleted: false,
           CreatedBy: (await supabase.auth.getUser()).data.user?.id
         })

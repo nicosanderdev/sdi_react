@@ -119,7 +119,9 @@ const intToPlanKey = (keyInt: number): PlanKey => {
     const mapping: Record<number, PlanKey> = {
         0: PlanKey.FREE,
         1: PlanKey.MANAGER_PRO, // Default to MANAGER_PRO for 1
-        2: PlanKey.COMPANY_SMALL // Default to COMPANY_SMALL for 2
+        2: PlanKey.COMPANY_SMALL,
+        4: PlanKey.COMPANY_UNLIMITED,
+        5: PlanKey.COMPANY_FREE
     };
     return mapping[keyInt] ?? PlanKey.FREE;
 };

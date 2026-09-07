@@ -85,8 +85,6 @@ enabled = true
 port = 54323
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
-# OpenAI API Key to use for Supabase AI in the Supabase Studio.
-openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
@@ -144,9 +142,6 @@ max_catalogs = 2
 enabled = false
 max_buckets = 10
 max_indexes = 5
-
-# Vector Buckets is available to Supabase Pro plan.
-# [storage.vector.buckets.documents-openai]
 
 [auth]
 enabled = true
@@ -216,16 +211,6 @@ max_frequency = "1s"
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
-
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
 
 [auth.external.google]
 enabled = true
@@ -420,6 +405,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.mercado-pago-create-preference]
+verify_jwt = false
+
+[functions.mercado-pago-create-plan-preference]
 verify_jwt = false
 
 [functions.mercado-pago-webhook]

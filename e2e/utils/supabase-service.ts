@@ -44,3 +44,23 @@ export function createSupabaseServiceClient(): SupabaseClient {
     },
   });
 }
+
+export function createSupabaseUserClient(email: string, password: string): Promise<SupabaseClient> {
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    throw new Error('E2E: Set VITE_SUPABASE_ANON_KEY (or SUPABASE_ANON_KEY) for user-scoped permission checks.');
+  }
+  return signInUserClient(email, password, anonKey);
+}
+
+async function signInUserClient(email: string, password: string, anonKey: string): Promise<SupabaseClient> {
+  const client = createClient(getSupabaseUrl(), anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+  const { error } = await client.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return client;
+}

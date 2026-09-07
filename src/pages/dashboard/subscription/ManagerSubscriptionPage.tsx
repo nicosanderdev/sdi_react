@@ -21,12 +21,13 @@ import { Button, Card, Spinner, Alert } from 'flowbite-react';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
 import type { PropertyType } from '../../../models/properties/PropertyData';
-import { formatPlanLimit } from '../../../models/subscriptions/PlanData';
+import { PlanData, formatPlanLimit } from '../../../models/subscriptions/PlanData';
 
 export function ManagerSubscriptionPage() {
     const user = useSelector((state: RootState) => state.user.profile);
     const navigate = useNavigate();
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+    const [memberPlans, setMemberPlans] = useState<PlanData[]>([]);
     const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -47,8 +48,12 @@ export function ManagerSubscriptionPage() {
             try {
                 setIsLoading(true);
                 setError(null);
-                const response = await subscriptionService.getCurrentSubscription();
+                const [response, plans] = await Promise.all([
+                    subscriptionService.getCurrentSubscription(),
+                    subscriptionService.getPlans('member').catch(() => [] as PlanData[]),
+                ]);
                 setSubscription(response);
+                setMemberPlans(plans.filter(plan => plan.isActive));
             } catch (err: any) {
                 console.error('Error fetching subscription:', err);
                 setError(err.message || 'Error al cargar la suscripción');
@@ -226,20 +231,19 @@ export function ManagerSubscriptionPage() {
                                 </h3>
                                 <div className="flex items-baseline space-x-2 mb-4">
                                     <span className="text-3xl font-bold">
-                                        €{subscription?.plan.monthlyPrice ?? ''}
+                                        {subscription?.plan.monthlyPrice ?? ''} {subscription?.plan.currency ?? ''}
                                     </span>
                                     {subscription.plan.key !== PlanKey.FREE && (
                                         <span className="text-gray-600">/{subscription?.plan.billingCycle ?? ''}</span>
                                     )}
                                 </div>
-                                {subscription.plan.key !== PlanKey.FREE && (
+                                {Number(subscription?.plan.monthlyPrice ?? 0) === 0 ? (
                                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                        Próxima facturación: {formatDate(subscription?.currentPeriodEnd?.toString() ?? '')}
+                                        Plan permanente. Se factura solo si hay actividad.
                                     </p>
-                                )}
-                                {subscription.plan.key === PlanKey.FREE && (
+                                ) : (
                                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                        Plan gratuito - Sin facturación
+                                        Plan permanente. Un administrador de la plataforma debe cambiarlo.
                                     </p>
                                 )}
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -303,6 +307,39 @@ export function ManagerSubscriptionPage() {
                         </div>
                     </Card>
 
+                    {memberPlans.length > 0 && (
+                    <Card data-testid="member-plans-catalog">
+                        <h3 className="text-lg font-semibold mb-2">Planes personales</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Solo un administrador de la plataforma puede cambiar tu plan.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {memberPlans.map((plan) => {
+                                const isCurrent = plan.id === subscription?.planId;
+                                return (
+                                    <div
+                                        key={plan.id}
+                                        className={`rounded-lg border p-4 ${isCurrent ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200 dark:border-gray-700'}`}
+                                    >
+                                        <div className="flex items-center justify-between mb-1">
+                                            <h4 className="font-semibold">{plan.name}</h4>
+                                            {isCurrent && (
+                                                <span className="text-xs font-medium text-green-700">Actual</span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm mb-2">
+                                            {plan.monthlyPrice} {plan.currency}
+                                        </p>
+                                        <p className="text-xs text-gray-600">
+                                            {formatPlanLimit(plan.totalProperties)} propiedades · {formatPlanLimit(plan.maxUsers)} usuarios
+                                        </p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Card>
+                    )}
+
                     {/* Billing History */}
                     <Card>
                         <div className="flex items-center justify-between mb-4">
@@ -318,7 +355,7 @@ export function ManagerSubscriptionPage() {
                                         <p className="text-sm text-gray-600 dark:text-gray-400">{new Date(invoice.paidAt).toLocaleDateString('es-ES')}</p>
                                     </div>
                                     <div className="flex items-center space-x-4">
-                                        <span className="font-semibold">€{invoice.amount}</span>
+                                        <span className="font-semibold">{invoice.currency} {invoice.amount}</span>
                                         <button
                                             onClick={() => handleDownloadInvoice(invoice.id)}
                                             className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-400 transition-colors"

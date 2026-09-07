@@ -87,6 +87,7 @@ export interface UseAdminUsersReturn {
   resetOnboarding: (userId: string) => Promise<void>;
   forceLogout: (userId: string, reason?: string) => Promise<void>;
   updateUserRole: (userId: string, role: UserRole) => Promise<void>;
+  assignMemberPlan: (memberId: string, planId: string) => Promise<void>;
   softDeleteUser: (userId: string, reason?: string) => Promise<void>;
 
   // Modal actions
@@ -413,6 +414,25 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     [handleAction],
   );
 
+  const assignMemberPlan = useCallback(
+    async (memberId: string, planId: string) => {
+      setActionLoading(true);
+      setActionError(null);
+      setActionSuccess(null);
+      try {
+        await userAdminService.assignMemberPlan(memberId, planId);
+        setActionSuccess('Plan personal actualizado');
+        await fetchUsers();
+        await fetchUserDetail(memberId);
+      } catch (err: any) {
+        setActionError(err.message || 'Failed to assign plan');
+      } finally {
+        setActionLoading(false);
+      }
+    },
+    [fetchUsers, fetchUserDetail],
+  );
+
   const softDeleteUser = useCallback(
     (userId: string, reason?: string) =>
       handleAction(
@@ -607,6 +627,7 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     resetOnboarding,
     forceLogout,
     updateUserRole,
+    assignMemberPlan,
     softDeleteUser,
 
     openDeleteConfirmModal,

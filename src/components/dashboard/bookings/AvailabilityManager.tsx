@@ -62,6 +62,7 @@ interface AvailabilityManagerProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date) => void;
   onAvailabilityChange: (blocks: AvailabilityBlock[]) => void;
+  canManage?: boolean;
 }
 
 interface BlockFormData {
@@ -80,6 +81,12 @@ type ImportSummary = {
   apiErrors: RowValidationError[];
 };
 
+function toBlockTimestamps(startDate: string, endDate: string): { StartDate: string; EndDate: string } {
+  const start = startDate.includes('T') ? startDate : `${startDate}T00:00:00.000Z`;
+  const end = endDate.includes('T') ? endDate : `${endDate}T23:59:59.000Z`;
+  return { StartDate: start, EndDate: end };
+}
+
 function buildBlockPayload(
   propertyId: string,
   data: {
@@ -90,11 +97,12 @@ function buildBlockPayload(
     description?: string;
   }
 ): Omit<AvailabilityBlock, 'Id' | 'Created' | 'LastModified' | 'LastModifiedBy' | 'IsDeleted' | 'CreatedBy'> {
+  const dates = toBlockTimestamps(data.startDate, data.endDate);
   return {
     EstatePropertyId: propertyId,
     IsAvailable: false,
-    StartDate: data.startDate,
-    EndDate: data.endDate,
+    StartDate: dates.StartDate,
+    EndDate: dates.EndDate,
     BlockType: data.blockType,
     Source: SourceType.Internal,
     Title: data.title,
@@ -110,6 +118,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   selectedDate,
   onDateSelect: _onDateSelect,
   onAvailabilityChange
+  ,
+  canManage = true
 }) => {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [editingBlock, setEditingBlock] = useState<AvailabilityBlock | null>(null);
@@ -126,6 +136,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveBlock = async () => {
+    if (!canManage) return;
     setIsSaving(true);
 
     try {
@@ -162,7 +173,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   };
 
   const handleDeleteBlock = async () => {
-    if (!editingBlock) return;
+    if (!canManage || !editingBlock) return;
 
     try {
       const result = await CalendarSyncService.deleteAvailabilityBlock(editingBlock.Id);
@@ -204,6 +215,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canManage) return;
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -301,13 +313,22 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
 
   return (
     <div className="space-y-4">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      {canManage && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          data-testid="availability-blocks-file-input"
+          onChange={handleFileChange}
+        />
+      )}
+
+      {!canManage && (
+        <Alert color="info">
+          Solo lectura: puedes ver los bloqueos, pero no crearlos ni modificarlos.
+        </Alert>
+      )}
 
       {importSummary && (
         <Alert
@@ -357,6 +378,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           {uniqueBlocks.length === 0 ? 'No hay bloqueos creados' : `${uniqueBlocks.length} bloqueo(s)`}
         </p>
         <div className="flex flex-wrap gap-2">
+          {canManage && (
+            <>
           <Button
             size="sm"
             color="alternative"
@@ -369,6 +392,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           <Button
             size="sm"
             color="alternative"
+            data-testid="upload-availability-blocks"
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
           >
@@ -387,6 +411,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           <Button
             size="sm"
             color="alternative"
+            data-testid="new-availability-block"
             onClick={() => {
               setBlockFormData({
                 startDate: format(selectedDate || new Date(), 'yyyy-MM-dd'),
@@ -403,6 +428,8 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Bloqueo
           </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -430,6 +457,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                   )}
                 </div>
                 <div className="flex space-x-2">
+                  {canManage && (
                   <Button
                     size="sm"
                     color="alternative"
@@ -449,6 +477,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                   >
                     <Edit3 className="h-4 w-4" />
                   </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -464,10 +493,11 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="block-start-date" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Fecha Inicio
                 </label>
                 <input
+                  id="block-start-date"
                   type="date"
                   value={blockFormData.startDate}
                   onChange={(e) => handleFormChange('startDate', e.target.value)}
@@ -475,10 +505,11 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="block-end-date" className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Fecha Fin
                 </label>
                 <input
+                  id="block-end-date"
                   type="date"
                   value={blockFormData.endDate}
                   onChange={(e) => handleFormChange('endDate', e.target.value)}
@@ -555,7 +586,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
               >
                 Cancelar
               </Button>
-              <Button color="green" onClick={handleSaveBlock} disabled={isSaving}>
+              <Button color="green" onClick={handleSaveBlock} disabled={isSaving} data-testid="save-availability-block">
                 {isSaving ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />

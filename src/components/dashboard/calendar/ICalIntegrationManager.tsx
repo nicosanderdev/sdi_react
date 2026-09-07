@@ -42,6 +42,7 @@ const ESTADO_SYNC_ES: Record<SyncStatus, string> = {
 interface ICalIntegrationManagerProps {
   propertyId: string;
   onSyncCompleted?: () => void;
+  canManage?: boolean;
 }
 
 interface IntegrationFormData {
@@ -60,7 +61,8 @@ interface SyncCooldownState {
 
 const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
   propertyId,
-  onSyncCompleted
+  onSyncCompleted,
+  canManage = true
 }) => {
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -140,7 +142,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    if (!validateForm() || !canManage) {
       return;
     }
 
@@ -148,31 +150,19 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
     setError(null);
 
     try {
-      const integrationData = {
-        EstatePropertyId: propertyId,
-        PlatformType: formData.platformType,
-        ExternalCalendarId: `ical_${Date.now()}`, // Generate unique ID for iCal
-        ExternalCalendarName: formData.calendarName,
-        ICalUrl: formData.iCalUrl,
-        IsActive: true,
-        SyncStatus: SyncStatus.Idle,
-        SyncDirection: 'inbound' as const,
-        AccessToken: null,
-        RefreshToken: null,
-        TokenExpiresAt: null,
-        WebhookChannelId: null,
-        WebhookResourceId: null
-      };
-
       let response;
       if (editingIntegration) {
-        response = await CalendarSyncService.updateCalendarIntegration(editingIntegration.Id, {
+        response = await CalendarSyncService.updateICalIntegration(editingIntegration.Id, {
           ExternalCalendarName: formData.calendarName,
-          ICalUrl: formData.iCalUrl,
-          PlatformType: formData.platformType
+          ICalUrl: formData.iCalUrl
         });
       } else {
-        response = await CalendarSyncService.createCalendarIntegration(integrationData);
+        response = await CalendarSyncService.createICalIntegration(
+          propertyId,
+          formData.platformType,
+          formData.iCalUrl,
+          formData.calendarName
+        );
       }
 
       if (response.succeeded) {
@@ -208,6 +198,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
 
   // Handle delete
   const handleDelete = async (integration: CalendarIntegration) => {
+    if (!canManage) return;
     try {
       // Delete associated availability blocks first
       const blocksResponse = await CalendarSyncService.getAvailabilityBlocks(propertyId);
@@ -225,6 +216,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       }
 
       // Delete the integration
+      if (!canManage) return;
       const response = await CalendarSyncService.deleteCalendarIntegration(integration.Id);
       if (response.succeeded) {
         await loadIntegrations();
@@ -240,6 +232,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
 
   // Handle manual sync
   const triggerSync = async (integrationId: string) => {
+    if (!canManage) return;
     const cooldown = syncCooldowns[integrationId];
     if (cooldown && !cooldown.canSync) {
       return;
@@ -248,20 +241,9 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
     setSyncingIntegrations(prev => new Set(prev).add(integrationId));
 
     try {
-      // Call the sync orchestrator
-      const response = await fetch('/functions/v1/ical-import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          integrationId: integrationId,
-          forceRefresh: false
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Error de sincronización');
+      const result = await CalendarSyncService.syncICalIntegration(integrationId);
+      if (!result.succeeded) {
+        throw new Error(result.errorMessage || 'Error de sincronización');
       }
 
       // Start cooldown (5 minutes)
@@ -374,7 +356,9 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             Sincroniza la disponibilidad desde Airbnb, Booking.com y otras plataformas
           </p>
         </div>
+        {canManage && (
         <Button
+          data-testid="ical-add-calendar"
           onClick={() => {
             resetForm();
             setShowAddModal(true);
@@ -384,12 +368,19 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
           <Plus className="mr-2 h-4 w-4" />
           Cal. externo
         </Button>
+        )}
       </div>
 
       {error && (
         <Alert color="failure" className="mb-6">
           <AlertCircle className="h-4 w-4 mr-2" />
           {error}
+        </Alert>
+      )}
+
+      {!canManage && (
+        <Alert color="info" className="mb-6">
+          Solo lectura: puedes ver las integraciones, pero no añadirlas ni sincronizarlas.
         </Alert>
       )}
 
@@ -400,7 +391,9 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
           <p className="text-sm mb-4">
             Conecta el calendario de Airbnb o Booking.com para sincronizar la disponibilidad automáticamente
           </p>
+          {canManage && (
           <Button
+            data-testid="ical-add-first-calendar"
             onClick={() => {
               resetForm();
               setShowAddModal(true);
@@ -410,6 +403,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             <Plus className="mr-2 h-4 w-4" />
             Añadir tu primer calendario
           </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -450,6 +444,8 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                   )}
                 </Tooltip>
 
+                {canManage && (
+                <>
                 <Tooltip content="Editar integración">
                   <Button
                     size="sm"
@@ -468,7 +464,8 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                   <Button
                     size="sm"
                     color="primary"
-                    disabled={syncingIntegrations.has(integration.Id) || !syncCooldowns[integration.Id]?.canSync}
+                    data-testid="ical-sync-now"
+                    disabled={syncingIntegrations.has(integration.Id) || syncCooldowns[integration.Id]?.canSync === false}
                     onClick={() => triggerSync(integration.Id)}
                   >
                     {syncingIntegrations.has(integration.Id) ? (
@@ -490,6 +487,8 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </Tooltip>
+                </>
+                )}
               </div>
             </div>
           ))}
@@ -515,6 +514,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                 <Label htmlFor="platformType" value="Plataforma" />
                 <Select
                   id="platformType"
+                  data-testid="ical-platform-type"
                   value={formData.platformType}
                   onChange={(e) => setFormData(prev => ({
                     ...prev,
@@ -538,6 +538,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                 <Label htmlFor="calendarName" value="Nombre del calendario" />
                 <TextInput
                   id="calendarName"
+                  data-testid="ical-calendar-name"
                   type="text"
                   placeholder="Ej.: Mi anuncio en Airbnb"
                   value={formData.calendarName}
@@ -555,6 +556,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
                 <Label htmlFor="icalUrl" value="URL del feed iCal" />
                 <TextInput
                   id="icalUrl"
+                  data-testid="ical-feed-url"
                   type="url"
                   placeholder="https://example.com/calendar.ics"
                   value={formData.iCalUrl}
@@ -584,6 +586,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
             </Button>
             <Button
               type="submit"
+              data-testid="ical-save-integration"
               disabled={isSubmitting}
               className="flex items-center"
             >

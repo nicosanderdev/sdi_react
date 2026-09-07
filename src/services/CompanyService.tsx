@@ -51,7 +51,7 @@ export interface AdminCompanyDetail {
   statistics: AdminCompanyDetailStatistics;
   primaryCompanyAdmin: { fullName: string; email: string } | null;
 }
-export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string }
+export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string; planId: string }
 export interface AdminUpdateCompanyPayload { name: string; billingEmail: string; description?: string; phone?: string }
 export interface AddCompanyMemberResult { success: boolean; message: string; member?: AdminCompanyMember }
 export type { CompanyUser, CompanyInfo, AddUserToCompanyRequest, UpdateCompanyProfilePayload };
@@ -89,12 +89,18 @@ const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
   return mapDbToCompany(data.Companies);
 };
 
-const createCompany = async (companyData: { name: string; description?: string; billingEmail?: string }): Promise<CompanyInfo> => {
+const createCompany = async (companyData: {
+  name: string;
+  description?: string;
+  billingEmail?: string;
+  planId: string;
+}): Promise<CompanyInfo> => {
   await assertCurrentUserContactVerified();
   const { data, error } = await supabase.rpc('create_company_for_current_member', {
     p_name: companyData.name,
     p_billing_email: companyData.billingEmail || '',
     p_description: companyData.description || '',
+    p_plan_id: companyData.planId,
   });
   if (error) throw error;
   if (!data) throw new Error('Error al crear la compañía. Inténtalo de nuevo.');
@@ -306,7 +312,13 @@ const getAdminCompanyDetail = async (companyId: string): Promise<AdminCompanyDet
   };
 };
 
-const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> => createCompany({ name: payload.name, description: payload.description, billingEmail: payload.billingEmail });
+const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> =>
+  createCompany({
+    name: payload.name,
+    description: payload.description,
+    billingEmail: payload.billingEmail,
+    planId: payload.planId,
+  });
 const updateAdminCompany = async (companyId: string, payload: AdminUpdateCompanyPayload): Promise<CompanyInfo> => {
   const { data, error } = await supabase.from('Companies').update({ Name: payload.name, BillingEmail: payload.billingEmail, Description: payload.description ?? '', Phone: payload.phone ?? '', LastModified: new Date().toISOString(), LastModifiedBy: await getCurrentUserId() }).eq('Id', companyId).select('*').single();
   if (error) throw error;

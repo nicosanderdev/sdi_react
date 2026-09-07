@@ -100,6 +100,30 @@ export async function createCompanyForMember(
   });
   if (memberError) throw memberError;
 
+  const { data: companyPlan } = await client
+    .from('Plans')
+    .select('Id')
+    .eq('Audience', 'company')
+    .eq('IsDeleted', false)
+    .or('IsActiveV2.eq.true,IsActive.eq.true')
+    .gt('MonthlyPrice', 0)
+    .order('MonthlyPrice', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (companyPlan?.Id) {
+    const { error: planError } = await client.from('BillingPlanAssignments').insert({
+      SubjectType: 'company',
+      MemberOrCompanyId: company.Id,
+      PlanId: companyPlan.Id,
+      StartDate: now,
+      IsActive: true,
+      Created: now,
+      LastModified: now,
+    });
+    if (planError) throw planError;
+  }
+
   return { companyId: company.Id, name: company.Name };
 }
 
@@ -121,7 +145,41 @@ export async function addCompanyMembership(
   if (error) throw error;
 }
 
+export async function insertE2EZeroCompanyPlan(client: SupabaseClient): Promise<{ id: string; key: number }> {
+  const id = crypto.randomUUID();
+  const key = 910000 + Math.floor(Math.random() * 8000);
+  const now = new Date().toISOString();
+  const { error } = await client.from('Plans').insert({
+    Id: id,
+    Key: key,
+    Name: `E2E Company Zero ${key}`,
+    MonthlyPrice: 0,
+    Price: 0,
+    Currency: 'UYU',
+    BillingCycle: 30,
+    DurationDays: 30,
+    IsActive: true,
+    IsActiveV2: true,
+    IsDeleted: false,
+    Audience: 'company',
+    PricingModel: 'per_listing',
+    Created: now,
+    LastModified: now,
+  });
+  if (error) throw error;
+  return { id, key };
+}
+
+export async function deleteE2EPlan(client: SupabaseClient, planId: string): Promise<void> {
+  await client.from('BillingPlanAssignments').delete().eq('PlanId', planId);
+  await client.from('Plans').delete().eq('Id', planId);
+}
+
 export async function deleteSeededCompany(client: SupabaseClient, companyId: string): Promise<void> {
+  await client.from('plan_checkout_attempts').delete().eq('company_id', companyId);
+  await client.from('UsageRecords').delete().eq('MemberOrCompanyId', companyId).eq('SubjectType', 'company');
+  await client.from('Invoices').delete().eq('MemberOrCompanyId', companyId).eq('SubjectType', 'company');
+  await client.from('BillingCycles').delete().eq('MemberOrCompanyId', companyId).eq('SubjectType', 'company');
   await client.from('CompanyMembers').delete().eq('CompanyId', companyId);
   await client.from('BillingPlanAssignments').delete().eq('MemberOrCompanyId', companyId).eq('SubjectType', 'company');
   await client.from('Companies').delete().eq('Id', companyId);

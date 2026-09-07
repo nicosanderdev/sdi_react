@@ -1,54 +1,80 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { Card, Button, Spinner, Tabs, TabItem } from 'flowbite-react';
-import { 
+import {
     Crown,
     ArrowLeft,
     Settings,
-    Calendar,
     CreditCard,
     Download,
     AlertCircle,
     Building2
 } from 'lucide-react';
 import subscriptionService from '../../services/SubscriptionService';
+import companyService from '../../services/CompanyService';
 import { SubscriptionData } from '../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
+import { PlanData } from '../../models/subscriptions/PlanData';
 import { CancelSubscriptionPage } from '../dashboard/subscription/CancelSubscriptionPage';
+import { RootState } from '../../store/store';
+import { Roles } from '../../models/Roles';
+import { hasRole } from '../../utils/RoleUtils';
+import { useSubscriptionNotifications } from '../../hooks/useSubscriptionNotifications';
 
 export function CompanySubscriptionPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const user = useSelector((state: RootState) => state.user.profile);
+    const companies = useSelector((state: RootState) => state.user.companies);
+    const { showSuccessNotification } = useSubscriptionNotifications();
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
+    const [landingPlan, setLandingPlan] = useState<PlanData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState('overview');
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-    useEffect(() => {
+    const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
+    const companyRole = companies.find(c => c.id === id)?.role;
+    const isCompanyAdmin = isPlatformAdmin || companyService.isCompanyAdminRole(companyRole);
+    const currentPrice = Number(subscription?.plan.monthlyPrice ?? 0);
+    const canCancel = Boolean(isCompanyAdmin && subscription && currentPrice > 0 && landingPlan);
+
+    const fetchData = async (options?: { silent?: boolean }) => {
         if (!id) {
             setError('ID de compañía no proporcionado');
             setIsLoading(false);
             return;
         }
 
-        const fetchData = async () => {
-            try {
-                setIsLoading(true);
-                const [subscriptionData, billingData] = await Promise.all([
-                    subscriptionService.getCompanySubscription(id),
-                    subscriptionService.getBillingHistory().catch(() => [])
-                ]);
-                setSubscription(subscriptionData);
-                setBillingHistory(billingData);
-            } catch (err: any) {
-                setError(err.message || 'Error al cargar la suscripción de la compañía');
-            } finally {
-                setIsLoading(false);
-            }
-        };
+        try {
+            if (!options?.silent) setIsLoading(true);
+            const [subscriptionData, billingData, freePlan] = await Promise.all([
+                subscriptionService.getCompanySubscription(id),
+                subscriptionService.getBillingHistory({ companyId: id }).catch(() => []),
+                subscriptionService.getCompanyFreeLandingPlan().catch(() => null),
+            ]);
+            setSubscription(subscriptionData);
+            setBillingHistory(billingData);
+            setLandingPlan(freePlan);
+        } catch (err: any) {
+            setError(err.message || 'Error al cargar la suscripción de la compañía');
+        } finally {
+            if (!options?.silent) setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
+
+    const tabIndexByName = useMemo(() => {
+        const names = ['overview', 'change', ...(canCancel ? ['cancel'] : []), 'billing'];
+        return names;
+    }, [canCancel]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -56,6 +82,25 @@ export function CompanySubscriptionPage() {
             case 'expired': return 'text-red-600 bg-red-100';
             case 'pending': return 'text-yellow-600 bg-yellow-100';
             default: return 'text-gray-600 bg-gray-100';
+        }
+    };
+
+    const handleDownloadInvoice = async (invoiceId: string) => {
+        try {
+            setDownloadingId(invoiceId);
+            const blob = await subscriptionService.downloadInvoice(invoiceId);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `comprobante-${invoiceId.slice(0, 8)}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            alert('Error al descargar la factura: ' + (err.message || 'Error desconocido'));
+        } finally {
+            setDownloadingId(null);
         }
     };
 
@@ -84,7 +129,6 @@ export function CompanySubscriptionPage() {
 
     return (
         <div className="max-w-6xl mx-auto p-6">
-            {/* Header */}
             <div className="mb-8">
                 <button
                     onClick={() => navigate(-1)}
@@ -104,8 +148,10 @@ export function CompanySubscriptionPage() {
                 </div>
             </div>
 
-            <Tabs onActiveTabChange={(tab: number) => setActiveTab(tab.toString())}>
-                <TabItem active title="Resumen" icon={Crown}>
+            <Tabs
+                onActiveTabChange={(tab: number) => setActiveTab(tabIndexByName[tab] || 'overview')}
+            >
+                <TabItem active={activeTab === 'overview'} title="Resumen" icon={Crown}>
                     {subscription ? (
                         <div className="space-y-6">
                             <Card>
@@ -123,13 +169,10 @@ export function CompanySubscriptionPage() {
                                         </h3>
                                         <div className="flex items-baseline space-x-2 mb-4">
                                             <span className="text-3xl font-bold">
-                                                €{subscription.plan.monthlyPrice}
+                                                UYU {subscription.plan.monthlyPrice}
                                             </span>
                                             <span className="text-gray-600">/{subscription.plan.billingCycle}</span>
                                         </div>
-                                        <p className="text-gray-600 mb-4">
-                                            Próxima facturación: {new Date(subscription.currentPeriodEnd).toLocaleDateString('es-ES')}
-                                        </p>
                                     </div>
 
                                     <div className="space-y-4">
@@ -166,14 +209,16 @@ export function CompanySubscriptionPage() {
                                         <Settings className="w-4 h-4" />
                                         <span>Cambiar Plan</span>
                                     </Button>
-                                    <Button
-                                        onClick={() => setActiveTab('cancel')}
-                                        color="failure"
-                                        className="flex items-center justify-center space-x-2"
-                                    >
-                                        <AlertCircle className="w-4 h-4" />
-                                        <span>Cancelar</span>
-                                    </Button>
+                                    {canCancel && (
+                                        <Button
+                                            onClick={() => setActiveTab('cancel')}
+                                            color="failure"
+                                            className="flex items-center justify-center space-x-2"
+                                        >
+                                            <AlertCircle className="w-4 h-4" />
+                                            <span>Cancelar</span>
+                                        </Button>
+                                    )}
                                     <Button
                                         onClick={() => setActiveTab('billing')}
                                         color="gray"
@@ -193,14 +238,14 @@ export function CompanySubscriptionPage() {
                                 <p className="text-gray-600 mb-4">
                                     Esta compañía no tiene una suscripción activa.
                                 </p>
-                                <Button onClick={() => setActiveTab('upgrade')}>
+                                <Button onClick={() => navigate('/dashboard/company/subscription')}>
                                     Crear Suscripción
                                 </Button>
                             </div>
                         </Card>
                     )}
                 </TabItem>
-                <TabItem title="Cambiar Plan" icon={Settings}>
+                <TabItem active={activeTab === 'change'} title="Cambiar Plan" icon={Settings}>
                     <Card>
                         <div className="text-center py-8">
                             <Settings className="w-12 h-12 text-purple-500 mx-auto mb-4" />
@@ -218,10 +263,25 @@ export function CompanySubscriptionPage() {
                         </div>
                     </Card>
                 </TabItem>
-                <TabItem title="Cancelar" icon={AlertCircle}>
-                    <CancelSubscriptionPage />
-                </TabItem>
-                <TabItem title="Facturación" icon={CreditCard}>
+                {canCancel && subscription && landingPlan && id && (
+                    <TabItem active={activeTab === 'cancel'} title="Cancelar" icon={AlertCircle}>
+                        <CancelSubscriptionPage
+                            companyId={id}
+                            subscription={subscription}
+                            landingPlanName={landingPlan.name}
+                            onBack={() => setActiveTab('overview')}
+                            onCancelled={async (nextPlanName) => {
+                                await fetchData({ silent: true });
+                                setActiveTab('overview');
+                                showSuccessNotification(
+                                    'Suscripción cancelada',
+                                    `La empresa ahora está en ${nextPlanName}. Los límites aplican de inmediato. El pago ya realizado no se reembolsa.`
+                                );
+                            }}
+                        />
+                    </TabItem>
+                )}
+                <TabItem active={activeTab === 'billing'} title="Facturación" icon={CreditCard}>
                     <div className="space-y-4">
                         {billingHistory.length === 0 ? (
                             <Card>
@@ -239,21 +299,22 @@ export function CompanySubscriptionPage() {
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="font-semibold">
-                                                Factura #{invoice.providerInvoiceId || invoice.id.slice(0, 8)}
+                                                Factura #{invoice.providerInvoiceId.slice(0, 8)}
                                             </p>
                                             <p className="text-sm text-gray-600">
-                                                {new Date(invoice.paidAt).toLocaleDateString('es-ES')}
+                                                {new Date(invoice.createdAt).toLocaleDateString('es-ES')}
                                             </p>
                                         </div>
                                         <div className="flex items-center space-x-4">
-                                            <span className="font-semibold">€{invoice.amount.toFixed(2)}</span>
+                                            <span className="font-semibold">UYU {invoice.amount.toFixed(2)}</span>
                                             <Button
-                                                onClick={() => subscriptionService.downloadInvoice(invoice.id)}
+                                                onClick={() => handleDownloadInvoice(invoice.id)}
                                                 size="sm"
                                                 color="gray"
+                                                disabled={downloadingId === invoice.id}
                                             >
                                                 <Download className="w-4 h-4 mr-2" />
-                                                Descargar
+                                                {downloadingId === invoice.id ? '...' : 'Descargar'}
                                             </Button>
                                         </div>
                                     </div>
@@ -266,4 +327,3 @@ export function CompanySubscriptionPage() {
         </div>
     );
 }
-

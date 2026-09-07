@@ -83,8 +83,7 @@ async function syncICalIntegration(integrationId: string): Promise<string> {
   const jobId = await createSyncJob(integrationId, 1, 'inbound') // scheduled job
 
   try {
-    // Call iCal import function
-    const response = await fetch(`${supabaseUrl}/functions/v1/ical-import`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
@@ -92,7 +91,7 @@ async function syncICalIntegration(integrationId: string): Promise<string> {
       },
       body: JSON.stringify({
         integrationId,
-        forceRefresh: false,
+        action: 'import',
         jobId
       })
     })
@@ -245,17 +244,9 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
       syncType,
       jobId
     }
-  } else if (integration.PlatformType >= 2 && integration.PlatformType <= 4) {
-    // iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
-    syncUrl = `${supabaseUrl}/functions/v1/ical-import`
-    requestBody = {
-      integrationId,
-      forceRefresh: false,
-      jobId
-    }
-  } else if (integration.PlatformType === 1) {
-    // Apple Calendar (legacy iCal sync - keep for backward compatibility)
-    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync`
+  } else if (integration.PlatformType >= 1 && integration.PlatformType <= 4) {
+    // Apple (1) and iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
+    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`
     requestBody = {
       integrationId,
       action: 'import',

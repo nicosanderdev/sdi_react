@@ -305,6 +305,83 @@ BEGIN
   END IF;
 END $$;
 
+-- Plan audience + Company Unlimited (migration-safe if column exists).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Plans'
+      AND column_name = 'Audience'
+  ) THEN
+    UPDATE public."Plans"
+    SET "Audience" = 'member'
+    WHERE "Id" IN (
+      '11111111-1111-4111-8111-111111111111'::uuid,
+      '22222222-2222-4222-8222-222222222222'::uuid,
+      '44444444-4444-4444-8444-444444444444'::uuid
+    );
+
+    UPDATE public."Plans"
+    SET
+      "Audience" = 'company',
+      "Currency" = 'UYU',
+      "MonthlyPrice" = 15,
+      "Price" = 15
+    WHERE "Id" = '33333333-3333-4333-8333-333333333333'::uuid;
+
+    INSERT INTO public."Plans" (
+      "Id", "Key", "Name", "MonthlyPrice", "Currency",
+      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
+      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
+      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
+    )
+    VALUES (
+      '55555555-5555-4555-8555-555555555555'::uuid,
+      4,
+      'Company Unlimited',
+      0,
+      'UYU',
+      NULL, NULL, NULL, NULL,
+      30, false, false, now(), now(),
+      'per_listing', 0, 30, false, 'company'
+    )
+    ON CONFLICT ("Id") DO UPDATE SET
+      "Audience" = excluded."Audience",
+      "Currency" = excluded."Currency",
+      "Name" = excluded."Name",
+      "LastModified" = now();
+
+    INSERT INTO public."Plans" (
+      "Id", "Key", "Name", "MonthlyPrice", "Currency",
+      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
+      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
+      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
+    )
+    VALUES (
+      '66666666-6666-4666-8666-666666666666'::uuid,
+      5,
+      'Plan gratuito compañía',
+      0,
+      'UYU',
+      5, 3, 3, 100,
+      30, true, false, now(), now(),
+      'per_listing', 0, 30, true, 'company'
+    )
+    ON CONFLICT ("Id") DO UPDATE SET
+      "Audience" = excluded."Audience",
+      "Currency" = excluded."Currency",
+      "Name" = excluded."Name",
+      "MonthlyPrice" = excluded."MonthlyPrice",
+      "Price" = excluded."Price",
+      "IsActive" = excluded."IsActive",
+      "IsActiveV2" = excluded."IsActiveV2",
+      "IsDeleted" = excluded."IsDeleted",
+      "LastModified" = now();
+  END IF;
+END $$;
+
 -- Dynamic pricing defaults (SummerRent / EventVenue). Requires 20260602120000_dynamic_pricing_schema.sql.
 DO $$
 BEGIN

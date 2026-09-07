@@ -22,20 +22,8 @@ Create a `.env.local` file in the root directory with your Supabase credentials:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
-# Optional: Legacy API Configuration (if still using .NET backend for other features)
-VITE_API_BASE_URL=https://your-api.example.com
+# Optional: public asset URL prefix for legacy relative file paths
 VITE_API_BASE_FILES_URL=https://your-files-api.example.com
-VITE_TENANT_API_KEY=your-tenant-api-key
-
-# Supabase Edge Functions Configuration
-# dLocal Go payment processing is now handled securely via Supabase Edge Functions
-
-# Set these environment variables in your Supabase project:
-# DLOCAL_GO_API_KEY=your-dlocal-go-api-key-here
-# DLOCAL_GO_SECRET_KEY=your-dlocal-go-secret-key-here
-# DLOCAL_GO_ENV=sandbox|production
-
-# Note: No frontend VITE_ environment variables needed anymore
 ```
 
 ### Database Setup
@@ -178,59 +166,6 @@ You can run [MinIO](https://min.io/) locally as an S3-compatible stand-in for R2
    | `R2_PUBLIC_BASE_AVATARS` | `http://127.0.0.1:9000/avatars` |
 
    Restart or reload local edge functions after changing `.env`. Presigned `PUT` URLs use `R2_ENDPOINT`, so the browser must be able to reach that host as well; on Windows, `host.docker.internal` usually works for the upload `PUT` from Chrome or Edge. If uploads fail from the browser, you may need to align the signing host with a reachable hostname (for example by running the edge tooling on the host or adjusting Docker networking).
-
-## dLocal Go Payment Gateway Integration
-
-This application includes a secure dLocal Go payment gateway integration using Supabase Edge Functions for processing international payments.
-
-### Features
-
-- **Secure Backend Processing**: All payment operations handled server-side via Supabase Edge Functions
-- **Sandbox & Production Support**: Environment-based configuration for testing and live payments
-- **Multiple Payment Methods**: Support for credit cards, bank transfers, and digital wallets
-- **Real-time Status Tracking**: Automatic payment status monitoring and updates
-- **Comprehensive Error Handling**: Detailed error messages and retry mechanisms
-- **Hosted Payment Pages**: Secure redirect to dLocal's hosted checkout
-- **Multi-currency Support**: USD, EUR, BRL, ARS, MXN, COP, CLP, PEN
-
-### Setup
-
-1. Create a dLocal merchant account at [dLocal Merchant Portal](https://merchant.dlocal.com/)
-2. Get your dLocal Go API keys from the merchant dashboard
-3. In your Supabase project dashboard, go to Settings → Edge Functions
-4. Add these environment variables to your Edge Functions configuration:
-
-```env
-DLOCAL_GO_API_KEY=your-dlocal-go-api-key-here
-DLOCAL_GO_SECRET_KEY=your-dlocal-go-secret-key-here
-DLOCAL_GO_ENV=sandbox
-```
-
-Set `DLOCAL_GO_ENV` to `production` for live payments.
-
-### Testing
-
-- **Test Page**: Visit `/dashboard/payments/test` to access the payment testing interface
-- **Sandbox Cards**:
-  - `4111 1111 1111 1111` - Success
-  - `5555 5555 5555 4444` - Decline
-- **Callback URL**: Set your success/callback URL to `/dashboard/payments/callback`
-
-### Payment Flow
-
-1. User selects property and initiates checkout
-2. Payment form collects customer and payment details
-3. dLocal processes payment and redirects to hosted page
-4. User completes payment on dLocal's secure site
-5. Callback redirects back to confirmation page
-6. Real-time status checking ensures payment completion
-
-### Routes Added
-
-- `/dashboard/checkout/:propertyId` - Main checkout page
-- `/dashboard/payments/success/:paymentId` - Payment confirmation
-- `/dashboard/payments/callback` - dLocal callback handler
-- `/dashboard/payments/test` - Testing interface (development only)
 
 ## User Registration Flow
 

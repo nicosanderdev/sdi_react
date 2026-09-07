@@ -1,8 +1,6 @@
 import { Dropdown, DropdownItem, DropdownDivider } from 'flowbite-react';
 import { useSelector } from 'react-redux';
-import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../store/slices/userSlice';
-import { hasRole } from '../../utils/RoleUtils';
-import { Roles } from '../../models/Roles';
+import { selectUserCompanies, selectHasCompanies } from '../../store/slices/userSlice';
 
 export type CompanySelectorMode = 'all-options' | 'companies-only' | 'without-all';
 
@@ -30,10 +28,6 @@ export function CompanySelector({
 }: CompanySelectorProps) {
   const companies = useSelector(selectUserCompanies);
   const hasCompanies = useSelector(selectHasCompanies);
-  const userProfile = useSelector(selectUserProfile);
-
-  // Check if user has global admin role (Members.Role)
-  const hasAdminRole = userProfile ? hasRole(userProfile, Roles.Admin) : false;
 
   // Don't render the selector if user has no companies
   if (!hasCompanies) {
@@ -76,19 +70,6 @@ export function CompanySelector({
         disabled={disabled}
       >
         <DropdownItem disabled>No companies available</DropdownItem>
-      </Dropdown>
-    );
-  }
-
-  // If user doesn't have admin role, only show "My Properties" option
-  if (!hasAdminRole) {
-    return (
-      <Dropdown
-        label="My Properties"
-        className={className}
-        disabled={disabled}
-      >
-        <DropdownItem disabled>My Properties</DropdownItem>
       </Dropdown>
     );
   }

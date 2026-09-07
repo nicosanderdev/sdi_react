@@ -64,7 +64,7 @@ serve(async (req) => {
       <p>If you didn't request this change, please ignore this email.</p>
     `
 
-    // For now, we'll log the email content (you'll need to integrate with an email service like Resend, SendGrid, etc.)
+    // For now, we'll log the email content (you'll need to integrate with an email service like Resend).
     console.log('Email verification code:', {
       to: newEmail,
       subject: 'Verify Your New Email Address',

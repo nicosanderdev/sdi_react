@@ -1,6 +1,7 @@
 /**
  * Mercado Pago webhook receiver.
- * Verifies x-signature, fetches payment with seller/platform token, updates PaymentStatus.
+ * Verifies x-signature, fetches payment, updates PaymentStatus, then may auto-confirm
+ * when the property seller is linked to Mercado Pago.
  */
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -260,11 +261,86 @@ async function resolveAttempt(
   return null;
 }
 
+async function tryHandlePlanPayment(
+  supabase: SupabaseClient,
+  paymentId: string,
+): Promise<{ ok: boolean; result: string } | null> {
+  const platformToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
+  if (!platformToken) return null;
+
+  const payment = await getPaymentWithToken(paymentId, platformToken);
+  if (!payment) return null;
+
+  const refs = parseMpExternalReference(payment.external_reference);
+  let attempt: Record<string, unknown> | null = null;
+
+  const { data: byPayment } = await supabase
+    .from('plan_checkout_attempts')
+    .select('*')
+    .eq('mp_payment_id', String(payment.id))
+    .maybeSingle();
+  if (byPayment) attempt = byPayment as Record<string, unknown>;
+
+  if (!attempt && refs.attemptId) {
+    const { data } = await supabase
+      .from('plan_checkout_attempts')
+      .select('*')
+      .eq('id', refs.attemptId)
+      .maybeSingle();
+    if (data) attempt = data as Record<string, unknown>;
+  }
+
+  if (!attempt) return null;
+
+  const providerStatus = payment.status ?? 'unknown';
+  const now = new Date().toISOString();
+
+  if (providerStatus === 'approved') {
+    const { data: markResult, error: markError } = await supabase.rpc('finalize_plan_checkout', {
+      p_attempt_id: attempt.id,
+      p_mp_payment_id: String(payment.id),
+      p_amount: payment.transaction_amount ?? null,
+      p_currency_code: payment.currency_id ?? null,
+    });
+    if (markError || !markResult?.success) {
+      console.error('finalize_plan_checkout failed', markError, redactSensitive(markResult));
+      return { ok: false, result: markResult?.error || 'plan_mark_failed' };
+    }
+    return { ok: true, result: markResult.already_approved ? 'already_approved' : 'approved' };
+  }
+
+  const mappedStatus =
+    providerStatus === 'pending'
+    || providerStatus === 'in_process'
+    || providerStatus === 'authorized'
+    || providerStatus === 'in_mediation'
+      ? 'pending'
+      : providerStatus === 'rejected'
+        ? 'rejected'
+        : providerStatus === 'cancelled'
+          ? 'cancelled'
+          : 'pending';
+
+  await supabase
+    .from('plan_checkout_attempts')
+    .update({
+      mp_payment_id: String(payment.id),
+      status: mappedStatus === 'pending' ? 'pending' : mappedStatus === 'rejected' || mappedStatus === 'cancelled' ? 'failed' : 'pending',
+      updated_at: now,
+    })
+    .eq('id', attempt.id as string);
+
+  return { ok: true, result: mappedStatus };
+}
+
 async function handlePaymentNotification(
   supabase: SupabaseClient,
   paymentId: string,
   collectorHint?: string,
 ): Promise<{ ok: boolean; result: string }> {
+  const planOutcome = await tryHandlePlanPayment(supabase, paymentId);
+  if (planOutcome) return planOutcome;
+
   const { data: attemptByPayment } = await supabase
     .from('mercado_pago_payment_attempts')
     .select('*')
@@ -291,6 +367,68 @@ async function handlePaymentNotification(
   }
 
   return applyPayment(supabase, attempt, fetched.payment, fetched.sellerMpUserId);
+}
+
+async function notifyGuestAfterAutoConfirm(
+  supabase: SupabaseClient,
+  bookingId: string,
+): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) return;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${serviceRoleKey}`,
+  };
+
+  try {
+    const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-booking-confirmation`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ bookingId }),
+    });
+    const emailJson = await emailRes.json().catch(() => null) as {
+      skipReason?: string;
+    } | null;
+
+    if (emailJson?.skipReason !== 'no_email') {
+      return;
+    }
+
+    const { data: booking } = await supabase
+      .from('Bookings')
+      .select('GuestId, CheckInDate, CheckOutDate, ReservationCode, EstateProperties(StreetName, HouseNumber)')
+      .eq('Id', bookingId)
+      .maybeSingle();
+    if (!booking?.GuestId) return;
+
+    const { data: profile } = await supabase.rpc('resolve_guest_profile', {
+      p_guest_id: booking.GuestId,
+    });
+    const phone = typeof profile?.phone === 'string' ? profile.phone.trim() : '';
+    if (!phone) return;
+
+    const estate = Array.isArray(booking.EstateProperties)
+      ? booking.EstateProperties[0]
+      : booking.EstateProperties;
+    const propertyTitle = [estate?.StreetName, estate?.HouseNumber].filter(Boolean).join(' ') || 'Property';
+
+    await fetch(`${supabaseUrl}/functions/v1/booking-send-confirmation`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        bookingId,
+        phone,
+        propertyTitle,
+        checkIn: booking.CheckInDate,
+        checkOut: booking.CheckOutDate,
+        reservationCode: booking.ReservationCode,
+      }),
+    });
+  } catch (error) {
+    console.error('auto-confirm guest notification failed', error);
+  }
 }
 
 async function applyPayment(
@@ -334,6 +472,17 @@ async function applyPayment(
       console.error('mark_booking_mercado_pago_approved failed', markError, redactSensitive(markResult));
       return { ok: false, result: markResult?.error_code || markResult?.error || 'mark_failed' };
     }
+
+    const { data: autoResult, error: autoError } = await supabase.rpc(
+      'try_auto_confirm_paid_booking',
+      { p_booking_id: attempt.booking_id },
+    );
+    if (autoError) {
+      console.error('try_auto_confirm_paid_booking failed', autoError);
+    } else if (autoResult?.confirmed) {
+      await notifyGuestAfterAutoConfirm(supabase, String(attempt.booking_id));
+    }
+
     return { ok: true, result: markResult.already_approved ? 'already_approved' : 'approved' };
   }
 

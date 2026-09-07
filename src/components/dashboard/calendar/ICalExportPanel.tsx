@@ -20,6 +20,7 @@ import { CalendarSyncService } from '../../../services/CalendarSyncService';
 
 interface ICalExportPanelProps {
   propertyId: string;
+  canManage?: boolean;
 }
 
 interface ExportData {
@@ -27,7 +28,7 @@ interface ExportData {
   token: string;
 }
 
-const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
+const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId, canManage = true }) => {
   const [exportData, setExportData] = useState<ExportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -167,9 +168,11 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             <div className="text-sm text-gray-600 dark:text-gray-400">
               <strong>Seguridad:</strong> mantén esta URL privada. Cualquiera con el enlace puede ver tu disponibilidad.
             </div>
+            {canManage && (
             <Button
               size="sm"
               color="alternative"
+              data-testid="ical-regenerate-export"
               onClick={regenerateToken}
               disabled={isRegenerating}
               className="flex items-center"
@@ -181,6 +184,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
               )}
               Regenerar URL
             </Button>
+            )}
           </div>
         </div>
 

@@ -55,6 +55,7 @@ type FormState = {
   extraPropertiesPrice31Plus: string;
   bookingReceiptMinimumAmount: string;
   propertyType: string;
+  audience: 'member' | 'company';
   isActive: boolean;
   isActiveV2: boolean;
   isDeleted: boolean;
@@ -83,6 +84,7 @@ const emptyForm = (key = ''): FormState => ({
   extraPropertiesPrice31Plus: '',
   bookingReceiptMinimumAmount: '',
   propertyType: '',
+  audience: 'member',
   isActive: true,
   isActiveV2: true,
   isDeleted: false,
@@ -135,6 +137,7 @@ function rowToForm(row: AdminPlanRow): FormState {
     extraPropertiesPrice31Plus: numToText(row.extraPropertiesPrice31Plus),
     bookingReceiptMinimumAmount: numToText(row.bookingReceiptMinimumAmount),
     propertyType: row.propertyType ?? '',
+    audience: row.audience ?? 'member',
     isActive: active,
     isActiveV2: active,
     isDeleted: row.isDeleted,
@@ -168,6 +171,7 @@ function formToPayload(form: FormState): AdminPlanUpsertPayload {
     ExtraPropertiesPrice31Plus: parseOptionalNumber(form.extraPropertiesPrice31Plus),
     BookingReceiptMinimumAmount: parseOptionalNumber(form.bookingReceiptMinimumAmount),
     PropertyType: propertyType,
+    Audience: form.audience,
     IsActive: isActive,
     IsActiveV2: isActive,
     IsDeleted: form.isDeleted,
@@ -318,6 +322,7 @@ export function PlansManager() {
               <TableRow>
                 <TableHeadCell>Nombre</TableHeadCell>
                 <TableHeadCell>Key</TableHeadCell>
+                <TableHeadCell>Audiencia</TableHeadCell>
                 <TableHeadCell>Modelo</TableHeadCell>
                 <TableHeadCell>Precios</TableHeadCell>
                 <TableHeadCell>Límite listados</TableHeadCell>
@@ -332,6 +337,7 @@ export function PlansManager() {
                 <TableRow key={row.id} className={row.isDeleted ? 'opacity-60' : undefined}>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>{row.key}</TableCell>
+                  <TableCell>{row.audience === 'company' ? 'Compañía' : 'Miembro'}</TableCell>
                   <TableCell>{row.pricingModel ?? '—'}</TableCell>
                   <TableCell className="text-sm">{formatPricingSummary(row)}</TableCell>
                   <TableCell>{row.listingLimit ?? row.maxPublishedProperties ?? '—'}</TableCell>
@@ -384,6 +390,19 @@ export function PlansManager() {
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   />
+                </div>
+                <div>
+                  <Label htmlFor="planAudience">Audiencia</Label>
+                  <Select
+                    id="planAudience"
+                    value={form.audience}
+                    onChange={e =>
+                      setForm(f => ({ ...f, audience: e.target.value as 'member' | 'company' }))
+                    }
+                  >
+                    <option value="member">Miembro</option>
+                    <option value="company">Compañía</option>
+                  </Select>
                 </div>
               </div>
             </FieldGroup>

@@ -56,7 +56,7 @@ async function syncSingleIntegration(integrationId: string): Promise<SyncResult>
     logger.info('sync_started', { integrationId })
 
     // Call the iCal import function
-    const response = await fetch(`${supabaseUrl}/functions/v1/ical-import`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${supabaseServiceKey}`,
@@ -64,7 +64,7 @@ async function syncSingleIntegration(integrationId: string): Promise<SyncResult>
       },
       body: JSON.stringify({
         integrationId,
-        forceRefresh: false
+        action: 'import'
       })
     })
 

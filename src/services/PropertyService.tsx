@@ -32,6 +32,13 @@ import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 import type { ListingType } from '../models/properties/PropertyData';
 
+/** PostgREST `or` for Owners embed: personal listing and/or company-owned listings. */
+function ownersAccessOrFilter(memberId: string, companyIds: string[]): string {
+    const personal = `and(Owners.OwnerType.eq.member,Owners.MemberId.eq.${memberId})`;
+    if (companyIds.length === 0) return personal;
+    return `${personal},and(Owners.OwnerType.eq.company,Owners.CompanyId.in.(${companyIds.join(',')}))`;
+}
+
 async function resolveSubjectPhotoCap(
     subjectType: 'member' | 'company',
     subjectId: string
@@ -427,16 +434,8 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
             .select(ownerPropertySelect)
             .eq('Id', id)
             .eq('IsDeleted', false)
-            .eq('Owners.IsDeleted', false);
-
-        if (companyIds.length > 0) {
-            query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
-                .eq('Owners.MemberId', member.Id)
-                .in('Owners.CompanyId', companyIds);
-        } else {
-            query = query.eq('Owners.OwnerType', 'member')
-                .eq('Owners.MemberId', member.Id);
-        }
+            .eq('Owners.IsDeleted', false)
+            .or(ownersAccessOrFilter(member.Id, companyIds));
 
         const { data, error } = await query.single();
 
@@ -546,20 +545,9 @@ const getOwnersProperties = async (params?: PropertyParams & { companyId?: strin
             if (companiesError) throw companiesError;
 
             const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-
-            if (companyIds.length > 0) {
-                query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
-                    .eq('Owners.MemberId', member.Id)
-                    .in('Owners.CompanyId', companyIds);
-            } else {
-                query = query.eq('Owners.OwnerType', 'member')
-                    .eq('Owners.MemberId', member.Id);
-            }
+            query = query.or(ownersAccessOrFilter(member.Id, companyIds));
         } else if (params?.companyId) {
-            // Specific company ID
-            query = query.or(`Owners.OwnerType.eq.member,Owners.OwnerType.eq.company`)
-                .eq('Owners.MemberId', member.Id)
-                .eq('Owners.CompanyId', params.companyId);
+            query = query.or(`and(Owners.OwnerType.eq.company,Owners.CompanyId.eq.${params.companyId})`);
         } else {
             // Personal properties only
             query = query.eq('Owners.OwnerType', 'member')
