@@ -30,6 +30,7 @@ export interface AdminPlanRow {
   durationDays: number | null;
   isActiveV2: boolean | null;
   bookingLimit: number | null;
+  audience: 'member' | 'company';
   lastModified: string;
 }
 
@@ -60,6 +61,7 @@ export type AdminPlanUpsertPayload = {
   ExtraPropertiesPrice31Plus?: number | null;
   BookingReceiptMinimumAmount?: number | null;
   PropertyType?: PropertyType | null;
+  Audience?: 'member' | 'company';
 };
 
 function mapRow(row: Record<string, unknown>): AdminPlanRow {
@@ -98,6 +100,7 @@ function mapRow(row: Record<string, unknown>): AdminPlanRow {
     durationDays: row.DurationDays != null ? Number(row.DurationDays) : null,
     isActiveV2: row.IsActiveV2 != null ? Boolean(row.IsActiveV2) : null,
     bookingLimit: row.BookingLimit != null ? Number(row.BookingLimit) : null,
+    audience: row.Audience === 'company' ? 'company' : 'member',
     lastModified: row.LastModified as string,
   };
 }

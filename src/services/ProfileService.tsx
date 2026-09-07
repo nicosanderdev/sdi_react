@@ -1,5 +1,4 @@
 // src/services/profileService.ts
-import apiClient from './AxiosClient'; // Keep for auth-related HTTP calls
 import { supabase } from '../config/supabase';
 import { storageService } from './storage';
 import {
@@ -7,11 +6,6 @@ import {
   getCurrentUserId,
   mapRoleStringToNumber
 } from './SupabaseHelpers';
-
-export interface RequestPasswordChangeResponse {
-  is2FaRequired: boolean;
-  token?: string;
-}
 
 export interface AddressData {
   street: string;
@@ -64,12 +58,6 @@ export interface ChangeRoleResponse {
   newRole: string;
   affectedCompanies: UserCompany[];
 }
-
-// API Endpoints (keep for auth-related operations)
-const ENDPOINTS = {
-  CHANGE_PASSWORD: '/profile/me/change-password',
-  RESET_PASSWORD_INIT: '/auth/reset-password-init',
-};
 
 /**
  * Fetches the profile of the currently authenticated user.
@@ -239,15 +227,6 @@ const uploadProfilePicture = async (formData: FormData): Promise<{ avatarUrl: st
   }
 };
 
-const requestPasswordChange = async(): Promise<RequestPasswordChangeResponse> => {
-  try {
-    return await apiClient.post<RequestPasswordChangeResponse>(ENDPOINTS.RESET_PASSWORD_INIT, {});
-  } catch (error: any) {
-    console.error('Reset password error:', error?.response?.data || error?.message);
-    throw error;
-  }
-}
-
 /**
  * Changes the role of a user (admin to manager, etc.)
  * @param request - The role change request
@@ -378,7 +357,6 @@ const profileService = {
   getCurrentUserProfile,
   updateUserProfile,
   uploadProfilePicture,
-  requestPasswordChange,
   changeRole,
   sendEmailVerification,
   verifyEmailCode,

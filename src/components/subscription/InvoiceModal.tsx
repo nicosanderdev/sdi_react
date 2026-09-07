@@ -84,9 +84,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                             <div className="flex items-center space-x-2">
                                 <CreditCard className="w-5 h-5 text-gray-500" />
                                 <span className="text-2xl font-bold">
-                                    €{invoice.amount.toFixed(2)}
+                                    {invoice.currency} {invoice.amount.toFixed(2)}
                                 </span>
-                                <span className="text-gray-500">{invoice.currency}</span>
                             </div>
                             {getStatusBadge(invoice.status)}
                         </div>
@@ -160,7 +159,7 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({
                         <div className="flex items-center justify-between">
                             <span className="text-lg font-semibold">Total</span>
                             <span className="text-lg font-bold">
-                                €{invoice.amount.toFixed(2)} {invoice.currency}
+                                {invoice.currency} {invoice.amount.toFixed(2)}
                             </span>
                         </div>
                     </div>

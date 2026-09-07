@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeInit } from '../.flowbite-react/init';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { PaymentProvider } from './contexts/PaymentContext';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -48,6 +47,7 @@ import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistor
 import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
 import { CompanyManagementPage } from './pages/dashboard/company/CompanyManagementPage';
 import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySubscriptionFlowPage';
+import { CompanyPlanCheckoutSuccessPage } from './pages/dashboard/company/CompanyPlanCheckoutSuccessPage';
 
 // Admin pages
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
@@ -61,11 +61,6 @@ import { AdminBookingsPage } from './pages/dashboard/admin/AdminBookingsPage';
 import { AdminPaymentsPage } from './pages/dashboard/admin/AdminPaymentsPage';
 import { AdminCompaniesPage } from './pages/dashboard/admin/AdminCompaniesPage';
 import { AdminEditCompanyPage } from './pages/dashboard/admin/AdminEditCompanyPage.tsx';
-
-// Payment pages
-import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
-import { PaymentCallbackPage } from './pages/dashboard/payments/PaymentCallbackPage';
-import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 
 // Auth components
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
@@ -92,7 +87,6 @@ export function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <PaymentProvider>
           <ThemeInit />
           <Router>
         <RouteChangeTracker />
@@ -140,16 +134,11 @@ export function App() {
             <Route path="subscription/checkout" element={<Navigate to="/dashboard/subscription" replace />} />
             <Route path="company" element={<AdminRedirectWrapper><CompanyManagementPage /></AdminRedirectWrapper>} />
             <Route path="company/subscription" element={<CompanySubscriptionFlowPage />} />
+            <Route path="company/subscription/success" element={<CompanyPlanCheckoutSuccessPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
             <Route path="property/:propertyId/bookings" element={<PropertyBookingsPage />} />
-
-            {/* Payment Routes */}
-            <Route path="checkout/:propertyId" element={<CheckoutPage />} />
-            <Route path="payments/success/:paymentId" element={<PaymentConfirmationPage />} />
-            <Route path="payments/callback" element={<PaymentCallbackPage />} />
-            <Route path="payments/test" element={<PaymentTestPage />} />
 
             {/* Admin Routes */}
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
@@ -173,7 +162,6 @@ export function App() {
           
           </Routes>
           </Router>
-        </PaymentProvider>
       </ThemeProvider>
     </AuthProvider>
   );

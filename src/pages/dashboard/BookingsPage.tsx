@@ -124,7 +124,7 @@ function BookingRow({
           {amount !== '—' && <span>{amount}</span>}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-          <span className="flex items-center gap-1">
+          <span data-testid="booking-guest-name" className="flex items-center gap-1">
             <User className="h-4 w-4" />
             {guestName}
           </span>

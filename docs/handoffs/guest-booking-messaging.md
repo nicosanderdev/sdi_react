@@ -54,6 +54,19 @@ Phone must be E.164 (`+` and country code, e.g. `+59899123456`).
 
 See `ConfirmBookingFromHoldSuccess` in `guestReviewContract.ts` (`booking_id`, `reservation_code`, `manage_token`, etc.). Booking starts as **Pending** (`Status = 0`).
 
+On **local** and **staging**, the plaintext manage token is also logged (it is hashed at rest, so this is the only server-side copy):
+
+- Edge Functions → `log-booking-manage-token` (same Logs dashboard as OTP; not Postgres)
+- SQL: `select * from booking_manage_token_dev_logs order by created_at desc limit 20;`
+
+Enable always-on staging SQL logging (SQL editor, once):
+
+```sql
+ALTER DATABASE postgres SET app.log_booking_dev_secrets = 'true';
+```
+
+Do not run that on production. Deploy `log-booking-manage-token` with the other guest functions.
+
 ## Post-confirm / cancel notifications (dashboard)
 
 Triggered from this dashboard when status changes:

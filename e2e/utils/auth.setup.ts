@@ -26,16 +26,24 @@ export const TEST_USERS = {
 };
 
 /**
+ * Log in with explicit credentials without writing shared storage state
+ * (safe for parallel workers and ephemeral e2e users).
+ */
+export async function loginAsCredentials(page: Page, email: string, password: string): Promise<void> {
+  await page.goto('/login', { waitUntil: 'load' });
+  await page.waitForSelector('form', { timeout: 10000 });
+  await page.fill('input[name="email"]', email);
+  await page.fill('input[name="password"]', password);
+  await page.click('button[type="submit"]:has-text("Iniciar Sesión")');
+  await page.waitForURL('**/dashboard*', { timeout: 30000 });
+}
+
+/**
  * Log in as the seeded admin without writing storage state (safe for parallel workers).
  */
 export async function loginAsAdmin(page: Page): Promise<void> {
   const user = TEST_USERS.admin;
-  await page.goto('/login', { waitUntil: 'load' });
-  await page.waitForSelector('form', { timeout: 10000 });
-  await page.fill('input[name="email"]', user.email);
-  await page.fill('input[name="password"]', user.password);
-  await page.click('button[type="submit"]:has-text("Iniciar Sesión")');
-  await page.waitForURL('**/dashboard*', { timeout: 30000 });
+  await loginAsCredentials(page, user.email, user.password);
 }
 
 /**

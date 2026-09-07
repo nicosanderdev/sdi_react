@@ -65,7 +65,7 @@ export function AddUserModal({ show, onClose, onSuccess, companyId }: AddUserMod
   return (
     <Modal show={show} onClose={handleClose} size="md">
       <ModalHeader>Agregar Usuario a la Compañía</ModalHeader>
-      <ModalBody>
+      <ModalBody data-testid="add-company-user-modal">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="email" value="Correo Electrónico" />
@@ -110,6 +110,7 @@ export function AddUserModal({ show, onClose, onSuccess, companyId }: AddUserMod
             <Button
               type="submit"
               color="blue"
+              data-testid="add-company-user-submit"
               disabled={isLoading}
             >
               {isLoading ? 'Agregando...' : 'Agregar Usuario'}

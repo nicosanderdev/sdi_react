@@ -27,6 +27,7 @@ interface SyncStatusBarProps {
   propertyId: string;
   onSync?: () => void;
   isSyncing?: boolean;
+  canManage?: boolean;
 }
 
 interface SyncJobDisplay {
@@ -42,7 +43,8 @@ interface SyncJobDisplay {
 const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   propertyId,
   onSync,
-  isSyncing: externalIsSyncing = false
+  isSyncing: externalIsSyncing = false,
+  canManage = true
 }) => {
   const [syncStatus, setSyncStatus] = useState<PropertySyncStatusApiResponse | null>(null);
   const [syncJobs, setSyncJobs] = useState<SyncJobDisplay[]>([]);
@@ -250,9 +252,11 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
               {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               Historial
             </Button>
+            {canManage && (
             <Button
               size="sm"
               color="primary"
+              data-testid="ical-bulk-sync"
               onClick={handleSync}
               disabled={isSyncing}
             >
@@ -263,6 +267,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
               )}
               Sincronizar Ahora
             </Button>
+            )}
           </div>
         </div>
 

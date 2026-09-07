@@ -310,44 +310,23 @@ class BookingService {
 
       if (error) throw error;
 
+      const withGuests = await attachGuestsToBookings(data || []);
+
       return {
         succeeded: true,
-        data: (data || []).map((booking: any) => {
+        data: withGuests.map((booking: any) => {
           const ep = booking.EstateProperty;
           if (!ep) return booking;
 
           const owner = ep.Owner;
-          let ownerAsGuest: BookingWithMember['Guest'] | undefined;
-
-          if (owner?.OwnerType === 'member' && owner?.Member) {
-            ownerAsGuest = {
-              Id: owner.Member.Id,
-              UserId: owner.Member.UserId,
-              FirstName: owner.Member.FirstName,
-              LastName: owner.Member.LastName,
-              Email: owner.Member.Email,
-              Phone: owner.Member.Phone,
-              AvatarUrl: owner.Member.AvatarUrl
-            };
-          } else if (owner?.OwnerType === 'company' && owner?.Company) {
-            ownerAsGuest = {
-              Id: owner.Company.Id,
-              UserId: owner.Company.Id,
-              FirstName: owner.Company.Name,
-              LastName: '',
-              Email: owner.Company.BillingEmail
-            };
-          }
-
           const { Owner: _owner, ...estatePropertyWithoutOwner } = ep;
-          const Title = buildEstatePropertyTitle(ep);
           return {
             ...booking,
-            Guest: ownerAsGuest,
             EstateProperty: {
               ...estatePropertyWithoutOwner,
-              Title
-            }
+              Title: buildEstatePropertyTitle(ep)
+            },
+            PropertyOwnerDisplay: mapPropertyOwnerDisplay(owner)
           };
         }) as BookingWithMemberAndProperty[]
       };

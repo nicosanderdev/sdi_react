@@ -12,7 +12,7 @@ import subscriptionService from '../../../services/SubscriptionService';
 import propertyService from '../../../services/PropertyService';
 import messageService from '../../../services/MessageService';
 import reportService from '../../../services/ReportService';
-import { selectUserCompanies, selectHasCompanies, selectUserProfile } from '../../../store/slices/userSlice';
+import { selectUserCompanies, selectHasCompanies, selectUserProfile, selectUserStatus } from '../../../store/slices/userSlice';
 import { hasRole } from '../../../utils/RoleUtils';
 import { Roles } from '../../../models/Roles';
 
@@ -22,6 +22,7 @@ export function CompanyManagementPage() {
   const userCompanies = useSelector(selectUserCompanies);
   const hasCompanies = useSelector(selectHasCompanies);
   const userProfile = useSelector(selectUserProfile);
+  const profileStatus = useSelector(selectUserStatus);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
 
@@ -34,11 +35,11 @@ export function CompanyManagementPage() {
   } = useQuery({
     queryKey: ['companyInfo', selectedCompanyId],
     queryFn: async () => {
-      const [info, propertiesData, messageCounts, totalsData] = await Promise.all([
-        (selectedCompanyId
-          ? companyService.getCompanyInfo(selectedCompanyId)
-          : companyService.getCompanyInfo()
-        ).catch(() => null),
+      const info = selectedCompanyId
+        ? await companyService.getCompanyInfo(selectedCompanyId)
+        : await companyService.getCompanyInfo();
+
+      const [propertiesData, messageCounts, totalsData] = await Promise.all([
         propertyService.getOwnersProperties({
           pageSize: 1,
           ...(selectedCompanyId ? { companyId: selectedCompanyId } : {}),
@@ -47,14 +48,8 @@ export function CompanyManagementPage() {
         reportService.getGeneralTotals().catch(() => null),
       ]);
 
-      // Merge all data into company info
-      const mergedInfo: any = info || {
-        id: '',
-        name: '',
-        createdAt: new Date().toISOString(),
-      };
+      const mergedInfo: any = { ...info };
 
-      // Add statistics if not present in company info
       if (!mergedInfo.statistics) {
         mergedInfo.statistics = {
           totalProperties: propertiesData?.total || 0,
@@ -62,7 +57,6 @@ export function CompanyManagementPage() {
           totalVisits: totalsData?.totalVisitsLifetime || 0,
         };
       } else {
-        // Enhance existing statistics with fetched data if missing
         mergedInfo.statistics = {
           totalProperties: mergedInfo.statistics.totalProperties || propertiesData?.total || 0,
           unansweredMessages: mergedInfo.statistics.unansweredMessages || messageCounts?.inbox || 0,
@@ -72,6 +66,7 @@ export function CompanyManagementPage() {
 
       return mergedInfo;
     },
+    enabled: hasCompanies,
   });
 
   // Fetch company users
@@ -83,6 +78,7 @@ export function CompanyManagementPage() {
   } = useQuery({
     queryKey: ['companyUsers', selectedCompanyId],
     queryFn: () => companyService.getCompanyUsers(selectedCompanyId),
+    enabled: hasCompanies,
   });
 
   // Fetch company subscription
@@ -120,8 +116,9 @@ export function CompanyManagementPage() {
 
   const isLoading = isLoadingCompanyInfo || isLoadingUsers || isLoadingSubscription;
   const error = companyInfoError || usersError || subscriptionError;
-  const hasNoCompany = error && error instanceof Error && error.message.includes('not a member of any company');
-  const hasCompanyButNoSubscription = companyInfo && !isLoadingSubscription && !companySubscription;
+  const profileReady = profileStatus === 'succeeded' || profileStatus === 'failed';
+  const hasNoCompany = profileReady && !hasCompanies;
+  const hasCompanyButNoSubscription = Boolean(companyInfo?.id) && !isLoadingSubscription && !companySubscription;
 
   useEffect(() => {
     if (!hasCompanies) {
@@ -138,13 +135,6 @@ export function CompanyManagementPage() {
     }
   }, [hasCompanies, companyInfo?.id, userCompanies, selectedCompanyId]);
 
-  // Redirect to company subscription flow if no company
-  useEffect(() => {
-    if (hasNoCompany) {
-      navigate('/dashboard/company/subscription');
-    }
-  }, [hasNoCompany, navigate]);
-
   const selectedCompany =
     selectedCompanyId && userCompanies
       ? userCompanies.find((c) => c.id === selectedCompanyId)
@@ -158,22 +148,60 @@ export function CompanyManagementPage() {
     isGlobalAdmin ||
     (!!selectedCompanyRole && companyService.isCompanyAdminRole(selectedCompanyRole));
 
+  const companyRoleLabel = (() => {
+    if (isCompanyAdmin) return 'Administrador';
+    const role = String(selectedCompanyRole ?? '').trim().toLowerCase();
+    if (role === 'manager' || role === '1') return 'Manager';
+    if (role === 'member' || role === '0' || role === 'user') return 'Miembro';
+    return selectedCompanyRole || 'Miembro';
+  })();
+
+  if (!profileReady) {
+    return (
+      <div className="flex items-center justify-center py-12" data-testid="company-management-page">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+
+  if (hasNoCompany) {
+    return (
+      <div className="max-w-4xl mx-auto p-4 md:p-6" data-testid="company-management-page">
+        <h1 className="text-2xl font-bold mb-6">Gestión de empresa</h1>
+        <Card data-testid="company-create-empty-state">
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold mb-2">No perteneces a ninguna empresa</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Crea una empresa para invitar usuarios y gestionar propiedades en conjunto.
+            </p>
+            <Button
+              data-testid="company-create-cta"
+              onClick={() => navigate('/dashboard/company/subscription')}
+            >
+              Crear Empresa
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6">
+    <div className="max-w-4xl mx-auto p-4 md:p-6" data-testid="company-management-page">
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <h1 className="text-2xl font-bold">Gestión de empresa</h1>
         <div className="flex flex-col items-start md:items-end gap-2">
-          <p className="text-sm text-gray-700 dark:text-gray-300">
+          <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="company-role-label">
             {hasCompanies && selectedCompany ? (
-              isGlobalAdmin ? (
+              isCompanyAdmin ? (
                 <>
                   Estás gestionando la empresa:{' '}
-                  <span className="font-semibold">{selectedCompany.name}</span> (Administrador)
+                  <span className="font-semibold">{selectedCompany.name}</span> ({companyRoleLabel})
                 </>
               ) : (
                 <>
                   Estás viendo la empresa:{' '}
-                  <span className="font-semibold">{selectedCompany.name}</span> (sin permisos de administración)
+                  <span className="font-semibold">{selectedCompany.name}</span> ({companyRoleLabel})
                 </>
               )
             ) : (

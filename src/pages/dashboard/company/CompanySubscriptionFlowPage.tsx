@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store/store';
+import { fetchUserProfile } from '../../../store/slices/userSlice';
 import { Card, Button, Spinner, Alert, Select } from 'flowbite-react';
 import {
     Building2,
@@ -13,12 +14,13 @@ import {
     Plus
 } from 'lucide-react';
 import { useSubscriptionGate } from '../../../hooks/useSubscriptionGate';
-import subscriptionService from '../../../services/SubscriptionService';
+import subscriptionService, { isPlanPaymentRequiredError } from '../../../services/SubscriptionService';
 import companyService from '../../../services/CompanyService';
 import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
 import { CompanyInfo } from '../../../models/companies/CompanyInfo';
 import { CreateCompanyModal } from '../../../components/company/CreateCompanyModal';
-import { PlanKey } from '../../../models/subscriptions/PlanKey';
+import { CompanyPlanCards } from '../../../components/subscription/CompanyPlanCards';
+import { PlanData } from '../../../models/subscriptions/PlanData';
 import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
 import { ContactVerificationGateBanner } from '../../../components/user/ContactVerificationGateBanner';
 import { selectUserCompanies } from '../../../store/slices/userSlice';
@@ -26,17 +28,18 @@ import { hasRole } from '../../../utils/RoleUtils';
 import { Roles } from '../../../models/Roles';
 
 export function CompanySubscriptionFlowPage() {
-    const user = useSelector((state: RootState) => state.user.profile);
+    const dispatch = useDispatch();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { needsVerification } = useContactVerificationGate();
 
     // Subscription gate state
     const {
         hasCompanyMembership,
         companyIds,
-        hasPersonalSubscription,
         isLoading: isGatingLoading,
-        error: gatingError
+        error: gatingError,
+        refetch: refetchSubscriptionGate,
     } = useSubscriptionGate();
 
     // Local state
@@ -47,6 +50,15 @@ export function CompanySubscriptionFlowPage() {
     const [error, setError] = useState<string | null>(null);
     const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
     const [showVerificationRequired, setShowVerificationRequired] = useState(false);
+
+    useEffect(() => {
+        const checkout = searchParams.get('checkout');
+        if (checkout === 'failure') {
+            setError('El pago no se completó. Podés intentar de nuevo.');
+        } else if (checkout === 'pending') {
+            setError('El pago quedó pendiente. El plan se activará cuando Mercado Pago lo confirme.');
+        }
+    }, [searchParams]);
 
     const hasMultipleCompanies = companyIds.length > 1;
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -103,7 +115,9 @@ export function CompanySubscriptionFlowPage() {
     const handleCreateCompanySuccess = async (newCompany: any) => {
         setShowCreateCompanyModal(false);
         setCompanyInfo(newCompany);
-        // The subscription loading will trigger automatically via useEffect
+        await dispatch(fetchUserProfile() as any).unwrap();
+        await refetchSubscriptionGate();
+        navigate('/dashboard/company');
     };
 
     // Show loading state while determining access
@@ -161,7 +175,7 @@ export function CompanySubscriptionFlowPage() {
 
             {/* No company membership - show create company prompt */}
             {!hasCompanyMembership && (
-                <Card>
+                <Card data-testid="company-create-empty-state">
                     <div className="text-center py-12">
                         <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-xl font-semibold mb-2">Necesitas una Empresa</h3>
@@ -174,6 +188,7 @@ export function CompanySubscriptionFlowPage() {
                             </div>
                         )}
                         <Button
+                            data-testid="company-create-cta"
                             onClick={() => {
                                 if (needsVerification) {
                                     setShowVerificationRequired(true);
@@ -282,7 +297,7 @@ function CompanyPlanSelection({
     const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
     const canManage = canManageCompanyPlan(companyRole, isPlatformAdmin);
 
-    const [plans, setPlans] = useState<any[]>([]);
+    const [plans, setPlans] = useState<PlanData[]>([]);
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -292,15 +307,8 @@ function CompanyPlanSelection({
         const fetchPlans = async () => {
             try {
                 setIsLoading(true);
-                const plansData = await subscriptionService.getPlans();
-                const companyPlans = plansData.filter(
-                    plan =>
-                        plan.isActive &&
-                        (plan.key === PlanKey.COMPANY_SMALL ||
-                            plan.key === PlanKey.COMPANY_UNLIMITED ||
-                            plan.name === 'Plan BASE-Inicial')
-                );
-                setPlans(companyPlans);
+                const plansData = await subscriptionService.getPlans('company');
+                setPlans(plansData.filter(plan => plan.isActive));
             } catch (err: any) {
                 setError(err.message || 'Error al cargar los planes');
             } finally {
@@ -333,24 +341,28 @@ function CompanyPlanSelection({
                 throw new Error('Plan seleccionado no encontrado');
             }
 
-            if (selectedPlan.monthlyPrice > 0) {
-                try {
-                    const session = await subscriptionService.createPaymentSession({
-                        planId: selectedPlanId,
-                        entityType: 'company',
-                        entityId: companyId,
-                    });
-                    if (session?.checkoutUrl) {
-                        window.location.href = session.checkoutUrl;
-                        return;
-                    }
-                } catch (paymentErr) {
-                    console.warn('Payment session unavailable; applying plan assignment directly', paymentErr);
-                }
+            if (selectedPlan.monthlyPrice > 0 && !isPlatformAdmin) {
+                const session = await subscriptionService.createPlanCheckout({
+                    kind: 'change_company',
+                    planId: selectedPlanId,
+                    companyId,
+                });
+                window.location.href = session.checkoutUrl;
+                return;
             }
 
-            await subscriptionService.changeCompanyPlan(companyId, selectedPlanId);
-            onChanged?.();
+            try {
+                await subscriptionService.changeCompanyPlan(companyId, selectedPlanId);
+                onChanged?.();
+            } catch (assignErr: any) {
+                if (!isPlanPaymentRequiredError(assignErr)) throw assignErr;
+                const session = await subscriptionService.createPlanCheckout({
+                    kind: 'change_company',
+                    planId: selectedPlanId,
+                    companyId,
+                });
+                window.location.href = session.checkoutUrl;
+            }
         } catch (err: any) {
             console.error('Company plan change error:', err);
             setError(err.message || 'Error al cambiar el plan de la empresa.');
@@ -391,52 +403,12 @@ function CompanyPlanSelection({
                         <p className="text-gray-600">No hay planes de empresa disponibles.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {plans.map((plan) => (
-                            <div
-                                key={plan.id}
-                                className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 cursor-pointer transition-all border-2 ${
-                                    selectedPlanId === plan.id
-                                        ? 'ring-2 ring-purple-600 border-purple-600 shadow-lg'
-                                        : 'border-gray-200 dark:border-gray-700 hover:shadow-md'
-                                }`}
-                                onClick={() => handleSelectPlan(plan.id)}
-                            >
-                                <div className="text-center mb-4">
-                                    <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                                    <div className="mb-4">
-                                        <span className="text-3xl font-bold">€{plan.monthlyPrice}</span>
-                                        <span className="text-gray-600">/{plan.billingCycle}</span>
-                                    </div>
-                                </div>
-
-                                <ul className="space-y-2 mb-6">
-                                    <li className="flex items-center space-x-2">
-                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                        <span className="text-sm">Hasta {plan.maxProperties} propiedades</span>
-                                    </li>
-                                    <li className="flex items-center space-x-2">
-                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                        <span className="text-sm">Hasta {plan.maxUsers} usuarios</span>
-                                    </li>
-                                    <li className="flex items-center space-x-2">
-                                        <CheckCircle className="w-4 h-4 text-green-600" />
-                                        <span className="text-sm">{plan.maxStorageMb} MB de almacenamiento</span>
-                                    </li>
-                                </ul>
-
-                                <button
-                                    className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
-                                        selectedPlanId === plan.id
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                                    }`}
-                                >
-                                    {selectedPlanId === plan.id ? 'Seleccionado' : 'Seleccionar'}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                    <CompanyPlanCards
+                        plans={plans}
+                        selectedPlanId={selectedPlanId}
+                        onSelect={handleSelectPlan}
+                        disabled={!canManage}
+                    />
                 )}
             </Card>
 

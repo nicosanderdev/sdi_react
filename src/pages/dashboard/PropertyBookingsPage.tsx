@@ -21,6 +21,7 @@ import AvailabilityManager from '../../components/dashboard/bookings/Availabilit
 import ICalIntegrationManager from '../../components/dashboard/calendar/ICalIntegrationManager';
 import ICalExportPanel from '../../components/dashboard/calendar/ICalExportPanel';
 import propertyService from '../../services/PropertyService';
+import { useCanManagePropertyCalendar } from '../../hooks/useCanManagePropertyCalendar';
 
 interface PropertyBookingsPageState {
   property: PropertyData | null;
@@ -40,6 +41,7 @@ interface PropertyBookingsPageState {
 const PropertyBookingsPage: React.FC = () => {
   const { propertyId } = useParams<{ propertyId: string }>();
   const navigate = useNavigate();
+  const canManageCalendar = useCanManagePropertyCalendar(propertyId);
 
   const [state, setState] = useState<PropertyBookingsPageState>({
     property: null,
@@ -341,6 +343,7 @@ const PropertyBookingsPage: React.FC = () => {
         </button>
         <button
           type="button"
+          data-testid="property-calendar-sync-tab"
           disabled={!hasCalendarSync}
           title={
             hasCalendarSync
@@ -388,6 +391,7 @@ const PropertyBookingsPage: React.FC = () => {
           propertyId={propertyId!}
           onSync={handleSync}
           isSyncing={state.isSyncing}
+          canManage={canManageCalendar}
         />
       )}
 
@@ -402,6 +406,7 @@ const PropertyBookingsPage: React.FC = () => {
                 <Button
                   color={state.isAvailabilityMode ? "green" : "alternative"}
                   size="sm"
+                  data-testid="property-availability-toggle"
                   onClick={toggleAvailabilityMode}
                 >
                   {state.isAvailabilityMode ? "Ver reservas" : "Ver disponibilidad"}
@@ -415,6 +420,7 @@ const PropertyBookingsPage: React.FC = () => {
                   onAvailabilityChange={handleAvailabilityChange}
                   selectedDate={state.selectedDate}
                   onDateSelect={handleAvailabilityDateSelect}
+                  canManage={canManageCalendar}
                 />
               ) : (
                 <BookingCalendar
@@ -451,6 +457,7 @@ const PropertyBookingsPage: React.FC = () => {
             <ICalIntegrationManager
               propertyId={propertyId!}
               onSyncCompleted={loadData}
+              canManage={canManageCalendar}
             />
           </div>
 
@@ -458,6 +465,7 @@ const PropertyBookingsPage: React.FC = () => {
           <div className="lg:col-span-1">
             <ICalExportPanel
               propertyId={propertyId!}
+              canManage={canManageCalendar}
             />
           </div>
         </div>

@@ -24,6 +24,8 @@ export interface PlanData {
     propertyType?: PropertyType;
     /** Optional lower photo cap; null means use global hard max of 30. */
     maxPhotosPerProperty?: number | null;
+    /** Which billing subject this SKU applies to. */
+    audience?: 'member' | 'company';
 }
 
 /** Format a plan limit for display. Null means unlimited. */

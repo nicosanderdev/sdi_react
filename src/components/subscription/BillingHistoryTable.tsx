@@ -130,8 +130,8 @@ export const BillingHistoryTable: React.FC<BillingHistoryTableProps> = ({
                                     {getStatusBadge(invoice.status)}
                                 </Table.Cell>
                                 <Table.Cell>
-                                    <div className="font-semibold text-gray-900 dark:text-white">
-                                        €{invoice.amount.toFixed(2)}
+                                        <div className="font-semibold text-gray-900 dark:text-white">
+                                        {invoice.currency} {invoice.amount.toFixed(2)}
                                     </div>
                                     <div className="text-sm text-gray-500 dark:text-gray-400">
                                         {invoice.currency}

@@ -27,7 +27,7 @@ export interface UseAdminCompaniesReturn {
   clearFilters: () => void;
   fetchCompanies: () => Promise<void>;
   fetchCompanyDetail: (companyId: string) => Promise<void>;
-  createCompany: (payload: { name: string; billingEmail: string; description?: string }) => Promise<boolean>;
+  createCompany: (payload: { name: string; billingEmail: string; description?: string; planId: string }) => Promise<boolean>;
   updateCompany: (companyId: string, payload: { name: string; billingEmail: string; description?: string; phone?: string }) => Promise<boolean>;
   addUserByEmail: (companyId: string, email: string) => Promise<boolean>;
 }
@@ -93,7 +93,7 @@ export const useAdminCompanies = (): UseAdminCompaniesReturn => {
   }, []);
 
   const createCompany = useCallback(
-    async (payload: { name: string; billingEmail: string; description?: string }) => {
+    async (payload: { name: string; billingEmail: string; description?: string; planId: string }) => {
       setActionError(null);
       try {
         await companyService.createAdminCompany(payload);

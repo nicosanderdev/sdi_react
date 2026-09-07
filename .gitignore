@@ -35,6 +35,7 @@ supabase/functions/.env
 
 tasks/*
 !tasks/seed-booking-hold-otp.sql
+!tasks/insert-property.sql
 
 # Playwright
 /test-results/

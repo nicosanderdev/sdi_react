@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import subscriptionService from '../services/SubscriptionService';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
@@ -16,10 +16,13 @@ export interface SubscriptionGateState {
   // Loading and error states
   isLoading: boolean;
   error: string | null;
+  refetch: () => Promise<void>;
 }
 
+type SubscriptionGateData = Omit<SubscriptionGateState, 'refetch'>;
+
 export function useSubscriptionGate(): SubscriptionGateState {
-  const [state, setState] = useState<SubscriptionGateState>({
+  const [state, setState] = useState<SubscriptionGateData>({
     hasPersonalSubscription: false,
     personalSubscription: null,
     hasCompanyMembership: false,
@@ -30,71 +33,73 @@ export function useSubscriptionGate(): SubscriptionGateState {
 
   const { user } = useAuth();
 
-  useEffect(() => {
-    const fetchSubscriptionStatus = async () => {
-      try {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
+  const fetchSubscriptionStatus = useCallback(async () => {
+    try {
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-        const { subscription, userAccess } = await subscriptionService.getSubscriptionStatus(user);
+      const { subscription, userAccess } = await subscriptionService.getSubscriptionStatus(user);
 
-        // Check if personal subscription is active (status === 1 indicates active)
-        const hasPersonalSubscription = subscription.status === '1';
+      // Check if personal subscription is active (status === 1 indicates active)
+      const hasPersonalSubscription = subscription.status === '1';
 
-        setState({
-          hasPersonalSubscription,
-          personalSubscription: subscription,
-          hasCompanyMembership: userAccess.hasCompanyAccess,
-          companyIds: userAccess.companyIds,
-          isLoading: false,
-          error: null,
-        });
-      } catch (error: any) {
-        console.error('Error fetching subscription status:', error);
+      setState(prev => ({
+        ...prev,
+        hasPersonalSubscription,
+        personalSubscription: subscription,
+        hasCompanyMembership: userAccess.hasCompanyAccess,
+        companyIds: userAccess.companyIds,
+        isLoading: false,
+        error: null,
+      }));
+    } catch (error: any) {
+      console.error('Error fetching subscription status:', error);
 
-        // Handle missing subscription gracefully - provide default free state
-        const defaultFreeSubscription: SubscriptionData = {
+      // Handle missing subscription gracefully - provide default free state
+      const defaultFreeSubscription: SubscriptionData = {
+        id: '',
+        ownerType: '0',
+        ownerId: '', // Will be filled by getSubscriptionStatus if needed
+        providerCustomerId: '',
+        providerSubscriptionId: '',
+        planId: '',
+        plan: {
           id: '',
-          ownerType: '0',
-          ownerId: '', // Will be filled by getSubscriptionStatus if needed
-          providerCustomerId: '',
-          providerSubscriptionId: '',
-          planId: '',
-          plan: {
-            id: '',
-            key: PlanKey.FREE,
-            name: 'Free',
-            monthlyPrice: 0,
-            currency: 'USD',
-            maxProperties: 20,
-            maxUsers: 1,
-            maxStorageMb: 0,
-            billingCycle: '1',
-            isActive: true,
-            publishedProperties: 15,
-            totalProperties: 20,
-            maxPhotosPerProperty: null
-          },
-          status: '0', // 0 = inactive/cancelled (no active subscription)
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(),
-          cancelAtPeriodEnd: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
+          key: PlanKey.FREE,
+          name: 'Free',
+          monthlyPrice: 0,
+          currency: 'USD',
+          maxProperties: 20,
+          maxUsers: 1,
+          maxStorageMb: 0,
+          billingCycle: '1',
+          isActive: true,
+          publishedProperties: 15,
+          totalProperties: 20,
+          maxPhotosPerProperty: null
+        },
+        status: '0', // 0 = inactive/cancelled (no active subscription)
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(),
+        cancelAtPeriodEnd: false,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
 
-        setState({
-          hasPersonalSubscription: false,
-          personalSubscription: defaultFreeSubscription,
-          hasCompanyMembership: false,
-          companyIds: [],
-          isLoading: false,
-          error: null, // No error - graceful handling
-        });
-      }
-    };
+      setState(prev => ({
+        ...prev,
+        hasPersonalSubscription: false,
+        personalSubscription: defaultFreeSubscription,
+        hasCompanyMembership: false,
+        companyIds: [],
+        isLoading: false,
+        error: null, // No error - graceful handling
+      }));
+    }
+  }, [user]);
 
+  useEffect(() => {
     fetchSubscriptionStatus();
-  }, []);
+  }, [fetchSubscriptionStatus]);
 
-  return state;
+  return { ...state, refetch: fetchSubscriptionStatus };
 }

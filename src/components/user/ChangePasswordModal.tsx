@@ -1,8 +1,7 @@
-import React, { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { XIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, KeyRoundIcon, LockKeyholeIcon } from 'lucide-react';
-import profileService from '../../services/ProfileService';
-import authService, { TwoFaPayload, ValidateRecoveryPayload, ResetPasswordPayload } from '../../services/AuthService';
-import { Button, Card, Label, TextInput } from 'flowbite-react';
+import authService, { TwoFaPayload, ValidateRecoveryPayload } from '../../services/AuthService';
+import { Button, Card, Label } from 'flowbite-react';
 import { supabase } from '../../config/supabase';
 
 // Steps of the modal flow
@@ -73,18 +72,8 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
       setIsSubmitting(false);
 
       const requestChange = async () => {
-        try {
-          const response = await profileService.requestPasswordChange();
-          if (response.is2FaRequired) {
-            setStep('REQUIRE_2FA');
-          } else {
-            setChangeToken("token-for-no-2fa-flow");
-            setStep('SET_NEW_PASSWORD');
-          }
-        } catch (err: any) {
-          setError(err.message || "Could not start the process. Please try again later.");
-          setStep('FINAL_ERROR');
-        }
+        setChangeToken("token-for-no-2fa-flow");
+        setStep('SET_NEW_PASSWORD');
       };
       requestChange();
     }

@@ -46,3 +46,49 @@ export function logBookingOtpMockMessage(params: BookingOtpMockLogParams): void 
     '================================================',
   ].join('\n'));
 }
+
+/**
+ * Print the booking manage token to edge function logs.
+ * Local always; hosted when BOOKING_OTP_MOCK=true or a guest manage base URL contains "staging".
+ */
+export function shouldLogBookingManageToken(): boolean {
+  if (Deno.env.get('BOOKING_OTP_MOCK') === 'true') {
+    return true;
+  }
+  if (isLocalSupabaseRuntime()) {
+    return true;
+  }
+  const bases = [
+    Deno.env.get('GUEST_BOOKING_MANAGE_BASE_URL_MAIN') ?? '',
+    Deno.env.get('GUEST_BOOKING_MANAGE_BASE_URL_ALT') ?? '',
+    Deno.env.get('GUEST_BOOKING_MANAGE_BASE_URL') ?? '',
+  ]
+    .join(' ')
+    .toLowerCase();
+  return bases.includes('staging');
+}
+
+export interface BookingManageTokenLogParams {
+  bookingId: string;
+  reservationCode?: string | null;
+  listingType?: string | null;
+  token: string;
+  expiresAt?: string | null;
+  manageUrl?: string | null;
+}
+
+export function logBookingManageTokenDevMessage(params: BookingManageTokenLogParams): void {
+  const payUrl = Deno.env.get('SUPABASE_URL') ?? 'http://127.0.0.1:54321';
+  console.log([
+    '========== BOOKING MANAGE TOKEN ==========',
+    `booking_id: ${params.bookingId}`,
+    `reservation_code: ${params.reservationCode ?? ''}`,
+    `listing_type: ${params.listingType ?? ''}`,
+    `token: ${params.token}`,
+    `expires_at: ${params.expiresAt ?? ''}`,
+    `manage_url: ${params.manageUrl ?? ''}`,
+    `pay: POST ${payUrl.replace(/\/$/, '')}/functions/v1/mercado-pago-create-preference`,
+    `body: { "manageToken": "${params.token}" }`,
+    '==========================================',
+  ].join('\n'));
+}

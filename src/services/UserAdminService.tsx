@@ -321,6 +321,20 @@ class UserAdminService {
   }
 
   /**
+   * Assign a member-audience plan (platform admin, no payment).
+   */
+  async assignMemberPlan(memberId: string, planId: string): Promise<ActionResult> {
+    const { error } = await supabase.rpc('assign_member_plan_as_admin', {
+      p_member_id: memberId,
+      p_plan_id: planId,
+    });
+    if (error) {
+      throw new Error(`Failed to assign plan: ${error.message}`);
+    }
+    return { success: true, message: 'Plan assigned' };
+  }
+
+  /**
    * Soft delete user account
    */
   async softDeleteUser(userId: string, reason?: string): Promise<ActionResult> {
