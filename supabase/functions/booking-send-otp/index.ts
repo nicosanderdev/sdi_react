@@ -55,40 +55,6 @@ async function makeOtpHash(otpCode: string): Promise<string> {
   return `${salt}$${hash}`;
 }
 
-function buildOtpMessage(otpCode: string): string {
-  return [
-    'Hola.',
-    '',
-    'La información solicitada es:',
-    '',
-    otpCode,
-    '',
-    'Si no realizaste esta solicitud, ignora este mensaje',
-  ].join('\n');
-}
-
-async function sendSmsFallback(phone: string, otpCode: string): Promise<{ ok: boolean; error?: string }> {
-  const smsWebhookUrl = Deno.env.get('SMS_FALLBACK_WEBHOOK_URL');
-  if (!smsWebhookUrl) {
-    return { ok: false, error: 'SMS fallback provider is not configured' };
-  }
-
-  const response = await fetch(smsWebhookUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      phone,
-      message: buildOtpMessage(otpCode),
-    }),
-  });
-
-  if (!response.ok) {
-    return { ok: false, error: `SMS provider returned ${response.status}` };
-  }
-
-  return { ok: true };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -228,25 +194,19 @@ Deno.serve(async (req: Request) => {
       bodyParameters: [otpCode],
     });
     if (!waResult.ok) {
-      const smsResult = await sendSmsFallback(phone, otpCode);
+      console.error('booking-send-otp WhatsApp delivery failed:', waResult.error);
       await supabaseAdmin
         .from('otp_requests')
         .update({
           whatsapp_status: 'failed',
-          sms_status: smsResult.ok ? 'sent' : 'failed',
           updated_at: new Date().toISOString(),
         })
         .eq('id', otpRequestId);
 
-      if (!smsResult.ok) {
-        return jsonResponse({ success: false, error: 'WhatsApp and SMS delivery both failed' }, 502);
-      }
-
-      return jsonResponse({
-        success: true,
-        channel: 'sms_fallback',
-        otpRequestId,
-      });
+      return jsonResponse(
+        { success: false, error: 'Could not send the verification code via WhatsApp' },
+        502
+      );
     }
 
     await supabaseAdmin

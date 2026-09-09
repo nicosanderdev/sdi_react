@@ -93,7 +93,7 @@ export function LoginPage() {
     }, 100);
   };
 
-  const handleOAuthLogin = async (provider: 'google' | 'facebook') => {
+  const handleOAuthLogin = async (provider: 'google') => {
     try {
       setIsSubmitting(true);
       setError(null);
@@ -265,7 +265,6 @@ export function LoginPage() {
             </Button>
             <SocialAuthButtons
               onGoogle={() => void handleOAuthLogin('google')}
-              onFacebook={() => void handleOAuthLogin('facebook')}
               disabled={isSubmitting}
               showTermsHint
             />

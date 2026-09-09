@@ -11,7 +11,7 @@ export function isLocalSupabaseRuntime(): boolean {
 }
 
 /**
- * Skip Meta/SMS and log the OTP to the edge function console.
+ * Skip Meta and log the OTP to the edge function console.
  * - Local Supabase: on by default (unless BOOKING_OTP_LIVE_ENABLED=true)
  * - Hosted (staging/prod): only when BOOKING_OTP_MOCK=true
  */

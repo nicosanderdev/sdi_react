@@ -1,6 +1,6 @@
 # booking-send-otp
 
-Sends a booking verification OTP via WhatsApp (Meta Cloud API template `informacion_reserva`) with SMS fallback on WhatsApp failure.
+Sends a booking verification OTP via WhatsApp (Meta Cloud API template `informacion_reserva`). There is no SMS fallback: if WhatsApp delivery fails, the function returns an error.
 
 Guest sites should offer a **Resend code** action that calls this function again with the same `holdId` and `phone` (rate-limited: 3 requests per phone per 10 minutes).
 
@@ -12,11 +12,11 @@ Production OTP WhatsApp delivery uses the approved Meta template:
 - **Language:** `es`
 - **Body variable:** the 6-digit OTP code (`{{1}}`)
 
-SMS fallback sends the same Spanish plain-text copy (templates are WhatsApp-only). No extra secrets are required beyond the existing Meta credentials.
+No extra secrets are required beyond the existing Meta credentials.
 
 ## Mock mode (dry-run)
 
-Mock mode **does not** call Meta or SMS. Instead it:
+Mock mode **does not** call Meta. Instead it:
 
 - stores the OTP hash in `otp_requests` (same as production)
 - prints the plaintext OTP to the edge function logs / local serve terminal
@@ -63,11 +63,10 @@ npx supabase functions serve --env-file supabase/functions/.env
 
 ## Production / staging
 
-By default, hosted projects call Meta WhatsApp and SMS fallback. Ensure secrets are set in the project dashboard:
+By default, hosted projects call Meta WhatsApp. Ensure secrets are set in the project dashboard:
 
 - `META_WHATSAPP_TOKEN`
 - `META_WHATSAPP_PHONE_NUMBER_ID`
-- `SMS_FALLBACK_WEBHOOK_URL` — POST `{ phone, message }`
 
 For staging dry-run (log OTP in function logs, no WhatsApp):
 

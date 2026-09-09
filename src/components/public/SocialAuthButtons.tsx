@@ -10,19 +10,8 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const FacebookIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="20" height="20" rx="4" fill="#1877F2" />
-    <path
-      d="M14.5 8H16V5.5H13.8C11.7 5.5 10.5 6.7 10.5 8.7V10H8.5V12.5H10.5V18.5H13V12.5H15.2L15.7 10H13V8.7C13 8.3 13.2 8 14.5 8Z"
-      fill="white"
-    />
-  </svg>
-);
-
 type SocialAuthButtonsProps = {
   onGoogle: () => void;
-  onFacebook: () => void;
   disabled?: boolean;
   /** When true, shows the Login Terms disclaimer under the buttons. */
   showTermsHint?: boolean;
@@ -30,7 +19,6 @@ type SocialAuthButtonsProps = {
 
 export function SocialAuthButtons({
   onGoogle,
-  onFacebook,
   disabled = false,
   showTermsHint = false,
 }: SocialAuthButtonsProps) {
@@ -45,16 +33,6 @@ export function SocialAuthButtons({
       >
         <GoogleIcon />
         Continuar con Google
-      </Button>
-      <Button
-        type="button"
-        onClick={onFacebook}
-        color="light"
-        className="w-full flex items-center justify-center gap-3"
-        disabled={disabled}
-      >
-        <FacebookIcon />
-        Continuar con Facebook
       </Button>
       {showTermsHint && (
         <p className="text-center text-xs text-gray-600 dark:text-gray-400">

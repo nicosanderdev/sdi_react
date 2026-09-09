@@ -9,12 +9,12 @@ TypeScript contracts: [`src/types/guestReviewContract.ts`](../../src/types/guest
 
 | Use case | Primary | Fallback |
 |----------|---------|----------|
-| Guest OTP (hold verification) | WhatsApp template `informacion_reserva` (Meta Cloud API) | SMS webhook on WhatsApp failure |
-| Booking confirmed / cancelled | Email (Resend) | WhatsApp if guest has no email |
+| Guest OTP (hold verification) | WhatsApp template `informacion_reserva` (Meta Cloud API) | None (return error on WhatsApp failure) |
+| Booking confirmed / cancelled | Email (Resend) | None (skip notice if no email) |
 
 OTP resend: guest UI should call `booking-send-otp` again (same `holdId` + `phone`). Rate limit: 3 requests per phone per 10 minutes.
 
-Lifecycle emails/WhatsApp fire when a booking transitions to **Confirmed** or **Cancelled** in the dashboard (not when `confirm_booking_from_hold` creates a Pending booking).
+Lifecycle emails fire when a booking transitions to **Confirmed** or **Cancelled** in the dashboard or after Mercado Pago auto-confirm (not when `confirm_booking_from_hold` creates a Pending booking). Custom WhatsApp text for confirm/cancel is disconnected (Meta requires an approved template).
 
 ## Guest OTP reservation flow
 
@@ -42,7 +42,7 @@ Phone must be E.164 (`+` and country code, e.g. `+59899123456`).
 ```json
 {
   "success": true,
-  "channel": "whatsapp" | "sms_fallback" | "local_mock",
+  "channel": "whatsapp" | "local_mock",
   "otpRequestId": "<uuid>",
   "mode": "dry-run"
 }
@@ -69,10 +69,12 @@ Do not run that on production. Deploy `log-booking-manage-token` with the other 
 
 ## Post-confirm / cancel notifications (dashboard)
 
-Triggered from this dashboard when status changes:
+Triggered from this dashboard when status changes, and from the Mercado Pago webhook after auto-confirm:
 
-- Confirmed → `send-booking-confirmation` (email) or `booking-send-confirmation` (WhatsApp if no email)
-- Cancelled → `send-booking-cancellation` (email) or `booking-send-confirmation` with `eventType: "cancelled"` (WhatsApp if no email)
+- Confirmed → `send-booking-confirmation` (email only)
+- Cancelled → `send-booking-cancellation` (email only)
+
+If the guest has no email, the notice is skipped (confirm/cancel still succeeds). `booking-send-confirmation` (WhatsApp text) remains in the repo unused until Meta approves a template.
 
 Guest sites do **not** need to call these today.
 
@@ -92,14 +94,13 @@ Guest sites do **not** need to call these today.
 |----------|---------|
 | `META_WHATSAPP_TOKEN` | WhatsApp Cloud API token |
 | `META_WHATSAPP_PHONE_NUMBER_ID` | Meta phone number ID |
-| `SMS_FALLBACK_WEBHOOK_URL` | POST `{ phone, message }` for OTP SMS fallback |
 | `RESEND_API_KEY` | Email delivery |
 | `SEND_EMAILS_ENABLED` | `true` to send live email; otherwise dry-run log |
 | `GUEST_BOOKING_MANAGE_BASE_URL_MAIN` | Manage links for `SummerRent` (casas site) |
 | `GUEST_BOOKING_MANAGE_BASE_URL_ALT` | Manage links for `EventVenue` (espacios site) |
 | `GUEST_BOOKING_MANAGE_BASE_URL` | Deprecated legacy fallback if MAIN/ALT unset |
-| `BOOKING_OTP_LIVE_ENABLED` | Optional: `true` to force live WhatsApp/SMS on local Supabase |
-| `BOOKING_OTP_MOCK` | Optional: `true` on hosted projects to log OTP to function logs instead of WhatsApp/SMS |
+| `BOOKING_OTP_LIVE_ENABLED` | Optional: `true` to force live WhatsApp on local Supabase |
+| `BOOKING_OTP_MOCK` | Optional: `true` on hosted projects to log OTP to function logs instead of WhatsApp |
 
 Manage URLs are resolved server-side from the booking’s `ListingType`:
 
@@ -147,8 +148,6 @@ GUEST_BOOKING_MANAGE_BASE_URL_ALT=https://staging-espacios.encartelera.uy/reserv
 
 5. Confirmation email dry-run: confirm a booking in the dashboard with `SEND_EMAILS_ENABLED` unset/false; check the functions terminal for `Dry-run booking confirmation email`.
 
-6. WhatsApp confirmation dry-run: guest with phone but no email → confirm booking → terminal shows `WHATSAPP (local mock)`.
-
 See also [`supabase/functions/booking-send-otp/README.md`](../../supabase/functions/booking-send-otp/README.md).
 
 ## Staging / production testing
@@ -158,15 +157,14 @@ See also [`supabase/functions/booking-send-otp/README.md`](../../supabase/functi
 
    ```bash
    npx supabase functions deploy booking-send-otp booking-verify-otp \
-     booking-send-confirmation send-booking-confirmation send-booking-cancellation
+     send-booking-confirmation send-booking-cancellation
    ```
 
 3. **Staging without WhatsApp:** set `BOOKING_OTP_MOCK=true`, redeploy `booking-send-otp`, create a fresh hold from the guest site, call send OTP, then copy `code` from the `booking-send-otp` function logs and verify. Turn the secret off when testing live Meta delivery.
 4. Use Meta test / verified recipient numbers and a Resend test inbox.
-5. To force OTP SMS fallback: temporarily use invalid Meta credentials or a phone Meta rejects, with `SMS_FALLBACK_WEBHOOK_URL` pointing at your staging SMS adapter (or a request bin).
 
 Note: guest sites are cross-origin; both OTP functions must answer `OPTIONS` with CORS headers (same pattern as other guest-facing functions).
 
 ## Listing types
 
-Guest manage sites today: `SummerRent` (casas) and `EventVenue` (espacios). `RealEstate` remains in `GuestSiteListingType` for RPC compatibility but has no guest manage site yet, so outbound email/WhatsApp links omit the manage URL. Pass `listingType` on manage URLs and hold creation when a site exists.
+Guest manage sites today: `SummerRent` (casas) and `EventVenue` (espacios). `RealEstate` remains in `GuestSiteListingType` for RPC compatibility but has no guest manage site yet, so outbound email manage links omit the manage URL. Pass `listingType` on manage URLs and hold creation when a site exists.

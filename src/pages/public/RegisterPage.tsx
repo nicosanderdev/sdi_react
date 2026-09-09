@@ -114,7 +114,7 @@ export function RegisterPage() {
     return isValid;
   };
 
-  const handleOAuthRegister = async (provider: 'google' | 'facebook') => {
+  const handleOAuthRegister = async (provider: 'google') => {
     if (!acceptedTerms) {
       setApiError('Debes aceptar los términos y condiciones para continuar.');
       return;
@@ -419,7 +419,6 @@ export function RegisterPage() {
               </Button>
               <SocialAuthButtons
                 onGoogle={() => void handleOAuthRegister('google')}
-                onFacebook={() => void handleOAuthRegister('facebook')}
                 disabled={isLoading || !acceptedTerms}
               />
             </form>
