@@ -72,9 +72,14 @@ export function PublicHeader() {
 
     if (showGuestMenu) {
       return (
-        <NavbarLink href="/login" className={navLinkClass}>
-          Iniciar Sesión
-        </NavbarLink>
+        <>
+          <NavbarLink href="/login" className={navLinkClass}>
+            Iniciar Sesión
+          </NavbarLink>
+          <NavbarLink href="/register" className={navLinkClass}>
+            Registrarse
+          </NavbarLink>
+        </>
       );
     }
 

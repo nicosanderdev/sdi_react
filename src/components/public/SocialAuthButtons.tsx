@@ -15,12 +15,15 @@ type SocialAuthButtonsProps = {
   disabled?: boolean;
   /** When true, shows the Login Terms disclaimer under the buttons. */
   showTermsHint?: boolean;
+  /** Optional custom hint under the buttons (e.g. register terms prerequisite). */
+  hint?: React.ReactNode;
 };
 
 export function SocialAuthButtons({
   onGoogle,
   disabled = false,
   showTermsHint = false,
+  hint,
 }: SocialAuthButtonsProps) {
   return (
     <div className="my-6 space-y-3">
@@ -34,7 +37,8 @@ export function SocialAuthButtons({
         <GoogleIcon />
         Continuar con Google
       </Button>
-      {showTermsHint && (
+      {hint}
+      {!hint && showTermsHint && (
         <p className="text-center text-xs text-gray-600 dark:text-gray-400">
           Al continuar, aceptas los{' '}
           <a
