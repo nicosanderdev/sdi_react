@@ -12,10 +12,17 @@ export interface MonthlySummaryParams {
   month: number; // 1-12
 }
 
+export interface ReportPropertyOption {
+  id: string;
+  title: string;
+}
+
 export interface VisitsByPropertyParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string; // Allow custom string for flexibility
   limit?: number;
   page?: number;
+  companyId?: string;
+  propertyId?: string;
 }
 
 export interface PropertySpecificReportParams {
@@ -24,10 +31,14 @@ export interface PropertySpecificReportParams {
 
 export interface DailyVisitsParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string;
+  companyId?: string;
+  propertyId?: string;
 }
 
 export interface VisitsBySourceParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string;
+  companyId?: string;
+  propertyId?: string;
 }
 
 // --- Response Data Interface Definitions ---
@@ -306,14 +317,21 @@ const getVisitsByProperty = async (params: VisitsByPropertyParams): Promise<Visi
     const { data, error } = await supabase.rpc('get_visits_by_property', {
       p_period: params.period || 'last30days',
       p_page: params.page || 1,
-      p_limit: params.limit || 10,
-      p_company_id: null, // Will be passed from component if needed
-      p_user_id: userId
+      p_limit: params.limit || 100,
+      p_company_id: normalizeCompanyIdForRpc(params.companyId),
+      p_user_id: userId,
+      p_property_id: normalizePropertyIdForRpc(params.propertyId),
     });
 
     if (error) throw error;
 
-    return data as VisitsByPropertyData;
+    const payload = (data ?? {}) as Partial<VisitsByPropertyData>;
+    return {
+      data: Array.isArray(payload.data) ? payload.data : [],
+      total: Number(payload.total ?? 0),
+      page: Number(payload.page ?? params.page ?? 1),
+      limit: Number(payload.limit ?? params.limit ?? 100),
+    };
 
   } catch (error: any) {
     console.error('Error fetching visits by property report:', error.message);
@@ -425,14 +443,19 @@ const getPropertySpecificReport = async (propertyId: string, params: PropertySpe
   }
 };
 
-const getDashboardSummary = async (params?: { period: string; companyId?: string }): Promise<DashboardSummaryData> => {
+const getDashboardSummary = async (params?: {
+  period: string;
+  companyId?: string;
+  propertyId?: string;
+}): Promise<DashboardSummaryData> => {
   try {
     const userId = await getCurrentUserId();
 
     const { data, error } = await supabase.rpc('get_dashboard_summary', {
       p_period: params?.period || 'last30days',
-      p_company_id: params?.companyId ? params.companyId : null,
-      p_user_id: userId
+      p_company_id: normalizeCompanyIdForRpc(params?.companyId),
+      p_user_id: userId,
+      p_property_id: normalizePropertyIdForRpc(params?.propertyId),
     });
 
     if (error) throw error;
@@ -445,19 +468,35 @@ const getDashboardSummary = async (params?: { period: string; companyId?: string
   }
 };
 
-/*const getDashboardSummary = async (params?: { period: string }): Promise<DashboardSummaryData> => {
-  try {
-    const response = await apiClient.get<DashboardSummaryData>(ENDPOINTS.DASHBOARD_SUMMARY, { params });
-    return response.data;
-  } catch (error: any) {
-    console.error('Error fetching dashboard summary:', error.response?.data?.message || error.message);
-    throw error;
-  }
-};*/
-
 const normalizeCompanyIdForRpc = (companyId?: string): string | null => {
   if (!companyId || companyId === 'all' || companyId === 'all-companies') return null;
   return companyId;
+};
+
+const normalizePropertyIdForRpc = (propertyId?: string): string | null => {
+  if (!propertyId || propertyId === 'all') return null;
+  return propertyId;
+};
+
+const getReportPropertyOptions = async (params?: { companyId?: string }): Promise<ReportPropertyOption[]> => {
+  try {
+    const userId = await getCurrentUserId();
+    const { data, error } = await supabase.rpc('get_report_property_options', {
+      p_company_id: normalizeCompanyIdForRpc(params?.companyId),
+      p_user_id: userId,
+    });
+    if (error) throw error;
+    if (!Array.isArray(data)) return [];
+    return data
+      .map((row: { id?: string; title?: string }) => ({
+        id: String(row.id ?? ''),
+        title: row.title || 'Propiedad',
+      }))
+      .filter((row: ReportPropertyOption) => Boolean(row.id));
+  } catch (error: any) {
+    console.error('Error fetching report property options:', error.message);
+    throw error;
+  }
 };
 
 const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }): Promise<DailyVisit[]> => {
@@ -468,7 +507,8 @@ const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }
     const { data: rows, error } = await supabase.rpc('get_dashboard_views_timeseries', {
       p_period: params.period || 'last7days',
       p_company_id: normalizeCompanyIdForRpc(params.companyId),
-      p_user_id: userId
+      p_user_id: userId,
+      p_property_id: normalizePropertyIdForRpc(params.propertyId),
     });
 
     if (error) throw error;
@@ -572,7 +612,8 @@ const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: st
     const { data: rows, error } = await supabase.rpc('get_views_by_source', {
       p_period: params.period || 'last30days',
       p_company_id: normalizeCompanyIdForRpc(params.companyId),
-      p_user_id: userId
+      p_user_id: userId,
+      p_property_id: normalizePropertyIdForRpc(params.propertyId),
     });
 
     if (error) throw error;
@@ -580,7 +621,7 @@ const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: st
     const result: VisitSource[] = (rows || []).map((row: { source: string; visits: number }) => ({
       source: row.source || 'website',
       visits: Number(row.visits ?? 0)
-    })).sort((a, b) => b.visits - a.visits);
+    })).sort((a: VisitSource, b: VisitSource) => b.visits - a.visits);
 
     return result;
   } catch (error: any) {
@@ -644,7 +685,7 @@ const getPropertyViewsBySource = async (
     return (rows || []).map((row: { source: string; visits: number }) => ({
       source: row.source || 'website',
       visits: Number(row.visits ?? 0)
-    })).sort((a, b) => b.visits - a.visits);
+    })).sort((a: VisitSource, b: VisitSource) => b.visits - a.visits);
   } catch (error: any) {
     console.error(`Error fetching property views by source for ${propertyId}:`, error.message);
     throw error;
@@ -662,6 +703,7 @@ const reportService = {
   getDailyMessages,
   getPropertyViews,
   getPropertyViewsBySource,
+  getReportPropertyOptions,
 };
 
 export default reportService;

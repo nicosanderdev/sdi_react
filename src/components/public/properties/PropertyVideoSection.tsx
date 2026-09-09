@@ -23,11 +23,6 @@ function PropertyVideoSection({ videos }: Props) {
         return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
       }
     }
-    // For Vimeo videos
-    if (url.includes('vimeo.com/')) {
-      const videoId = url.split('vimeo.com/')[1].split('?')[0];
-      return `https://vumbnail.com/${videoId}.jpg`;
-    }
     return '';
   };
 

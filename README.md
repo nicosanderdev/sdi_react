@@ -22,20 +22,8 @@ Create a `.env.local` file in the root directory with your Supabase credentials:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 
-# Optional: Legacy API Configuration (if still using .NET backend for other features)
-VITE_API_BASE_URL=https://your-api.example.com
+# Optional: public asset URL prefix for legacy relative file paths
 VITE_API_BASE_FILES_URL=https://your-files-api.example.com
-VITE_TENANT_API_KEY=your-tenant-api-key
-
-# Supabase Edge Functions Configuration
-# dLocal Go payment processing is now handled securely via Supabase Edge Functions
-
-# Set these environment variables in your Supabase project:
-# DLOCAL_GO_API_KEY=your-dlocal-go-api-key-here
-# DLOCAL_GO_SECRET_KEY=your-dlocal-go-secret-key-here
-# DLOCAL_GO_ENV=sandbox|production
-
-# Note: No frontend VITE_ environment variables needed anymore
 ```
 
 ### Database Setup
@@ -49,58 +37,135 @@ VITE_TENANT_API_KEY=your-tenant-api-key
 
 The `supabase-trigger.sql` file also includes RLS policies. Make sure to review and adjust them based on your security requirements.
 
-## dLocal Go Payment Gateway Integration
+## File storage (Cloudflare R2 + Supabase Storage local)
 
-This application includes a secure dLocal Go payment gateway integration using Supabase Edge Functions for processing international payments.
+Property images, property documents, and profile avatars use a **single storage abstraction** in [`src/services/storage/`](src/services/storage/index.ts):
 
-### Features
+| Environment | Backend | Config |
+|-------------|---------|--------|
+| **Production** | **Cloudflare R2** via Edge Function `storage-r2` | `VITE_STORAGE_BACKEND=r2` (default) |
+| **Local dev** | **Supabase Storage** (local stack) | `VITE_STORAGE_BACKEND=supabase` in `.env.local` |
 
-- **Secure Backend Processing**: All payment operations handled server-side via Supabase Edge Functions
-- **Sandbox & Production Support**: Environment-based configuration for testing and live payments
-- **Multiple Payment Methods**: Support for credit cards, bank transfers, and digital wallets
-- **Real-time Status Tracking**: Automatic payment status monitoring and updates
-- **Comprehensive Error Handling**: Detailed error messages and retry mechanisms
-- **Hosted Payment Pages**: Secure redirect to dLocal's hosted checkout
-- **Multi-currency Support**: USD, EUR, BRL, ARS, MXN, COP, CLP, PEN
-
-### Setup
-
-1. Create a dLocal merchant account at [dLocal Merchant Portal](https://merchant.dlocal.com/)
-2. Get your dLocal Go API keys from the merchant dashboard
-3. In your Supabase project dashboard, go to Settings → Edge Functions
-4. Add these environment variables to your Edge Functions configuration:
+The client uploads files, then stores the **full public URL** in the database (`PropertyImages.Url`, etc.). Display components use [`resolveAssetUrl`](src/utils/resolveAssetUrl.ts) so absolute R2/Supabase URLs and legacy relative paths both work. When the database still has legacy private R2 S3 API URLs (`*.r2.cloudflarestorage.com`), the client rewrites them to your public custom domains if these **frontend** env vars are set (same hostnames as `R2_PUBLIC_BASE_*` on the edge function):
 
 ```env
-DLOCAL_GO_API_KEY=your-dlocal-go-api-key-here
-DLOCAL_GO_SECRET_KEY=your-dlocal-go-secret-key-here
-DLOCAL_GO_ENV=sandbox
+VITE_R2_PUBLIC_BASE_PROPERTY_IMAGES=https://property-images.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_PROPERTY_DOCUMENTS=https://property-documents.staging.yourdomain.com
+VITE_R2_PUBLIC_BASE_AVATARS=https://avatars.staging.yourdomain.com
 ```
 
-Set `DLOCAL_GO_ENV` to `production` for live payments.
+Guest portals are **read-only** for property media; see [`docs/handoffs/portal-property-image-storage.md`](docs/handoffs/portal-property-image-storage.md).
 
-### Testing
+### Cloudflare setup
 
-- **Test Page**: Visit `/dashboard/payments/test` to access the payment testing interface
-- **Sandbox Cards**:
-  - `4111 1111 1111 1111` - Success
-  - `5555 5555 5555 4444` - Decline
-- **Callback URL**: Set your success/callback URL to `/dashboard/payments/callback`
+1. In the Cloudflare dashboard, create three **R2 buckets** per environment (the app still uses logical names `property_images` / `property_documents` in code and in the Edge API). Production might use **`property-images`**, **`property-documents`**, and **`avatars`**; staging might use **`staging-property-images`**, **`staging-property-documents`**, and **`staging-avatars`**.
+2. For each bucket, attach a **custom domain** for public read access (R2 → bucket → Settings → Public access → Custom Domains). The domain (or parent zone) must be on Cloudflare. Example staging hostnames:
+   - `property-images.staging.<your-domain>`
+   - `property-documents.staging.<your-domain>`
+   - `avatars.staging.<your-domain>`
+   Wait until each custom domain shows **Active**, then verify anonymous GET in an incognito tab:
 
-### Payment Flow
+   `https://property-images.staging.<your-domain>/properties/<object-key>.jpg`
 
-1. User selects property and initiates checkout
-2. Payment form collects customer and payment details
-3. dLocal processes payment and redirects to hosted page
-4. User completes payment on dLocal's secure site
-5. Callback redirects back to confirmation page
-6. Real-time status checking ensures payment completion
+   You should see the image (or 404 if the key is wrong), **not** an XML `Authorization` error.
 
-### Routes Added
+   **Do not** use `*.r2.cloudflarestorage.com` for public reads. That host is the private S3 API and rejects unsigned GET requests. It is only for `R2_ENDPOINT` and presigned uploads.
+3. Create an **R2 API token** (S3-compatible) with read/write on these buckets. Copy the **access key id**, **secret access key**, and **S3 API endpoint** (`https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
+4. Configure **CORS** on each bucket so your web app can **PUT** uploads to the presigned host. At minimum, allow your site origins (for example `http://localhost:5173`, your production origin, and Vercel preview origins for staging), method **PUT**, and headers **Content-Type** (and **Content-Length** if your CORS tool lists it).
 
-- `/dashboard/checkout/:propertyId` - Main checkout page
-- `/dashboard/payments/success/:paymentId` - Payment confirmation
-- `/dashboard/payments/callback` - dLocal callback handler
-- `/dashboard/payments/test` - Testing interface (development only)
+For non-production smoke tests you may use an **r2.dev** public URL instead of a custom domain; set `R2_PUBLIC_BASE_*` to that base (no trailing slash) and set the matching `R2_S3_BUCKET_*` secret because r2.dev URLs have no bucket path segment.
+
+### Supabase Edge Function secrets
+
+Set these for **all** environments where `storage-r2` runs (Dashboard → Project Settings → Edge Functions → Secrets, or `supabase secrets set`):
+
+| Secret | Description |
+|--------|-------------|
+| `R2_ENDPOINT` | Private S3 API endpoint for presigned uploads/deletes, e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret |
+| `R2_REGION` | Optional; defaults to `auto` if omitted |
+| `R2_S3_BUCKET_PROPERTY_IMAGES` | Physical R2 bucket name for S3 API calls, e.g. `staging-property-images` or `property-images` |
+| `R2_S3_BUCKET_PROPERTY_DOCUMENTS` | Physical bucket for documents |
+| `R2_S3_BUCKET_AVATARS` | Physical bucket for avatars |
+| `R2_PUBLIC_BASE_PROPERTY_IMAGES` | Public read base URL (custom domain or r2.dev), **no trailing slash**, e.g. `https://property-images.staging.<your-domain>` |
+| `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | Same pattern for property documents |
+| `R2_PUBLIC_BASE_AVATARS` | Same pattern for avatars, e.g. `https://avatars.staging.<your-domain>` |
+
+`R2_S3_BUCKET_*` is required when `R2_PUBLIC_BASE_*` is a custom domain or r2.dev URL (no `/bucket-name` path). Local MinIO can omit `R2_S3_BUCKET_*`; the edge function derives the bucket from the final path segment of path-style `R2_PUBLIC_BASE_*` URLs.
+
+Staging helper script (edit hostnames, then run after `supabase link`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ./scripts/set-r2-staging-secrets.ps1 -StagingApex yourdomain.com
+```
+
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already available to Edge Functions.
+
+Deploy the function after pulling the code:
+
+```bash
+supabase functions deploy storage-r2
+```
+
+### Breaking changes / behavior notes
+
+- **New uploads** use R2 URLs only. Existing database rows that still point at Supabase Storage are unchanged; re-upload if you need those assets on R2.
+- **Legacy R2 S3 API URLs** (`*.r2.cloudflarestorage.com/<bucket>/...`) stored before custom domains were configured are rewritten by migration `20260624120000_rewrite_r2_legacy_urls.sql`. Edit the `custom_base_*` hostnames in that migration before applying, or run the updates manually after custom domains are active.
+- Profile pictures use the **`avatars`** bucket (the app previously referenced a `profile_pictures` bucket in code; that path is removed).
+
+### Local development (Supabase Storage — recommended)
+
+1. Start local Supabase (`supabase start`). Buckets are defined in [`supabase/config.toml`](supabase/config.toml) and RLS in migration `20260611120200_storage_buckets_rls.sql`.
+2. In `.env.local`:
+
+   ```env
+   VITE_SUPABASE_URL=http://127.0.0.1:54321
+   VITE_SUPABASE_ANON_KEY=<local anon key from supabase status>
+   VITE_STORAGE_BACKEND=supabase
+   ```
+
+3. Run the Vite app (`npm run dev`). Property create/edit uploads go to `property-images`, `property-documents`, and `avatars` buckets on the local stack. Public URLs look like `http://127.0.0.1:54321/storage/v1/object/public/property-images/properties/...`.
+
+No R2 secrets or MinIO required for normal local dashboard work.
+
+#### MinIO (optional — test R2 edge function locally)
+
+You can run [MinIO](https://min.io/) locally as an S3-compatible stand-in for R2 when testing the **`storage-r2`** edge path (`VITE_STORAGE_BACKEND=r2`). The app uses the same bucket names as in production: **`property-images`**, **`property-documents`**, and **`avatars`**.
+
+1. **Start MinIO with API CORS enabled.** The Supabase edge runtime runs in Docker, so the browser will send a cross-origin `PUT` to the presigned URL on MinIO. Open-source MinIO does **not** support per-bucket CORS via `mc cors set`; configure **server-wide** CORS with `MINIO_API_CORS_ALLOW_ORIGIN` (comma-separated origins). Example (adjust ports and origins to match your Vite dev server):
+
+   ```bash
+   docker run -p 9000:9000 -p 9001:9001 \
+     -e "MINIO_ROOT_USER=admin" \
+     -e "MINIO_ROOT_PASSWORD=password" \
+     -e "MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:5173,http://127.0.0.1:5173" \
+     minio/minio server /data --console-address ":9001"
+   ```
+
+   For quick local testing only, you can use `MINIO_API_CORS_ALLOW_ORIGIN=*` instead of listing origins.
+
+2. **Create buckets and public read** (anonymous download, same idea as public R2 buckets for `<img>` and file links). From the repo root on Windows:
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File ./scripts/bootstrap-minio-local.ps1
+   ```
+
+   The script uses the MinIO Client (`minio/mc`) in Docker. It targets `http://host.docker.internal:9000` by default (so it can reach MinIO on the host). Override with `-Endpoint`, `-AccessKey`, and `-SecretKey` if needed.
+
+3. **Configure [`supabase/functions/.env`](supabase/functions/.env)** for the edge function (used when serving functions locally). The edge runtime reaches MinIO on the host via **`host.docker.internal`**; the browser should use **`127.0.0.1`** for stable public object URLs.
+
+   | Variable | Example (local MinIO) |
+   |----------|------------------------|
+   | `R2_ENDPOINT` | `http://host.docker.internal:9000` |
+   | `R2_ACCESS_KEY_ID` | Same as `MINIO_ROOT_USER` (e.g. `admin`) |
+   | `R2_SECRET_ACCESS_KEY` | Same as `MINIO_ROOT_PASSWORD` |
+   | `R2_REGION` | `us-east-1` (optional; use if `auto` causes issues) |
+   | `R2_PUBLIC_BASE_PROPERTY_IMAGES` | `http://127.0.0.1:9000/property-images` |
+   | `R2_PUBLIC_BASE_PROPERTY_DOCUMENTS` | `http://127.0.0.1:9000/property-documents` |
+   | `R2_PUBLIC_BASE_AVATARS` | `http://127.0.0.1:9000/avatars` |
+
+   Restart or reload local edge functions after changing `.env`. Presigned `PUT` URLs use `R2_ENDPOINT`, so the browser must be able to reach that host as well; on Windows, `host.docker.internal` usually works for the upload `PUT` from Chrome or Edge. If uploads fail from the browser, you may need to align the signing host with a reachable hostname (for example by running the edge tooling on the host or adjusting Docker networking).
 
 ## User Registration Flow
 

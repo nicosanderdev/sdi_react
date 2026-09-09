@@ -6,6 +6,7 @@ import { ArrowLeft, User, Mail, Phone, MapPin, Save, Camera } from 'lucide-react
 import { Link } from 'react-router-dom';
 import profileService, { ProfileData } from '../../services/ProfileService';
 import { fetchUserProfile } from '../../store/slices/userSlice';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 export function PublicUserProfilePage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -181,7 +182,7 @@ export function PublicUserProfilePage() {
                 <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                   {user?.avatarUrl ? (
                     <img
-                      src={user.avatarUrl}
+                      src={resolveAssetUrl(user.avatarUrl)}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />

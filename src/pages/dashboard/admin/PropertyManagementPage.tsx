@@ -1,15 +1,18 @@
 // src/pages/dashboard/admin/PropertyManagementPage.tsx
-import React from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Card } from 'flowbite-react';
-import { PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { Alert, Button, Card } from 'flowbite-react';
+import { BarChart3Icon, Loader2Icon, PlusIcon, RefreshCwIcon } from 'lucide-react';
+import propertyAdminService, { SearchScoringBatchResult } from '../../../services/PropertyAdminService';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAdminProperties } from '../../../hooks/useAdminProperties';
 import { PropertyFilters } from '../../../components/admin/properties/PropertyFilters';
 import { PropertyManagementTable } from '../../../components/admin/properties/PropertyManagementTable';
+import { PropertyManagementToolbar } from '../../../components/admin/properties/PropertyManagementToolbar';
 import { PropertyStatistics } from '../../../components/admin/properties/PropertyStatistics';
 import { PropertyDetailModal } from '../../../components/admin/properties/PropertyDetailModal';
 import { DeletePropertyConfirmModal } from '../../../components/admin/properties/DeletePropertyConfirmModal';
+import { EditListingModal } from '../../../components/dashboard/properties/EditListingModal';
 
 const PropertyManagementPage = () => {
   const navigate = useNavigate();
@@ -22,10 +25,37 @@ const PropertyManagementPage = () => {
     loading,
     error,
     fetchProperties,
+    editingListingPropertyId,
+    setEditingListingPropertyId,
   } = hook;
+
+  const [scoringRunning, setScoringRunning] = useState(false);
+  const [scoringError, setScoringError] = useState<string | null>(null);
+  const [scoringResult, setScoringResult] = useState<SearchScoringBatchResult | null>(null);
 
   const handleRefresh = () => {
     fetchProperties();
+  };
+
+  const handleRunScoring = async () => {
+    const confirmed = window.confirm(
+      '¿Recalcular las puntuaciones de búsqueda para todos los anuncios SummerRent y EventVenue visibles? ' +
+        'El proceso puede tardar varios minutos.',
+    );
+    if (!confirmed) return;
+
+    setScoringRunning(true);
+    setScoringError(null);
+    setScoringResult(null);
+
+    try {
+      const result = await propertyAdminService.runSearchScoringBatch();
+      setScoringResult(result);
+    } catch (e) {
+      setScoringError(e instanceof Error ? e.message : 'Error al ejecutar el scoring.');
+    } finally {
+      setScoringRunning(false);
+    }
   };
 
   return (
@@ -37,17 +67,64 @@ const PropertyManagementPage = () => {
           subtitle="Supervisa y modera todos los anuncios de propiedades en la plataforma"
         />
 
-        <Button
-          color="light"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={loading}
-          className="flex items-center space-x-2"
-        >
-          <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Actualizar</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            color="light"
+            size="sm"
+            onClick={() => void handleRunScoring()}
+            disabled={loading || scoringRunning}
+            className="flex items-center space-x-2"
+          >
+            {scoringRunning ? (
+              <Loader2Icon className="w-4 h-4 animate-spin" />
+            ) : (
+              <BarChart3Icon className="w-4 h-4" />
+            )}
+            <span>Ejecutar scoring</span>
+          </Button>
+          <Button
+            color="light"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading || scoringRunning}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </Button>
+        </div>
       </div>
+
+      {scoringError && (
+        <Alert color="failure" onDismiss={() => setScoringError(null)}>
+          <span className="font-medium">Scoring: </span>
+          {scoringError}
+        </Alert>
+      )}
+
+      {scoringResult && (
+        <Alert
+          color={scoringResult.errorCount > 0 ? 'warning' : 'success'}
+          onDismiss={() => setScoringResult(null)}
+        >
+          <p className="font-medium">Scoring completado</p>
+          <p className="text-sm mt-1">
+            Procesados: {scoringResult.processed} · Correctos: {scoringResult.succeeded} · Omitidos:{' '}
+            {scoringResult.skipped} · Errores: {scoringResult.errorCount} · Duración:{' '}
+            {(scoringResult.durationMs / 1000).toFixed(1)} s
+          </p>
+          {scoringResult.errors.length > 0 && (
+            <ul className="text-sm mt-2 list-disc list-inside max-h-32 overflow-y-auto">
+              {scoringResult.errors.slice(0, 5).map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+              {scoringResult.errorCount > 5 && (
+                <li>… y {scoringResult.errorCount - 5} más</li>
+              )}
+            </ul>
+          )}
+        </Alert>
+      )}
 
       {/* Error Display */}
       {error && (
@@ -106,6 +183,7 @@ const PropertyManagementPage = () => {
 
       {/* Properties Table */}
       <Card>
+        <PropertyManagementToolbar hook={hook} />
         <PropertyManagementTable hook={hook} />
       </Card>
 
@@ -146,7 +224,7 @@ const PropertyManagementPage = () => {
                   return (
                     <Button
                       key={pageNum}
-                      color={pageNum === currentPage ? 'blue' : 'light'}
+                      color={pageNum === currentPage ? 'green' : 'light'}
                       size="sm"
                       disabled={loading}
                       onClick={() => hook.setPage(pageNum)}
@@ -173,6 +251,12 @@ const PropertyManagementPage = () => {
       {/* Modals */}
       <PropertyDetailModal hook={hook} />
       <DeletePropertyConfirmModal hook={hook} />
+      <EditListingModal
+        isOpen={!!editingListingPropertyId}
+        propertyId={editingListingPropertyId}
+        onClose={() => setEditingListingPropertyId(null)}
+        onSaved={() => void fetchProperties()}
+      />
     </div>
   );
 };

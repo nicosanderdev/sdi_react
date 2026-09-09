@@ -2,12 +2,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { SidebarItem } from 'flowbite-react';
 import {
   UserIcon,
+  UserCircleIcon,
   BuildingIcon,
   Building2Icon,
   BarChartIcon,
   FileText,
   CalendarCheck,
   Receipt,
+  SettingsIcon,
   type LucideIcon
 } from 'lucide-react';
 
@@ -32,9 +34,10 @@ export function AdminNavigation() {
     { id: 'admin-bookings', label: 'Reservas', icon: CalendarCheck, path: '/dashboard/admin/bookings' },
     { id: 'admin-payments', label: 'Gestión de pagos', icon: Receipt, path: '/dashboard/admin/payments' },
     { id: 'admin-users', label: 'Usuarios', icon: UserIcon, path: '/dashboard/admin/users' },
+    { id: 'admin-guests', label: 'Huéspedes', icon: UserCircleIcon, path: '/dashboard/admin/guests' },
     { id: 'admin-companies', label: 'Compañías', icon: Building2Icon, path: '/dashboard/admin/companies' },
-    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' }
-    // { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
+    { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' },
+    { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
   ];
 
   return (

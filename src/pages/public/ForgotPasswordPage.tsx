@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { MailIcon, CheckCircleIcon, Shield } from 'lucide-react';
+import { MailIcon, CheckCircleIcon, Shield, ArrowLeftIcon } from 'lucide-react';
 import AuthService from '../../services/AuthService';
 import { AuthCard } from '../../components/public/AuthCard';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Button, TextInput } from 'flowbite-react';
+import { useSearchParams } from 'react-router-dom';
 
 type PageStep = 'ENTER_EMAIL' | 'SUCCESS';
 
 export function ForgotPasswordPage() {
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<PageStep>('ENTER_EMAIL');
 
   const [email, setEmail] = useState('');
@@ -15,6 +17,7 @@ export function ForgotPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const isAccountRecoveryMode = searchParams.get('mode') === 'recover-account';
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +25,7 @@ export function ForgotPasswordPage() {
     setError(null);
     try {
       await AuthService.forgotPassword(email);
-      setSuccessMessage('Si existe una cuenta con ese correo electrónico, recibirás un enlace para restablecer tu contraseña.');
+      setSuccessMessage('Si existe una cuenta con ese correo electrónico, recibirás un enlace de recuperación.');
       setStep('SUCCESS');
     } catch (err: any) {
       setError(err.message || 'Error al solicitar restablecimiento de contraseña.');
@@ -60,7 +63,9 @@ export function ForgotPasswordPage() {
             </form>
             <div className="text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Recibirás un enlace para restablecer tu contraseña en tu correo electrónico.
+                {isAccountRecoveryMode
+                  ? 'Usaremos este correo para iniciar una recuperación segura de cuenta.'
+                  : 'Recibirás un enlace para restablecer tu contraseña en tu correo electrónico.'}
               </p>
             </div>
           </div>
@@ -82,7 +87,11 @@ export function ForgotPasswordPage() {
     <PublicLayout>
       <AuthCard
         title={step === 'ENTER_EMAIL' ? 'Recuperar Contraseña' : '¡Listo!'}
-        subtitle={step === 'ENTER_EMAIL' ? 'Te enviaremos un enlace para restablecer tu contraseña.' : ''}
+        subtitle={step === 'ENTER_EMAIL'
+          ? (isAccountRecoveryMode
+            ? 'Ingresa un correo asociado a tu cuenta para continuar.'
+            : 'Te enviaremos un enlace para restablecer tu contraseña.')
+          : ''}
         icon={<Shield className="w-8 h-8 text-green-600 dark:text-green-400" />}
       >
         {error && (

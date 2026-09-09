@@ -4,6 +4,7 @@ import { CompanyInfo } from '../models/companies/CompanyInfo';
 import { AddUserToCompanyRequest } from '../models/companies/AddUserToCompanyRequest';
 import { UpdateCompanyProfilePayload } from '../models/companies/UpdateCompanyProfilePayload';
 import { mapDbToCompany, mapDbToCompanyUser, getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
+import { assertCurrentUserContactVerified } from '../utils/contactVerification';
 
 const COMPANY_ROLES = { MEMBER: 'Member', ADMIN: 'Admin', MANAGER: 'Manager' } as const;
 
@@ -23,13 +24,34 @@ const isElevatedCompanyRole = (role: unknown): boolean => {
   return s === '1' || s === '2';
 };
 
+/** CompanyMembers.Role: Admin only (primary company admin), not Manager. */
+const isCompanyAdminRole = (role: unknown): boolean => {
+  if (role === null || role === undefined) return false;
+  if (typeof role === 'number') return role === 2;
+  if (typeof role === 'string') {
+    const r = role.trim().toLowerCase();
+    return r === 'admin' || r === '2';
+  }
+  return String(role) === '2';
+};
+
 export interface AdminCompanyFilters { search?: string; status?: 'active' | 'deleted'; page?: number; limit?: number }
 export interface AdminCompanyListItem { id: string; name: string; billingEmail: string; createdAt: string; isDeleted: boolean; status: 'active' | 'deleted'; membersCount: number }
 export interface AdminCompanyListResponse { companies: AdminCompanyListItem[]; total: number }
 export interface AdminCompanyMetrics { totalCompanies: number; activeCompanies: number; companiesCreatedThisMonth: number }
 export interface AdminCompanyMember { id: string; memberId: string; companyId: string; role: string; joinedAt: string; fullName: string; email: string }
-export interface AdminCompanyDetail { company: CompanyInfo; members: AdminCompanyMember[] }
-export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string }
+export interface AdminCompanyDetailStatistics {
+  activeOwnedProperties: number;
+  linkedUsers: number;
+  unpublishedOrInactive: number;
+}
+export interface AdminCompanyDetail {
+  company: CompanyInfo;
+  members: AdminCompanyMember[];
+  statistics: AdminCompanyDetailStatistics;
+  primaryCompanyAdmin: { fullName: string; email: string } | null;
+}
+export interface AdminCreateCompanyPayload { name: string; billingEmail: string; description?: string; planId: string }
 export interface AdminUpdateCompanyPayload { name: string; billingEmail: string; description?: string; phone?: string }
 export interface AddCompanyMemberResult { success: boolean; message: string; member?: AdminCompanyMember }
 export type { CompanyUser, CompanyInfo, AddUserToCompanyRequest, UpdateCompanyProfilePayload };
@@ -44,9 +66,14 @@ const mapAdminMember = (row: any): AdminCompanyMember => ({
   email: row.Members?.Email ?? '',
 });
 
+const NO_COMPANY_MEMBERSHIP_MESSAGE = 'User is not a member of any company';
+
+export const isNoCompanyMembershipError = (error: unknown): boolean =>
+  error instanceof Error && error.message.includes(NO_COMPANY_MEMBERSHIP_MESSAGE);
+
 const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
   const member = await getMemberByUserId(await getCurrentUserId());
-  if (!member) throw new Error('User is not a member of any company');
+  if (!member) throw new Error(NO_COMPANY_MEMBERSHIP_MESSAGE);
   let query = supabase
     .from('CompanyMembers')
     .select('*, Companies!FK_CompanyMembers_Companies_CompanyId (*)')
@@ -54,20 +81,30 @@ const getCompanyInfo = async (companyId?: string): Promise<CompanyInfo> => {
     .eq('IsDeleted', false);
   query = companyId ? query.eq('CompanyId', companyId) : query.order('JoinedAt', { ascending: true });
   const { data, error } = await query.limit(1).single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST116') throw new Error(NO_COMPANY_MEMBERSHIP_MESSAGE);
+    throw error;
+  }
+  if (!data?.Companies) throw new Error(NO_COMPANY_MEMBERSHIP_MESSAGE);
   return mapDbToCompany(data.Companies);
 };
 
-const createCompany = async (companyData: { name: string; description?: string; billingEmail?: string }): Promise<CompanyInfo> => {
-  const userId = await getCurrentUserId();
-  const now = new Date().toISOString();
-  const { data: profile, error: profileError } = await supabase.from('Members').select('Id').eq('UserId', userId).eq('IsDeleted', false).single();
-  if (profileError) throw profileError;
-  const { data: company, error: companyError } = await supabase.from('Companies').insert({ Name: companyData.name, Description: companyData.description || '', BillingContactUserId: userId, BillingEmail: companyData.billingEmail || '', CreatedAt: now, IsDeleted: false, Created: now, CreatedBy: userId, LastModified: now, LastModifiedBy: userId }).select('*').single();
-  if (companyError) throw companyError;
-  const { error: memberError } = await supabase.from('CompanyMembers').insert({ MemberId: profile.Id, CompanyId: company.Id, Role: COMPANY_ROLES.ADMIN, AddedBy: userId, JoinedAt: now, IsDeleted: false });
-  if (memberError) throw memberError;
-  return mapDbToCompany(company);
+const createCompany = async (companyData: {
+  name: string;
+  description?: string;
+  billingEmail?: string;
+  planId: string;
+}): Promise<CompanyInfo> => {
+  await assertCurrentUserContactVerified();
+  const { data, error } = await supabase.rpc('create_company_for_current_member', {
+    p_name: companyData.name,
+    p_billing_email: companyData.billingEmail || '',
+    p_description: companyData.description || '',
+    p_plan_id: companyData.planId,
+  });
+  if (error) throw error;
+  if (!data) throw new Error('Error al crear la compañía. Inténtalo de nuevo.');
+  return mapDbToCompany(data);
 };
 
 const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[]> => {
@@ -84,30 +121,92 @@ const getCompanyUsers = async (companyIdOverride?: string): Promise<CompanyUser[
   return (data ?? []).map(mapDbToCompanyUser);
 };
 
-const addUserToCompany = async (request: AddUserToCompanyRequest): Promise<CompanyUser> => {
+const requireCompanyAdminMembership = async (companyId?: string) => {
   const actor = await getMemberByUserId(await getCurrentUserId());
   if (!actor) throw new Error('Insufficient permissions');
-  const { data: actorMembership, error: actorMembershipError } = await supabase
+  if (isPlatformAdminMember(actor) && companyId) {
+    return { actor, companyId, isPlatformAdmin: true as const };
+  }
+  let query = supabase
     .from('CompanyMembers')
     .select('CompanyId, Role')
     .eq('MemberId', actor.Id)
-    .eq('IsDeleted', false)
-    .limit(1)
-    .maybeSingle();
-  if (actorMembershipError) throw actorMembershipError;
-  if (!actorMembership || !isElevatedCompanyRole(actorMembership.Role)) throw new Error('Insufficient permissions');
-  const email = request.email.trim().toLowerCase();
-  const { data: targetMember } = await supabase.from('Members').select('Id,FirstName,LastName,Email').eq('Email', email).eq('IsDeleted', false).maybeSingle();
-  if (!targetMember) throw new Error('User does not exist');
-  const { data: existing } = await supabase.from('CompanyMembers').select('Id').eq('CompanyId', actorMembership.CompanyId).eq('MemberId', targetMember.Id).eq('IsDeleted', false).maybeSingle();
-  if (existing) throw new Error('User is already linked to this company');
-  const { data: row, error } = await supabase.from('CompanyMembers').insert({ MemberId: targetMember.Id, CompanyId: actorMembership.CompanyId, Role: COMPANY_ROLES.MEMBER, AddedBy: actor.Id, JoinedAt: new Date().toISOString(), IsDeleted: false }).select('*').single();
+    .eq('IsDeleted', false);
+  if (companyId) query = query.eq('CompanyId', companyId);
+  const { data: actorMembership, error } = await query.limit(1).maybeSingle();
   if (error) throw error;
-  return mapDbToCompanyUser({ ...row, Members: targetMember });
+  if (!actorMembership || !isCompanyAdminRole(actorMembership.Role)) {
+    throw new Error('Only company Admins can manage company members.');
+  }
+  return { actor, companyId: actorMembership.CompanyId as string, isPlatformAdmin: false as const };
 };
 
-const removeUserFromCompany = async (membershipId: string): Promise<void> => { await supabase.from('CompanyMembers').update({ IsDeleted: true }).eq('Id', membershipId); };
-const updateCompanyProfile = async (_payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => getCompanyInfo();
+const addUserToCompany = async (
+  request: AddUserToCompanyRequest,
+  companyIdOverride?: string
+): Promise<CompanyUser> => {
+  const { companyId } = await requireCompanyAdminMembership(companyIdOverride);
+  const email = request.email.trim().toLowerCase();
+  const role = request.role && ['Admin', 'Manager', 'Member'].includes(request.role)
+    ? request.role
+    : COMPANY_ROLES.MEMBER;
+
+  const { data: row, error } = await supabase.rpc('add_company_member_by_email', {
+    p_company_id: companyId,
+    p_email: email,
+    p_role: role,
+  });
+  if (error) throw error;
+  if (!row) throw new Error('Error al agregar el usuario.');
+  return mapDbToCompanyUser(row as any);
+};
+
+const removeUserFromCompany = async (membershipId: string): Promise<void> => {
+  const { data: membership, error: membershipError } = await supabase
+    .from('CompanyMembers')
+    .select('Id, CompanyId, Role, IsDeleted')
+    .eq('Id', membershipId)
+    .maybeSingle();
+  if (membershipError) throw membershipError;
+  if (!membership || membership.IsDeleted) throw new Error('Membership not found');
+  await requireCompanyAdminMembership(membership.CompanyId);
+
+  const { error } = await supabase
+    .from('CompanyMembers')
+    .update({ IsDeleted: true })
+    .eq('Id', membershipId)
+    .eq('IsDeleted', false);
+  if (error) throw error;
+};
+
+const updateCompanyMemberRole = async (
+  membershipId: string,
+  role: 'Admin' | 'Manager' | 'Member'
+): Promise<CompanyUser> => {
+  const { data: membership, error: membershipError } = await supabase
+    .from('CompanyMembers')
+    .select('*, Members (*)')
+    .eq('Id', membershipId)
+    .eq('IsDeleted', false)
+    .maybeSingle();
+  if (membershipError) throw membershipError;
+  if (!membership) throw new Error('Membership not found');
+  await requireCompanyAdminMembership(membership.CompanyId);
+
+  const { data: row, error } = await supabase
+    .from('CompanyMembers')
+    .update({ Role: role })
+    .eq('Id', membershipId)
+    .eq('IsDeleted', false)
+    .select('*, Members (*)')
+    .single();
+  if (error) throw error;
+  return mapDbToCompanyUser(row as any);
+};
+const updateCompanyProfile = async (_payload: UpdateCompanyProfilePayload): Promise<CompanyInfo> => {
+  await assertCurrentUserContactVerified();
+  return getCompanyInfo();
+};
 const uploadCompanyLogo = async (_formData: FormData): Promise<{ logoUrl: string }> => ({ logoUrl: '' });
 const uploadCompanyBanner = async (_formData: FormData): Promise<{ bannerUrl: string }> => ({ bannerUrl: '' });
 
@@ -160,15 +259,66 @@ const listAdminCompanies = async (filters: AdminCompanyFilters): Promise<AdminCo
   };
 };
 
-const getAdminCompanyDetail = async (companyId: string): Promise<AdminCompanyDetail> => {
-  const { data: company, error: companyError } = await supabase.from('Companies').select('*').eq('Id', companyId).single();
-  if (companyError) throw companyError;
-  const { data: members, error: membersError } = await supabase.from('CompanyMembers').select('*, Members (FirstName, LastName, Email)').eq('CompanyId', companyId).eq('IsDeleted', false);
-  if (membersError) throw membersError;
-  return { company: mapDbToCompany(company), members: (members ?? []).map(mapAdminMember) };
+const mapRpcCompanyStats = (row: Record<string, unknown> | undefined): AdminCompanyDetailStatistics => ({
+  activeOwnedProperties: Number(row?.active_owned_properties ?? 0),
+  linkedUsers: Number(row?.linked_users ?? 0),
+  unpublishedOrInactive: Number(row?.unpublished_or_inactive ?? 0),
+});
+
+const resolvePrimaryCompanyAdmin = async (
+  members: AdminCompanyMember[],
+  billingContactUserId: string | null | undefined,
+): Promise<{ fullName: string; email: string } | null> => {
+  const admins = members
+    .filter(m => isCompanyAdminRole(m.role))
+    .sort((a, b) => new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime());
+  if (admins.length > 0) {
+    return { fullName: admins[0].fullName, email: admins[0].email };
+  }
+  if (!billingContactUserId) return null;
+  const { data: billingMember, error } = await supabase
+    .from('Members')
+    .select('FirstName, LastName, Email')
+    .eq('UserId', billingContactUserId)
+    .eq('IsDeleted', false)
+    .maybeSingle();
+  if (error || !billingMember) return null;
+  const fullName = `${billingMember.FirstName ?? ''} ${billingMember.LastName ?? ''}`.trim() || 'Sin nombre';
+  return { fullName, email: billingMember.Email ?? '' };
 };
 
-const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> => createCompany({ name: payload.name, description: payload.description, billingEmail: payload.billingEmail });
+const getAdminCompanyDetail = async (companyId: string): Promise<AdminCompanyDetail> => {
+  const [{ data: company, error: companyError }, { data: members, error: membersError }, statsResult] = await Promise.all([
+    supabase.from('Companies').select('*').eq('Id', companyId).single(),
+    supabase.from('CompanyMembers').select('*, Members (FirstName, LastName, Email)').eq('CompanyId', companyId).eq('IsDeleted', false),
+    supabase.rpc('get_admin_company_edit_stats', { p_company_id: companyId }),
+  ]);
+  if (companyError) throw companyError;
+  if (membersError) throw membersError;
+  if (statsResult.error) throw statsResult.error;
+
+  const mappedMembers = (members ?? []).map(mapAdminMember);
+  const statsRows = statsResult.data as Record<string, unknown>[] | null;
+  const statistics = mapRpcCompanyStats(Array.isArray(statsRows) ? statsRows[0] : statsRows ?? undefined);
+
+  const companyRow = company as { BillingContactUserId?: string | null };
+  const primaryCompanyAdmin = await resolvePrimaryCompanyAdmin(mappedMembers, companyRow.BillingContactUserId);
+
+  return {
+    company: mapDbToCompany(company),
+    members: mappedMembers,
+    statistics,
+    primaryCompanyAdmin,
+  };
+};
+
+const createAdminCompany = async (payload: AdminCreateCompanyPayload): Promise<CompanyInfo> =>
+  createCompany({
+    name: payload.name,
+    description: payload.description,
+    billingEmail: payload.billingEmail,
+    planId: payload.planId,
+  });
 const updateAdminCompany = async (companyId: string, payload: AdminUpdateCompanyPayload): Promise<CompanyInfo> => {
   const { data, error } = await supabase.from('Companies').update({ Name: payload.name, BillingEmail: payload.billingEmail, Description: payload.description ?? '', Phone: payload.phone ?? '', LastModified: new Date().toISOString(), LastModifiedBy: await getCurrentUserId() }).eq('Id', companyId).select('*').single();
   if (error) throw error;
@@ -176,59 +326,14 @@ const updateAdminCompany = async (companyId: string, payload: AdminUpdateCompany
 };
 const addMemberToAdminCompanyByEmail = async (companyId: string, email: string): Promise<AddCompanyMemberResult> => {
   try {
-    const actor = await getMemberByUserId(await getCurrentUserId());
-    if (!actor) return { success: false, message: 'Permisos insuficientes.' };
-
-    let canManage = isPlatformAdminMember(actor);
-    if (!canManage) {
-      const { data: actorCm, error: actorCmError } = await supabase
-        .from('CompanyMembers')
-        .select('CompanyId, Role')
-        .eq('MemberId', actor.Id)
-        .eq('CompanyId', companyId)
-        .eq('IsDeleted', false)
-        .maybeSingle();
-      if (actorCmError) throw actorCmError;
-      canManage = !!actorCm && isElevatedCompanyRole(actorCm.Role);
-    }
-    if (!canManage) return { success: false, message: 'Permisos insuficientes.' };
-
-    const emailNorm = email.trim().toLowerCase();
-    const { data: targetMember, error: targetErr } = await supabase
-      .from('Members')
-      .select('Id,FirstName,LastName,Email')
-      .eq('Email', emailNorm)
-      .eq('IsDeleted', false)
-      .maybeSingle();
-    if (targetErr) throw targetErr;
-    if (!targetMember) return { success: false, message: 'No existe un usuario con ese correo.' };
-
-    const { data: existing, error: existingErr } = await supabase
-      .from('CompanyMembers')
-      .select('Id')
-      .eq('CompanyId', companyId)
-      .eq('MemberId', targetMember.Id)
-      .eq('IsDeleted', false)
-      .maybeSingle();
-    if (existingErr) throw existingErr;
-    if (existing) return { success: false, message: 'El usuario ya está vinculado a esta compañía.' };
-
-    const { data: row, error: insertErr } = await supabase
-      .from('CompanyMembers')
-      .insert({
-        MemberId: targetMember.Id,
-        CompanyId: companyId,
-        Role: COMPANY_ROLES.MEMBER,
-        AddedBy: actor.Id,
-        JoinedAt: new Date().toISOString(),
-        IsDeleted: false,
-      })
-      .select('*')
-      .single();
-    if (insertErr) throw insertErr;
-
+    const { data: row, error } = await supabase.rpc('add_company_member_by_email', {
+      p_company_id: companyId,
+      p_email: email.trim().toLowerCase(),
+      p_role: COMPANY_ROLES.MEMBER,
+    });
+    if (error) throw error;
     const detail = await getAdminCompanyDetail(companyId);
-    const added = detail.members.find(m => m.memberId === targetMember.Id);
+    const added = detail.members.find(m => m.memberId === row?.MemberId);
     return {
       success: true,
       message: 'Usuario agregado correctamente.',
@@ -239,4 +344,22 @@ const addMemberToAdminCompanyByEmail = async (companyId: string, email: string):
   }
 };
 
-export default { getCompanyInfo, getCompanyUsers, createCompany, addUserToCompany, removeUserFromCompany, updateCompanyProfile, uploadCompanyLogo, uploadCompanyBanner, getAdminCompaniesMetrics, listAdminCompanies, getAdminCompanyDetail, createAdminCompany, updateAdminCompany, addMemberToAdminCompanyByEmail };
+export default {
+  getCompanyInfo,
+  getCompanyUsers,
+  createCompany,
+  addUserToCompany,
+  removeUserFromCompany,
+  updateCompanyMemberRole,
+  updateCompanyProfile,
+  uploadCompanyLogo,
+  uploadCompanyBanner,
+  getAdminCompaniesMetrics,
+  listAdminCompanies,
+  getAdminCompanyDetail,
+  createAdminCompany,
+  updateAdminCompany,
+  addMemberToAdminCompanyByEmail,
+  isCompanyAdminRole,
+  isNoCompanyMembershipError,
+};

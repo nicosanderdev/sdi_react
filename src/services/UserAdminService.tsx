@@ -23,8 +23,18 @@ export type SubscriptionStatus = 'active' | 'expired' | 'none';
 // Payment status types
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'none' | 'unknown';
 
+/** Mercado Pago seller-link status for admin UI. */
+export type MercadoPagoLinkStatus = 'not_connected' | 'invite_sent' | 'connected';
+
 // Action history types
 export type ActionType = 'suspend' | 'reactivate' | 'role_change' | 'reset_onboarding' | 'force_logout' | 'delete';
+
+export function normalizeMercadoPagoStatus(value: unknown): MercadoPagoLinkStatus {
+  if (value === 'connected' || value === 'invite_sent' || value === 'not_connected') {
+    return value;
+  }
+  return 'not_connected';
+}
 
 // Interfaces
 export interface UserListItem {
@@ -43,6 +53,7 @@ export interface UserListItem {
   lastLogin: string | null;
   propertiesCount: number;
   paymentStatus: PaymentStatus;
+  mercadoPagoStatus: MercadoPagoLinkStatus;
 }
 
 export interface UserListResponse {
@@ -89,6 +100,7 @@ export interface UserDetail {
   onboardingStep: number;
   onboardingComplete: boolean;
   actionHistory: ActionHistoryItem[];
+  mercadoPagoStatus: MercadoPagoLinkStatus;
 }
 
 export interface ActionHistoryItem {
@@ -134,7 +146,7 @@ class UserAdminService {
       p_page: filters.page || 1,
       p_limit: filters.limit || 20,
       p_subscription_status: filters.subscriptionStatus || null,
-      p_subscription_tier: filters.subscriptionTier || null,
+      p_subscription_tier: filters.subscriptionTier ?? null,
       p_account_status: filters.accountStatus || null,
       p_registration_date_from: filters.registrationDateFrom || null,
       p_registration_date_to: filters.registrationDateTo || null,
@@ -173,6 +185,7 @@ class UserAdminService {
       lastLogin: user.last_login,
       propertiesCount: user.properties_count,
       paymentStatus: user.payment_status,
+      mercadoPagoStatus: normalizeMercadoPagoStatus(user.mercado_pago_status),
     }));
 
     return {
@@ -225,6 +238,7 @@ class UserAdminService {
       onboardingStep: user.onboarding_step,
       onboardingComplete: user.onboarding_complete,
       actionHistory: user.action_history || [],
+      mercadoPagoStatus: normalizeMercadoPagoStatus(user.mercado_pago_status),
     };
   }
 
@@ -304,6 +318,20 @@ class UserAdminService {
     }
 
     return data as ActionResult;
+  }
+
+  /**
+   * Assign a member-audience plan (platform admin, no payment).
+   */
+  async assignMemberPlan(memberId: string, planId: string): Promise<ActionResult> {
+    const { error } = await supabase.rpc('assign_member_plan_as_admin', {
+      p_member_id: memberId,
+      p_plan_id: planId,
+    });
+    if (error) {
+      throw new Error(`Failed to assign plan: ${error.message}`);
+    }
+    return { success: true, message: 'Plan assigned' };
   }
 
   /**

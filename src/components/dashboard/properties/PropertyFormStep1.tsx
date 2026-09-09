@@ -7,10 +7,12 @@ import { Button, Label, TextInput } from 'flowbite-react';
 
 interface PropertyFormStep1Props {
     onNext: () => void;
+    skipMapConfirmation?: boolean;
 }
 
 export function PropertyFormStep1({
-    onNext
+    onNext,
+    skipMapConfirmation = false
 }: PropertyFormStep1Props) {
     const { register, formState: { errors }, watch, setValue, trigger } = useFormContext<PropertyFormData>();
     const location = watch('location');
@@ -59,7 +61,11 @@ export function PropertyFormStep1({
 
     const handleNext = async (e: React.FormEvent) => {
         e.preventDefault();
-        const fieldsToValidate: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'neighborhood', 'city', 'state', 'zipCode', 'country', 'location'];
+        const requiredFields: (keyof PropertyFormData)[] = ['streetName', 'houseNumber', 'city', 'state', 'zipCode', 'country'];
+        const optionalFields: (keyof PropertyFormData)[] = ['neighborhood'];
+        const fieldsToValidate: (keyof PropertyFormData)[] = skipMapConfirmation
+            ? [...requiredFields, ...optionalFields]
+            : [...requiredFields, ...optionalFields, 'location'];
         const isValid = await trigger(fieldsToValidate);
         if (isValid) {
             onNext();

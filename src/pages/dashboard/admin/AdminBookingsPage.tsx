@@ -32,8 +32,13 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import BookingService, {
   BookingWithMemberAndProperty
 } from '../../../services/BookingService';
-import { BookingStatus, BOOKING_STATUS_NAMES, CURRENCY_SYMBOLS, Currency } from '../../../models/calendar/CalendarSync';
-import { useEnsureReceiptsAndBlock } from '../../../hooks/useEnsureReceiptsAndBlock';
+import {
+  BookingStatus,
+  BOOKING_STATUS_NAMES,
+  CURRENCY_SYMBOLS,
+  Currency,
+  getBookingStatusBadgeColor
+} from '../../../models/calendar/CalendarSync';
 import { AppDispatch, fetchNotificationCounts } from '../../../store';
 
 const today = () => format(new Date(), 'yyyy-MM-dd');
@@ -100,15 +105,7 @@ function BookingRow({
             <Building2 className="h-4 w-4 flex-shrink-0" />
             {booking.EstateProperty?.Title ?? 'Propiedad'}
           </Link>
-          <Badge
-            color={
-              booking.Status === BookingStatus.Pending
-                ? 'warning'
-                : booking.Status === BookingStatus.Confirmed
-                ? 'success'
-                : 'failure'
-            }
-          >
+          <Badge color={getBookingStatusBadgeColor(booking.Status)}>
             {BOOKING_STATUS_NAMES[booking.Status as BookingStatus]}
           </Badge>
         </div>
@@ -157,18 +154,20 @@ function BookingRow({
             <>
               <Button
                 size="xs"
-                color="success"
+                color="green"
                 onClick={() => onAccept(booking.Id)}
                 className="flex items-center gap-1"
+                outline
               >
                 <Check className="h-4 w-4" />
                 Aceptar
               </Button>
               <Button
                 size="xs"
-                color="failure"
+                color="dark"
                 onClick={() => onReject(booking.Id)}
                 className="flex items-center gap-1"
+                outline
               >
                 <X className="h-4 w-4" />
                 Rechazar
@@ -201,8 +200,6 @@ export function AdminBookingsPage() {
   const [confirmModal, setConfirmModal] = useState<{ bookingId: string; action: 'reject' | 'cancel' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'current' | 'past' | 'rejected'>('all');
-
-  useEnsureReceiptsAndBlock();
 
   const fetchBookings = useCallback(async () => {
     setError(null);

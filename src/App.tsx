@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { ThemeInit } from '../.flowbite-react/init';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { PaymentProvider } from './contexts/PaymentContext';
 
 // Public pages
 import { HomePage } from './pages/public/HomePage';
@@ -11,6 +10,7 @@ import { AboutPage } from './pages/public/AboutPage';
 import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
+import { ResetPasswordPage } from './components/user/ResetPasswordPage';
 
 // New public user pages - COMMENTED OUT: for reuse in new project managing public view
 // import { PublicWelcomePage } from './pages/public/PublicWelcomePage';
@@ -19,6 +19,9 @@ import { RegisterPage } from './pages/public/RegisterPage';
 // import { PublicUserFavoritesPage } from './pages/public/PublicUserFavoritesPage';
 // Keeping UpgradeToManagerPage for pricing route
 import { UpgradeToManagerPage } from './pages/public/UpgradeToManagerPage';
+import { HowItWorksPage } from './pages/public/HowItWorksPage';
+import MercadoPagoConnectPage from './pages/public/MercadoPagoConnectPage';
+import MercadoPagoConnectResultPage from './pages/public/MercadoPagoConnectResultPage';
 
 // Dashboard layout and pages
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -37,20 +40,19 @@ import BookingsPage from './pages/dashboard/BookingsPage';
 import { ManagerSubscriptionPage } from './pages/dashboard/subscription/ManagerSubscriptionPage';
 
 // Subscription pages
-import { ChangeSubscriptionPage } from './pages/dashboard/subscription/ChangeSubscriptionPage';
-import { CancelSubscriptionPage } from './pages/dashboard/subscription/CancelSubscriptionPage';
 import { SubscriptionSuccessPage } from './pages/dashboard/subscription/SubscriptionSuccessPage';
 import { BillingHistoryPage } from './pages/dashboard/subscription/BillingHistoryPage';
-import { MockStripeCheckoutPage } from './pages/dashboard/subscription/MockStripeCheckoutPage';
 
 // Company pages
 import { CompanySubscriptionPage } from './pages/company/CompanySubscriptionPage';
 import { CompanyManagementPage } from './pages/dashboard/company/CompanyManagementPage';
 import { CompanySubscriptionFlowPage } from './pages/dashboard/company/CompanySubscriptionFlowPage';
+import { CompanyPlanCheckoutSuccessPage } from './pages/dashboard/company/CompanyPlanCheckoutSuccessPage';
 
 // Admin pages
 import AdminDashboardPage from './pages/dashboard/admin/AdminDashboardPage';
 import UserManagementPage from './pages/dashboard/admin/UserManagementPage';
+import GuestManagementPage from './pages/dashboard/admin/GuestManagementPage';
 import PropertyManagementPage from './pages/dashboard/admin/PropertyManagementPage';
 import { AdminCreatePropertyPage } from './pages/dashboard/admin/AdminCreatePropertyPage';
 import { AdminConfigPage } from './pages/dashboard/admin/AdminConfigPage';
@@ -59,11 +61,6 @@ import { AdminBookingsPage } from './pages/dashboard/admin/AdminBookingsPage';
 import { AdminPaymentsPage } from './pages/dashboard/admin/AdminPaymentsPage';
 import { AdminCompaniesPage } from './pages/dashboard/admin/AdminCompaniesPage';
 import { AdminEditCompanyPage } from './pages/dashboard/admin/AdminEditCompanyPage.tsx';
-
-// Payment pages
-import { CheckoutPage, PaymentConfirmationPage } from './pages/dashboard/payments';
-import { PaymentCallbackPage } from './pages/dashboard/payments/PaymentCallbackPage';
-import { PaymentTestPage } from './pages/dashboard/payments/PaymentTestPage';
 
 // Auth components
 // PublicUserOnlyRoute commented out in ProtectedRoute.tsx - dashboard only system
@@ -90,7 +87,6 @@ export function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <PaymentProvider>
           <ThemeInit />
           <Router>
         <RouteChangeTracker />
@@ -102,12 +98,22 @@ export function App() {
           <Route path="/contact" element={<PublicRoute><ContactPage /></PublicRoute>} />
           <Route path="/about" element={<PublicRoute><AboutPage /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+          <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
           <Route path="/email-confirmation" element={<PublicRoute><EmailConfirmationPage /></PublicRoute>} />
-          {/* <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} /> */}
+          <Route path="/terms" element={<PublicRoute><TermsAndConditionsPage /></PublicRoute>} />
           <Route path="/notfound" element={<PublicRoute><NotFoundPage /></PublicRoute>} />
           <Route path="/pricing" element={<PublicRoute><UpgradeToManagerPage /></PublicRoute>} />
+          <Route path="/how-it-works" element={<PublicRoute><HowItWorksPage /></PublicRoute>} />
+          <Route
+            path="/conectar-con-mercado-pago"
+            element={<PublicRoute><MercadoPagoConnectPage /></PublicRoute>}
+          />
+          <Route
+            path="/conectar-con-mercado-pago/resultado"
+            element={<PublicRoute><MercadoPagoConnectResultPage /></PublicRoute>}
+          />
           
           {/* Dashboard Routes (Authentication Required, All Users) */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>} >
@@ -120,24 +126,19 @@ export function App() {
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
-            <Route path="subscription/plans" element={<ChangeSubscriptionPage />} />
-            <Route path="subscription/change" element={<ChangeSubscriptionPage />} />
-            <Route path="subscription/cancel" element={<CancelSubscriptionPage />} />
+            <Route path="subscription/plans" element={<Navigate to="/dashboard/subscription" replace />} />
+            <Route path="subscription/change" element={<Navigate to="/dashboard/subscription" replace />} />
+            <Route path="subscription/cancel" element={<Navigate to="/dashboard/subscription" replace />} />
             <Route path="subscription/success" element={<SubscriptionSuccessPage />} />
             <Route path="subscription/billing-history" element={<BillingHistoryPage />} />
-            <Route path="subscription/checkout" element={<MockStripeCheckoutPage />} />
+            <Route path="subscription/checkout" element={<Navigate to="/dashboard/subscription" replace />} />
             <Route path="company" element={<AdminRedirectWrapper><CompanyManagementPage /></AdminRedirectWrapper>} />
             <Route path="company/subscription" element={<CompanySubscriptionFlowPage />} />
+            <Route path="company/subscription/success" element={<CompanyPlanCheckoutSuccessPage />} />
             <Route path="logout" element={<LogoutPage />} />
             <Route path="property/:propertyId" element={<PropertyViewPage />} />
             <Route path="property/:propertyId/edit" element={<PropertyEditPage />} />
             <Route path="property/:propertyId/bookings" element={<PropertyBookingsPage />} />
-
-            {/* Payment Routes */}
-            <Route path="checkout/:propertyId" element={<CheckoutPage />} />
-            <Route path="payments/success/:paymentId" element={<PaymentConfirmationPage />} />
-            <Route path="payments/callback" element={<PaymentCallbackPage />} />
-            <Route path="payments/test" element={<PaymentTestPage />} />
 
             {/* Admin Routes */}
             <Route path="admin/dashboard" element={<AdminOnlyRoute><AdminDashboardPage /></AdminOnlyRoute>} />
@@ -148,6 +149,7 @@ export function App() {
             <Route path="admin/bookings" element={<AdminOnlyRoute><AdminBookingsPage /></AdminOnlyRoute>} />
             <Route path="admin/payments" element={<AdminOnlyRoute><AdminPaymentsPage /></AdminOnlyRoute>} />
             <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />
+            <Route path="admin/guests" element={<AdminOnlyRoute><GuestManagementPage /></AdminOnlyRoute>} />
             <Route path="admin/companies" element={<AdminOnlyRoute><AdminCompaniesPage /></AdminOnlyRoute>} />
             <Route path="admin/companies/:companyId/edit" element={<AdminOnlyRoute><AdminEditCompanyPage /></AdminOnlyRoute>} />
           </Route>
@@ -160,7 +162,6 @@ export function App() {
           
           </Routes>
           </Router>
-        </PaymentProvider>
       </ThemeProvider>
     </AuthProvider>
   );

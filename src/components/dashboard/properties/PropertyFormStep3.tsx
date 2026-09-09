@@ -7,7 +7,7 @@ import { VideoManager } from './VideoManager';
 import { DocumentManager, DisplayDocument } from './DocumentManager';
 import { DisplayImage } from './ImageManager';
 import { DisplayVideo } from './VideoManager';
-import type { PropertyCreationFormData } from './PropertyCreationWizard';
+import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 
 interface PropertyFormStep3Props {
   onNext: () => void;
@@ -18,6 +18,7 @@ interface PropertyFormStep3Props {
   setDisplayVideos: React.Dispatch<React.SetStateAction<DisplayVideo[]>>;
   displayDocuments: DisplayDocument[];
   setDisplayDocuments: React.Dispatch<React.SetStateAction<DisplayDocument[]>>;
+  maxPhotosPerProperty?: number | null;
 }
 
 
@@ -29,9 +30,10 @@ export function PropertyFormStep3({
   displayVideos, 
   setDisplayVideos,
   displayDocuments,
-  setDisplayDocuments
+  setDisplayDocuments,
+  maxPhotosPerProperty
 }: PropertyFormStep3Props) {
-  const { watch } = useFormContext<PropertyCreationFormData>();
+  const { watch } = useFormContext<PropertyFormData>();
   const propertyType = watch('propertyType');
 
   return (
@@ -41,6 +43,7 @@ export function PropertyFormStep3({
         <ImageManager
           displayImages={displayImages}
           onImagesChange={setDisplayImages}
+          maxPhotosPerProperty={maxPhotosPerProperty}
         />
 
         {/* Videos Section */}
@@ -56,7 +59,7 @@ export function PropertyFormStep3({
             onDocumentsChange={setDisplayDocuments}
           />
         )}
-        
+
         {/* Navigation Buttons */}
         <div className="flex justify-between pt-4">
           <Button color="alternative" onClick={onBack}>

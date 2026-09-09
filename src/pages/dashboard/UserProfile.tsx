@@ -8,6 +8,7 @@ import type { VerificationType } from '../../components/user/EmailPhoneVerificat
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
 import { fetchUserProfile } from '../../store/slices/userSlice';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 const initialProfileState: ProfileData = {
   firstName: '',
@@ -219,9 +220,9 @@ export function UserProfile() {
             <div className="relative">
               <div className="h-40 w-40 rounded-full bg-primary-200 flex items-center justify-center text-secondary-800 overflow-hidden border-2 border-secondary-600/25 dark:border-secondary-800">
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Avatar Preview" className="h-full w-full object-cover" />
+                  <img src={resolveAssetUrl(avatarPreview)} alt="Avatar Preview" className="h-full w-full object-cover" />
                 ) : currentData.avatarUrl ? (
-                  <img src={currentData.avatarUrl} alt={currentData.firstName} className="h-full w-full object-cover" />
+                  <img src={resolveAssetUrl(currentData.avatarUrl)} alt={currentData.firstName} className="h-full w-full object-cover" />
                 ) : (
                   <IconWrapper icon={UserIcon} size={80} />
                 )}

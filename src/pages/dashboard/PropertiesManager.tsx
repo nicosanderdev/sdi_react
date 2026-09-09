@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
@@ -11,7 +11,11 @@ import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dash
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
+import { useContactVerificationGate } from '../../hooks/useContactVerificationGate';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
+import { EditListingModal } from '../../components/dashboard/properties/EditListingModal';
+import { ContactVerificationGateBanner } from '../../components/user/ContactVerificationGateBanner';
+import { formatPlanLimit } from '../../models/subscriptions/PlanData';
 
 type PropertyPurposeType = 'RealEstate' | 'AnnualRent' | 'EventVenue' | 'SummerRent';
 
@@ -40,19 +44,18 @@ const PropertiesManagerComponent = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
   const [showVerificationGateTooltip, setShowVerificationGateTooltip] = useState(false);
+  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
 
   const {
     isEligibleForOnboarding,
     isExperiencedOwner,
     currentStep,
     completedAt,
-    emailVerified,
-    phoneVerified,
     setStep,
     dismiss,
   } = useOwnerOnboarding();
 
-  const needsVerification = isEligibleForOnboarding && (!emailVerified || !phoneVerified);
+  const { needsVerification } = useContactVerificationGate();
   const showVerificationBanner = needsVerification;
 
   // Property quota information
@@ -222,7 +225,7 @@ const PropertiesManagerComponent = () => {
                   <div className="text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
                     <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {ownedCount}/{totalLimit}
+                      {ownedCount}/{formatPlanLimit(totalLimit)}
                     </span>
                     {isAtTotalLimit && (
                       <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
@@ -231,7 +234,7 @@ const PropertiesManagerComponent = () => {
                   <div className="text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
                     <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {publishedCount}/{publishedLimit}
+                      {publishedCount}/{formatPlanLimit(publishedLimit)}
                     </span>
                     {isAtPublishedLimit && (
                       <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
@@ -252,7 +255,7 @@ const PropertiesManagerComponent = () => {
                   <div className="text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
                     <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {ownedCount}/{totalLimit}
+                      {ownedCount}/{formatPlanLimit(totalLimit)}
                     </span>
                     {isAtTotalLimit && (
                       <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
@@ -261,7 +264,7 @@ const PropertiesManagerComponent = () => {
                   <div className="text-sm">
                     <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
                     <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {publishedCount}/{publishedLimit}
+                      {publishedCount}/{formatPlanLimit(publishedLimit)}
                     </span>
                     {isAtPublishedLimit && (
                       <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
@@ -269,13 +272,7 @@ const PropertiesManagerComponent = () => {
                   </div>
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Plan Inicial:</span> Puedes crear hasta {totalLimit} propiedades ({publishedLimit} publicadas).
-                  <Link
-                    to="/dashboard/subscription/plans"
-                    className="ml-2 text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
-                  >
-                    Ver planes de suscripción
-                  </Link>
+                  <span className="font-medium">Plan Inicial:</span> Puedes crear hasta {formatPlanLimit(totalLimit)} propiedades ({formatPlanLimit(publishedLimit)} publicadas).
                 </div>
               </div>
             </div>
@@ -284,21 +281,7 @@ const PropertiesManagerComponent = () => {
       )}
 
       {showVerificationBanner && (
-        <div
-          id="onboarding-verification-gate"
-          className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800"
-        >
-          <p className="text-sm text-amber-800 dark:text-amber-200">
-            Before publishing properties, we need to verify your email and phone number.
-            This helps maintain trust and communication with guests.
-          </p>
-          <Link
-            to="/dashboard/profile"
-            className="inline-block mt-2 text-sm font-medium text-[#62B6CB] hover:text-[#4a9bb0] underline"
-          >
-            Go to profile to verify
-          </Link>
-        </div>
+        <ContactVerificationGateBanner id="onboarding-verification-gate" />
       )}
 
       {error && !isDeleting && ( 
@@ -343,9 +326,24 @@ const PropertiesManagerComponent = () => {
             properties={filteredProperties}
             onViewBookings={handleViewBookings}
             onDeleteProperty={handleDeleteRequest}
+            onEditListing={(property) => {
+              if (needsVerification) {
+                setShowVerificationGateTooltip(true);
+                return;
+              }
+              setEditingListingPropertyId(property.id);
+            }}
+            editBlocked={needsVerification}
+            onEditBlocked={() => setShowVerificationGateTooltip(true)}
           />
         )}
       </Card>
+      <EditListingModal
+        isOpen={!!editingListingPropertyId}
+        propertyId={editingListingPropertyId}
+        onClose={() => setEditingListingPropertyId(null)}
+        onSaved={fetchProperties}
+      />
 
       {/* Property Limit Reached Modal */}
       <Modal show={showLimitModal} onClose={() => setShowLimitModal(false)} className='text-gray-800 dark:text-gray-50'>
@@ -357,10 +355,8 @@ const PropertiesManagerComponent = () => {
             <div className="mb-4">
               <div className="text-4xl mb-2">🏠</div>
               <p className="text-lg mb-2">
-                {hasPersonalSubscription
-                  ? "Has alcanzado el límite máximo de propiedades de tu plan."
-                  : `Como usuario con plan Inicial, puedes crear hasta ${totalLimit} propiedades (${publishedLimit} publicadas).`
-                }
+                Has alcanzado el límite máximo de propiedades de tu plan
+                ({formatPlanLimit(totalLimit)} totales, {formatPlanLimit(publishedLimit)} publicadas).
               </p>
             </div>
 
@@ -371,26 +367,9 @@ const PropertiesManagerComponent = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600 dark:text-gray-400">Límite máximo:</span>
-                <span className="font-semibold">{totalLimit}</span>
+                <span className="font-semibold">{formatPlanLimit(totalLimit)}</span>
               </div>
             </div>
-
-            {!hasPersonalSubscription && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mb-6 border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <span className="font-medium">¿Quieres crear más propiedades?</span>
-                  <br />
-                  <Link
-                    to="/dashboard/subscription/plans"
-                    className="text-[#62B6CB] hover:text-[#4a9bb0] underline font-medium"
-                    onClick={() => setShowLimitModal(false)}
-                  >
-                    Ver planes de suscripción
-                  </Link>
-                  <span className="ml-1">para aumentar tu límite.</span>
-                </p>
-              </div>
-            )}
 
             <div className='flex justify-center gap-2 w-100'>
               <Button
@@ -493,10 +472,10 @@ const PropertiesManagerComponent = () => {
             showVerificationGateTooltip
               ? {
                   element: '#onboarding-verification-gate',
-                  title: 'Verify your email and phone',
+                  title: 'Verifica tu correo y teléfono',
                   description:
-                    'Before publishing properties, we need to verify your email and phone number. This helps maintain trust and communication with guests.',
-                  nextBtnText: 'Go to profile',
+                    'Antes de crear o editar propiedades, necesitamos verificar tu correo electrónico y teléfono. Esto ayuda a mantener la confianza y la comunicación con los huéspedes.',
+                  nextBtnText: 'Ir al perfil',
                 }
               : null
           }

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../../../_shared/cors.ts'
-import { authenticateUser, hasPropertyAccess } from '../../../_shared/auth.ts'
+import { corsHeaders } from '../../_shared/cors.ts'
+import { authenticateUser, hasPropertyAccess } from '../../_shared/auth.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -576,7 +576,7 @@ async function performOutboundSync(integrationId: string, jobId?: string): Promi
   }
 }
 
-Deno.serve(async (req) => {
+export async function handleGoogleSyncRequest(req: Request): Promise<Response> {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -644,4 +644,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
-})
+}
+
+if (import.meta.main) {
+  Deno.serve(handleGoogleSyncRequest)
+}

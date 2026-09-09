@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import companyService, {
+  AdminCompanyDetail,
   AdminCompanyFilters,
   AdminCompanyListItem,
   AdminCompanyMetrics,
@@ -10,6 +11,9 @@ export interface UseAdminCompaniesReturn {
   companies: AdminCompanyListItem[];
   metrics: AdminCompanyMetrics | null;
   members: AdminCompanyMember[];
+  companyDetail: AdminCompanyDetail | null;
+  detailLoading: boolean;
+  detailError: string | null;
   totalCompanies: number;
   currentPage: number;
   pageSize: number;
@@ -23,7 +27,7 @@ export interface UseAdminCompaniesReturn {
   clearFilters: () => void;
   fetchCompanies: () => Promise<void>;
   fetchCompanyDetail: (companyId: string) => Promise<void>;
-  createCompany: (payload: { name: string; billingEmail: string; description?: string }) => Promise<boolean>;
+  createCompany: (payload: { name: string; billingEmail: string; description?: string; planId: string }) => Promise<boolean>;
   updateCompany: (companyId: string, payload: { name: string; billingEmail: string; description?: string; phone?: string }) => Promise<boolean>;
   addUserByEmail: (companyId: string, email: string) => Promise<boolean>;
 }
@@ -33,6 +37,9 @@ const DEFAULT_PAGE_SIZE = 10;
 export const useAdminCompanies = (): UseAdminCompaniesReturn => {
   const [companies, setCompanies] = useState<AdminCompanyListItem[]>([]);
   const [members, setMembers] = useState<AdminCompanyMember[]>([]);
+  const [companyDetail, setCompanyDetail] = useState<AdminCompanyDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<AdminCompanyMetrics | null>(null);
   const [totalCompanies, setTotalCompanies] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,20 +78,22 @@ export const useAdminCompanies = (): UseAdminCompaniesReturn => {
   }, [fetchCompanies]);
 
   const fetchCompanyDetail = useCallback(async (companyId: string) => {
-    setLoading(true);
-    setError(null);
+    setDetailLoading(true);
+    setDetailError(null);
     try {
       const detail = await companyService.getAdminCompanyDetail(companyId);
       setMembers(detail.members);
+      setCompanyDetail(detail);
     } catch (err: any) {
-      setError(err.message || 'No se pudieron cargar los miembros de la compañía.');
+      setDetailError(err.message || 'No se pudieron cargar los datos de la compañía.');
+      setCompanyDetail(null);
     } finally {
-      setLoading(false);
+      setDetailLoading(false);
     }
   }, []);
 
   const createCompany = useCallback(
-    async (payload: { name: string; billingEmail: string; description?: string }) => {
+    async (payload: { name: string; billingEmail: string; description?: string; planId: string }) => {
       setActionError(null);
       try {
         await companyService.createAdminCompany(payload);
@@ -146,6 +155,9 @@ export const useAdminCompanies = (): UseAdminCompaniesReturn => {
     companies,
     metrics,
     members,
+    companyDetail,
+    detailLoading,
+    detailError,
     totalCompanies,
     currentPage,
     pageSize,

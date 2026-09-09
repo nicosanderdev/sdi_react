@@ -1,6 +1,6 @@
 // src/components/admin/properties/PropertyStatistics.tsx
 import React from 'react';
-import { HomeIcon, EyeIcon, EyeOffIcon, ArchiveIcon, AlertTriangleIcon, Loader2Icon } from 'lucide-react';
+import { HomeIcon, EyeIcon, EyeOffIcon, ArchiveIcon, Loader2Icon } from 'lucide-react';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 
 interface PropertyStatisticsProps {
@@ -96,15 +96,8 @@ export const PropertyStatistics: React.FC<PropertyStatisticsProps> = ({ hook }) 
       color: 'green',
     },
     {
-      title: 'Propiedades incompletas',
-      value: statistics?.incompleteProperties ?? null,
-      description: 'Aún no activadas',
-      icon: <AlertTriangleIcon className="w-6 h-6" />,
-      color: 'yellow',
-    },
-    {
-      title: 'Nunca publicadas',
-      value: statistics?.neverPublished ?? null,
+      title: 'No publicadas',
+      value: statistics?.unpublishedProperties ?? null,
       description: 'Ocultas del público',
       icon: <EyeOffIcon className="w-6 h-6" />,
       color: 'red',
@@ -119,7 +112,7 @@ export const PropertyStatistics: React.FC<PropertyStatisticsProps> = ({ hook }) 
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
       {statCards.map((card, index) => (
         <StatCard
           key={index}

@@ -19,7 +19,15 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 ```
 
-### 3. Database Setup
+### 3. File uploads (property create/edit)
+
+Specs such as `create-property-new-member.spec.ts` upload images through the app.
+
+**Local Supabase (recommended):** set `VITE_STORAGE_BACKEND=supabase` and point `VITE_SUPABASE_URL` at `http://127.0.0.1:54321`. Requires local Supabase running with storage buckets (see root [`README.md`](../README.md)).
+
+**Cloudflare R2:** set `VITE_STORAGE_BACKEND=r2` (default). Requires `storage-r2` deployed and R2 secrets as documented in the root README. Without R2 configured, upload steps fail when invoking `storage-r2` or on the presigned `PUT`.
+
+### 4. Database Setup
 
 Run the migrations to create test accounts and booking data:
 
@@ -52,7 +60,7 @@ Or run the migration `20251222100000_add_test_users_for_e2e.sql` which creates:
 - **Basic User**: `test@example.com` / `testpassword123`
 - **Company Admin**: `admin@testcompany.com` / `adminpassword123`
 
-### 4. Run Tests
+### 5. Run Tests
 
 ```bash
 # Run all e2e tests

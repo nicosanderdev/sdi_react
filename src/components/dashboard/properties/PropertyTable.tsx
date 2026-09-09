@@ -7,12 +7,19 @@ interface PropertyTableProps {
   properties: PropertyData[];
   onViewBookings: (property: PropertyData) => void;
   onDeleteProperty: (property: PropertyData) => void;
+  onEditListing: (property: PropertyData) => void;
+  /** When true, property/listing edit actions are blocked until contact verification */
+  editBlocked?: boolean;
+  onEditBlocked?: () => void;
 }
 
 export function PropertyTable({
   properties,
   onViewBookings,
   onDeleteProperty,
+  onEditListing,
+  editBlocked = false,
+  onEditBlocked,
 }: PropertyTableProps) {
   const navigate = useNavigate();
 
@@ -30,6 +37,10 @@ export function PropertyTable({
   };
 
   const handleEditClick = (property: PropertyData) => {
+    if (editBlocked) {
+      onEditBlocked?.();
+      return;
+    }
     navigate(`/dashboard/property/${property.id}/edit`);
   };
 
@@ -139,6 +150,13 @@ export function PropertyTable({
                     onClick={() => handleEditClick(property)}
                     className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
                     title="Editar Propiedad"
+                  >
+                    <EditIcon size={18} />
+                  </button>
+                  <button
+                    onClick={() => onEditListing(property)}
+                    className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
+                    title="Editar Aviso"
                   >
                     <EditIcon size={18} />
                   </button>

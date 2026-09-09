@@ -13,6 +13,9 @@ import {
 import { CompanyInfo } from '../../models/companies/CompanyInfo';
 import { UpdateCompanyProfilePayload } from '../../models/companies/UpdateCompanyProfilePayload';
 import companyService from '../../services/CompanyService';
+import { useContactVerificationGate } from '../../hooks/useContactVerificationGate';
+import { ContactVerificationGateBanner } from '../user/ContactVerificationGateBanner';
+import { CONTACT_VERIFICATION_REQUIRED_MESSAGE } from '../../utils/contactVerification';
 
 interface CompanyProfileEditorProps {
   companyInfo: CompanyInfo | null;
@@ -21,9 +24,11 @@ interface CompanyProfileEditorProps {
 }
 
 export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: CompanyProfileEditorProps) {
+  const { needsVerification } = useContactVerificationGate();
   const [editing, setEditing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showVerificationGate, setShowVerificationGate] = useState(false);
   const [success, setSuccess] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(null);
@@ -226,7 +231,15 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
         </div>
         {!editing && (
           <Button
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              if (needsVerification) {
+                setShowVerificationGate(true);
+                setError(CONTACT_VERIFICATION_REQUIRED_MESSAGE);
+                return;
+              }
+              setShowVerificationGate(false);
+              setEditing(true);
+            }}
             className="flex items-center space-x-2"
           >
             <Edit3 className="w-4 h-4" />
@@ -234,6 +247,10 @@ export function CompanyProfileEditor({ companyInfo, isLoading, onUpdate }: Compa
           </Button>
         )}
       </div>
+
+      {showVerificationGate && needsVerification && (
+        <ContactVerificationGateBanner />
+      )}
 
       {error && (
         <Alert color="failure" icon={AlertCircle} className="mb-4">

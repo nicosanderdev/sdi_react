@@ -52,7 +52,7 @@ export function AdminPaymentsPage() {
             setActiveSection(activeTab === 0 ? 'bookings' : 'receipts')
           }
         >
-          <TabItem active={activeSection === 'bookings'} title="Reservas - Generación de Facturas">
+          <TabItem active={activeSection === 'bookings'} title="Operaciones - Generación de Facturas">
             <BookingsReceiptGenerationSection
               userSearch={filters.userSearch}
               paymentStatus={filters.paymentStatus}

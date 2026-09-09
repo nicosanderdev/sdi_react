@@ -111,11 +111,6 @@ export const VideoManager: React.FC<VideoManagerProps> = ({
                 return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
             }
         }
-        // For Vimeo videos
-        if (url.includes('vimeo.com/')) {
-            const videoId = url.split('vimeo.com/')[1].split('?')[0];
-            return `https://vumbnail.com/${videoId}.jpg`;
-        }
         // For other video URLs, return a placeholder
         return '';
     };
@@ -259,7 +254,7 @@ export const VideoManager: React.FC<VideoManagerProps> = ({
                                             <TextInput
                                                 value={video.url || ''}
                                                 onChange={(e) => handleVideoUrlChange(video.key, e.target.value)}
-                                                placeholder="URL del video (YouTube, Vimeo, etc.)"
+                                                placeholder="URL del video (YouTube, etc.)"
                                                 className="text-xs"
                                                 color={video.url && !isValidUrl(video.url) ? "failure" : undefined}
                                             />

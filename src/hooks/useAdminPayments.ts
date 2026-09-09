@@ -80,7 +80,7 @@ export function useAdminPayments() {
       });
       setBookings(data);
     } catch (error: any) {
-      setBookingsError(error.message || 'Error al cargar reservas');
+      setBookingsError(error.message || 'Error al cargar operaciones');
       setBookings([]);
     } finally {
       setLoadingBookings(false);

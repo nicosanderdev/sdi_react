@@ -5,6 +5,7 @@ import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import { CompanyInfo, CompanyUser } from './CompanyService';
 import { PropertyData, PublicProperty } from '../models/properties';
+import type { ListingType } from '../models/properties/PropertyData';
 import { PropertyImage, PropertyDocument, PropertyVideo, Amenity } from '../models/properties';
 import { Message, MessageDetail, TabCounts } from './MessageService';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -99,6 +100,7 @@ interface PlansRow {
   MaxPublishedProperties: number | null;
   MaxUsers: number | null;
   MaxStorageMb: number | null;
+  MaxPhotosPerProperty?: number | null;
   BillingCycle: number;
   IsActive: boolean;
   IsDeleted: boolean;
@@ -117,7 +119,9 @@ const intToPlanKey = (keyInt: number): PlanKey => {
     const mapping: Record<number, PlanKey> = {
         0: PlanKey.FREE,
         1: PlanKey.MANAGER_PRO, // Default to MANAGER_PRO for 1
-        2: PlanKey.COMPANY_SMALL // Default to COMPANY_SMALL for 2
+        2: PlanKey.COMPANY_SMALL,
+        4: PlanKey.COMPANY_UNLIMITED,
+        5: PlanKey.COMPANY_FREE
     };
     return mapping[keyInt] ?? PlanKey.FREE;
 };
@@ -157,10 +161,11 @@ interface EstatePropertiesRow {
   OwnerId: string;
   MainImageId: string | null;
   IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
+  /** Removed from DB in listing refactor; optional on client reads. */
+  Created?: string;
+  LastModified?: string;
+  CreatedBy?: string | null;
+  LastModifiedBy?: string | null;
 }
 
 interface EstatePropertyValuesRow {
@@ -246,11 +251,40 @@ interface AmenitiesRow {
 interface EstatePropertyAmenityRow {
   EstatePropertyId: string;
   AmenityId: string;
-  IsDeleted: boolean;
-  Created: string;
-  LastModified: string;
-  CreatedBy: string | null;
-  LastModifiedBy: string | null;
+  LocalizedDescriptions?: Record<string, string> | null;
+  IsDeleted?: boolean;
+  Created?: string;
+  LastModified?: string;
+  CreatedBy?: string | null;
+  LastModifiedBy?: string | null;
+}
+
+function mapLocalizedDescriptions(
+  raw: Record<string, unknown> | null | undefined
+): import('../models/properties/Amenity').Amenity['descriptions'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: Partial<Record<'en' | 'es' | 'pt', string>> = {};
+  for (const lang of ['en', 'es', 'pt'] as const) {
+    const v = raw[lang];
+    if (typeof v === 'string' && v.trim()) out[lang] = v.trim();
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function mapEstatePropertyAmenityRows(
+  epaSource: unknown
+): import('../models/properties/Amenity').Amenity[] {
+  const epaList = Array.isArray(epaSource) ? epaSource : epaSource ? [epaSource] : [];
+  return epaList
+    .filter((epa: any) => epa?.Amenities)
+    .map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
+      id: epa.Amenities.Id,
+      name: epa.Amenities.Name,
+      iconId: epa.Amenities.IconId || undefined,
+      descriptions: mapLocalizedDescriptions(
+        epa.LocalizedDescriptions as Record<string, unknown> | null | undefined
+      ),
+    }));
 }
 
 interface MessageThreadsRow {
@@ -331,10 +365,13 @@ export const mapDbToProfile = (
   member: MembersRow,
   userCompanies?: (CompanyMembersRow & { Companies: CompaniesRow })[]
 ): ProfileData => {
-  const companies: UserCompany[] = userCompanies?.map(uc => ({
-    id: uc.Companies.Id,
-    name: uc.Companies.Name
-  })) || [];
+  const companies: UserCompany[] = userCompanies
+    ?.filter(uc => !uc.IsDeleted && uc.Companies)
+    .map(uc => ({
+      id: uc.Companies.Id,
+      name: uc.Companies.Name,
+      role: uc.Role != null ? String(uc.Role) : undefined,
+    })) || [];
 
   return {
     id: member.Id,
@@ -367,15 +404,15 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     name: subscription.Plans.Name,
     monthlyPrice: subscription.Plans.MonthlyPrice,
     currency: subscription.Plans.Currency,
-    maxProperties: subscription.Plans.MaxProperties || 0, // Keep for backward compatibility
-    maxUsers: subscription.Plans.MaxUsers || 0,
-    maxStorageMb: subscription.Plans.MaxStorageMb || 0,
+    maxProperties: subscription.Plans.MaxProperties ?? null,
+    maxUsers: subscription.Plans.MaxUsers ?? null,
+    maxStorageMb: subscription.Plans.MaxStorageMb ?? null,
     billingCycle: subscription.Plans.BillingCycle.toString(),
     isActive: subscription.Plans.IsActive,
-    publishedProperties: subscription.Plans.MaxPublishedProperties || 0,
-    totalProperties: subscription.Plans.MaxProperties || 0,
+    publishedProperties: subscription.Plans.MaxPublishedProperties ?? null,
+    totalProperties: subscription.Plans.MaxProperties ?? null,
     bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
-    propertyType: subscription.Plans.PropertyType as any
+    maxPhotosPerProperty: subscription.Plans.MaxPhotosPerProperty ?? null
   };
 
   return {
@@ -426,7 +463,8 @@ export const mapDbToCompany = (company: CompaniesRow): CompanyInfo => {
  */
 export const mapDbToCompanyUser = (userCompany: CompanyMembersRow & { Members: MembersRow }): CompanyUser => {
   return {
-    id: userCompany.Members.Id,
+    id: userCompany.Id,
+    memberId: userCompany.Members.Id,
     firstName: userCompany.Members.FirstName || '',
     lastName: userCompany.Members.LastName || '',
     email: userCompany.Members.Email || '',
@@ -633,6 +671,11 @@ export const statusMapForward: { [key: string]: number } = {
 /**
  * Maps database rows to PropertyData interface (full property data for owners)
  */
+function firstRelationRow<T>(rel: T | T[] | null | undefined): T | undefined {
+  if (rel == null) return undefined;
+  return Array.isArray(rel) ? rel[0] : rel;
+}
+
 export const mapDbToPropertyData = (
   property: EstatePropertiesRow & {
     EstatePropertyValues: EstatePropertyValuesRow[];
@@ -642,6 +685,52 @@ export const mapDbToPropertyData = (
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PropertyData => {
+  const raw = property as any;
+  const listingRows: any[] = Array.isArray(raw.Listings) ? raw.Listings : [];
+  const activeListingRows = listingRows.filter((l: any) => !l.IsDeleted);
+  const activeListingTypes = [...new Set(activeListingRows.map((l: any) => l.ListingType as string))] as ListingType[];
+  const sortedForFeatured = [...activeListingRows].sort((a: any, b: any) => {
+    if (!!a.IsFeatured !== !!b.IsFeatured) return a.IsFeatured ? -1 : 1;
+    return new Date(b.Created || 0).getTime() - new Date(a.Created || 0).getTime();
+  });
+  const featuredListing = sortedForFeatured[0];
+  const listingType = featuredListing?.ListingType as ListingType | undefined;
+
+  const re = firstRelationRow(raw.RealEstateExtension);
+  const sr = firstRelationRow(raw.SummerRentExtension);
+  const ev = firstRelationRow(raw.EventVenueExtension);
+
+  const extensionFormFields: Record<string, unknown> = {};
+  if (re) {
+    extensionFormFields.allowsFinancing = !!re.AllowsFinancing;
+    extensionFormFields.isNewConstruction = !!re.IsNewConstruction;
+    extensionFormFields.hasMortgage = !!re.HasMortgage;
+    extensionFormFields.hoaFees = re.HoaFees != null ? Number(re.HoaFees) : undefined;
+    extensionFormFields.minContractMonths =
+      re.MinContractMonths != null && re.MinContractMonths !== '' ? Number(re.MinContractMonths) : undefined;
+    extensionFormFields.requiresGuarantee = !!re.RequiresGuarantee;
+    extensionFormFields.guaranteeType = re.GuaranteeType ?? '';
+    extensionFormFields.allowsPets = !!re.AllowsPets;
+  }
+  if (sr) {
+    extensionFormFields.minStayDays =
+      sr.MinStayDays != null && sr.MinStayDays !== '' ? Number(sr.MinStayDays) : undefined;
+    extensionFormFields.maxStayDays =
+      sr.MaxStayDays != null && sr.MaxStayDays !== '' ? Number(sr.MaxStayDays) : undefined;
+    extensionFormFields.leadTimeDays =
+      sr.LeadTimeDays != null && sr.LeadTimeDays !== '' ? Number(sr.LeadTimeDays) : undefined;
+    extensionFormFields.bufferDays =
+      sr.BufferDays != null && sr.BufferDays !== '' ? Number(sr.BufferDays) : undefined;
+  }
+  if (ev) {
+    extensionFormFields.maxGuests =
+      ev.MaxGuests != null && ev.MaxGuests !== '' ? Number(ev.MaxGuests) : undefined;
+    extensionFormFields.hasCatering = !!ev.HasCatering;
+    extensionFormFields.hasSoundSystem = !!ev.HasSoundSystem;
+    extensionFormFields.closingHour = ev.ClosingHour ?? '';
+    extensionFormFields.allowedEventsDescription = ev.AllowedEventsDescription ?? '';
+  }
+
   // Get the latest property values (most recent)
   const latestValues = property.EstatePropertyValues?.sort(
     (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
@@ -675,11 +764,9 @@ export const mapDbToPropertyData = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
-    id: epa.Amenities.Id,
-    name: epa.Amenities.Name,
-    iconId: epa.Amenities.IconId || undefined
-  })) || [];
+  const epaSource =
+    raw.EstatePropertyAmenity ?? property.EstatePropertyAmenities ?? [];
+  const amenities: Amenity[] = mapEstatePropertyAmenityRows(epaSource);
 
   return {
     id: property.Id,
@@ -694,7 +781,8 @@ export const mapDbToPropertyData = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    // Title lives on Listings (EstateProperties has no Title column).
+    title: featuredListing?.Title ?? '',
     type: (propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||
       'house') as 'house' | 'apartment' | 'land' | 'small_farm' | 'farm',
@@ -709,7 +797,7 @@ export const mapDbToPropertyData = (
     propertyDocuments,
     propertyVideos,
     amenities,
-    description: latestValues?.Description || undefined,
+    description: featuredListing?.Description || latestValues?.Description || undefined,
     availableFrom: latestValues ? new Date(latestValues.AvailableFrom) : new Date(),
     availableFromText: latestValues ? new Date(latestValues.AvailableFrom).toLocaleDateString() : '',
     ownerId: property.OwnerId,
@@ -725,25 +813,73 @@ export const mapDbToPropertyData = (
     isActive: latestValues?.IsActive || true,
     isPropertyVisible: latestValues?.IsPropertyVisible || true,
     blockedForBooking: latestValues?.BlockedForBooking ?? false,
-    created: new Date(property.Created)
-  };
+    created: (() => {
+      const ep = property as EstatePropertiesRow & { Created?: string };
+      if (ep.Created) return new Date(ep.Created);
+      const times = activeListingRows
+        .map((l: any) => (l?.Created ? new Date(l.Created).getTime() : NaN))
+        .filter((t: number) => !Number.isNaN(t));
+      if (times.length > 0) return new Date(Math.min(...times));
+      return new Date();
+    })(),
+    listings: activeListingRows.map((l: any) => ({
+      id: l.Id,
+      listingType: l.ListingType,
+      isFeatured: !!l.IsFeatured,
+    })),
+    activeListingTypes,
+    listingType,
+    hasSummerRentExtension: !!sr,
+    ...extensionFormFields,
+  } as PropertyData;
 };
 
 /**
  * Maps database rows to PublicProperty interface (limited data for public viewing)
  */
+interface ListingsRowLite {
+  Id: string;
+  ListingType?: string;
+  Title?: string;
+  Description?: string;
+  SalePrice?: number | null;
+  RentPrice?: number | null;
+  BasePrice?: number | null;
+  MinPrice?: number | null;
+  MaxPrice?: number | null;
+  LongStayDiscountEnabled?: boolean;
+  LongStayMinDays?: number | null;
+  LongStayDiscountPercentage?: number | null;
+  Currency?: number;
+  IsElectricityIncluded?: boolean;
+  IsWaterIncluded?: boolean;
+  BlockedForBooking?: boolean;
+  IsFeatured?: boolean;
+  IsDeleted?: boolean;
+}
+
+function pickFeaturedListing(raw: ListingsRowLite | ListingsRowLite[] | undefined): ListingsRowLite | undefined {
+  const rows = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  return (
+    rows.find(l => l.IsFeatured && !l.IsDeleted) ??
+    rows.find(l => !l.IsDeleted) ??
+    rows[0]
+  );
+}
+
 export const mapDbToPublicProperty = (
   property: EstatePropertiesRow & {
-    EstatePropertyValues: EstatePropertyValuesRow[];
+    EstatePropertyValues?: EstatePropertyValuesRow[];
+    Listings?: ListingsRowLite | ListingsRowLite[];
     PropertyImages?: PropertyImagesRow[];
     PropertyVideos?: PropertyVideosRow[];
     EstatePropertyAmenities?: (EstatePropertyAmenityRow & { Amenities: AmenitiesRow })[];
   }
 ): PublicProperty => {
-  // Get the latest property values
   const latestValues = property.EstatePropertyValues?.sort(
     (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
   )[0];
+  const listing = pickFeaturedListing(property.Listings);
 
   const propertyImages: PropertyImage[] = property.PropertyImages?.map(img => ({
     id: img.Id,
@@ -764,11 +900,11 @@ export const mapDbToPublicProperty = (
     isPublic: video.IsPublic
   })) || [];
 
-  const amenities: Amenity[] = property.EstatePropertyAmenities?.map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
-    id: epa.Amenities.Id,
-    name: epa.Amenities.Name,
-    iconId: epa.Amenities.IconId || undefined
-  })) || [];
+  const epaSource =
+    (property as any).EstatePropertyAmenity ??
+    property.EstatePropertyAmenities ??
+    [];
+  const amenities: Amenity[] = mapEstatePropertyAmenityRows(epaSource);
 
   return {
     id: property.Id,
@@ -783,7 +919,7 @@ export const mapDbToPublicProperty = (
       lat: property.LocationLatitude,
       lng: property.LocationLongitude
     },
-    title: property.Title,
+    title: listing?.Title ?? '',
     type:
       propertyCategoryDbToUi[(property as any)?.RealEstateExtension?.Category] ||
       propertyTypeMapReverse[(property as any).Type] ||
@@ -798,14 +934,31 @@ export const mapDbToPublicProperty = (
     propertyVideos,
     amenities,
     mainImageId: property.MainImageId || '',
-    description: latestValues?.Description || '',
-    salePrice: latestValues?.SalePrice || undefined,
-    rentPrice: latestValues?.RentPrice || undefined,
-    currency: (currencyMapReverse[latestValues?.Currency || 0] || 'USD') as 'USD' | 'EUR' | 'GBP',
-    isElectricityIncluded: latestValues?.IsElectricityIncluded || false,
-    isWaterIncluded: latestValues?.IsWaterIncluded || false,
+    description: listing?.Description ?? latestValues?.Description ?? '',
+    salePrice: listing?.SalePrice ?? latestValues?.SalePrice ?? undefined,
+    rentPrice:
+      listing?.RentPrice ??
+      listing?.BasePrice ??
+      latestValues?.RentPrice ??
+      undefined,
+    basePrice: listing?.BasePrice ?? listing?.RentPrice ?? undefined,
+    minPrice: listing?.MinPrice ?? undefined,
+    maxPrice: listing?.MaxPrice ?? undefined,
+    longStayDiscountEnabled: listing?.LongStayDiscountEnabled ?? false,
+    longStayMinDays: listing?.LongStayMinDays ?? null,
+    longStayDiscountPercentage:
+      listing?.LongStayDiscountPercentage != null
+        ? Number(listing.LongStayDiscountPercentage)
+        : null,
+    listingId: listing?.Id,
+    listingType: listing?.ListingType,
+    currency: (currencyMapReverse[listing?.Currency ?? latestValues?.Currency ?? 0] ||
+      'USD') as 'USD' | 'EUR' | 'GBP',
+    isElectricityIncluded:
+      listing?.IsElectricityIncluded ?? latestValues?.IsElectricityIncluded ?? false,
+    isWaterIncluded: listing?.IsWaterIncluded ?? latestValues?.IsWaterIncluded ?? false,
     ownerId: property.OwnerId,
-    blockedForBooking: latestValues?.BlockedForBooking ?? false
+    blockedForBooking: listing?.BlockedForBooking ?? latestValues?.BlockedForBooking ?? false,
   };
 };
 

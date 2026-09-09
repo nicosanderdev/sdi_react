@@ -235,6 +235,37 @@ export interface SyncResponse {
   message: string
 }
 
+/** Latest job summary returned by sync-orchestrator status (camelCase JSON). */
+export interface OrchestratorLatestSyncJob {
+  id: string
+  jobType: number
+  status: number
+  startedAt?: string
+  completedAt?: string
+  error?: string
+  eventsProcessed?: number
+  created?: string
+}
+
+/** One integration row from GET calendar-sync/sync-orchestrator/status. */
+export interface CalendarIntegrationSyncStatusRow {
+  integrationId: string
+  platformType: PlatformType
+  calendarName?: string
+  isActive: boolean
+  lastSyncAt?: string
+  /** Integration sync state (idle/syncing/error), not the SyncStatus enum name collision. */
+  syncStatus: number
+  latestJob?: OrchestratorLatestSyncJob | null
+}
+
+/** JSON body from sync-orchestrator status endpoint. */
+export interface PropertySyncStatusApiResponse {
+  success: boolean
+  status: CalendarIntegrationSyncStatusRow[]
+}
+
+/** @deprecated Use CalendarIntegrationSyncStatusRow for a single row. */
 export interface SyncStatusResponse {
   integrationId: string
   platformType: PlatformType
@@ -414,6 +445,34 @@ export const BOOKING_STATUS_NAMES = {
   [BookingStatus.Completed]: 'Completed',
   [BookingStatus.NoShow]: 'No Show'
 } as const
+
+/** flowbite-react `Badge` color prop values for list rows */
+export type BookingStatusBadgeColor =
+  | 'success'
+  | 'warning'
+  | 'failure'
+  | 'info'
+  | 'gray'
+  | 'purple'
+
+export function getBookingStatusBadgeColor(
+  status: BookingStatus
+): BookingStatusBadgeColor {
+  switch (status) {
+    case BookingStatus.Pending:
+      return 'warning'
+    case BookingStatus.Confirmed:
+      return 'success'
+    case BookingStatus.Completed:
+      return 'info'
+    case BookingStatus.Cancelled:
+      return 'failure'
+    case BookingStatus.NoShow:
+      return 'purple'
+    default:
+      return 'gray'
+  }
+}
 
 export const CURRENCY_NAMES = {
   [Currency.USD]: 'USD',

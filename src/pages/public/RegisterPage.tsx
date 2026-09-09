@@ -1,40 +1,26 @@
 import React, { useState } from 'react';
-import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, ArrowLeftIcon, CalendarIcon, AlertCircleIcon, UserPlus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, CalendarIcon, AlertCircleIcon, UserPlus, PhoneIcon } from 'lucide-react';
 import AuthService, { RegisterUserPayload } from '../../services/AuthService';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
 import { AuthCard } from '../../components/public/AuthCard';
+import { SocialAuthButtons } from '../../components/public/SocialAuthButtons';
 import { PublicLayout } from '../../components/layout/PublicLayout';
-import { useAppDispatch } from '../../hooks/reduxHooks';
-import { fetchUserProfile } from '../../store/slices/userSlice';
 import { Button, TextInput, Checkbox } from 'flowbite-react';
-import { supabase } from '../../config/supabase';
-
-const GoogleIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25C22.56 11.45 22.49 10.68 22.36 9.93H12.25V14.4H18.1C17.84 15.93 17.06 17.21 15.82 18.06V20.75H19.46C21.45 18.99 22.56 15.9 22.56 12.25Z" fill="#4285F4"/><path d="M12.25 23C15.47 23 18.2 21.94 20.04 20.1L16.4 17.45C15.33 18.15 13.89 18.57 12.25 18.57C9.22 18.57 6.65 16.68 5.68 14.04H1.94V16.81C3.76 20.44 7.69 23 12.25 23Z" fill="#34A853"/><path d="M5.68 14.04C5.43 13.34 5.3 12.6 5.3 11.83C5.3 11.05 5.43 10.31 5.68 9.61V6.84H1.94C1.23 8.26 0.85 9.98 0.85 11.83C0.85 13.67 1.23 15.39 1.94 16.81L5.68 14.04Z" fill="#FBBC05"/><path d="M12.25 5.18C13.99 5.18 15.26 5.86 15.84 6.4L18.49 3.84C16.69 2.13 14.6 1 12.25 1C7.69 1 3.76 3.56 1.94 7.19L5.68 9.96C6.65 7.32 9.22 5.18 12.25 5.18Z" fill="#EA4335"/></svg>
-);
-
-const FacebookIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="20" height="20" rx="4" fill="#1877F2" />
-    <path
-      d="M14.5 8H16V5.5H13.8C11.7 5.5 10.5 6.7 10.5 8.7V10H8.5V12.5H10.5V18.5H13V12.5H15.2L15.7 10H13V8.7C13 8.3 13.2 8 14.5 8Z"
-      fill="white"
-    />
-  </svg>
-);
 
 export function RegisterPage() {
-  const dispatch = useAppDispatch();
-  const [view, setView] = useState<'initial' | 'form' | 'success' | 'error'>('initial');
+  const [view, setView] = useState<'form' | 'success' | 'error'>('form');
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
+    phone: '',
     birthday: '',
     password: '',
     repeatPassword: '',
   });
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -43,6 +29,7 @@ export function RegisterPage() {
     birthday: '',
     repeatPassword: '',
     email: '',
+    phone: '',
     password: '',
     firstName: '',
     lastName: ''
@@ -51,11 +38,11 @@ export function RegisterPage() {
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
 
   const validateForm = () => {
-    // Clear previous errors
     setErrors({
       birthday: '',
       repeatPassword: '',
       email: '',
+      phone: '',
       password: '',
       firstName: '',
       lastName: ''
@@ -67,24 +54,22 @@ export function RegisterPage() {
       birthday: '',
       repeatPassword: '',
       email: '',
+      phone: '',
       password: '',
       firstName: '',
       lastName: ''
     };
 
-    // First name validation
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'El nombre es obligatorio.';
       isValid = false;
     }
 
-    // Last name validation
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Los apellidos son obligatorios.';
       isValid = false;
     }
 
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       newErrors.email = 'El correo electrónico es obligatorio.';
@@ -94,7 +79,11 @@ export function RegisterPage() {
       isValid = false;
     }
 
-    // Password validation
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'El teléfono es obligatorio.';
+      isValid = false;
+    }
+
     if (!formData.password) {
       newErrors.password = 'La contraseña es obligatoria.';
       isValid = false;
@@ -108,7 +97,6 @@ export function RegisterPage() {
       isValid = false;
     }
 
-    // Age validation
     if (formData.birthday) {
       const birthDate = new Date(formData.birthday);
       const today = new Date();
@@ -126,11 +114,37 @@ export function RegisterPage() {
     return isValid;
   };
 
+  const handleOAuthRegister = async (provider: 'google') => {
+    if (!acceptedTerms) {
+      setApiError('Debes aceptar los términos y condiciones para continuar.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setApiError(null);
+
+      const { error } = await AuthService.signInWithOAuthProvider(provider);
+
+      if (error) {
+        setApiError(error.message);
+      }
+    } catch (err: any) {
+      setApiError(err.message || `Error al registrarse con ${provider}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Prevent duplicate submissions
     if (isLoading) {
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setApiError('Debes aceptar los términos y condiciones para continuar.');
       return;
     }
 
@@ -145,14 +159,13 @@ export function RegisterPage() {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName.trim(),
       email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
       password: formData.password,
     };
 
     try {
       const response = await AuthService.registerUser(payload);
       if (response.success) {
-        console.log('Registration successful');
-        dispatch(fetchUserProfile());
         setView('success');
       } else {
         setView('error');
@@ -161,7 +174,6 @@ export function RegisterPage() {
     } catch (error: any) {
       console.error('Registration API error:', error);
 
-      // Differentiate error types for better UX
       let errorMessage = 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.';
 
       if (error.message) {
@@ -169,8 +181,15 @@ export function RegisterPage() {
 
         if (errorMsg.includes('email') && errorMsg.includes('already')) {
           errorMessage = 'Esta dirección de correo electrónico ya está registrada. Por favor, intenta iniciar sesión o utiliza una dirección diferente.';
+        } else if (
+          (errorMsg.includes('phone') && (errorMsg.includes('already') || errorMsg.includes('unique') || errorMsg.includes('duplicate'))) ||
+          errorMsg.includes('members_phone')
+        ) {
+          errorMessage = 'Este número de teléfono ya está registrado. Por favor, utiliza un número diferente.';
         } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
           errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
+        } else if (errorMsg.includes('temporarily unavailable') || errorMsg.includes('default signup plan')) {
+          errorMessage = 'El registro no está disponible temporalmente. Por favor, inténtalo más tarde.';
         } else if (errorMsg.includes('validation') || errorMsg.includes('invalid')) {
           errorMessage = 'Los datos proporcionados no son válidos. Por favor, revisa la información e inténtalo de nuevo.';
         } else if (errorMsg.includes('server') || errorMsg.includes('internal')) {
@@ -191,31 +210,12 @@ export function RegisterPage() {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
-  
-  const handleExternalAuth = async (provider: 'google' | 'facebook') => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-
-      if (error) {
-        console.error(`${provider} OAuth error:`, error);
-        // Handle error - maybe show a message to user
-      }
-      // Note: The redirect will happen automatically if successful
-    } catch (error) {
-      console.error(`${provider} OAuth registration failed:`, error);
-    }
-  }
 
   const handleRetry = () => {
     setApiError(null);
     setView('form');
   };
-  
+
   return (
     <PublicLayout>
       <AuthCard
@@ -223,50 +223,13 @@ export function RegisterPage() {
         subtitle="Únete a nuestra plataforma"
         icon={<UserPlus className="w-8 h-8 text-green-600 dark:text-green-400" />}
       >
-        {view === 'initial' && (
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <Button
-                onClick={() => setView('form')}
-                color="green"
-                className="w-full"
-              >
-                Registrarse con correo electrónico
-              </Button>
-              <Button
-                onClick={() => handleExternalAuth('google')}
-                color="light"
-                className="w-full flex items-center justify-center gap-3"
-              >
-                <GoogleIcon />
-                Registrarse con Google
-              </Button>
-              <Button
-                onClick={() => handleExternalAuth('facebook')}
-                color="light"
-                className="w-full flex items-center justify-center gap-3"
-              >
-                <FacebookIcon />
-                Registrarse con Facebook
-              </Button>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                ¿Ya tienes una cuenta?{' '}
-                <a href="/login" className="font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300">
-                  Inicia sesión
-                </a>
-              </p>
-            </div>
-          </div>
-        )}
-
         {view === 'form' && (
           <>
-            <button onClick={() => setView('initial')} className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors" aria-label="Volver">
-              <ArrowLeftIcon size={24} />
-            </button>
-
+            {apiError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-6" role="alert">
+                <span>{apiError}</span>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -276,7 +239,7 @@ export function RegisterPage() {
                     required
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    placeholder="John"
+                    placeholder="Nombre"
                     icon={UserIcon}
                     color={errors.firstName ? "failure" : "gray"}
                     helperText={errors.firstName ? (
@@ -294,7 +257,7 @@ export function RegisterPage() {
                     required
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    placeholder="Doe"
+                    placeholder="Apellidos"
                     icon={UserIcon}
                     color={errors.lastName ? "failure" : "gray"}
                     helperText={errors.lastName ? (
@@ -320,6 +283,24 @@ export function RegisterPage() {
                     <span className="flex items-center gap-1 text-red-600 text-xs">
                       <AlertCircleIcon size={14} />
                       {errors.email}
+                    </span>
+                  ) : undefined}
+                />
+              </div>
+              <div>
+                <TextInput
+                  type="tel"
+                  name="phone"
+                  required
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="Teléfono"
+                  icon={PhoneIcon}
+                  color={errors.phone ? "failure" : "gray"}
+                  helperText={errors.phone ? (
+                    <span className="flex items-center gap-1 text-red-600 text-xs">
+                      <AlertCircleIcon size={14} />
+                      {errors.phone}
                     </span>
                   ) : undefined}
                 />
@@ -416,6 +397,8 @@ export function RegisterPage() {
               <div className="flex items-center pt-2">
                 <Checkbox
                   id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
                   required
                 />
                 <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
@@ -434,7 +417,19 @@ export function RegisterPage() {
               >
                 {isLoading ? 'Creando cuenta...' : 'Crear Cuenta'}
               </Button>
-                </form>
+              <SocialAuthButtons
+                onGoogle={() => void handleOAuthRegister('google')}
+                disabled={isLoading || !acceptedTerms}
+              />
+            </form>
+            <div className="text-center mt-5">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                ¿Ya tienes una cuenta?{' '}
+                <Link to="/login" className="font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300">
+                  Inicia sesión
+                </Link>
+              </p>
+            </div>
           </>
         )}
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { PublicProperty } from '../../../models/properties';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import { Search, MapPin, Bed, Bath, DollarSign, SlidersHorizontal } from 'lucide-react';
 import { mapCitiesData } from '../../../data/MapCitiesData';
 import { Button, TextInput, Label } from 'flowbite-react';
@@ -285,7 +286,7 @@ const PropertyListSidebar = ({
                     {mainImage && (
                       <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden">
                         <img
-                          src={mainImage.url}
+                          src={resolveAssetUrl(mainImage.url)}
                           alt={property.title}
                           className="w-full h-full object-cover"
                         />

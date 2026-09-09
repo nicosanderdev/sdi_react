@@ -11,7 +11,8 @@
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:headed": "npx playwright test --headed",
-    "test:e2e:setup": "node e2e/setup-test-data.js"
+    "test:e2e:setup": "node e2e/setup-test-data.js",
+    "supabase:functions": "npx supabase functions serve --env-file supabase/functions/.env --no-verify-jwt"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -20,11 +21,11 @@
     "@tailwindcss/vite": "^4.1.12",
     "@tanstack/react-query": "^5.79.0",
     "@tanstack/react-query-devtools": "^5.79.2",
-    "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "driver.js": "^1.4.0",
     "flowbite": "^3.1.2",
     "flowbite-react": "^0.12.8",
+    "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.441.0",
@@ -37,6 +38,7 @@
     "react-router-dom": "^7.6.1",
     "react-to-print": "^3.1.1",
     "recharts": "^2.12.7",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.67"
   },
   "devDependencies": {
@@ -55,7 +57,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
     "postcss": "latest",
-    "supabase": "^2.65.6",
+    "supabase": "^2.107.0",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.5.4",
     "vite": "^5.2.0"

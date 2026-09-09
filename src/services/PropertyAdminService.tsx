@@ -5,6 +5,11 @@ import { PropertyData } from '../models/properties';
 // Property status types (matching enum values from database)
 export type PropertyStatus = 'sale' | 'rent' | 'reserved' | 'sold' | 'unavailable';
 
+/** Admin property list filter: matches `get_admin_properties_list.p_offer_kind`. */
+export type AdminPropertyOfferKind = 'real_estate' | 'annual_rent' | 'summer_rent' | 'event_venue';
+
+export const DEFAULT_ADMIN_PROPERTY_LOCATION = 'Rivera, Rivera';
+
 // Property visibility and moderation types
 export type PropertyVisibility = 'visible' | 'hidden';
 export type PropertyActivity = 'active' | 'inactive';
@@ -21,6 +26,8 @@ export interface AdminPropertyListItem {
   city: string;
   state: string;
   status: PropertyStatus;
+  /** Comma-separated Spanish labels from `get_admin_properties_list.property_types_summary`. */
+  propertyTypesSummary: string | null;
   isActive: boolean;
   isPropertyVisible: boolean;
   createdAt: string;
@@ -41,15 +48,14 @@ export interface PropertyFilters {
   page?: number;
   limit?: number;
   userId?: string;
-  status?: PropertyStatus;
+  offerKind?: AdminPropertyOfferKind;
   location?: string;
   search?: string;
 }
 
 export interface PropertyStatistics {
   totalProperties: number;
-  incompleteProperties: number;
-  neverPublished: number;
+  unpublishedProperties: number;
   activeProperties: number;
   archivedProperties: number;
 }
@@ -59,6 +65,17 @@ export interface ActionResult {
   message: string;
 }
 
+export interface SearchScoringBatchResult {
+  success: boolean;
+  processed: number;
+  succeeded: number;
+  skipped: number;
+  errorCount: number;
+  errors: string[];
+  durationMs: number;
+  error?: string;
+}
+
 class PropertyAdminService {
   /**
    * Fetch paginated list of properties with filters for admin
@@ -66,11 +83,11 @@ class PropertyAdminService {
   async getPropertiesList(filters: PropertyFilters = {}): Promise<PropertyListResponse> {
     const params = {
       p_page: filters.page || 1,
-      p_limit: filters.limit || 20,
+      p_limit: filters.limit || 10,
       p_user_id: filters.userId || null,
-      p_status: filters.status || null,
       p_location: filters.location || null,
       p_search: filters.search || null,
+      p_offer_kind: filters.offerKind || null,
     };
 
     const { data, error } = await supabase.rpc('get_admin_properties_list', params);
@@ -84,7 +101,7 @@ class PropertyAdminService {
         properties: [],
         total: 0,
         page: filters.page || 1,
-        limit: filters.limit || 20,
+        limit: filters.limit || 10,
       };
     }
 
@@ -97,6 +114,7 @@ class PropertyAdminService {
       city: property.city,
       state: property.state,
       status: this.mapStatusToEnum(property.status),
+      propertyTypesSummary: property.property_types_summary ?? null,
       isActive: property.is_active,
       isPropertyVisible: property.is_property_visible,
       createdAt: property.created,
@@ -107,7 +125,7 @@ class PropertyAdminService {
       properties,
       total: data[0].total_count,
       page: filters.page || 1,
-      limit: filters.limit || 20,
+      limit: filters.limit || 10,
     };
   }
 
@@ -142,8 +160,7 @@ class PropertyAdminService {
     if (!data || data.length === 0) {
       return {
         totalProperties: 0,
-        incompleteProperties: 0,
-        neverPublished: 0,
+        unpublishedProperties: 0,
         activeProperties: 0,
         archivedProperties: 0,
       };
@@ -153,8 +170,7 @@ class PropertyAdminService {
 
     return {
       totalProperties: stats.total_properties,
-      incompleteProperties: stats.incomplete_properties,
-      neverPublished: stats.never_published,
+      unpublishedProperties: stats.unpublished_properties ?? stats.never_published,
       activeProperties: stats.active_properties,
       archivedProperties: stats.archived_properties,
     };
@@ -191,6 +207,43 @@ class PropertyAdminService {
     }
 
     return data as ActionResult;
+  }
+
+  /**
+   * Run portal search score batch (PropertySearchScores) via edge function.
+   */
+  async runSearchScoringBatch(options?: {
+    batchSize?: number;
+    maxBatches?: number;
+  }): Promise<SearchScoringBatchResult> {
+    const { data, error } = await supabase.functions.invoke('daily-property-search-scores', {
+      body: options ?? {},
+    });
+
+    if (error) {
+      throw new Error(
+        error.message ||
+          'No se pudo ejecutar el scoring. Compruebe que la función edge está desplegada.',
+      );
+    }
+
+    const body = data as SearchScoringBatchResult | { error?: string } | null;
+    if (!body || typeof body !== 'object') {
+      throw new Error('Respuesta inválida del servidor de scoring.');
+    }
+
+    if ('success' in body && body.success === false) {
+      throw new Error(
+        (body as SearchScoringBatchResult).error ||
+          'El proceso de scoring finalizó con error.',
+      );
+    }
+
+    if ('error' in body && body.error && !('success' in body)) {
+      throw new Error(body.error);
+    }
+
+    return body as SearchScoringBatchResult;
   }
 
   /**

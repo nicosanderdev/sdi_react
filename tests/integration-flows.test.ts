@@ -95,58 +95,6 @@ describe('Company Membership Flow', () => {
   });
 });
 
-describe('Payment Session Flow', () => {
-  test('Edge function validates payment session request', async () => {
-    // Test POST /payments/create-session with valid/invalid payloads
-    // Verify plan exists, entity exists, etc.
-    expect(true).toBe(true); // Placeholder
-  });
-
-  test('Payment intent is created with correct data', async () => {
-    // Test that payment_intents table gets populated correctly
-    // Note: Requires payment_intents table to be created
-    expect(true).toBe(true); // Placeholder
-  });
-
-  test('Plans selection validates required fields', () => {
-    // Test plan selection requires planId
-    // Test company subscription requires companyId
-    // Test entityType and entityId are set correctly
-    expect(true).toBe(true); // Placeholder - implement with form validation
-  });
-
-  test('Payment session creation handles API errors', async () => {
-    // Test payment session creation with network errors
-    // Test payment session creation with invalid plan/entity
-    // Should show actionable error messages and allow retry
-    expect(true).toBe(true); // Placeholder - implement with error simulation
-  });
-
-  test('Mock checkout simulates different payment outcomes', () => {
-    // Test card starting with 4000 = declined
-    // Test card starting with 5000 = network error
-    // Test other cards = success
-    // Verify appropriate error messages and retry options
-    expect(true).toBe(true); // Placeholder - implement with payment simulation
-  });
-
-  test('Payment success shows confirmation and redirects', async () => {
-    // Test successful payment flow
-    // Should show success notification
-    // Should redirect to success page
-    // Should update subscription status
-    expect(true).toBe(true); // Placeholder - implement with success flow test
-  });
-
-  test('Payment failure provides retry options', async () => {
-    // Test payment decline shows retry button
-    // Test network error shows retry button
-    // Test cancel option returns to plans page
-    // User should not be left in broken state
-    expect(true).toBe(true); // Placeholder - implement with error flow test
-  });
-});
-
 describe('Webhook & Subscription Flow', () => {
   test('Successful payment activates subscription', async () => {
     // Test webhook processing for PAID status

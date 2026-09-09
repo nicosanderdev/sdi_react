@@ -33,7 +33,9 @@ supabase/.env
 
 supabase/functions/.env
 
-tasks/
+tasks/*
+!tasks/seed-booking-hold-otp.sql
+!tasks/insert-property.sql
 
 # Playwright
 /test-results/
@@ -47,3 +49,12 @@ e2e/.auth/*.json
 supabase/snippets/
 
 supabase/public_schema.sql
+
+# Ignore handoff drafts, but keep the guest messaging contract in-repo.
+docs/handoffs/*
+!docs/handoffs/guest-booking-messaging.md
+
+scripts/
+.scripts/
+.agents/
+.scratch/

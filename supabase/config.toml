@@ -85,8 +85,6 @@ enabled = true
 port = 54323
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
-# OpenAI API Key to use for Supabase AI in the Supabase Studio.
-openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
@@ -105,12 +103,19 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+[storage.buckets.property-images]
+public = true
+file_size_limit = "50MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/bmp", "image/svg+xml"]
+
+[storage.buckets.property-documents]
+public = true
+file_size_limit = "50MiB"
+
+[storage.buckets.avatars]
+public = true
+file_size_limit = "8MiB"
+allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/gif"]
 
 # Uncomment to allow connections via S3 compatible clients
 # [storage.s3_protocol]
@@ -137,9 +142,6 @@ max_catalogs = 2
 enabled = false
 max_buckets = 10
 max_indexes = 5
-
-# Vector Buckets is available to Supabase Pro plan.
-# [storage.vector.buckets.documents-openai]
 
 [auth]
 enabled = true
@@ -210,16 +212,6 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
-# Use a production-ready SMTP server
-# [auth.email.smtp]
-# enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
-
 [auth.external.google]
 enabled = true
 client_id = "421740408370-4led5qdbhia4roaanb9r4ne7t9lr31bt.apps.googleusercontent.com"
@@ -228,9 +220,9 @@ redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
 
 [auth.external.facebook]
 enabled = false
-client_id = ""
+client_id = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_FACEBOOK_SECRET)"
-redirect_uri = ""
+redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
@@ -372,9 +364,57 @@ verify_jwt = false
 [functions.admin-ban-user]
 verify_jwt = false
 
+# Storage presign/delete; JWT validated in handler (same pattern as create-member).
+[functions.storage-r2]
+verify_jwt = false
+
 # Guest OTP request flow should not require JWT verification.
 # Avoid local edge runtime ES256/CryptoKey verification crash before handler execution.
 [functions.booking-send-otp]
+verify_jwt = false
+
+[functions.booking-verify-otp]
+verify_jwt = false
+
+# Daily POST from Supabase Scheduled Functions or external cron; uses service role in handler.
+[functions.receipts-generate]
+verify_jwt = false
+
+[functions.flexible-invoice-overdue-unpublish]
+verify_jwt = false
+
+# Daily portal search score precompute; service role in handler.
+[functions.daily-property-search-scores]
+verify_jwt = false
+
+# Flexible invoice notification; auth in handler (admin JWT or x-cron-secret).
+[functions.send-flexible-invoice-email]
+verify_jwt = false
+
+# Parent calendar-sync only (nested routes calendar-sync/<name> cannot use slashes in config.toml).
+# For nested calendar-sync/* locally, run: npx supabase functions serve --no-verify-jwt ...
+# Auth is enforced in each handler via _shared/auth.ts.
+[functions.calendar-sync]
+verify_jwt = false
+
+# Mercado Pago marketplace: auth/signature checks are enforced inside each handler.
+[functions.mercado-pago-admin]
+verify_jwt = false
+
+[functions.mercado-pago-connect]
+verify_jwt = false
+
+[functions.mercado-pago-create-preference]
+verify_jwt = false
+
+[functions.mercado-pago-create-plan-preference]
+verify_jwt = false
+
+[functions.mercado-pago-webhook]
+verify_jwt = false
+
+# Staging/local: postgres posts the plaintext manage token so it appears in Edge Function logs.
+[functions.log-booking-manage-token]
 verify_jwt = false
 
 [edge_runtime]

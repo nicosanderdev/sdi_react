@@ -1,11 +1,10 @@
 import { BillingHistoryData } from '../models/subscriptions/BillingHistoryData';
-import { CancelSubscriptionRequest } from '../models/subscriptions/CancelSubscriptionRequest';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
-import apiClient from './AxiosClient'; // Keep for Stripe operations
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
+import { generateInvoicePdfBlob } from '../utils/generateInvoicePdf';
 
 /**
  * Maps database integer Key value to PlanKey enum
@@ -14,27 +13,56 @@ import { PlanKey } from '../models/subscriptions/PlanKey';
 const intToPlanKey = (keyInt: number): PlanKey => {
     const mapping: Record<number, PlanKey> = {
         0: PlanKey.FREE,
-        1: PlanKey.MANAGER_PRO, // Default to MANAGER_PRO for 1
-        2: PlanKey.COMPANY_SMALL // Default to COMPANY_SMALL for 2
+        1: PlanKey.MANAGER_PRO,
+        2: PlanKey.COMPANY_SMALL,
+        4: PlanKey.COMPANY_UNLIMITED,
+        5: PlanKey.COMPANY_FREE,
     };
     return mapping[keyInt] ?? PlanKey.FREE;
 };
 
-const ENDPOINTS = {
-    CURRENT_SUBSCRIPTION: '/subscriptions/current',
-    CHECKOUT: '/subscriptions/checkout',
-    CREATE_PAYMENT_SESSION: '/payments/create-session',
-    CHANGE: '/subscriptions/change',
-    CANCEL: '/subscriptions/cancel',
-    BILLING_HISTORY: '/subscriptions/billing-history',
-    PLANS: '/plans',
-    COMPANY_SUBSCRIPTION: '/companies/{id}/subscription',
-    ADMIN_SUBSCRIPTIONS: '/admin/subscriptions',
-    ADMIN_INVOICES: '/admin/invoices',
-    ADMIN_MANUAL_INVOICE: '/admin/manual-invoice',
-    WEBHOOKS_PAYMENTS: '/webhooks/payments',
-    SUBSCRIPTION_STATUS: '/subscriptions/status'
-}
+const mapPlanRow = (plan: any): PlanData => ({
+    id: plan.Id,
+    key: intToPlanKey(plan.Key ?? 0),
+    name: plan.Name,
+    monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
+    currency: plan.Currency ?? 'UYU',
+    maxProperties: plan.MaxProperties ?? null,
+    maxUsers: plan.MaxUsers ?? null,
+    maxStorageMb: plan.MaxStorageMb ?? null,
+    billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
+    isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
+    publishedProperties: plan.MaxPublishedProperties ?? null,
+    totalProperties: plan.MaxProperties ?? null,
+    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+    propertyType: plan.PropertyType,
+    maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null,
+    audience: plan.Audience === 'company' ? 'company' : 'member',
+});
+
+export const isPlanPaymentRequiredError = (error: unknown): boolean => {
+    const message = error instanceof Error ? error.message : String(error ?? '');
+    return message.includes('PLAN_PAYMENT_REQUIRED');
+};
+
+const mapInvoiceRow = (item: {
+    Id: string;
+    BillingCycleId?: string | null;
+    Total: number | string;
+    Status: string;
+    UpdatedAt?: string | null;
+    CreatedAt: string;
+    PaidAt?: string | null;
+}): BillingHistoryData => ({
+    id: item.Id,
+    subscriptionId: item.BillingCycleId || '',
+    providerInvoiceId: item.Id,
+    amount: parseFloat(String(item.Total)),
+    currency: 'UYU',
+    status: item.Status === 'paid' ? '0' : '1',
+    paidAt: new Date(item.PaidAt || item.UpdatedAt || item.CreatedAt),
+    createdAt: new Date(item.CreatedAt),
+});
 
 /**
  * @returns The current subscription, or free plan if no subscription found
@@ -47,12 +75,13 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         if (!member) throw new Error('Member not found for user');
 
         const { data: memberPlanData, error } = await supabase
-            .from('MemberPlans')
+            .from('BillingPlanAssignments')
             .select(`
                 *,
                 Plans (*)
             `)
-            .eq('MemberId', member.Id)
+            .eq('SubjectType', 'member')
+            .eq('MemberOrCompanyId', member.Id)
             .eq('IsActive', true)
             .order('StartDate', { ascending: false })
             .limit(1);
@@ -65,7 +94,8 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             const { data: freePlanData, error: freePlanError } = await supabase
                 .from('Plans')
                 .select('*')
-                .or('PricingModel.eq.free,Key.eq.0')
+                .eq('Key', 0)
+                .eq('IsDeleted', false)
                 .limit(1);
 
             let freePlan: PlanData;
@@ -79,31 +109,33 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                     name: plan.Name,
                     monthlyPrice: plan.MonthlyPrice,
                     currency: plan.Currency,
-                    maxProperties: plan.MaxProperties || 0,
-                    maxUsers: plan.MaxUsers || 0,
-                    maxStorageMb: plan.MaxStorageMb || 0,
+                    maxProperties: plan.MaxProperties ?? null,
+                    maxUsers: plan.MaxUsers ?? null,
+                    maxStorageMb: plan.MaxStorageMb ?? null,
                     billingCycle: plan.BillingCycle.toString(),
                     isActive: plan.IsActive,
-                    publishedProperties: plan.MaxPublishedProperties || 0,
-                    totalProperties: plan.MaxProperties || 0,
-                    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined
+                    publishedProperties: plan.MaxPublishedProperties ?? null,
+                    totalProperties: plan.MaxProperties ?? null,
+                    bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+                    maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
                 };
             } else {
-                // Create default free plan object if not found in database (Inicial plan: 5 published, 7 total)
+                // Fallback when Free plan row is missing — match Plan BASE-Inicial defaults
                 freePlan = {
                     id: '',
                     key: PlanKey.FREE,
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',
-                    maxProperties: 7, // Total properties limit
+                    maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,
                     billingCycle: '1',
                     isActive: true,
-                    publishedProperties: 5, // Published properties limit
-                    totalProperties: 7, // Total properties limit
-                    bookingReceiptMinimumAmount: undefined
+                    publishedProperties: 15,
+                    totalProperties: 20,
+                    bookingReceiptMinimumAmount: undefined,
+                    maxPhotosPerProperty: null
                 };
             }
 
@@ -133,7 +165,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         return {
             id: row.Id,
             ownerType: '0',
-            ownerId: row.MemberId,
+            ownerId: row.MemberOrCompanyId,
             providerCustomerId: '',
             providerSubscriptionId: '',
             planId: row.PlanId,
@@ -143,15 +175,16 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 name: plan.Name,
                 monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
                 currency: plan.Currency ?? 'USD',
-                maxProperties: plan.MaxProperties || 0,
-                maxUsers: plan.MaxUsers || 0,
-                maxStorageMb: plan.MaxStorageMb || 0,
+                maxProperties: plan.MaxProperties ?? null,
+                maxUsers: plan.MaxUsers ?? null,
+                maxStorageMb: plan.MaxStorageMb ?? null,
                 billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
                 isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
-                publishedProperties: plan.MaxPublishedProperties || 0,
-                totalProperties: plan.MaxProperties || 0,
+                publishedProperties: plan.MaxPublishedProperties ?? null,
+                totalProperties: plan.MaxProperties ?? null,
                 bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
-                propertyType: plan.PropertyType as any
+                propertyType: plan.PropertyType as any,
+                maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
             },
             status: row.IsActive ? '1' : '0',
             currentPeriodStart: startDate,
@@ -179,14 +212,15 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 name: 'Free',
                 monthlyPrice: 0,
                 currency: 'USD',
-                maxProperties: 7, // Total properties limit
+                maxProperties: 20,
                 maxUsers: 1,
                 maxStorageMb: 0,
                 billingCycle: '1',
                 isActive: true,
-                publishedProperties: 5, // Published properties limit
-                totalProperties: 7, // Total properties limit
-                bookingReceiptMinimumAmount: undefined
+                publishedProperties: 15,
+                totalProperties: 20,
+                bookingReceiptMinimumAmount: undefined,
+                maxPhotosPerProperty: null
             },
             status: '0',
             currentPeriodStart: new Date(),
@@ -199,83 +233,88 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
 }
 
 /**
- * Gets the checkout URL for upgrading subscription
- * @param planId - The plan ID to upgrade to
- * @returns The checkout URL
+ * Company Admin (or platform admin via RLS) changes the active company plan assignment.
+ * Paid checkout uses createPlanCheckout; this covers assign/change when payment is not required.
  */
-const getCheckout = async (planId?: string) => {
-    const url = planId ? `${ENDPOINTS.CHECKOUT}?planId=${planId}` : ENDPOINTS.CHECKOUT;
-    const response = await apiClient.get<string>(url);
-    return response;
-}
+const changeCompanyPlan = async (companyId: string, planId: string): Promise<SubscriptionData> => {
+    const { error } = await supabase.rpc('change_company_plan_for_current_admin', {
+        p_company_id: companyId,
+        p_plan_id: planId,
+    });
+    if (error) throw error;
 
-/**
- * Creates a payment session for subscription purchase
- * @param params - Payment session parameters
- * @returns Payment session data with checkout URL
- */
-const createPaymentSession = async (params: {
-    planId: string;
-    entityType: 'personal' | 'company';
-    entityId: string;
-}) => {
-    try {
-        const response = await apiClient.post<{
-            checkoutUrl: string;
-            sessionId: string;
-        }>(ENDPOINTS.CREATE_PAYMENT_SESSION, params);
-        return response;
-    } catch (error: any) {
-        console.error('Error creating payment session:', error.message);
-        throw error;
+    const subscription = await getCompanySubscription(companyId);
+    if (!subscription) {
+        throw new Error('Failed to load company subscription after plan change');
     }
-}
+    return subscription;
+};
+
+const createPlanCheckout = async (params: {
+    kind: 'create_company' | 'change_company';
+    planId: string;
+    name?: string;
+    billingEmail?: string;
+    description?: string;
+    companyId?: string;
+}): Promise<{ checkoutUrl: string; attemptId: string }> => {
+    const { data, error } = await supabase.functions.invoke('mercado-pago-create-plan-preference', {
+        body: params,
+    });
+    if (error) throw error;
+    const body = data as { success?: boolean; checkoutUrl?: string; attemptId?: string; error?: string };
+    if (!body?.success || !body.checkoutUrl) {
+        throw new Error(body?.error || 'No se pudo iniciar el pago del plan');
+    }
+    return { checkoutUrl: body.checkoutUrl, attemptId: body.attemptId || '' };
+};
 
 /**
- * Gets the checkout URL for changing subscription plan
- * @param planId - The plan ID to change to
- * @returns The checkout URL
+ * Company Admin (or platform admin): cancel the paid company plan onto the cheapest active $0 company plan.
  */
-const getCheckoutChange = async (planId: string) => {
-    const response = await apiClient.post<string>(ENDPOINTS.CHANGE, { planId });
-    return response;
-}
+const cancelCompanyPlan = async (companyId: string): Promise<SubscriptionData> => {
+    const { error } = await supabase.rpc('cancel_company_plan_for_current_admin', {
+        p_company_id: companyId,
+    });
+    if (error) throw error;
+
+    const subscription = await getCompanySubscription(companyId);
+    if (!subscription) {
+        throw new Error('Failed to load company subscription after cancel');
+    }
+    return subscription;
+};
 
 /**
- * Cancels the current subscription
- * @param request - The request body
- * @returns The response
- */
-const cancelSubscription = async (request: CancelSubscriptionRequest) => {
-    const response = await apiClient.post<SubscriptionData>(ENDPOINTS.CANCEL, request);
-    return response;
-}
-
-/**
- * Gets the billing history for the current subscription using Supabase SDK
- * @param filters - Optional filters for date range and status
- * @returns The billing history
+ * Gets billing history for the current member, or for a company when companyId is set.
  */
 const getBillingHistory = async (filters?: {
     dateFrom?: Date;
     dateTo?: Date;
     status?: string;
+    companyId?: string;
 }): Promise<BillingHistoryData[]> => {
     try {
-        const userId = await getCurrentUserId();
+        let subjectType: 'member' | 'company' = 'member';
+        let subjectId: string | null = null;
 
-        const member = await getMemberByUserId(userId);
-        if (!member) {
-            return [];
+        if (filters?.companyId) {
+            subjectType = 'company';
+            subjectId = filters.companyId;
+        } else {
+            const userId = await getCurrentUserId();
+            const member = await getMemberByUserId(userId);
+            if (!member) return [];
+            subjectId = member.Id;
         }
 
         let query = supabase
             .from('Invoices')
             .select('*')
-            .eq('MemberId', member.Id)
+            .eq('SubjectType', subjectType)
+            .eq('MemberOrCompanyId', subjectId)
             .order('CreatedAt', { ascending: false });
 
-        // Apply filters
         if (filters?.dateFrom) {
             query = query.gte('CreatedAt', filters.dateFrom.toISOString());
         }
@@ -283,23 +322,14 @@ const getBillingHistory = async (filters?: {
             query = query.lte('CreatedAt', filters.dateTo.toISOString());
         }
         if (filters?.status !== undefined) {
-            query = query.eq('Status', filters.status === '1' ? 'paid' : 'pending');
+            query = query.eq('Status', filters.status === '0' ? 'paid' : 'pending');
         }
 
         const { data, error } = await query;
 
         if (error) throw error;
 
-        return (data ?? []).map(item => ({
-            id: item.Id,
-            subscriptionId: item.BillingCycleId || '',
-            providerInvoiceId: item.Id,
-            amount: parseFloat(item.Total),
-            currency: 'USD',
-            status: item.Status === 'paid' ? '1' : '0',
-            paidAt: new Date(item.UpdatedAt || item.CreatedAt),
-            createdAt: new Date(item.CreatedAt)
-        }));
+        return (data ?? []).map(mapInvoiceRow);
 
     } catch (error: any) {
         console.error('Error fetching billing history:', error.message);
@@ -311,59 +341,110 @@ const getBillingHistory = async (filters?: {
  * Gets all available plans
  * @returns List of available plans
  */
-const getPlans = async (): Promise<PlanData[]> => {
+const getPlans = async (audience?: 'member' | 'company'): Promise<PlanData[]> => {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('Plans')
             .select('*')
+            .eq('IsDeleted', false)
             .or('IsActiveV2.eq.true,IsActive.eq.true')
             .order('Price', { ascending: true });
 
+        if (audience) {
+            query = query.eq('Audience', audience);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
-
-        return data?.map(plan => ({
-            id: plan.Id,
-            key: intToPlanKey(plan.Key),
-            name: plan.Name,
-            monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
-            currency: plan.Currency,
-            maxProperties: plan.MaxProperties || 0,
-            maxUsers: plan.MaxUsers || 0,
-            maxStorageMb: plan.MaxStorageMb || 0,
-            billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
-            isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
-            publishedProperties: plan.MaxPublishedProperties || 0,
-            totalProperties: plan.MaxProperties || 0,
-            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
-            propertyType: plan.PropertyType as any
-        })) || [];
-
+        return (data ?? []).map(mapPlanRow);
     } catch (error: any) {
         console.error('Error fetching plans:', error.message);
         throw error;
     }
 }
 
+const COMPANY_FREE_PLAN_ID = '66666666-6666-4666-8666-666666666666';
+
+const getCompanyFreeLandingPlan = async (): Promise<PlanData | null> => {
+    const plans = await getPlans('company');
+    const freePlans = plans.filter(plan => plan.isActive && Number(plan.monthlyPrice ?? 0) <= 0);
+    if (freePlans.length === 0) return null;
+    const designated = freePlans.find(plan => plan.id === COMPANY_FREE_PLAN_ID);
+    if (designated) return designated;
+    return [...freePlans].sort((a, b) => {
+        const aMax = a.maxProperties ?? Number.MAX_SAFE_INTEGER;
+        const bMax = b.maxProperties ?? Number.MAX_SAFE_INTEGER;
+        if (aMax !== bMax) return aMax - bMax;
+        return a.name.localeCompare(b.name, 'es');
+    })[0];
+};
+
 /**
- * Gets subscription for a specific company
- * @param companyId - The company ID
- * @returns The company subscription
+ * Active company-subject BillingPlanAssignment, or null when none.
  */
-const getCompanySubscription = async (companyId: string) => {
-    const url = ENDPOINTS.COMPANY_SUBSCRIPTION.replace('{id}', companyId);
-    const response = await apiClient.get<SubscriptionData>(url);
-    return response;
-}
+const getCompanySubscription = async (companyId: string): Promise<SubscriptionData | null> => {
+    const { data, error } = await supabase
+        .from('BillingPlanAssignments')
+        .select(`*, Plans (*)`)
+        .eq('SubjectType', 'company')
+        .eq('MemberOrCompanyId', companyId)
+        .eq('IsActive', true)
+        .order('StartDate', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    if (!data?.length) return null;
+
+    const row = data[0];
+    const plan = row.Plans;
+    const billingCycle = plan?.DurationDays ?? 30;
+    const startDate = new Date(row.StartDate ?? row.Created ?? new Date().toISOString());
+    const endDate = row.EndDate
+        ? new Date(row.EndDate)
+        : new Date(startDate.getTime() + billingCycle * 24 * 60 * 60 * 1000);
+
+    return {
+        id: row.Id,
+        ownerType: '1',
+        ownerId: row.MemberOrCompanyId,
+        providerCustomerId: '',
+        providerSubscriptionId: '',
+        planId: row.PlanId,
+        plan: {
+            id: plan.Id,
+            key: intToPlanKey(plan.Key ?? 0),
+            name: plan.Name,
+            monthlyPrice: Number(plan.Price ?? plan.MonthlyPrice ?? 0),
+            currency: plan.Currency ?? 'USD',
+            maxProperties: plan.MaxProperties ?? null,
+            maxUsers: plan.MaxUsers ?? null,
+            maxStorageMb: plan.MaxStorageMb ?? null,
+            billingCycle: String(plan.DurationDays ?? plan.BillingCycle ?? 30),
+            isActive: Boolean(plan.IsActiveV2 ?? plan.IsActive ?? true),
+            publishedProperties: plan.MaxPublishedProperties ?? null,
+            totalProperties: plan.MaxProperties ?? null,
+            bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+            propertyType: plan.PropertyType as any,
+            maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null,
+        },
+        status: row.IsActive ? '1' : '0',
+        currentPeriodStart: startDate,
+        currentPeriodEnd: endDate,
+        cancelAtPeriodEnd: false,
+        createdAt: new Date(row.Created ?? new Date().toISOString()),
+        updatedAt: new Date(row.LastModified ?? new Date().toISOString()),
+    };
+};
 
 /**
  * Gets all subscriptions (admin only)
  * @param filters - Optional filters (active, canceled, overdue)
  * @returns List of subscriptions
  */
-const getAdminSubscriptions = async (filters?: { status?: string; overdue?: boolean }): Promise<SubscriptionData[]> => {
+const getAdminSubscriptions = async (_filters?: { status?: string; overdue?: boolean }): Promise<SubscriptionData[]> => {
     try {
         const { data, error } = await supabase
-            .from('MemberPlans')
+            .from('BillingPlanAssignments')
             .select(`*, Plans(*)`)
             .eq('IsActive', true)
             .order('StartDate', { ascending: false });
@@ -372,8 +453,8 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
 
         return (data ?? []).map((row: any) => ({
             id: row.Id,
-            ownerType: '0',
-            ownerId: row.MemberId,
+            ownerType: row.SubjectType === 'company' ? '1' : '0',
+            ownerId: row.MemberOrCompanyId,
             providerCustomerId: '',
             providerSubscriptionId: '',
             planId: row.PlanId,
@@ -383,15 +464,16 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
                 name: row.Plans?.Name ?? 'Plan',
                 monthlyPrice: Number(row.Plans?.Price ?? row.Plans?.MonthlyPrice ?? 0),
                 currency: row.Plans?.Currency ?? 'USD',
-                maxProperties: row.Plans?.MaxProperties || 0,
-                maxUsers: row.Plans?.MaxUsers || 0,
-                maxStorageMb: row.Plans?.MaxStorageMb || 0,
+                maxProperties: row.Plans?.MaxProperties ?? null,
+                maxUsers: row.Plans?.MaxUsers ?? null,
+                maxStorageMb: row.Plans?.MaxStorageMb ?? null,
                 billingCycle: String(row.Plans?.DurationDays ?? row.Plans?.BillingCycle ?? 30),
                 isActive: Boolean(row.Plans?.IsActiveV2 ?? row.Plans?.IsActive ?? true),
-                publishedProperties: row.Plans?.MaxPublishedProperties || 0,
-                totalProperties: row.Plans?.MaxProperties || 0,
+                publishedProperties: row.Plans?.MaxPublishedProperties ?? null,
+                totalProperties: row.Plans?.MaxProperties ?? null,
                 bookingReceiptMinimumAmount: row.Plans?.BookingReceiptMinimumAmount ?? undefined,
-                propertyType: row.Plans?.PropertyType
+                propertyType: row.Plans?.PropertyType,
+                maxPhotosPerProperty: row.Plans?.MaxPhotosPerProperty ?? null
             },
             status: row.IsActive ? '1' : '0',
             currentPeriodStart: new Date(row.StartDate),
@@ -408,43 +490,59 @@ const getAdminSubscriptions = async (filters?: { status?: string; overdue?: bool
 }
 
 /**
- * Gets all invoices (admin only)
- * @param filters - Optional filters (userId, companyId)
- * @returns List of invoices
+ * Builds a receipt PDF from the Invoices row and its UsageRecords.
  */
-const getAdminInvoices = async (filters?: { userId?: string; companyId?: string }) => {
-    const params = new URLSearchParams();
-    if (filters?.userId) params.append('userId', filters.userId);
-    if (filters?.companyId) params.append('companyId', filters.companyId);
-    
-    const url = params.toString()
-        ? `${ENDPOINTS.ADMIN_INVOICES}?${params.toString()}`
-        : ENDPOINTS.ADMIN_INVOICES;
-    
-    const response = await apiClient.get<BillingHistoryData[]>(url);
-    return response;
-}
+const downloadInvoice = async (invoiceId: string): Promise<Blob> => {
+    const { data: invoice, error: invoiceError } = await supabase
+        .from('Invoices')
+        .select('*')
+        .eq('Id', invoiceId)
+        .maybeSingle();
 
-/**
- * Downloads an invoice PDF
- * @param invoiceId - The invoice ID
- * @returns Blob of the PDF
- */
-const downloadInvoice = async (invoiceId: string) => {
-    // Use axios directly for blob responses to bypass the interceptor
-    const axios = (await import('axios')).default;
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-    const TENANT_API_KEY = import.meta.env.VITE_TENANT_API_KEY || 'YOUR_DEFAULT_TENANT_KEY';
+    if (invoiceError) throw invoiceError;
+    if (!invoice) throw new Error('Factura no encontrada');
 
-    const response = await axios.get(`${API_BASE_URL}${ENDPOINTS.BILLING_HISTORY}/${invoiceId}/download`, {
-        responseType: 'blob',
-        headers: {
-            'X-API-Key': TENANT_API_KEY,
-        },
-        withCredentials: true
+    const { data: usageRows, error: usageError } = await supabase
+        .from('UsageRecords')
+        .select('Type, Amount, CreatedAt')
+        .eq('InvoiceId', invoiceId)
+        .order('CreatedAt', { ascending: true });
+
+    if (usageError) throw usageError;
+
+    let billedTo = '';
+    if (invoice.SubjectType === 'company') {
+        const { data: company } = await supabase
+            .from('Companies')
+            .select('Name, BillingEmail')
+            .eq('Id', invoice.MemberOrCompanyId)
+            .maybeSingle();
+        billedTo = company?.Name || company?.BillingEmail || 'Compañía';
+    } else {
+        const { data: member } = await supabase
+            .from('Members')
+            .select('FirstName, LastName, Email')
+            .eq('Id', invoice.MemberOrCompanyId)
+            .maybeSingle();
+        const fullName = `${member?.FirstName ?? ''} ${member?.LastName ?? ''}`.trim();
+        billedTo = fullName || member?.Email || 'Miembro';
+    }
+
+    return generateInvoicePdfBlob({
+        invoiceId: invoice.Id,
+        billedTo,
+        createdAt: new Date(invoice.CreatedAt),
+        dueDate: invoice.DueDate ? new Date(invoice.DueDate) : null,
+        paidAt: invoice.PaidAt ? new Date(invoice.PaidAt) : null,
+        status: invoice.Status,
+        total: parseFloat(String(invoice.Total)),
+        lines: (usageRows ?? []).map((row: { Type: string; Amount: number | string; CreatedAt: string }) => ({
+            type: row.Type,
+            amount: parseFloat(String(row.Amount)),
+            createdAt: new Date(row.CreatedAt),
+        })),
     });
-    return response.data;
-}
+};
 
 /**
  * Gets the current subscription status including user access permissions
@@ -494,14 +592,15 @@ const getSubscriptionStatus = async (user?: any): Promise<{
                     name: 'Free',
                     monthlyPrice: 0,
                     currency: 'USD',
-                    maxProperties: 7, // Total properties limit
+                    maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,
                     billingCycle: '1',
                     isActive: true,
-                    publishedProperties: 5, // Published properties limit
-                    totalProperties: 7, // Total properties limit
-                    bookingReceiptMinimumAmount: undefined
+                    publishedProperties: 15,
+                    totalProperties: 20,
+                    bookingReceiptMinimumAmount: undefined,
+                    maxPhotosPerProperty: null
                 },
                 status: '0', // Assuming 0 = inactive/cancelled
                 currentPeriodStart: new Date(),
@@ -528,15 +627,14 @@ const getSubscriptionStatus = async (user?: any): Promise<{
 
 const subscriptionService = {
     getCurrentSubscription,
-    getCheckout,
-    createPaymentSession,
-    getCheckoutChange,
-    cancelSubscription,
+    createPlanCheckout,
+    changeCompanyPlan,
+    cancelCompanyPlan,
+    getCompanyFreeLandingPlan,
     getBillingHistory,
     getPlans,
     getCompanySubscription,
     getAdminSubscriptions,
-    getAdminInvoices,
     downloadInvoice,
     getSubscriptionStatus
 }

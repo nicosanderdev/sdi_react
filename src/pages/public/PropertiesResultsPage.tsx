@@ -5,6 +5,7 @@ import { CheckboxFilterGroup } from '../../components/public/properties/Checkbox
 import { RadioFilterGroup } from '../../components/public/properties/RadioFilterGroup';
 import { PropertyParams, PublicProperty } from '../../models/properties';
 import propertyService from '../../services/PropertyService';
+import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
 
 // --- CONSTANTS ---
 const PROPERTY_TYPES = [
@@ -208,7 +209,7 @@ export function PropertiesResultsPage() {
               <Card
                 key={property.id}
                 imgAlt={property.title}
-                imgSrc={property.propertyImages?.[0]?.url ?? ''}
+                imgSrc={resolveAssetUrl(property.propertyImages?.[0]?.url)}
                 className="transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl hover:cursor-pointer relative"
               >
                 

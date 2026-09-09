@@ -1,6 +1,6 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
-import { Label, TextInput, Checkbox } from 'flowbite-react';
+import { Label, TextInput } from 'flowbite-react';
 import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 
 export function EventVenueExtensionForm() {
@@ -37,22 +37,6 @@ export function EventVenueExtensionForm() {
           {errors.closingHour && (
             <p className="text-red-500 text-sm mt-1">{errors.closingHour.message as string}</p>
           )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <div className="mb-2 block">
-            <Label htmlFor="hasCatering">Incluye servicio de catering</Label>
-          </div>
-          <Checkbox id="hasCatering" {...register('hasCatering')} />
-        </div>
-
-        <div>
-          <div className="mb-2 block">
-            <Label htmlFor="hasSoundSystem">Incluye equipo de sonido</Label>
-          </div>
-          <Checkbox id="hasSoundSystem" {...register('hasSoundSystem')} />
         </div>
       </div>
 

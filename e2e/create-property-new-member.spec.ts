@@ -35,9 +35,9 @@ test.describe('Admin create property — new member', () => {
       const title = uniquePropertyTitle(propertyCase.titlePrefix);
       await pom.selectPropertyType(propertyCase.propertyTypeLabel);
       await pom.fillStep1Address();
-      await pom.fillStep2CoreAndExtensions({ title, case: propertyCase });
+      await pom.fillStep2CoreAndExtensions({ case: propertyCase });
       await pom.fillStep3UploadImages();
-      await pom.fillStep4Listing(propertyCase.listingType);
+      await pom.fillStep4Listing({ listingType: propertyCase.listingType, title });
       await pom.submitFinal();
 
       await pom.expectAdminPropertiesList();

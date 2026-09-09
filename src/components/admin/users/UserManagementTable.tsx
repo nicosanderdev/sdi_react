@@ -1,10 +1,10 @@
 // src/components/admin/users/UserManagementTable.tsx
-import React from 'react';
-import { Button, Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
-import { ChevronUpIcon, ChevronDownIcon, Loader2Icon, Trash2Icon } from 'lucide-react';
-import { UserListItem, SubscriptionTier } from '../../../services/UserAdminService';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
+import { ChevronUpIcon, ChevronDownIcon, Loader2Icon } from 'lucide-react';
+import { UserListItem, SubscriptionTier, MercadoPagoLinkStatus } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn, SortField } from '../../../hooks/useAdminUsers';
-import { UserActionsMenu } from './UserActionsMenu';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 
 interface UserManagementTableProps {
   hook: UseAdminUsersReturn;
@@ -39,6 +39,24 @@ const getSubscriptionStatusBadgeColor = (status: string) => {
   }
 };
 
+const getMercadoPagoBadgeColor = (status: MercadoPagoLinkStatus) => {
+  switch (status) {
+    case 'connected': return 'success';
+    case 'invite_sent': return 'warning';
+    case 'not_connected':
+    default: return 'gray';
+  }
+};
+
+const getMercadoPagoLabel = (status: MercadoPagoLinkStatus): string => {
+  switch (status) {
+    case 'connected': return 'Conectado';
+    case 'invite_sent': return 'Invitación enviada';
+    case 'not_connected':
+    default: return 'No conectado';
+  }
+};
+
 const formatDate = (dateString: string | null): string => {
   if (!dateString) return 'Nunca';
   return new Date(dateString).toLocaleDateString();
@@ -51,15 +69,28 @@ const getFullName = (user: UserListItem): string => {
 };
 
 export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }) => {
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const {
     users,
     loading,
     sortConfig,
     setSorting,
     openUserView,
-    openUserEdit,
-    openDeleteConfirmModal,
+    selectedUserIds,
+    toggleUserSelection,
+    toggleSelectAllUsersOnPage,
   } = hook;
+
+  const pageIds = useMemo(() => users.map((u) => u.id), [users]);
+  const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedUserIds.includes(id));
+  const somePageSelected = pageIds.some((id) => selectedUserIds.includes(id));
+
+  useEffect(() => {
+    const el = selectAllRef.current;
+    if (el) {
+      el.indeterminate = somePageSelected && !allPageSelected;
+    }
+  }, [somePageSelected, allPageSelected]);
 
   const handleSort = (field: SortField) => {
     setSorting(field);
@@ -108,30 +139,57 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
     <div className="overflow-x-auto" data-testid="admin-users-table">
       <Table hoverable>
         <TableHead>
+          <TableHeadCell className="w-12 p-4">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700"
+              checked={allPageSelected}
+              onChange={() => toggleSelectAllUsersOnPage(pageIds)}
+              aria-label="Seleccionar todos en esta página"
+            />
+          </TableHeadCell>
           <TableHeadCell className="w-16">Avatar</TableHeadCell>
           <SortableHeader field="name">Nombre</SortableHeader>
           <SortableHeader field="email">Correo</SortableHeader>
           <SortableHeader field="role">Rol</SortableHeader>
           <SortableHeader field="status">Estado</SortableHeader>
           <SortableHeader field="subscription">Suscripción</SortableHeader>
+          <TableHeadCell>Mercado Pago</TableHeadCell>
           <SortableHeader field="registrationDate">Registrado</SortableHeader>
           <SortableHeader field="lastLogin">Último acceso</SortableHeader>
-          <TableHeadCell className="min-w-[280px]">Acciones</TableHeadCell>
         </TableHead>
         <TableBody className="divide-y">
           {users.map((user) => (
             <TableRow key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <TableCell className="p-4 w-12">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 dark:border-gray-600 dark:bg-gray-700"
+                  checked={selectedUserIds.includes(user.id)}
+                  onChange={() => toggleUserSelection(user.id)}
+                  aria-label={`Seleccionar ${getFullName(user)}`}
+                />
+              </TableCell>
+
               <TableCell>
                 <Avatar
-                  img={user.avatarUrl || undefined}
+                  img={resolveAssetUrl(user.avatarUrl) || undefined}
                   placeholderInitials={getFullName(user).split(' ').map(n => n[0]).join('').toUpperCase()}
                   rounded
                   size="sm"
                 />
               </TableCell>
 
-              <TableCell className="font-medium text-gray-900 dark:text-white">
-                {getFullName(user)}
+              <TableCell className="font-medium text-gray-900 dark:text-white max-w-xs">
+                <button
+                  type="button"
+                  className="truncate text-left w-full hover:underline focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
+                  title={getFullName(user)}
+                  onClick={() => void openUserView(user.id)}
+                >
+                  {getFullName(user)}
+                </button>
               </TableCell>
 
               <TableCell className="text-gray-600 dark:text-gray-300">
@@ -170,40 +228,22 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
                 </div>
               </TableCell>
 
+              <TableCell>
+                <Badge
+                  color={getMercadoPagoBadgeColor(user.mercadoPagoStatus)}
+                  size="sm"
+                  data-testid={`admin-users-mp-status-${user.id}`}
+                >
+                  {getMercadoPagoLabel(user.mercadoPagoStatus)}
+                </Badge>
+              </TableCell>
+
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {formatDate(user.registrationDate)}
               </TableCell>
 
               <TableCell className="text-gray-600 dark:text-gray-300">
                 {formatDate(user.lastLogin)}
-              </TableCell>
-
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-1">
-                  <Button
-                    size="xs"
-                    color="light"
-                    onClick={() => openUserView(user.id)}
-                  >
-                    Ver
-                  </Button>
-                  <Button
-                    size="xs"
-                    color="light"
-                    onClick={() => openUserEdit(user.id)}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    size="xs"
-                    color="red"
-                    outline
-                    onClick={() => openDeleteConfirmModal(user)}
-                  >
-                    <Trash2Icon className="w-4 h-4" />
-                  </Button>
-                  <UserActionsMenu user={user} hook={hook} />
-                </div>
               </TableCell>
             </TableRow>
           ))}

@@ -1,11 +1,14 @@
 -- ============================================================================
 -- SEED DATA FOR SUPABASE DATABASE
 -- ============================================================================
--- This file contains seed data that will be loaded when the database is reset.
--- It includes:
---   - ENUM types
---   - Seed data (Amenities, Plans)
---   - Storage buckets
+-- Loaded after migrations on database reset.
+-- Contents:
+--   - Optional enum bootstrap (company_roles, plan_keys) when not already present
+--   - CREATE EXTENSION pgcrypto (for gen_random_uuid in Amenities seed)
+--   - Reference data: Amenities, Plans (flexible-pricing upsert), AppParameters (dynamic pricing)
+--
+-- Object storage is outside Supabase (external provider, e.g. R2); this file does
+-- not insert into storage.buckets.
 -- ============================================================================
 
 -- ============================================================================
@@ -128,51 +131,8 @@ INSERT INTO public."Amenities" ("Id", "Name", "IconId", "IsDeleted", "PropertyTy
 
 ON CONFLICT DO NOTHING;
 
--- Insert seed data for flexible billing plans.
--- Uses deterministic IDs and upsert semantics so it can be re-run safely.
-INSERT INTO public."Plans" (
-    "Id",
-    "Key",
-    "Name",
-    "MonthlyPrice",
-    "Currency",
-    "MaxProperties",
-    "MaxUsers",
-    "MaxStorageMb",
-    "BillingCycle",
-    "IsActive",
-    "IsDeleted",
-    "Created",
-    "CreatedBy",
-    "LastModified",
-    "LastModifiedBy",
-    "MaxPublishedProperties",
-    "CommissionPercentage",
-    "CommissionMinimumAmount",
-    "ExtraPropertiesPrice11to30",
-    "ExtraPropertiesPrice31Plus",
-    "BookingReceiptMinimumAmount",
-    "PropertyType"
-) VALUES
-('11111111-1111-4111-8111-111111111111'::uuid, 0, 'Free Plan', 0, 'USD', 3, 1, 100, 1, true, false, NOW(), 'system', NOW(), 'system', 3, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
-('22222222-2222-4222-8222-222222222222'::uuid, 1, 'Starter Plan', 29, 'USD', 25, 3, 500, 1, true, false, NOW(), 'system', NOW(), 'system', 25, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType"),
-('33333333-3333-4333-8333-333333333333'::uuid, 2, 'Pro Plan', 15, 'USD', 200, 10, 2000, 1, true, false, NOW(), 'system', NOW(), 'system', 200, NULL, NULL, NULL, NULL, NULL, 'RealEstate'::"PropertyType")
-ON CONFLICT ("Id") DO UPDATE
-SET
-  "Name" = EXCLUDED."Name",
-  "MonthlyPrice" = EXCLUDED."MonthlyPrice",
-  "Currency" = EXCLUDED."Currency",
-  "MaxProperties" = EXCLUDED."MaxProperties",
-  "MaxUsers" = EXCLUDED."MaxUsers",
-  "MaxStorageMb" = EXCLUDED."MaxStorageMb",
-  "BillingCycle" = EXCLUDED."BillingCycle",
-  "IsActive" = EXCLUDED."IsActive",
-  "IsDeleted" = EXCLUDED."IsDeleted",
-  "LastModified" = NOW(),
-  "LastModifiedBy" = 'system',
-  "MaxPublishedProperties" = EXCLUDED."MaxPublishedProperties";
-
--- Populate flexible-pricing columns only if they exist (migration-safe seed).
+-- Reference plans with flexible-pricing fields (migration-safe: only if column exists).
+-- Upserts by "Id"; fills NOT NULL legacy columns aligned with listing limits and app Key mapping.
 DO $$
 BEGIN
   IF EXISTS (
@@ -182,55 +142,328 @@ BEGIN
       AND table_name = 'Plans'
       AND column_name = 'PricingModel'
   ) THEN
-    UPDATE public."Plans"
-    SET
-      "PricingModel" = 'free',
-      "Price" = 0,
-      "MinMonthlyFee" = 0,
-      "PricePerBooking" = NULL,
-      "ListingLimit" = 3,
-      "DurationDays" = NULL,
-      "IsActiveV2" = true
-    WHERE "Id" = '11111111-1111-4111-8111-111111111111'::uuid;
-
-    UPDATE public."Plans"
-    SET
-      "PricingModel" = 'hybrid',
-      "Price" = NULL,
-      "MinMonthlyFee" = 29,
-      "PricePerBooking" = 2.5,
-      "ListingLimit" = 25,
-      "DurationDays" = 30,
-      "IsActiveV2" = true
-    WHERE "Id" = '22222222-2222-4222-8222-222222222222'::uuid;
-
-    UPDATE public."Plans"
-    SET
-      "PricingModel" = 'per_listing',
-      "Price" = 15,
-      "MinMonthlyFee" = NULL,
-      "PricePerBooking" = NULL,
-      "ListingLimit" = 200,
-      "DurationDays" = 30,
-      "IsActiveV2" = true
-    WHERE "Id" = '33333333-3333-4333-8333-333333333333'::uuid;
+    INSERT INTO public."Plans" (
+      "Id",
+      "Key",
+      "Name",
+      "MonthlyPrice",
+      "Currency",
+      "MaxProperties",
+      "MaxPublishedProperties",
+      "MaxUsers",
+      "MaxStorageMb",
+      "BillingCycle",
+      "IsActive",
+      "IsDeleted",
+      "Created",
+      "LastModified",
+      "PricingModel",
+      "Price",
+      "MinMonthlyFee",
+      "PricePerBooking",
+      "ListingLimit",
+      "DurationDays",
+      "IsActiveV2",
+      "BookingLimit",
+      "CommissionPercentage",
+      "CommissionMinimumAmount",
+      "BookingReceiptMinimumAmount"
+    )
+    VALUES
+      (
+        '11111111-1111-4111-8111-111111111111'::uuid,
+        0,
+        'Free',
+        0,
+        'USD',
+        3,
+        3,
+        1,
+        512,
+        30,
+        true,
+        false,
+        now(),
+        now(),
+        'hybrid',
+        0,
+        0,
+        NULL,
+        3,
+        30,
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+      ),
+      (
+        '22222222-2222-4222-8222-222222222222'::uuid,
+        1,
+        'Manager Pro',
+        29,
+        'USD',
+        25,
+        25,
+        5,
+        4096,
+        30,
+        true,
+        false,
+        now(),
+        now(),
+        'hybrid',
+        NULL,
+        29,
+        2.5,
+        25,
+        30,
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+      ),
+      (
+        '33333333-3333-4333-8333-333333333333'::uuid,
+        2,
+        'Company Small',
+        15,
+        'USD',
+        200,
+        200,
+        50,
+        8192,
+        30,
+        true,
+        false,
+        now(),
+        now(),
+        'per_listing',
+        15,
+        NULL,
+        NULL,
+        200,
+        30,
+        true,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+      ),
+      (
+        '44444444-4444-4444-8444-444444444444'::uuid,
+        3,
+        'Plan BASE-Inicial',
+        0,
+        'UYU',
+        20,
+        15,
+        NULL,
+        NULL,
+        30,
+        true,
+        false,
+        now(),
+        now(),
+        'per_booking',
+        0,
+        NULL,
+        NULL,
+        20,
+        30,
+        true,
+        NULL,
+        10,
+        700,
+        700
+      )
+    ON CONFLICT ("Id") DO UPDATE SET
+      "Key" = excluded."Key",
+      "Name" = excluded."Name",
+      "MonthlyPrice" = excluded."MonthlyPrice",
+      "Currency" = excluded."Currency",
+      "MaxProperties" = excluded."MaxProperties",
+      "MaxPublishedProperties" = excluded."MaxPublishedProperties",
+      "MaxUsers" = excluded."MaxUsers",
+      "MaxStorageMb" = excluded."MaxStorageMb",
+      "BillingCycle" = excluded."BillingCycle",
+      "IsActive" = excluded."IsActive",
+      "IsDeleted" = excluded."IsDeleted",
+      "LastModified" = excluded."LastModified",
+      "PricingModel" = excluded."PricingModel",
+      "Price" = excluded."Price",
+      "MinMonthlyFee" = excluded."MinMonthlyFee",
+      "PricePerBooking" = excluded."PricePerBooking",
+      "ListingLimit" = excluded."ListingLimit",
+      "DurationDays" = excluded."DurationDays",
+      "IsActiveV2" = excluded."IsActiveV2",
+      "BookingLimit" = excluded."BookingLimit",
+      "CommissionPercentage" = excluded."CommissionPercentage",
+      "CommissionMinimumAmount" = excluded."CommissionMinimumAmount",
+      "BookingReceiptMinimumAmount" = excluded."BookingReceiptMinimumAmount";
   END IF;
 END $$;
 
--- SECTION 3: STORAGE BUCKETS
--- ============================================================================
+-- Plan audience + Company Unlimited (migration-safe if column exists).
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Plans'
+      AND column_name = 'Audience'
+  ) THEN
+    UPDATE public."Plans"
+    SET "Audience" = 'member'
+    WHERE "Id" IN (
+      '11111111-1111-4111-8111-111111111111'::uuid,
+      '22222222-2222-4222-8222-222222222222'::uuid,
+      '44444444-4444-4444-8444-444444444444'::uuid
+    );
 
--- Create property_images bucket if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('property_images', 'property_images', true)
-ON CONFLICT (id) DO NOTHING;
+    UPDATE public."Plans"
+    SET
+      "Audience" = 'company',
+      "Currency" = 'UYU',
+      "MonthlyPrice" = 15,
+      "Price" = 15
+    WHERE "Id" = '33333333-3333-4333-8333-333333333333'::uuid;
 
--- Create property_documents bucket if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('property_documents', 'property_documents', true)
-ON CONFLICT (id) DO NOTHING;
+    INSERT INTO public."Plans" (
+      "Id", "Key", "Name", "MonthlyPrice", "Currency",
+      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
+      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
+      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
+    )
+    VALUES (
+      '55555555-5555-4555-8555-555555555555'::uuid,
+      4,
+      'Company Unlimited',
+      0,
+      'UYU',
+      NULL, NULL, NULL, NULL,
+      30, false, false, now(), now(),
+      'per_listing', 0, 30, false, 'company'
+    )
+    ON CONFLICT ("Id") DO UPDATE SET
+      "Audience" = excluded."Audience",
+      "Currency" = excluded."Currency",
+      "Name" = excluded."Name",
+      "LastModified" = now();
 
--- Create avatars bucket if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('avatars', 'avatars', true)
-ON CONFLICT (id) DO NOTHING;
+    INSERT INTO public."Plans" (
+      "Id", "Key", "Name", "MonthlyPrice", "Currency",
+      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
+      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
+      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
+    )
+    VALUES (
+      '66666666-6666-4666-8666-666666666666'::uuid,
+      5,
+      'Plan gratuito compañía',
+      0,
+      'UYU',
+      5, 3, 3, 100,
+      30, true, false, now(), now(),
+      'per_listing', 0, 30, true, 'company'
+    )
+    ON CONFLICT ("Id") DO UPDATE SET
+      "Audience" = excluded."Audience",
+      "Currency" = excluded."Currency",
+      "Name" = excluded."Name",
+      "MonthlyPrice" = excluded."MonthlyPrice",
+      "Price" = excluded."Price",
+      "IsActive" = excluded."IsActive",
+      "IsActiveV2" = excluded."IsActiveV2",
+      "IsDeleted" = excluded."IsDeleted",
+      "LastModified" = now();
+  END IF;
+END $$;
+
+-- Dynamic pricing defaults (SummerRent / EventVenue). Requires 20260602120000_dynamic_pricing_schema.sql.
+DO $$
+BEGIN
+  IF to_regclass('public."AppParameters"') IS NOT NULL THEN
+    INSERT INTO public."AppParameters" ("Name", "ParameterType", "Value", "SiteScope", "Description")
+    VALUES
+      ('SEASON_FACTOR_LOW', 'number', '0.90'::jsonb, 'global', 'Low season multiplier'),
+      ('SEASON_FACTOR_MID', 'number', '1.00'::jsonb, 'global', 'Mid season multiplier'),
+      ('SEASON_FACTOR_HIGH', 'number', '1.20'::jsonb, 'global', 'High season multiplier'),
+      (
+        'SEASON_CALENDAR',
+        'json',
+        '[
+          {"from": "05-01", "to": "08-31", "tier": "high"},
+          {"from": "12-15", "to": "01-15", "tier": "high"},
+          {"from": "03-01", "to": "04-30", "tier": "mid"},
+          {"from": "09-01", "to": "11-30", "tier": "mid"}
+        ]'::jsonb,
+        'global',
+        'MM-DD ranges to low|mid|high tier (Southern hemisphere summer example)'
+      ),
+      (
+        'SPECIAL_DATES',
+        'json',
+        '[]'::jsonb,
+        'global',
+        'Array of {start, end, multiplier} holiday/special periods'
+      ),
+      (
+        'ANTICIPATION_MIN_DAYS',
+        'number',
+        '30'::jsonb,
+        'global',
+        'Days before check-in to apply anticipation discount'
+      ),
+      (
+        'ANTICIPATION_MULTIPLIER',
+        'number',
+        '0.95'::jsonb,
+        'global',
+        'Multiplier when anticipation threshold met'
+      ),
+      (
+        'PRICE_ROUNDING_MODE',
+        'string',
+        '"tens"'::jsonb,
+        'global',
+        'none | tens | ending_99'
+      ),
+      (
+        'PRICE_QUOTE_TOLERANCE',
+        'number',
+        '1'::jsonb,
+        'global',
+        'Max abs diff for client vs server total on hold'
+      ),
+      ('DEMAND_FACTOR_MIN', 'number', '1.00'::jsonb, 'global', 'Demand multiplier at score 0'),
+      ('DEMAND_FACTOR_MAX', 'number', '1.25'::jsonb, 'global', 'Demand multiplier at score 1'),
+      (
+        'DEMAND_LOOKBACK_DAYS',
+        'number',
+        '90'::jsonb,
+        'global',
+        'Lookback window for demand signals (phase 2 cron)'
+      ),
+      (
+        'DEMAND_WEIGHTS',
+        'json',
+        '{"bookings": 0.6, "holds": 0.3, "views": 0.1}'::jsonb,
+        'global',
+        'Signal weights for demand cron'
+      )
+    ON CONFLICT ("Name", "SiteScope") DO UPDATE SET
+      "ParameterType" = excluded."ParameterType",
+      "Value" = excluded."Value",
+      "Description" = excluded."Description",
+      "IsActive" = true,
+      "IsDeleted" = false,
+      "LastModified" = now();
+  END IF;
+END $$;
+
+-- Local only (seed is not applied to hosted projects): print booking manage
+-- tokens to postgres logs / SQL editor notices even without an Origin header.
+ALTER DATABASE postgres SET app.log_booking_dev_secrets = 'true';

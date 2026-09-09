@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../../../_shared/cors.ts'
-import { authenticateUser, hasPropertyAccess } from '../../../_shared/auth.ts'
-import { createLogger } from '../../../_shared/logger.ts'
+import { corsHeaders } from '../../_shared/cors.ts'
+import { authenticateUser, hasPropertyAccess } from '../../_shared/auth.ts'
+import { createLogger } from '../../_shared/logger.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -13,10 +13,29 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 })
 
 const logger = createLogger('ical-sync')
+const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+function isServiceRoleRequest(req: Request): boolean {
+  const header = req.headers.get('Authorization') ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
+  return Boolean(serviceRoleKey) && token === serviceRoleKey
+}
+
+function resolveICalFeedUrl(integration: {
+  ICalUrl?: string | null
+  ExternalCalendarId?: string | null
+}, provided?: string): string | null {
+  if (provided && provided.startsWith('https://')) return provided
+  if (integration.ICalUrl && integration.ICalUrl.startsWith('https://')) return integration.ICalUrl
+  if (integration.ExternalCalendarId && integration.ExternalCalendarId.startsWith('https://')) {
+    return integration.ExternalCalendarId
+  }
+  return null
+}
 
 interface ICSSyncRequest {
   integrationId: string
-  action: 'import' | 'export'
+  action?: 'import' | 'export' | 'connect'
   icsUrl?: string // For import
   jobId?: string
 }
@@ -381,7 +400,7 @@ async function createICSIntegration(propertyId: string, icsUrl: string, calendar
   }
 }
 
-Deno.serve(async (req) => {
+export async function handleICalSyncRequest(req: Request): Promise<Response> {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -392,8 +411,8 @@ Deno.serve(async (req) => {
     const path = url.pathname.split('/').pop()
 
     switch (path) {
-      case 'import': {
-        // Import ICS feed
+      case 'import':
+      case 'ical-sync': {
         if (req.method !== 'POST') {
           return new Response(JSON.stringify({ error: 'Method not allowed' }), {
             status: 405,
@@ -401,29 +420,39 @@ Deno.serve(async (req) => {
           })
         }
 
-        // Authenticate user
-        const authResult = await authenticateUser(req)
-        if (!authResult.user) {
-          return new Response(JSON.stringify({ error: authResult.error }), {
-            status: 401,
+        const serviceRole = isServiceRoleRequest(req)
+        let user = null
+        if (!serviceRole) {
+          const authResult = await authenticateUser(req)
+          if (!authResult.user) {
+            return new Response(JSON.stringify({ error: authResult.error }), {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+          user = authResult.user
+        }
+
+        const body: ICSSyncRequest = await req.json()
+        const { integrationId, icsUrl: providedUrl, jobId, action } = body
+
+        if (path === 'ical-sync' && action && action !== 'import') {
+          return new Response(JSON.stringify({ error: 'Unknown endpoint' }), {
+            status: 404,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
 
-        const body: ICSSyncRequest = await req.json()
-        const { integrationId, icsUrl, jobId } = body
-
-        if (!icsUrl) {
-          return new Response(JSON.stringify({ error: 'ICS URL is required' }), {
+        if (!integrationId) {
+          return new Response(JSON.stringify({ error: 'Integration ID is required' }), {
             status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
 
-        // Verify user has access to the integration
         const { data: integration } = await supabase
           .from('CalendarIntegrations')
-          .select('EstatePropertyId')
+          .select('EstatePropertyId, ICalUrl, ExternalCalendarId')
           .eq('Id', integrationId)
           .eq('IsDeleted', false)
           .single()
@@ -435,10 +464,20 @@ Deno.serve(async (req) => {
           })
         }
 
-        const hasAccess = await hasPropertyAccess(authResult.user, integration.EstatePropertyId)
-        if (!hasAccess) {
-          return new Response(JSON.stringify({ error: 'Access denied' }), {
-            status: 403,
+        if (!serviceRole && user) {
+          const hasAccess = await hasPropertyAccess(user, integration.EstatePropertyId)
+          if (!hasAccess) {
+            return new Response(JSON.stringify({ error: 'Access denied' }), {
+              status: 403,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            })
+          }
+        }
+
+        const icsUrl = resolveICalFeedUrl(integration, providedUrl)
+        if (!icsUrl) {
+          return new Response(JSON.stringify({ error: 'ICS URL is required' }), {
+            status: 400,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           })
         }
@@ -538,4 +577,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
-})
+}
+
+if (import.meta.main) {
+  Deno.serve(handleICalSyncRequest)
+}

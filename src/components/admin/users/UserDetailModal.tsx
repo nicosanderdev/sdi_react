@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import { UserDetail, SubscriptionTier } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
+import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
+import subscriptionService from '../../../services/SubscriptionService';
+import type { PlanData } from '../../../models/subscriptions/PlanData';
 
 interface UserDetailModalProps {
   hook: UseAdminUsersReturn;
@@ -82,13 +85,25 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
     detailModalOpen,
     closeDetailModal,
     userDetailLoading,
+    actionLoading,
     suspendUser,
     reactivateUser,
     resetOnboarding,
     forceLogout,
     updateUserRole,
+    assignMemberPlan,
     openDeleteConfirmModal,
   } = hook;
+
+  const [memberPlans, setMemberPlans] = React.useState<PlanData[]>([]);
+  const [selectedPlanId, setSelectedPlanId] = React.useState('');
+
+  React.useEffect(() => {
+    if (!detailModalOpen) return;
+    subscriptionService.getPlans('member').then((rows) => {
+      setMemberPlans(rows.filter((plan) => plan.isActive));
+    }).catch(() => setMemberPlans([]));
+  }, [detailModalOpen]);
 
   if (!selectedUser) return null;
 
@@ -116,7 +131,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
       <Modal.Header>
         <div className="flex items-center space-x-3">
           <Avatar
-            img={selectedUser.avatarUrl || undefined}
+            img={resolveAssetUrl(selectedUser.avatarUrl) || undefined}
             placeholderInitials={getFullName(selectedUser).split(' ').map(n => n[0]).join('').toUpperCase()}
             rounded
             size="lg"
@@ -287,6 +302,32 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
                         </Badge>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="border-t pt-4 space-y-2" data-testid="admin-assign-member-plan">
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400" htmlFor="admin-member-plan">
+                      Asignar plan personal
+                    </label>
+                    <select
+                      id="admin-member-plan"
+                      className="block w-full rounded-md border border-gray-300 bg-white dark:bg-gray-800 text-sm"
+                      value={selectedPlanId}
+                      onChange={(e) => setSelectedPlanId(e.target.value)}
+                    >
+                      <option value="">Seleccionar plan</option>
+                      {memberPlans.map((plan) => (
+                        <option key={plan.id} value={plan.id}>
+                          {plan.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      size="sm"
+                      disabled={!selectedPlanId || actionLoading}
+                      onClick={() => assignMemberPlan(selectedUser.id, selectedPlanId)}
+                    >
+                      Guardar plan
+                    </Button>
                   </div>
                 </div>
               </Card>

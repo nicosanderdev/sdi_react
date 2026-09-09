@@ -16,10 +16,11 @@ import {
   Alert,
   Spinner
 } from 'flowbite-react';
-import { supabase } from '../../../config/supabase';
+import { CalendarSyncService } from '../../../services/CalendarSyncService';
 
 interface ICalExportPanelProps {
   propertyId: string;
+  canManage?: boolean;
 }
 
 interface ExportData {
@@ -27,7 +28,7 @@ interface ExportData {
   token: string;
 }
 
-const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
+const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId, canManage = true }) => {
   const [exportData, setExportData] = useState<ExportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,29 +36,18 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
   const [copySuccess, setCopySuccess] = useState(false);
   const [expandedInstructions, setExpandedInstructions] = useState<string | null>(null);
 
-  // Load export URL
+  // Load export URL (Supabase Edge `ical-export`, same base as CalendarSyncService)
   const loadExportData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // For now, we'll generate a simple URL format
-      // In a real implementation, this would come from the database
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('No autenticado');
-
-      // Retrieve export token via RPC backed by SummerRentExtension
-      const { data, error } = await supabase.rpc('get_property_ical_export_token', {
-        property_id: propertyId
-      });
-
-      if (error || !data) throw error || new Error('No se pudo cargar el token de exportación');
-
-      const token = data as string;
-
-      const baseUrl = window.location.origin;
-      const url = `${baseUrl}/ical-export/${propertyId}?token=${token}`;
-
+      const result = await CalendarSyncService.getPropertyExportUrl(propertyId);
+      if (!result.succeeded || !result.data) {
+        throw new Error(result.errorMessage || 'No se pudo cargar el token de exportación');
+      }
+      const url = result.data;
+      const token = new URL(url).searchParams.get('token') ?? '';
       setExportData({ url, token });
     } catch (error: any) {
       setError(error.message || 'No se pudo cargar la URL de exportación');
@@ -89,17 +79,12 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
     setError(null);
 
     try {
-      const { data, error } = await supabase.rpc('regenerate_property_ical_export_token', {
-        property_id: propertyId
-      });
-
-      if (error || !data) throw error || new Error('No se pudo regenerar el token');
-
-      const newToken = data as string;
-
-      const baseUrl = window.location.origin;
-      const newUrl = `${baseUrl}/ical-export/${propertyId}?token=${newToken}`;
-
+      const result = await CalendarSyncService.regenerateExportToken(propertyId);
+      if (!result.succeeded || !result.data) {
+        throw new Error(result.errorMessage || 'No se pudo regenerar el token');
+      }
+      const newUrl = result.data;
+      const newToken = new URL(newUrl).searchParams.get('token') ?? '';
       setExportData({ url: newUrl, token: newToken });
     } catch (error: any) {
       setError(error.message || 'No se pudo regenerar la URL');
@@ -183,9 +168,11 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
             <div className="text-sm text-gray-600 dark:text-gray-400">
               <strong>Seguridad:</strong> mantén esta URL privada. Cualquiera con el enlace puede ver tu disponibilidad.
             </div>
+            {canManage && (
             <Button
               size="sm"
               color="alternative"
+              data-testid="ical-regenerate-export"
               onClick={regenerateToken}
               disabled={isRegenerating}
               className="flex items-center"
@@ -197,6 +184,7 @@ const ICalExportPanel: React.FC<ICalExportPanelProps> = ({ propertyId }) => {
               )}
               Regenerar URL
             </Button>
+            )}
           </div>
         </div>
 

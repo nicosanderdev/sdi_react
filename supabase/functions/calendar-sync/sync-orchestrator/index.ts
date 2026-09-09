@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { corsHeaders } from '../../../_shared/cors.ts'
-import { authenticateUser, hasPropertyAccess } from '../../../_shared/auth.ts'
-import { createLogger } from '../../../_shared/logger.ts'
+import { corsHeaders } from '../../_shared/cors.ts'
+import { authenticateUser, hasPropertyAccess } from '../../_shared/auth.ts'
+import { createLogger } from '../../_shared/logger.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -83,8 +83,7 @@ async function syncICalIntegration(integrationId: string): Promise<string> {
   const jobId = await createSyncJob(integrationId, 1, 'inbound') // scheduled job
 
   try {
-    // Call iCal import function
-    const response = await fetch(`${supabaseUrl}/functions/v1/ical-import`, {
+    const response = await fetch(`${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
@@ -92,7 +91,7 @@ async function syncICalIntegration(integrationId: string): Promise<string> {
       },
       body: JSON.stringify({
         integrationId,
-        forceRefresh: false,
+        action: 'import',
         jobId
       })
     })
@@ -194,47 +193,32 @@ async function createSyncJob(integrationId: string, jobType: number, syncType: s
  * Trigger sync for a specific integration
  */
 async function triggerSync(integrationId: string, syncType: string = 'bidirectional', jobType: number = 0): Promise<string> {
-  // Get integration details to check property ID for manual sync rate limiting
-  const { data: integration } = await supabase
-    .from('CalendarIntegrations')
-    .select('EstatePropertyId')
-    .eq('Id', integrationId)
-    .eq('IsDeleted', false)
-    .single()
-
-  if (!integration) {
-    throw new Error('Integration not found')
-  }
-
-  // Check rate limiting based on job type
-  if (jobType === 0) { // Manual sync
-    const withinManualLimit = await checkManualSyncRateLimit(integration.EstatePropertyId)
-    if (!withinManualLimit) {
-      throw new Error('Manual sync rate limit exceeded. Please try again later.')
-    }
-  } else if (jobType === 1) { // Automated sync
-    const withinAutoLimit = await checkAutoSyncRateLimit(integrationId)
-    if (!withinAutoLimit) {
-      throw new Error('Automated sync rate limit exceeded. Please try again later.')
-    }
-  }
-
-  // Check general rate limiting
-  const withinGeneralLimit = await checkRateLimit(integrationId)
-  if (!withinGeneralLimit) {
-    throw new Error('Rate limit exceeded. Please try again later.')
-  }
-
-  // Get integration details
   const { data: integration, error } = await supabase
     .from('CalendarIntegrations')
-    .select('PlatformType, IsActive, SyncStatus')
+    .select('EstatePropertyId, PlatformType, IsActive, SyncStatus')
     .eq('Id', integrationId)
     .eq('IsDeleted', false)
     .single()
 
   if (error || !integration) {
     throw new Error('Integration not found')
+  }
+
+  if (jobType === 0) {
+    const withinManualLimit = await checkManualSyncRateLimit(integration.EstatePropertyId)
+    if (!withinManualLimit) {
+      throw new Error('Manual sync rate limit exceeded. Please try again later.')
+    }
+  } else if (jobType === 1) {
+    const withinAutoLimit = await checkAutoSyncRateLimit(integrationId)
+    if (!withinAutoLimit) {
+      throw new Error('Automated sync rate limit exceeded. Please try again later.')
+    }
+  }
+
+  const withinGeneralLimit = await checkRateLimit(integrationId)
+  if (!withinGeneralLimit) {
+    throw new Error('Rate limit exceeded. Please try again later.')
   }
 
   if (!integration.IsActive) {
@@ -260,17 +244,9 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
       syncType,
       jobId
     }
-  } else if (integration.PlatformType >= 2 && integration.PlatformType <= 4) {
-    // iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
-    syncUrl = `${supabaseUrl}/functions/v1/ical-import`
-    requestBody = {
-      integrationId,
-      forceRefresh: false,
-      jobId
-    }
-  } else if (integration.PlatformType === 1) {
-    // Apple Calendar (legacy iCal sync - keep for backward compatibility)
-    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync`
+  } else if (integration.PlatformType >= 1 && integration.PlatformType <= 4) {
+    // Apple (1) and iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
+    syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`
     requestBody = {
       integrationId,
       action: 'import',
@@ -353,7 +329,7 @@ async function getSyncStatus(propertyId: string): Promise<any[]> {
       IsActive,
       LastSyncAt,
       SyncStatus,
-      SyncJobs!inner(
+      SyncJobs(
         Id,
         JobType,
         Status,
@@ -366,7 +342,6 @@ async function getSyncStatus(propertyId: string): Promise<any[]> {
     `)
     .eq('EstatePropertyId', propertyId)
     .eq('IsDeleted', false)
-    .order('SyncJobs.Created', { ascending: false })
 
   if (error) throw error
 
@@ -386,9 +361,10 @@ async function getSyncStatus(propertyId: string): Promise<any[]> {
       })
     }
 
-    // Update with latest job info
     if (integration.SyncJobs && integration.SyncJobs.length > 0) {
-      const latestJob = integration.SyncJobs[0] // Already ordered by Created desc
+      const latestJob = [...integration.SyncJobs].sort(
+        (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime(),
+      )[0]
       statusMap.get(integration.Id).latestJob = {
         id: latestJob.Id,
         jobType: latestJob.JobType,
@@ -450,7 +426,7 @@ async function retryFailedJobs(propertyId: string): Promise<string[]> {
   return jobIds
 }
 
-Deno.serve(async (req) => {
+export async function handleSyncOrchestratorRequest(req: Request): Promise<Response> {
   // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -635,4 +611,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
-})
+}
+
+if (import.meta.main) {
+  Deno.serve(handleSyncOrchestratorRequest)
+}

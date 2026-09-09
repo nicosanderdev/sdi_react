@@ -79,7 +79,7 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
             />
           )}
           <div className="flex-1">
-            <h2 className="text-2xl font-bold mb-2">{companyInfo.name}</h2>
+            <h2 className="text-2xl font-bold mb-2" data-testid="company-info-name">{companyInfo.name}</h2>
             {companyInfo.description && (
               <p className="text-gray-600 dark:text-gray-400 mb-4">{companyInfo.description}</p>
             )}
