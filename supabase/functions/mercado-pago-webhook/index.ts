@@ -370,7 +370,6 @@ async function handlePaymentNotification(
 }
 
 async function notifyGuestAfterAutoConfirm(
-  supabase: SupabaseClient,
   bookingId: string,
 ): Promise<void> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -383,48 +382,10 @@ async function notifyGuestAfterAutoConfirm(
   };
 
   try {
-    const emailRes = await fetch(`${supabaseUrl}/functions/v1/send-booking-confirmation`, {
+    await fetch(`${supabaseUrl}/functions/v1/send-booking-confirmation`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ bookingId }),
-    });
-    const emailJson = await emailRes.json().catch(() => null) as {
-      skipReason?: string;
-    } | null;
-
-    if (emailJson?.skipReason !== 'no_email') {
-      return;
-    }
-
-    const { data: booking } = await supabase
-      .from('Bookings')
-      .select('GuestId, CheckInDate, CheckOutDate, ReservationCode, EstateProperties(StreetName, HouseNumber)')
-      .eq('Id', bookingId)
-      .maybeSingle();
-    if (!booking?.GuestId) return;
-
-    const { data: profile } = await supabase.rpc('resolve_guest_profile', {
-      p_guest_id: booking.GuestId,
-    });
-    const phone = typeof profile?.phone === 'string' ? profile.phone.trim() : '';
-    if (!phone) return;
-
-    const estate = Array.isArray(booking.EstateProperties)
-      ? booking.EstateProperties[0]
-      : booking.EstateProperties;
-    const propertyTitle = [estate?.StreetName, estate?.HouseNumber].filter(Boolean).join(' ') || 'Property';
-
-    await fetch(`${supabaseUrl}/functions/v1/booking-send-confirmation`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        bookingId,
-        phone,
-        propertyTitle,
-        checkIn: booking.CheckInDate,
-        checkOut: booking.CheckOutDate,
-        reservationCode: booking.ReservationCode,
-      }),
     });
   } catch (error) {
     console.error('auto-confirm guest notification failed', error);
@@ -480,7 +441,7 @@ async function applyPayment(
     if (autoError) {
       console.error('try_auto_confirm_paid_booking failed', autoError);
     } else if (autoResult?.confirmed) {
-      await notifyGuestAfterAutoConfirm(supabase, String(attempt.booking_id));
+      await notifyGuestAfterAutoConfirm(String(attempt.booking_id));
     }
 
     return { ok: true, result: markResult.already_approved ? 'already_approved' : 'approved' };

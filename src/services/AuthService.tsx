@@ -207,10 +207,10 @@ const login = async (
   }
 };
 
-export type OAuthProvider = 'google' | 'facebook'
+export type OAuthProvider = 'google'
 
 /**
- * Starts OAuth sign-in (Google or Facebook). Redirects to /dashboard on success.
+ * Starts OAuth sign-in (Google). Redirects to /dashboard on success.
  */
 const signInWithOAuthProvider = async (provider: OAuthProvider) => {
   const { data, error } = await supabase.auth.signInWithOAuth({

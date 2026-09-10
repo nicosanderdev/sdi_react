@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, CalendarIcon, AlertCircleIcon, UserPlus, PhoneIcon } from 'lucide-react';
 import AuthService, { RegisterUserPayload } from '../../services/AuthService';
@@ -21,6 +21,8 @@ export function RegisterPage() {
     repeatPassword: '',
   });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [termsHighlight, setTermsHighlight] = useState(false);
+  const termsPanelRef = useRef<HTMLDivElement>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -114,15 +116,23 @@ export function RegisterPage() {
     return isValid;
   };
 
-  const handleOAuthRegister = async (provider: 'google' | 'facebook') => {
+  const promptTermsAcceptance = () => {
+    setTermsHighlight(true);
+    setApiError('Debes aceptar los términos y condiciones para continuar.');
+    termsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('terms')?.focus();
+  };
+
+  const handleOAuthRegister = async (provider: 'google') => {
     if (!acceptedTerms) {
-      setApiError('Debes aceptar los términos y condiciones para continuar.');
+      promptTermsAcceptance();
       return;
     }
 
     try {
       setIsLoading(true);
       setApiError(null);
+      setTermsHighlight(false);
 
       const { error } = await AuthService.signInWithOAuthProvider(provider);
 
@@ -144,7 +154,7 @@ export function RegisterPage() {
     }
 
     if (!acceptedTerms) {
-      setApiError('Debes aceptar los términos y condiciones para continuar.');
+      promptTermsAcceptance();
       return;
     }
 
@@ -394,19 +404,50 @@ export function RegisterPage() {
                   ) : undefined}
                 />
               </div>
-              <div className="flex items-center pt-2">
-                <Checkbox
-                  id="terms"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  required
-                />
-                <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                  Acepto los{' '}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline">
-                    términos y condiciones
-                  </a>
+              <div
+                ref={termsPanelRef}
+                className={`rounded-lg border p-4 transition-colors ${
+                  termsHighlight && !acceptedTerms
+                    ? 'border-red-400 bg-red-50 ring-2 ring-red-300 dark:border-red-500 dark:bg-red-900/20 dark:ring-red-600'
+                    : acceptedTerms
+                      ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
+                      : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/40'
+                }`}
+              >
+                <label htmlFor="terms" className="flex cursor-pointer items-start gap-3">
+                  <Checkbox
+                    id="terms"
+                    checked={acceptedTerms}
+                    onChange={(e) => {
+                      setAcceptedTerms(e.target.checked);
+                      if (e.target.checked) {
+                        setTermsHighlight(false);
+                        setApiError(null);
+                      }
+                    }}
+                    required
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-medium">Paso requerido:</span> acepto los{' '}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      términos y condiciones
+                    </a>{' '}
+                    para crear una cuenta o continuar con Google.
+                  </span>
                 </label>
+                {termsHighlight && !acceptedTerms && (
+                  <p className="mt-2 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+                    <AlertCircleIcon size={14} />
+                    Selecciona esta casilla para continuar con Google
+                  </p>
+                )}
               </div>
 
               <Button
@@ -419,8 +460,14 @@ export function RegisterPage() {
               </Button>
               <SocialAuthButtons
                 onGoogle={() => void handleOAuthRegister('google')}
-                onFacebook={() => void handleOAuthRegister('facebook')}
-                disabled={isLoading || !acceptedTerms}
+                disabled={isLoading}
+                hint={
+                  !acceptedTerms ? (
+                    <p className="text-center text-xs text-gray-600 dark:text-gray-400">
+                      Marca la casilla de términos arriba para continuar con Google
+                    </p>
+                  ) : undefined
+                }
               />
             </form>
             <div className="text-center mt-5">

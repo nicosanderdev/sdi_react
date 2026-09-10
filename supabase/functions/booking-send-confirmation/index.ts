@@ -1,3 +1,10 @@
+/**
+ * Booking confirmed/cancelled WhatsApp text sender.
+ *
+ * Callers are disconnected: Meta does not allow custom (non-template) text for
+ * this use case. Kept in the repo until an approved template exists.
+ * Live notifications go through send-booking-confirmation / send-booking-cancellation (email).
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildGuestManageUrl } from '../_shared/guestManageUrl.ts';
 import { sendWhatsappViaMeta } from '../_shared/whatsapp.ts';

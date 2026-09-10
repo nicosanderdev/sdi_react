@@ -13,47 +13,6 @@ export interface BookingConfirmationPayload {
   listingType?: string | null;
 }
 
-function buildFallbackReservationCode(bookingId: string): string {
-  return bookingId.replace(/-/g, '').slice(0, 10).toUpperCase();
-}
-
-function resolveReservationCode(payload: BookingConfirmationPayload): string {
-  const reservationCode = payload.reservationCode?.trim();
-  if (reservationCode) {
-    return reservationCode;
-  }
-
-  return buildFallbackReservationCode(payload.bookingId);
-}
-
-async function sendWhatsappConfirmation(payload: BookingConfirmationPayload): Promise<void> {
-  const reservationCode = resolveReservationCode(payload);
-  const phone = payload.guestPhone?.trim();
-  if (!phone) {
-    throw new Error('Guest has no phone for WhatsApp confirmation');
-  }
-
-  const waRes = await supabase.functions.invoke('booking-send-confirmation', {
-    body: {
-      bookingId: payload.bookingId,
-      phone,
-      propertyTitle: payload.propertyTitle ?? 'Property',
-      checkIn: payload.checkInDate ?? '',
-      checkOut: payload.checkOutDate ?? '',
-      reservationCode,
-    },
-  });
-
-  if (waRes.error) {
-    throw new Error(waRes.error.message);
-  }
-
-  const data = waRes.data as { success?: boolean; error?: string } | null;
-  if (data && data.success === false) {
-    throw new Error(data.error ?? 'WhatsApp confirmation failed');
-  }
-}
-
 class BookingConfirmationService {
   static async assertCanConfirm(estatePropertyId: string, bookingId?: string | null): Promise<void> {
     await assertBookingConfirmationAllowed(estatePropertyId, bookingId ?? null);
@@ -65,48 +24,43 @@ class BookingConfirmationService {
   }
 
   /**
-   * Email first for booking info; WhatsApp only when guest has no email.
+   * Email-only booking confirmation. Guests are expected to provide an email.
+   * Skips (does not throw) when there is no email so older bookings still confirm.
    */
   static async sendTenantConfirmation(payload: BookingConfirmationPayload): Promise<void> {
     const guestEmail = payload.guestEmail?.trim();
-    const guestPhone = payload.guestPhone?.trim();
 
-    if (guestEmail) {
-      const emailRes = await supabase.functions.invoke('send-booking-confirmation', {
-        body: { bookingId: payload.bookingId },
-      });
-
-      const data = emailRes.data as { success?: boolean; error?: string; skipReason?: string } | null;
-      const isNoEmail =
-        data?.skipReason === 'no_email' ||
-        data?.error === 'no_email' ||
-        /no_email/i.test(emailRes.error?.message ?? '');
-
-      if (isNoEmail) {
-        if (guestPhone) {
-          await sendWhatsappConfirmation(payload);
-          return;
-        }
-        throw new Error('Guest has no email or phone for confirmation');
-      }
-
-      if (emailRes.error) {
-        throw new Error(emailRes.error.message);
-      }
-
-      if (data && data.success === false) {
-        throw new Error(data.error ?? 'Confirmation email failed');
-      }
-
+    if (!guestEmail) {
+      console.warn(
+        `Skipping booking confirmation notice for ${payload.bookingId}: guest has no email`
+      );
       return;
     }
 
-    if (guestPhone) {
-      await sendWhatsappConfirmation(payload);
+    const emailRes = await supabase.functions.invoke('send-booking-confirmation', {
+      body: { bookingId: payload.bookingId },
+    });
+
+    const data = emailRes.data as { success?: boolean; error?: string; skipReason?: string } | null;
+    const isNoEmail =
+      data?.skipReason === 'no_email' ||
+      data?.error === 'no_email' ||
+      /no_email/i.test(emailRes.error?.message ?? '');
+
+    if (isNoEmail) {
+      console.warn(
+        `Skipping booking confirmation notice for ${payload.bookingId}: email function reported no_email`
+      );
       return;
     }
 
-    throw new Error('Guest has no email or phone for confirmation');
+    if (emailRes.error) {
+      throw new Error(emailRes.error.message);
+    }
+
+    if (data && data.success === false) {
+      throw new Error(data.error ?? 'Confirmation email failed');
+    }
   }
 }
 
