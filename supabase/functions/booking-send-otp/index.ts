@@ -4,6 +4,7 @@ import {
   shouldUseBookingOtpMock,
 } from '../_shared/bookingOtpDev.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+import { generateOtpCode, getClientIp, makeOtpHash, OTP_TTL_SECONDS } from '../_shared/otp.ts';
 import { sendWhatsappTemplateViaMeta } from '../_shared/whatsapp.ts';
 
 interface SendOtpBody {
@@ -20,40 +21,8 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 const PHONE_E164_REGEX = /^\+[1-9]\d{7,14}$/;
-const OTP_TTL_SECONDS = 5 * 60;
 const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva';
 const OTP_WHATSAPP_TEMPLATE_LANGUAGE = 'es';
-
-function getClientIp(req: Request, bodyIp?: string | null): string | null {
-  if (bodyIp && bodyIp.trim().length > 0) {
-    return bodyIp.trim();
-  }
-  const forwardedFor = req.headers.get('x-forwarded-for');
-  if (!forwardedFor) return null;
-  const firstIp = forwardedFor.split(',')[0]?.trim();
-  return firstIp?.length ? firstIp : null;
-}
-
-function generateOtpCode(): string {
-  const random = new Uint32Array(1);
-  crypto.getRandomValues(random);
-  return String(random[0] % 1_000_000).padStart(6, '0');
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(input));
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-async function makeOtpHash(otpCode: string): Promise<string> {
-  const saltBytes = new Uint8Array(16);
-  crypto.getRandomValues(saltBytes);
-  const salt = Array.from(saltBytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-  const hash = await sha256Hex(`${salt}:${otpCode}`);
-  return `${salt}$${hash}`;
-}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -132,12 +101,14 @@ Deno.serve(async (req: Request) => {
         updated_at: new Date().toISOString(),
       })
       .eq('phone', phone)
+      .eq('purpose', 'booking')
       .eq('verified', false);
 
     const { data: otpInsert, error: otpInsertError } = await supabaseAdmin
       .from('otp_requests')
       .insert({
         hold_id: holdId,
+        purpose: 'booking',
         phone,
         otp_hash: otpHash,
         expires_at: expiresAt,

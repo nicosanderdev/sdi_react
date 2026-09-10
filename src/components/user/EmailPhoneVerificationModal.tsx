@@ -1,86 +1,143 @@
 import React, { useState, useEffect } from 'react';
 import { XIcon } from 'lucide-react';
 import profileService from '../../services/ProfileService';
-import { setMemberVerification } from '../../services/OwnerOnboardingService';
 import { TwoFactorInput } from '../public/TwoFactorInput';
 import { Button, Label, TextInput } from 'flowbite-react';
+import { PhonePrefixInput } from './PhonePrefixInput';
+import { DEFAULT_MEMBER_PHONE_PREFIX, formatMemberPhoneDisplay } from '../../utils/memberPhone';
 
 export type VerificationType = 'email' | 'phone';
+export type VerificationIntent = 'verify' | 'add' | 'change';
 
-type Step = 'enter_value' | 'enter_code' | 'success';
+type Step = 'enter_value' | 'enter_code';
 
 interface EmailPhoneVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   type: VerificationType;
-  /** Member id for recording verification in owner onboarding; if provided, setMemberVerification is called on success */
-  memberId?: string | null;
+  intent: VerificationIntent;
+  currentEmail?: string | null;
+  currentPhone?: string | null;
+  currentPhonePrefix?: string | null;
 }
 
-const LABELS = {
-  email: {
-    title: 'Cambiar correo electrónico',
-    valueLabel: 'Nuevo correo electrónico',
-    valuePlaceholder: 'ejemplo@correo.com',
-    sendButton: 'Enviar código',
-    codeLabel: 'Introduce el código de 6 dígitos enviado a tu nuevo correo',
-    verifyButton: 'Verificar',
-  },
-  phone: {
+function titles(type: VerificationType, intent: VerificationIntent) {
+  if (type === 'email') {
+    if (intent === 'verify') {
+      return {
+        title: 'Verificar correo electrónico',
+        valueLabel: 'Correo electrónico',
+        sendButton: 'Enviar código',
+        codeLabel: 'Introduce el código de 6 dígitos enviado a tu correo',
+        verifyButton: 'Verificar',
+      };
+    }
+    return {
+      title: 'Cambiar correo electrónico',
+      valueLabel: 'Nuevo correo electrónico',
+      sendButton: 'Enviar código',
+      codeLabel: 'Introduce el código de 6 dígitos enviado a tu nuevo correo',
+      verifyButton: 'Verificar',
+    };
+  }
+  if (intent === 'verify') {
+    return {
+      title: 'Verificar teléfono',
+      valueLabel: 'Número de teléfono',
+      sendButton: 'Enviar código',
+      codeLabel: 'Introduce el código de 6 dígitos enviado por WhatsApp',
+      verifyButton: 'Verificar',
+    };
+  }
+  if (intent === 'add') {
+    return {
+      title: 'Agregar y verificar teléfono',
+      valueLabel: 'Número de teléfono',
+      sendButton: 'Enviar código',
+      codeLabel: 'Introduce el código de 6 dígitos enviado por WhatsApp',
+      verifyButton: 'Verificar',
+    };
+  }
+  return {
     title: 'Cambiar teléfono',
     valueLabel: 'Nuevo número de teléfono',
-    valuePlaceholder: '+34 600 000 000',
     sendButton: 'Enviar código',
-    codeLabel: 'Introduce el código de 6 dígitos enviado a tu nuevo teléfono',
+    codeLabel: 'Introduce el código de 6 dígitos enviado por WhatsApp',
     verifyButton: 'Verificar',
-  },
-};
+  };
+}
 
 export function EmailPhoneVerificationModal({
   isOpen,
   onClose,
   onSuccess,
   type,
-  memberId,
+  intent,
+  currentEmail,
+  currentPhone,
+  currentPhonePrefix,
 }: EmailPhoneVerificationModalProps) {
   const [step, setStep] = useState<Step>('enter_value');
-  const [value, setValue] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [phonePrefix, setPhonePrefix] = useState(DEFAULT_MEMBER_PHONE_PREFIX);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const labels = LABELS[type];
+  const labels = titles(type, intent);
+  const isVerifyCurrent = intent === 'verify';
 
   useEffect(() => {
     if (isOpen) {
       setStep('enter_value');
-      setValue('');
+      setEmail((currentEmail ?? '').trim());
+      setPhone((currentPhone ?? '').trim());
+      setPhonePrefix((currentPhonePrefix ?? '').trim() || DEFAULT_MEMBER_PHONE_PREFIX);
       setCode('');
       setError(null);
       setIsSubmitting(false);
     }
-  }, [isOpen, type]);
+  }, [isOpen, type, intent, currentEmail, currentPhone, currentPhonePrefix]);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const trimmed = value.trim();
-    if (!trimmed) {
-      setError(type === 'email' ? 'Introduce un correo válido.' : 'Introduce un número de teléfono.');
+
+    if (type === 'email') {
+      const trimmed = email.trim();
+      if (!trimmed) {
+        setError('Introduce un correo válido.');
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        await profileService.sendEmailVerification(trimmed);
+        setStep('enter_code');
+        setCode('');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'No se pudo enviar el código. Inténtalo de nuevo.';
+        setError(message);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    const trimmedPhone = phone.trim();
+    if (!trimmedPhone) {
+      setError('Introduce un número de teléfono.');
       return;
     }
     setIsSubmitting(true);
     try {
-      if (type === 'email') {
-        await profileService.sendEmailVerification(trimmed);
-      } else {
-        await profileService.sendPhoneVerification(trimmed);
-      }
+      await profileService.sendPhoneVerification(trimmedPhone, phonePrefix);
       setStep('enter_code');
       setCode('');
-    } catch (err: any) {
-      setError(err.message || 'No se pudo enviar el código. Inténtalo de nuevo.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo enviar el código. Inténtalo de nuevo.';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -97,14 +154,11 @@ export function EmailPhoneVerificationModal({
       } else {
         await profileService.verifyPhoneCode(code);
       }
-      if (memberId) {
-        await setMemberVerification(memberId, type);
-      }
-      setStep('success');
       onSuccess();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Código inválido o expirado. Inténtalo de nuevo.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Código inválido o expirado. Inténtalo de nuevo.';
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -129,21 +183,45 @@ export function EmailPhoneVerificationModal({
 
         {step === 'enter_value' && (
           <form onSubmit={handleSendCode} className="space-y-4">
-            <div>
-              <Label htmlFor="verification-value">{labels.valueLabel}</Label>
-              <TextInput
-                id="verification-value"
-                type={type === 'email' ? 'email' : 'tel'}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={labels.valuePlaceholder}
-                disabled={isSubmitting}
-                className="mt-1"
-              />
-            </div>
+            {type === 'email' ? (
+              <div>
+                <Label htmlFor="verification-email">{labels.valueLabel}</Label>
+                <TextInput
+                  id="verification-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="ejemplo@correo.com"
+                  disabled={isSubmitting || isVerifyCurrent}
+                  className="mt-1"
+                />
+              </div>
+            ) : isVerifyCurrent ? (
+              <div>
+                <Label>{labels.valueLabel}</Label>
+                <p className="mt-1 font-medium text-gray-900 dark:text-white">
+                  {formatMemberPhoneDisplay(phonePrefix, phone) || '-'}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="verification-phone">{labels.valueLabel}</Label>
+                <div className="mt-1">
+                  <PhonePrefixInput
+                    prefix={phonePrefix}
+                    phone={phone}
+                    onPrefixChange={setPhonePrefix}
+                    onPhoneChange={setPhone}
+                    disabled={isSubmitting}
+                    phoneId="verification-phone"
+                    required
+                  />
+                </div>
+              </div>
+            )}
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="flex justify-end gap-2">
-              <Button color="alternative" onClick={onClose} disabled={isSubmitting}>
+              <Button type="button" color="alternative" onClick={onClose} disabled={isSubmitting}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>

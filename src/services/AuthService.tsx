@@ -44,6 +44,7 @@ export interface RegisterUserPayload {
   email: string;
   password: string;
   phone: string;
+  phonePrefix: string;
 }
 
 export interface ConfirmPasswordChangePayload {
@@ -435,6 +436,7 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<{ suc
           firstName: userData.firstName,
           lastName: userData.lastName,
           phone: userData.phone,
+          phonePrefix: userData.phonePrefix,
         }
       }
     })

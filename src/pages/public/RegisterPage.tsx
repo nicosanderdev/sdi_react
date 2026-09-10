@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, CalendarIcon, AlertCircleIcon, UserPlus, PhoneIcon } from 'lucide-react';
+import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, CalendarIcon, AlertCircleIcon, UserPlus } from 'lucide-react';
 import AuthService, { RegisterUserPayload } from '../../services/AuthService';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 import { ErrorDisplay } from '../../components/ui/ErrorDisplay';
@@ -8,6 +8,8 @@ import { AuthCard } from '../../components/public/AuthCard';
 import { SocialAuthButtons } from '../../components/public/SocialAuthButtons';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { Button, TextInput, Checkbox } from 'flowbite-react';
+import { PhonePrefixInput } from '../../components/user/PhonePrefixInput';
+import { DEFAULT_MEMBER_PHONE_PREFIX, isAllowedMemberPhonePrefix } from '../../utils/memberPhone';
 
 export function RegisterPage() {
   const [view, setView] = useState<'form' | 'success' | 'error'>('form');
@@ -16,6 +18,7 @@ export function RegisterPage() {
     lastName: '',
     email: '',
     phone: '',
+    phonePrefix: DEFAULT_MEMBER_PHONE_PREFIX,
     birthday: '',
     password: '',
     repeatPassword: '',
@@ -83,6 +86,9 @@ export function RegisterPage() {
 
     if (!formData.phone.trim()) {
       newErrors.phone = 'El teléfono es obligatorio.';
+      isValid = false;
+    } else if (!isAllowedMemberPhonePrefix(formData.phonePrefix)) {
+      newErrors.phone = 'Seleccioná un prefijo válido (UY, BR o AR).';
       isValid = false;
     }
 
@@ -170,6 +176,7 @@ export function RegisterPage() {
       lastName: formData.lastName.trim(),
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone.trim(),
+      phonePrefix: formData.phonePrefix,
       password: formData.password,
     };
 
@@ -298,21 +305,15 @@ export function RegisterPage() {
                 />
               </div>
               <div>
-                <TextInput
-                  type="tel"
-                  name="phone"
+                <PhonePrefixInput
+                  prefix={formData.phonePrefix}
+                  phone={formData.phone}
+                  onPrefixChange={(phonePrefix) => setFormData({ ...formData, phonePrefix })}
+                  onPhoneChange={(phone) => setFormData({ ...formData, phone })}
+                  disabled={isLoading}
                   required
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="Teléfono"
-                  icon={PhoneIcon}
-                  color={errors.phone ? "failure" : "gray"}
-                  helperText={errors.phone ? (
-                    <span className="flex items-center gap-1 text-red-600 text-xs">
-                      <AlertCircleIcon size={14} />
-                      {errors.phone}
-                    </span>
-                  ) : undefined}
+                  error={errors.phone}
+                  phoneId="register-phone"
                 />
               </div>
               <div>

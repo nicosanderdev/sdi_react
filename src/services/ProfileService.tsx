@@ -29,6 +29,9 @@ export interface ProfileData {
   lastName: string;
   email: string;
   phone: string;
+  phonePrefix?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   title: string;
   avatarUrl?: string;
   address: AddressData;
@@ -88,6 +91,9 @@ const getCurrentUserProfile = async (user?: any): Promise<ProfileData> => {
           lastName: '',
           email: '',
           phone: '',
+          phonePrefix: '',
+          emailVerified: false,
+          phoneVerified: false,
           title: '',
           address: {
             street: '',
@@ -300,56 +306,53 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
 }
 
 /**
- * Sends an email verification code to the new email address.
- * Call verifyEmailCode with the code to complete the change.
+ * Sends an email verification code. Omit email to use the current member email.
  */
-const sendEmailVerification = async (newEmail: string): Promise<{ message: string; email: string }> => {
-  const userId = await getCurrentUserId();
+const sendEmailVerification = async (email?: string): Promise<{ message: string; email: string }> => {
   const { data, error } = await supabase.functions.invoke('send-email-verification', {
-    body: { userId, newEmail }
+    body: email ? { email } : {},
   });
-  if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return { message: data?.message ?? 'Verification code sent', email: data?.email ?? newEmail };
+  if (error) throw error;
+  return { message: data?.message ?? 'Verification code sent', email: data?.email ?? email ?? '' };
 };
 
 /**
- * Verifies the email change with the 6-digit code received by email.
+ * Verifies the email OTP.
  */
 const verifyEmailCode = async (code: string): Promise<{ message: string; newEmail: string }> => {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase.functions.invoke('verify-email-code', {
-    body: { userId, code }
+    body: { code },
   });
-  if (error) throw error;
   if (data?.error) throw new Error(data.error);
+  if (error) throw error;
   return { message: data?.message ?? 'Email updated', newEmail: data?.newEmail ?? '' };
 };
 
 /**
- * Sends a phone verification code to the new phone number.
- * Call verifyPhoneCode with the code to complete the change.
+ * Sends a phone verification code via WhatsApp.
  */
-const sendPhoneVerification = async (newPhone: string): Promise<{ message: string; phone: string }> => {
-  const userId = await getCurrentUserId();
+const sendPhoneVerification = async (
+  phone: string,
+  phonePrefix: string
+): Promise<{ message: string; phone: string }> => {
   const { data, error } = await supabase.functions.invoke('send-phone-verification', {
-    body: { userId, newPhone }
+    body: { phone, phonePrefix },
   });
-  if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return { message: data?.message ?? 'Verification code sent', phone: data?.phone ?? newPhone };
+  if (error) throw error;
+  return { message: data?.message ?? 'Verification code sent', phone: data?.phone ?? phone };
 };
 
 /**
- * Verifies the phone change with the 6-digit code received by SMS.
+ * Verifies the phone OTP sent via WhatsApp.
  */
 const verifyPhoneCode = async (code: string): Promise<{ message: string; newPhone: string }> => {
-  const userId = await getCurrentUserId();
   const { data, error } = await supabase.functions.invoke('verify-phone-code', {
-    body: { userId, code }
+    body: { code },
   });
-  if (error) throw error;
   if (data?.error) throw new Error(data.error);
+  if (error) throw error;
   return { message: data?.message ?? 'Phone updated', newPhone: data?.newPhone ?? '' };
 };
 

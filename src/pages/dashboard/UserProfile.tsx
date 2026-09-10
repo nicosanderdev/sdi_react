@@ -4,17 +4,21 @@ import { UserIcon, MailIcon, PhoneIcon, LockIcon, CameraIcon, MapPinIcon, Briefc
 import profileService, { ProfileData, AddressData, UpdateProfilePayload } from '../../services/ProfileService'; // Adjust path as needed
 import { ChangePasswordModal } from '../../components/user/ChangePasswordModal';
 import { EmailPhoneVerificationModal } from '../../components/user/EmailPhoneVerificationModal';
-import type { VerificationType } from '../../components/user/EmailPhoneVerificationModal';
+import type { VerificationIntent, VerificationType } from '../../components/user/EmailPhoneVerificationModal';
 import { IconWrapper } from '../../components/ui/IconWrapper';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
 import { fetchUserProfile } from '../../store/slices/userSlice';
 import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
+import { formatMemberPhoneDisplay } from '../../utils/memberPhone';
 
 const initialProfileState: ProfileData = {
   firstName: '',
   lastName: '',
   email: '',
   phone: '',
+  phonePrefix: '',
+  emailVerified: false,
+  phoneVerified: false,
   title: '',
   avatarUrl: '',
   address: {
@@ -36,7 +40,10 @@ export function UserProfile() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
-  const [verificationModalType, setVerificationModalType] = useState<VerificationType | null>(null);
+  const [verificationModal, setVerificationModal] = useState<{
+    type: VerificationType;
+    intent: VerificationIntent;
+  } | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isAvatarUploading, setIsAvatarUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,15 +99,24 @@ export function UserProfile() {
     setIsUpdating(true);
     setError(null);
     try {
-      const { email, ...updatePayload } = formData;
       const payload : UpdateProfilePayload = {
         id: undefined,
-        updateProfileDto: updatePayload,
+        updateProfileDto: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          title: formData.title,
+          avatarUrl: formData.avatarUrl,
+          address: formData.address,
+        },
       };
       const updatedProfile = await profileService.updateUserProfile(payload);
       if (updatedProfile.updateProfileDto) {
-        setProfileData(updatedProfile.updateProfileDto as ProfileData);
-        setFormData(updatedProfile.updateProfileDto as ProfileData); // Ensure formData is also updated with response
+        const next = {
+          ...(profileData ?? formData),
+          ...updatedProfile.updateProfileDto,
+        };
+        setProfileData(next);
+        setFormData(next);
       }
       setEditing(false);
       setIsUpdating(false);
@@ -267,19 +283,56 @@ export function UserProfile() {
                       <div>
                         <p className="text-sm text-gray-500">Correo electrónico</p>
                         <p className="font-medium break-words">{profileData.email || '-'}</p>
+                        <p className="text-xs text-gray-500">
+                          {profileData.emailVerified ? 'Verificado' : 'Pendiente de verificación'}
+                        </p>
                       </div>
                     </div>
-                    <Button size="xs" color="light" onClick={() => setVerificationModalType('email')}>Cambiar correo</Button>
+                    <Button
+                      size="xs"
+                      color="light"
+                      onClick={() =>
+                        setVerificationModal({
+                          type: 'email',
+                          intent: profileData.emailVerified ? 'change' : 'verify',
+                        })
+                      }
+                    >
+                      {profileData.emailVerified ? 'Cambiar correo' : 'Verificar correo'}
+                    </Button>
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
                       <div className="mr-4 shrink-0"><IconWrapper icon={PhoneIcon} size={20} /></div>
                       <div>
                         <p className="text-sm text-gray-500">Teléfono</p>
-                        <p className="font-medium break-words">{profileData.phone || '-'}</p>
+                        <p className="font-medium break-words">
+                          {formatMemberPhoneDisplay(profileData.phonePrefix, profileData.phone) || '-'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {profileData.phoneVerified ? 'Verificado' : 'Pendiente de verificación'}
+                        </p>
                       </div>
                     </div>
-                    <Button size="xs" color="light" onClick={() => setVerificationModalType('phone')}>Cambiar teléfono</Button>
+                    <Button
+                      size="xs"
+                      color="light"
+                      onClick={() => {
+                        if (!profileData.phone) {
+                          setVerificationModal({ type: 'phone', intent: 'add' });
+                        } else if (!profileData.phoneVerified) {
+                          setVerificationModal({ type: 'phone', intent: 'verify' });
+                        } else {
+                          setVerificationModal({ type: 'phone', intent: 'change' });
+                        }
+                      }}
+                    >
+                      {!profileData.phone
+                        ? 'Agregar y verificar teléfono'
+                        : profileData.phoneVerified
+                          ? 'Cambiar teléfono'
+                          : 'Verificar teléfono'}
+                    </Button>
                   </div>
                 </div>
                 <div className="flex">
@@ -303,7 +356,6 @@ export function UserProfile() {
                 </div>
                 {renderInputField("Título / Cargo (Opcional)", "title", formData.title, "text", BriefcaseIcon, false)}
                 {renderInputField("Correo Electrónico", "email", formData.email, "email", MailIcon, true, true)}
-                {renderInputField("Teléfono (Opcional)", "phone", formData.phone, "tel", PhoneIcon, false)}
                 
                 <h4 className="text-md font-semibold pt-2">Dirección (Opcional)</h4>
                 {renderInputField("Calle y Número", "address.street", formData.address.street, "text", false)}
@@ -383,18 +435,21 @@ export function UserProfile() {
           alert('Password changed successfully!');
         }}
       />
-      {verificationModalType && (
+      {verificationModal && (
         <EmailPhoneVerificationModal
-          isOpen={!!verificationModalType}
-          onClose={() => setVerificationModalType(null)}
+          isOpen={!!verificationModal}
+          onClose={() => setVerificationModal(null)}
           onSuccess={async () => {
             dispatch(fetchUserProfile());
             const data = await profileService.getCurrentUserProfile();
             setProfileData(data);
             setFormData(data);
           }}
-          type={verificationModalType}
-          memberId={profileData?.id}
+          type={verificationModal.type}
+          intent={verificationModal.intent}
+          currentEmail={profileData?.email}
+          currentPhone={profileData?.phone}
+          currentPhonePrefix={profileData?.phonePrefix}
         />
       )}
     </div>

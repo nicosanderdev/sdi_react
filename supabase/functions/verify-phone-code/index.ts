@@ -1,96 +1,81 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  authenticateUser,
+  createUnauthorizedResponse,
+} from '../_shared/auth.ts';
+import { corsHeaders } from '../_shared/cors.ts';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+function jsonResponse(payload: unknown, status = 200): Response {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 }
 
-serve(async (req) => {
-  // Handle CORS
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (req.method !== 'POST') {
+    return jsonResponse({ error: 'Method not allowed' }, 405);
+  }
+
+  const authResult = await authenticateUser(req);
+  if (authResult.error || !authResult.user) {
+    return createUnauthorizedResponse(authResult.error ?? 'Authentication failed');
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!supabaseUrl || !serviceRoleKey) {
+    return jsonResponse({ error: 'Missing server environment variables' }, 500);
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
-
-    const { userId, code } = await req.json()
-
-    if (!userId || !code) {
-      return new Response(
-        JSON.stringify({ error: 'User ID and verification code are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    const body = (await req.json()) as { code?: string };
+    const code = body.code?.trim();
+    if (!code) {
+      return jsonResponse({ error: 'Verification code is required' }, 400);
     }
 
-    // Find the verification code
-    const { data: verificationData, error: fetchError } = await supabaseClient
-      .from('verification_codes')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('code', code)
-      .eq('type', 'phone_change')
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
 
-    if (fetchError || !verificationData) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired verification code' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    const { data: verifyPayload, error: verifyError } = await supabaseAdmin.rpc('verify_member_otp', {
+      p_user_id: authResult.user.id,
+      p_otp_code: code,
+      p_purpose: 'member_phone',
+    });
+
+    if (verifyError) {
+      console.error('verify-phone-code rpc failed:', verifyError);
+      return jsonResponse({ error: 'OTP verification failed' }, 500);
     }
 
-    // Update the member's phone number
-    const { error: updateError } = await supabaseClient
-      .from('Members')
-      .update({
-        Phone: verificationData.phone,
-        LastModified: new Date().toISOString(),
-      })
-      .eq('UserId', userId)
-      .eq('IsDeleted', false)
+    const payload = verifyPayload as {
+      success?: boolean;
+      error?: string;
+      attempts_left?: number;
+      phone?: string;
+      phone_prefix?: string;
+    } | null;
 
-    if (updateError) {
-      console.error('Error updating member phone:', updateError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to update phone number' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!payload?.success) {
+      return jsonResponse({
+        error: payload?.error ?? 'Invalid or expired verification code',
+        attemptsLeft: payload?.attempts_left ?? 0,
+      }, 400);
     }
 
-    // Delete the used verification code
-    await supabaseClient
-      .from('verification_codes')
-      .delete()
-      .eq('id', verificationData.id)
-
-    return new Response(
-      JSON.stringify({
-        message: 'Phone number updated successfully',
-        newPhone: verificationData.phone,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-
+    return jsonResponse({
+      message: 'Phone number updated successfully',
+      newPhone: payload.phone ?? '',
+      phonePrefix: payload.phone_prefix ?? '',
+    });
   } catch (error) {
-    console.error('Error in verify-phone-code:', error)
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    )
+    console.error('Error in verify-phone-code:', error);
+    return jsonResponse({ error: 'Internal server error' }, 500);
   }
-})
+});
