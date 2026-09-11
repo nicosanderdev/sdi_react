@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DownloadIcon, BarChartIcon, LineChartIcon, Loader2Icon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import { DownloadIcon, BarChartIcon, Loader2Icon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
 import { VisitsBySourceChart } from '../../components/reports/VisitsBySourceChart';
 import { VisitsByDateChart } from '../../components/reports/VisitsByDateChart';
 import { PropertiesPerformanceTable } from '../../components/reports/PropertiesPerformanceTable';
@@ -308,6 +308,7 @@ export function ReportsAndMetrics() {
           trendDirection={dashboardSummary?.visits?.changeDirection}
           isLoading={isLoadingSummary}
         />
+        {/* Messaging out of scope for this version
         <SummaryCard
           title="Consultas Recibidas"
           testId="report-total-messages"
@@ -317,6 +318,7 @@ export function ReportsAndMetrics() {
           trendDirection={dashboardSummary?.messages?.changeDirection}
           isLoading={isLoadingSummary}
         />
+        */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">

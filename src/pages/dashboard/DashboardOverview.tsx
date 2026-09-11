@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyStats } from '../../components/dashboard/PropertyStats';
-import { RecentMessages } from '../../components/dashboard/RecentMessages';
+// Messaging out of scope for this version
+// import { RecentMessages } from '../../components/dashboard/RecentMessages';
 import { PendingBookingsCard } from '../../components/dashboard/PendingBookingsCard';
 import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
 import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { CalendarIcon, EyeIcon, MessageSquareIcon, HomeIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import { CalendarIcon, EyeIcon, HomeIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
 
 // Import services
 import reportService from './../../services/ReportService';
@@ -118,7 +119,7 @@ export function DashboardOverview() {
             </div>
 
             {/* --- Stats Cards Row --- */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <DashboardStatCard
                     title="Visitas a propiedades"
                     icon={EyeIcon}
@@ -129,6 +130,7 @@ export function DashboardOverview() {
                     }}
                 />
 
+                {/* Messaging out of scope for this version
                 <DashboardStatCard
                     title="Mensajes recibidos por consulta"
                     icon={MessageSquareIcon}
@@ -138,6 +140,7 @@ export function DashboardOverview() {
                         direction: summaryData?.messages?.changeDirection || 'neutral'
                     }}
                 />
+                */}
 
                 <DashboardStatCard
                     title="Propiedades publicadas"
@@ -163,12 +166,12 @@ export function DashboardOverview() {
 
                 </div>
 
-                {/* Right Column - Pending bookings and Messages */}
+                {/* Right Column - Pending bookings */}
                 <div className="space-y-6">
                     <PendingBookingsCard />
+                    {/* Messaging out of scope for this version
                     <RecentMessages />
-
-
+                    */}
                 </div>
             </div>
 

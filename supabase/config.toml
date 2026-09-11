@@ -417,6 +417,19 @@ verify_jwt = false
 [functions.log-booking-manage-token]
 verify_jwt = false
 
+# Member contact OTP; JWT is validated in the handler (same ES256 workaround as create-member).
+[functions.send-phone-verification]
+verify_jwt = false
+
+[functions.verify-phone-code]
+verify_jwt = false
+
+[functions.send-email-verification]
+verify_jwt = false
+
+[functions.verify-email-code]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

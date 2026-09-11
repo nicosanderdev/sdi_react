@@ -28,6 +28,9 @@ interface MembersRow {
   PostalCode: string | null;
   Country: string | null;
   Phone: string | null;
+  PhonePrefix: string | null;
+  EmailVerifiedAt: string | null;
+  PhoneVerifiedAt: string | null;
   Role: string | null;
   IsDeleted: boolean;
   Created: string;
@@ -379,6 +382,9 @@ export const mapDbToProfile = (
     lastName: member.LastName || '',
     email: member.Email || '',
     phone: member.Phone || '',
+    phonePrefix: member.PhonePrefix || '',
+    emailVerified: !!member.EmailVerifiedAt,
+    phoneVerified: !!member.PhoneVerifiedAt,
     title: member.Title || '',
     avatarUrl: member.AvatarUrl || undefined,
     address: {

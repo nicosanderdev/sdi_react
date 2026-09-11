@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import messageService, { TabCounts } from '../../services/MessageService';
+import { TabCounts } from '../../services/MessageService';
 import BookingService from '../../services/BookingService';
 import { BookingStatus } from '../../models/calendar/CalendarSync';
 
@@ -15,19 +15,17 @@ const initialState: NotificationsState = {
   error: null,
 };
 
-// Async thunk to fetch message counts and pending bookings count
+// Async thunk to fetch pending bookings count
+// Messaging counts are out of scope for this version (messageService.getMessageCounts kept for later)
 export const fetchNotificationCounts = createAsyncThunk<TabCounts>(
   'notifications/fetchNotificationCounts',
   async () => {
-    const [messageCounts, ownerBookingsRes] = await Promise.all([
-      messageService.getMessageCounts(),
-      BookingService.getOwnerBookings(),
-    ]);
+    const ownerBookingsRes = await BookingService.getOwnerBookings();
     const pendingBookings =
       ownerBookingsRes.succeeded && ownerBookingsRes.data
         ? ownerBookingsRes.data.filter((b) => b.Status === BookingStatus.Pending).length
         : 0;
-    return { ...messageCounts, pendingBookings };
+    return { pendingBookings };
   }
 );
 
@@ -52,4 +50,3 @@ const notificationsSlice = createSlice({
 });
 
 export default notificationsSlice.reducer;
-

@@ -28,7 +28,8 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { DashboardOverview } from './pages/dashboard/DashboardOverview';
 import { UserProfile } from './pages/dashboard/UserProfile';
 import { PropertiesManager } from './pages/dashboard/PropertiesManager';
-import { MessageCenter } from './components/dashboard/MessageCenter';
+// Messaging out of scope for this version
+// import { MessageCenter } from './components/dashboard/MessageCenter';
 import { ReportsAndMetrics } from './pages/dashboard/ReportsAndMetrics';
 import { UserSettings } from './components/user/UserSettings';
 import { LogoutPage } from './components/user/LogoutPage';
@@ -122,7 +123,10 @@ export function App() {
             <Route path="properties" element={<PropertiesManager />} />
             <Route path="bookings" element={<BookingsPage />} />
             {/* <Route path="favorites" element={<FavoritesPage />} /> */}
+            {/* Messaging out of scope for this version
             <Route path="messages" element={<MessageCenter />} />
+            */}
+            <Route path="messages" element={<Navigate to="/dashboard" replace />} />
             <Route path="reports" element={<ReportsAndMetrics />} />
             <Route path="settings" element={<UserSettings />} />
             <Route path="subscription" element={<AdminRedirectWrapper><ManagerSubscriptionPage /></AdminRedirectWrapper>} />
