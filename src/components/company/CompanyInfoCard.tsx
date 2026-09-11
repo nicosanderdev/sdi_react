@@ -4,7 +4,6 @@ import {
   Building2, 
   Calendar, 
   Home, 
-  MessageSquare, 
   Eye, 
   Crown,
   MapPin
@@ -125,7 +124,7 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
             )}
 
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {companyInfo.statistics && (
             <>
                 <DashboardCard
@@ -134,11 +133,13 @@ export function CompanyInfoCard({ companyInfo, isLoading, error }: CompanyInfoCa
                 value={companyInfo.statistics.totalProperties || 0}
                 />
                 
+                {/* Messaging out of scope for this version
                 <DashboardCard
                 title="Mensajes sin Responder"
                 icon={MessageSquare}
                 value={companyInfo.statistics.unansweredMessages || 0}
                 />
+                */}
                 
                 <DashboardCard
                 title="Visitas Totales"

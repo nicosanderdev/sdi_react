@@ -10,7 +10,6 @@ import { CompanyProfileEditor } from '../../../components/company/CompanyProfile
 import companyService from '../../../services/CompanyService';
 import subscriptionService from '../../../services/SubscriptionService';
 import propertyService from '../../../services/PropertyService';
-import messageService from '../../../services/MessageService';
 import reportService from '../../../services/ReportService';
 import { selectUserCompanies, selectHasCompanies, selectUserProfile, selectUserStatus } from '../../../store/slices/userSlice';
 import { hasRole } from '../../../utils/RoleUtils';
@@ -39,12 +38,12 @@ export function CompanyManagementPage() {
         ? await companyService.getCompanyInfo(selectedCompanyId)
         : await companyService.getCompanyInfo();
 
-      const [propertiesData, messageCounts, totalsData] = await Promise.all([
+      // Messaging out of scope for this version — messageService.getMessageCounts kept for later
+      const [propertiesData, totalsData] = await Promise.all([
         propertyService.getOwnersProperties({
           pageSize: 1,
           ...(selectedCompanyId ? { companyId: selectedCompanyId } : {}),
         }).catch(() => null),
-        messageService.getMessageCounts().catch(() => null),
         reportService.getGeneralTotals().catch(() => null),
       ]);
 
@@ -53,13 +52,13 @@ export function CompanyManagementPage() {
       if (!mergedInfo.statistics) {
         mergedInfo.statistics = {
           totalProperties: propertiesData?.total || 0,
-          unansweredMessages: messageCounts?.inbox || 0,
+          unansweredMessages: 0,
           totalVisits: totalsData?.totalVisitsLifetime || 0,
         };
       } else {
         mergedInfo.statistics = {
           totalProperties: mergedInfo.statistics.totalProperties || propertiesData?.total || 0,
-          unansweredMessages: mergedInfo.statistics.unansweredMessages || messageCounts?.inbox || 0,
+          unansweredMessages: 0,
           totalVisits: mergedInfo.statistics.totalVisits || totalsData?.totalVisitsLifetime || 0,
         };
       }

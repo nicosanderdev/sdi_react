@@ -24,15 +24,16 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
     queryFn: () => reportService.getDailyVisits({ period, ...companyFilter }),
   });
 
-  const {
-    data: dailyMessagesData,
-    isLoading: isLoadingDailyMessages,
-    isError: isErrorDailyMessages,
-    error: errorDailyMessages,
-  } = useQuery({
-    queryKey: ['dailyMessages', period, companyId],
-    queryFn: () => reportService.getDailyMessages({ period, ...companyFilter }),
-  });
+  // Messaging out of scope for this version — getDailyMessages / get_daily_dashboard_messages kept for later
+  // const {
+  //   data: dailyMessagesData,
+  //   isLoading: isLoadingDailyMessages,
+  //   isError: isErrorDailyMessages,
+  //   error: errorDailyMessages,
+  // } = useQuery({
+  //   queryKey: ['dailyMessages', period, companyId],
+  //   queryFn: () => reportService.getDailyMessages({ period, ...companyFilter }),
+  // });
 
   // --- Data Fetching for Visits By Source Chart ---
   const { data: visitsBySourceData, isLoading: isLoadingVisitsBySource, isError: isErrorVisitsBySource, error: errorVisitsBySource } = useQuery({
@@ -48,18 +49,6 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
     return ChartComponent;
   };
 
-  const isLoadingDailyLine = isLoadingDailyVisits || isLoadingDailyMessages;
-  const isErrorDailyLine = isErrorDailyVisits || isErrorDailyMessages;
-  const errorDailyLine = errorDailyVisits || errorDailyMessages;
-
-  const combinedDailyData =
-    dailyVisitsData && dailyMessagesData
-      ? dailyVisitsData.map((item, idx) => ({
-          ...item,
-          messages: dailyMessagesData[idx]?.messages ?? 0,
-        }))
-      : dailyVisitsData || [];
-
   const periodLabel = period === 'last7days' ? 'Últimos 7 días' : period === 'last30days' ? 'Últimos 30 días' : period === 'last90days' ? 'Últimos 90 días' : period === 'thisyear' ? 'Este año' : period;
 
   return (
@@ -73,11 +62,11 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
         </h3>
         <div className="h-64">
           {renderChartArea(
-            isLoadingDailyLine,
-            isErrorDailyLine,
-            errorDailyLine,
+            isLoadingDailyVisits,
+            isErrorDailyVisits,
+            errorDailyVisits,
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={combinedDailyData || []}>
+              <LineChart data={dailyVisitsData || []}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="dayName" /> {/* Assuming API returns 'dayName' */}
                 <YAxis />
@@ -91,6 +80,7 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
                   strokeWidth={2}
                   activeDot={{ r: 6 }}
                 />
+                {/* Messaging out of scope for this version
                 <Line
                   type="monotone"
                   dataKey="messages"
@@ -100,6 +90,7 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
                   dot={{ r: 4 }}
                   activeDot={{ r: 6 }}
                 />
+                */}
               </LineChart>
             </ResponsiveContainer>
           )}
