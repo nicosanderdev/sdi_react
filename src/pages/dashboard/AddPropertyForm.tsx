@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card } from 'flowbite-react';
 import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
@@ -14,6 +14,7 @@ interface AddPropertyFormProps {
 export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const [view, setView] = useState<'form' | 'success'>('form');
   const [showOnboardingSuccessMessage, setShowOnboardingSuccessMessage] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
   const {
     isEligibleForOnboarding,
     isFreePlan,
@@ -52,6 +53,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
               setView('success');
             }}
             onClose={onClose}
+            onStepChange={setWizardStep}
           />
         </div>
       )}
@@ -63,7 +65,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
         />
       )}
       {/* Owner onboarding: Plan limit (Free plan only) */}
-      {view === 'form' && isEligibleForOnboarding && isFreePlan && currentStep === 1 && onboardingStep <= 2 && (
+      {view === 'form' && isEligibleForOnboarding && isFreePlan && wizardStep === 1 && onboardingStep <= 2 && (
         <OwnerOnboardingTour
           active={true}
           step={{
@@ -78,7 +80,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       )}
 
       {/* Owner onboarding: Step 4a — Description, pricing, availability (form step 2) */}
-      {view === 'form' && isEligibleForOnboarding && currentStep === 2 && (
+      {view === 'form' && isEligibleForOnboarding && wizardStep === 2 && (
         <OwnerOnboardingTour
           active={true}
           step={{
@@ -94,7 +96,7 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
       )}
 
       {/* Owner onboarding: Step 4b — Photos (form step 3) */}
-      {view === 'form' && isEligibleForOnboarding && currentStep === 3 && (
+      {view === 'form' && isEligibleForOnboarding && wizardStep === 3 && (
         <OwnerOnboardingTour
           active={true}
           step={{
