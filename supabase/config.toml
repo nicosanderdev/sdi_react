@@ -387,6 +387,10 @@ verify_jwt = false
 [functions.daily-property-search-scores]
 verify_jwt = false
 
+# Admin dashboard proxy to run scheduled jobs; auth is enforced in the handler.
+[functions.admin-run-cron]
+verify_jwt = false
+
 # Flexible invoice notification; auth in handler (admin JWT or x-cron-secret).
 [functions.send-flexible-invoice-email]
 verify_jwt = false
