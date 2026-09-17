@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
 import propertyService from '../../services/PropertyService';
+import subscriptionService from '../../services/SubscriptionService';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { Button, Card, Dropdown, DropdownItem, Modal, ModalBody, ModalHeader } from 'flowbite-react';
 import { PropertyData } from '../../models/properties';
+import {
+  CREATE_BLOCKED_NO_TYPES_MESSAGE,
+  resolveCreatablePropertyTypesFromSubscription,
+} from '../../models/properties/creatablePropertyTypes';
 import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +51,16 @@ const PropertiesManagerComponent = () => {
 
   const { needsVerification } = useContactVerificationGate();
   const showVerificationBanner = needsVerification;
+
+  const { data: subscription, isLoading: isSubscriptionLoading } = useQuery({
+    queryKey: ['current-subscription'],
+    queryFn: () => subscriptionService.getCurrentSubscription(),
+  });
+  const creatablePropertyTypes = useMemo(
+    () => resolveCreatablePropertyTypesFromSubscription(subscription),
+    [subscription]
+  );
+  const canCreateByPropertyType = creatablePropertyTypes.length > 0;
 
   // Property quota information
   const {
@@ -189,18 +205,29 @@ const PropertiesManagerComponent = () => {
                   if (needsVerification) {
                     return;
                   }
+                  if (!canCreateByPropertyType) {
+                    return;
+                  }
                   if (isAtTotalLimit) {
                     setShowLimitModal(true);
                   } else {
                     setShowAddProperty(true);
                   }
                 }}
-                disabled={isQuotaLoading} >
+                disabled={isQuotaLoading || isSubscriptionLoading || !canCreateByPropertyType}
+                title={!canCreateByPropertyType ? CREATE_BLOCKED_NO_TYPES_MESSAGE : undefined}
+            >
                 <PlusIcon size={18} className="mr-2" />
                 <span>Nueva Propiedad</span>
             </Button>
         </div>
       </div>
+
+      {!canCreateByPropertyType && !isSubscriptionLoading && (
+        <p className="mb-4 text-sm text-amber-800 dark:text-amber-200">
+          {CREATE_BLOCKED_NO_TYPES_MESSAGE}
+        </p>
+      )}
 
       {/* Property Quota Display */}
       {!isQuotaLoading && (

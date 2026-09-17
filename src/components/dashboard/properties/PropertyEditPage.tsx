@@ -102,7 +102,6 @@ export function PropertyEditPage() {
     const types = [...activeListingTypesForEdit];
     if (additionalExtensionType === 'SummerRent' && !types.includes('SummerRent')) types.push('SummerRent');
     if (additionalExtensionType === 'EventVenue' && !types.includes('EventVenue')) types.push('EventVenue');
-    if (additionalExtensionType === 'RealEstate' && !types.includes('RealEstate')) types.push('RealEstate');
     return types;
   }, [activeListingTypesForEdit, additionalExtensionType]);
   const propertyTypesForContent: PropertyType[] = useMemo(() => {

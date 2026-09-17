@@ -1,6 +1,7 @@
 import { BillingHistoryData } from '../models/subscriptions/BillingHistoryData';
 import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
+import type { PropertyType } from '../models/properties';
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, getMemberByUserId } from './SupabaseHelpers';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -117,6 +118,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                     publishedProperties: plan.MaxPublishedProperties ?? null,
                     totalProperties: plan.MaxProperties ?? null,
                     bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
+                    propertyType: (plan.PropertyType as PropertyType | null) ?? undefined,
                     maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
                 };
             } else {
@@ -140,6 +142,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             }
 
             const now = new Date();
+            const freePlanPropertyType = freePlan.propertyType;
             return {
                 id: '',
                 ownerType: '0',
@@ -153,7 +156,9 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 currentPeriodEnd: now,
                 cancelAtPeriodEnd: false,
                 createdAt: now,
-                updatedAt: now
+                updatedAt: now,
+                propertyType: freePlanPropertyType,
+                propertyTypes: freePlanPropertyType ? [freePlanPropertyType] : [],
             };
         }
         const row = memberPlanData[0];
@@ -161,6 +166,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
         const billingCycle = plan?.DurationDays ?? 30;
         const startDate = new Date(row.StartDate ?? row.Created ?? new Date().toISOString());
         const endDate = row.EndDate ? new Date(row.EndDate) : new Date(startDate.getTime() + billingCycle * 24 * 60 * 60 * 1000);
+        const planPropertyType = plan.PropertyType as PropertyType | null | undefined;
 
         return {
             id: row.Id,
@@ -183,7 +189,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 publishedProperties: plan.MaxPublishedProperties ?? null,
                 totalProperties: plan.MaxProperties ?? null,
                 bookingReceiptMinimumAmount: plan.BookingReceiptMinimumAmount ?? undefined,
-                propertyType: plan.PropertyType as any,
+                propertyType: planPropertyType ?? undefined,
                 maxPhotosPerProperty: plan.MaxPhotosPerProperty ?? null
             },
             status: row.IsActive ? '1' : '0',
@@ -191,7 +197,9 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             currentPeriodEnd: endDate,
             cancelAtPeriodEnd: false,
             createdAt: new Date(row.Created ?? new Date().toISOString()),
-            updatedAt: new Date(row.LastModified ?? new Date().toISOString())
+            updatedAt: new Date(row.LastModified ?? new Date().toISOString()),
+            propertyType: planPropertyType ?? undefined,
+            propertyTypes: planPropertyType ? [planPropertyType] : [],
         };
 
     } catch (error: any) {
@@ -227,7 +235,8 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
             currentPeriodEnd: new Date(),
             cancelAtPeriodEnd: false,
             createdAt: new Date(),
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            propertyTypes: [],
         };
     }
 }

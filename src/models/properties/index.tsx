@@ -16,3 +16,4 @@ export * from './propertyContentSections';
 export * from './contentTemplates';
 export * from './amenityTemplates';
 export * from './EstatePropertyValues';
+export * from './creatablePropertyTypes';

@@ -5,7 +5,7 @@ import { SubscriptionData } from '../models/subscriptions/SubscriptionData';
 import { PlanData } from '../models/subscriptions/PlanData';
 import { CompanyInfo, CompanyUser } from './CompanyService';
 import { PropertyData, PublicProperty } from '../models/properties';
-import type { ListingType } from '../models/properties/PropertyData';
+import type { ListingType, PropertyType } from '../models/properties/PropertyData';
 import { PropertyImage, PropertyDocument, PropertyVideo, Amenity } from '../models/properties';
 import { Message, MessageDetail, TabCounts } from './MessageService';
 import { PlanKey } from '../models/subscriptions/PlanKey';
@@ -406,6 +406,7 @@ export const mapDbToProfile = (
  * Maps a Subscriptions DB row with Plans to SubscriptionData interface
  */
 export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: PlansRow }): SubscriptionData => {
+  const planPropertyType = (subscription.Plans as { PropertyType?: PropertyType | null }).PropertyType ?? undefined;
   const plan: PlanData = {
     id: subscription.Plans.Id,
     key: intToPlanKey(subscription.Plans.Key),
@@ -420,6 +421,7 @@ export const mapDbToSubscription = (subscription: SubscriptionsRow & { Plans: Pl
     publishedProperties: subscription.Plans.MaxPublishedProperties ?? null,
     totalProperties: subscription.Plans.MaxProperties ?? null,
     bookingReceiptMinimumAmount: subscription.Plans.BookingReceiptMinimumAmount ?? undefined,
+    propertyType: planPropertyType ?? undefined,
     maxPhotosPerProperty: subscription.Plans.MaxPhotosPerProperty ?? null
   };
 

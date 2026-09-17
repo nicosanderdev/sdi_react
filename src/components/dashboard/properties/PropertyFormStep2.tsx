@@ -19,7 +19,7 @@ import {
   groupAmenityTemplatesForPicker,
 } from '../../../models/properties/amenityTemplates';
 
-const ALL_EXTENSION_KINDS: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
+const ADDABLE_EXTENSION_KINDS: PropertyType[] = ['SummerRent', 'EventVenue'];
 
 function fallbackListingTypes(base?: PropertyType): ListingType[] {
   if (base === 'SummerRent') return ['SummerRent'];
@@ -134,7 +134,7 @@ export function PropertyFormStep2({
   );
 
   const missingExtensionKinds = useMemo(
-    () => ALL_EXTENSION_KINDS.filter(k => !extensionKindsOrdered.includes(k)),
+    () => ADDABLE_EXTENSION_KINDS.filter(k => !extensionKindsOrdered.includes(k)),
     [extensionKindsOrdered]
   );
 
@@ -154,6 +154,12 @@ export function PropertyFormStep2({
     if (!editMode || extensionPanel === 'add') return;
     setValue('additionalExtensionType', undefined);
   }, [editMode, extensionPanel, setValue]);
+
+  useEffect(() => {
+    if (additionalExtensionType === 'RealEstate') {
+      setValue('additionalExtensionType', undefined);
+    }
+  }, [additionalExtensionType, setValue]);
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();

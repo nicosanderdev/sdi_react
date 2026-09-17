@@ -142,6 +142,16 @@ export function PropertyCreationWizard({
     }
   }, [watchedPropertyType, watchedRealEstateOfferMode, setValue]);
 
+  useEffect(() => {
+    const types = initialContext.availablePropertyTypes;
+    if (!types.length) return;
+    const current = watch('propertyType') as PropertyType | undefined;
+    if (current && types.includes(current)) return;
+    const preferred =
+      types.length === 1 ? types[0] : types.includes('SummerRent') ? 'SummerRent' : types[0];
+    setValue('propertyType', preferred, { shouldValidate: false });
+  }, [initialContext.availablePropertyTypes, setValue, watch]);
+
   const stepCount = 5;
 
   useEffect(() => {

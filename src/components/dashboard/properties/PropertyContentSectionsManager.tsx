@@ -71,6 +71,11 @@ export function PropertyContentSectionsManager({
     return Array.from(set);
   }, [allowedPropertyTypes, rootPropertyType, additionalExtensionType]);
 
+  const choosableTypeOptions = useMemo(
+    () => typeOptions.filter(pt => pt !== 'RealEstate'),
+    [typeOptions]
+  );
+
   const templateByKey = useMemo(() => new Map(templates.map(t => [t.key, t])), [templates]);
   const activeTemplates = useMemo(
     () => templates.filter(t => !t.archived && typeOptions.some(pt => sectionTemplateAppliesTo(t, pt))),
@@ -116,6 +121,7 @@ export function PropertyContentSectionsManager({
       if (!tmpl) continue;
       const source = next.find(r => r.templateKey === key);
       for (const pt of typeOptions) {
+        if (pt === 'RealEstate') continue;
         if (!sectionTemplateAppliesTo(tmpl, pt)) continue;
         if (next.some(r => r.templateKey === key && r.propertyType === pt)) continue;
         const defaultLayout = clampLayout(pt, tmpl.defaultLayoutType);
@@ -136,7 +142,7 @@ export function PropertyContentSectionsManager({
   }, [typeOptions.join('|'), templateByKey, getValues, replace]);
 
   const addTemplate = (template: PropertySectionTemplate) => {
-    const matchingTypes = typeOptions.filter(pt => sectionTemplateAppliesTo(template, pt));
+    const matchingTypes = choosableTypeOptions.filter(pt => sectionTemplateAppliesTo(template, pt));
     const current = getValues('contentSections') ?? [];
     const next = [...current];
     for (const pt of matchingTypes) {
@@ -156,7 +162,7 @@ export function PropertyContentSectionsManager({
   };
 
   const addCustom = () => {
-    const pt = typeOptions[0] ?? rootPropertyType;
+    const pt = choosableTypeOptions[0] ?? (rootPropertyType !== 'RealEstate' ? rootPropertyType : 'SummerRent');
     const defaultLayoutType = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[pt][0] ?? 'split';
     append({
       templateKey: null,
@@ -269,7 +275,13 @@ export function PropertyContentSectionsManager({
 
               {canEditCustom && (
                 <>
-                  {typeOptions.length > 1 && (
+                  {(() => {
+                    const selectOptions =
+                      propertyType === 'RealEstate'
+                        ? [propertyType, ...choosableTypeOptions]
+                        : choosableTypeOptions;
+                    if (selectOptions.length <= 1) return null;
+                    return (
                     <div className="max-w-xs">
                       <Label htmlFor={`contentSections.${index}.propertyType`}>Tipo de propiedad</Label>
                       <Select
@@ -285,14 +297,15 @@ export function PropertyContentSectionsManager({
                           enforceLayoutConstraints(index, nextType);
                         }}
                       >
-                        {typeOptions.map(pt => (
+                        {selectOptions.map(pt => (
                           <option key={pt} value={pt}>
                             {getPropertyTypeLabelEs(pt)}
                           </option>
                         ))}
                       </Select>
                     </div>
-                  )}
+                    );
+                  })()}
                   <LocalizedTitleDescriptionFields
                     idPrefix={`section-${index}`}
                     title={section?.localizedName ?? {}}
