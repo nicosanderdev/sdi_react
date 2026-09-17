@@ -43,27 +43,57 @@ const amenityDescriptionsEntrySchema = z
   })
   .optional();
 
-const localizedNameSchema = localizedTextEntrySchema.refine(
-  val => !!(val.es?.trim() || val.en?.trim() || val.pt?.trim()),
-  { message: 'Indica el nombre en al menos un idioma.' }
-);
-
-export const propertyContentSectionSchema = z.object({
-  localizedName: localizedNameSchema,
-  localizedDescription: localizedTextEntrySchema.optional().default({}),
-  propertyType: propertySectionTypeSchema,
-  layoutType: propertySectionLayoutTypeSchema.default('split'),
-  displayVariant: propertySectionDisplayVariantSchema.default('default'),
-  imageKeys: z.array(z.string()).default([]),
-});
+export const propertyContentSectionSchema = z
+  .object({
+    templateKey: z.string().nullable().optional(),
+    localizedName: localizedTextEntrySchema.optional().default({}),
+    localizedDescription: localizedTextEntrySchema.optional().default({}),
+    propertyType: propertySectionTypeSchema,
+    layoutType: propertySectionLayoutTypeSchema.default('split'),
+    displayVariant: propertySectionDisplayVariantSchema.default('default'),
+    imageKeys: z.array(z.string()).default([]),
+  })
+  .superRefine((val, ctx) => {
+    const isTemplate = !!val.templateKey?.trim();
+    if (isTemplate) {
+      if (!val.imageKeys?.some(k => !!k?.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Elegí al menos una imagen para esta sección.',
+          path: ['imageKeys'],
+        });
+      }
+      return;
+    }
+    if (!(val.localizedName?.es?.trim() || val.localizedName?.en?.trim() || val.localizedName?.pt?.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indica el nombre en al menos un idioma.',
+        path: ['localizedName'],
+      });
+    }
+  });
 
 export const listingTypeSchema = z.enum(['SummerRent', 'EventVenue', 'AnnualRent', 'RealEstate']);
 
-export const propertyPolicySchema = z.object({
-  listingType: listingTypeSchema,
-  title: localizedNameSchema,
-  description: localizedTextEntrySchema.optional().default({}),
-});
+export const propertyPolicySchema = z
+  .object({
+    listingType: listingTypeSchema,
+    templateKey: z.string().nullable().optional(),
+    slotValues: z.record(z.string()).optional().default({}),
+    title: localizedTextEntrySchema.optional().default({}),
+    description: localizedTextEntrySchema.optional().default({}),
+  })
+  .superRefine((val, ctx) => {
+    if (val.templateKey?.trim()) return;
+    if (!(val.title?.es?.trim() || val.title?.en?.trim() || val.title?.pt?.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indica el título en al menos un idioma.',
+        path: ['title'],
+      });
+    }
+  });
 
 const locationBaseSchema = z.object({ lat: z.number(), lng: z.number() });
 
@@ -140,7 +170,7 @@ export const propertyFormBaseSchema = z.object({
 
   // --- Amenities ---
   amenities: z.array(z.string()).optional(),
-  /** amenityId -> optional descriptions per language */
+  /** amenity template key -> optional custom descriptions per language (admin only) */
   amenityDescriptions: z.record(z.string(), amenityDescriptionsEntrySchema).optional(),
   // --- Extension-specific fields (RealEstate, SummerRent, EventVenue) ---
   // RealEstateExtension-like fields

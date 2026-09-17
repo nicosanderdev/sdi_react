@@ -118,6 +118,8 @@ export interface PropertyData {
   propertyDocuments?: PropertyDocument[];
   propertyVideos?: PropertyVideo[];
   amenities?: Amenity[];
+  contentSections?: import('./propertyContentSections').PropertyContentSectionFormRow[];
+  propertyPolicies?: import('./propertyPolicies').PropertyPolicyFormRow[];
 
   estatePropertyValues?: EstatePropertyValues[];
   listings?: Listing[];

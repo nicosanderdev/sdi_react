@@ -38,7 +38,7 @@ export function AdminNavigation() {
     { id: 'admin-guests', label: 'Huéspedes', icon: UserCircleIcon, path: '/dashboard/admin/guests' },
     { id: 'admin-companies', label: 'Compañías', icon: Building2Icon, path: '/dashboard/admin/companies' },
     { id: 'admin-logs', label: 'Logs', icon: FileText, path: '/dashboard/admin/logs' },
-    { id: 'admin-cron', label: 'Ejecuciones recurrentes', icon: Clock, path: '/dashboard/admin/cron' },
+    { id: 'admin-cron', label: 'Cronjobs', icon: Clock, path: '/dashboard/admin/cron' },
     { id: 'admin-config', label: 'Configuración', icon: SettingsIcon, path: '/dashboard/admin/config' },
   ];
 

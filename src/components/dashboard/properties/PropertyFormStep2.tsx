@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { useQueries } from '@tanstack/react-query';
 import { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import {
   distinctAmenityPropertyTypesForListings,
@@ -9,14 +8,18 @@ import {
 } from '../../../models/properties/propertyTypeLabels';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
 import { Button, Label, Select, TextInput, Checkbox } from 'flowbite-react';
-import PropertyService from '../../../services/PropertyService';
-import { Amenity } from '../../../models/properties/Amenity';
 import { RealEstateExtensionForm } from './RealEstateExtensionForm';
 import { SummerRentExtensionForm } from './SummerRentExtensionForm';
 import { EventVenueExtensionForm } from './EventVenueExtensionForm';
 import { AmenityDescriptionsSection } from './AmenityDescriptionsSection';
+import { useAmenityTemplates } from '../../../hooks/usePropertyContentTemplates';
+import {
+  amenityTemplateAppliesTo,
+  amenityTemplateName,
+  groupAmenityTemplatesForPicker,
+} from '../../../models/properties/amenityTemplates';
 
-const ALL_EXTENSION_KINDS: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
+const ADDABLE_EXTENSION_KINDS: PropertyType[] = ['SummerRent', 'EventVenue'];
 
 function fallbackListingTypes(base?: PropertyType): ListingType[] {
   if (base === 'SummerRent') return ['SummerRent'];
@@ -31,6 +34,7 @@ interface PropertyFormStep2Props {
   basePropertyType?: PropertyType;
   /** Distinct listing types from API (non-deleted listings). */
   activeListingTypes?: ListingType[];
+  canWriteCustom?: boolean;
 }
 
 export function PropertyFormStep2({
@@ -39,12 +43,14 @@ export function PropertyFormStep2({
   editMode = false,
   basePropertyType,
   activeListingTypes = [],
+  canWriteCustom = false,
 }: PropertyFormStep2Props) {
-  const { register, formState: { errors }, watch, trigger, setValue } = useFormContext<PropertyFormData>();
+  const { register, formState: { errors }, watch, trigger, setValue, getValues } = useFormContext<PropertyFormData>();
   const selectedAmenities = watch('amenities') || [];
   const amenityDescriptions = watch('amenityDescriptions');
   const propertyType = watch('propertyType');
   const additionalExtensionType = watch('additionalExtensionType');
+  const { data: amenityTemplates = [], isFetching: isLoadingAmenities } = useAmenityTemplates();
 
   const listingTypesForAmenities = useMemo((): ListingType[] => {
     if (editMode) {
@@ -57,29 +63,70 @@ export function PropertyFormStep2({
     return ['RealEstate'];
   }, [editMode, activeListingTypes, basePropertyType, propertyType]);
 
-  const amenityPropertyTypes = useMemo(
-    () => distinctAmenityPropertyTypesForListings(listingTypesForAmenities),
-    [listingTypesForAmenities]
+  const amenityPropertyTypes = useMemo(() => {
+    const types = distinctAmenityPropertyTypesForListings(listingTypesForAmenities);
+    if (additionalExtensionType && !types.includes(additionalExtensionType)) {
+      return [...types, additionalExtensionType];
+    }
+    return types;
+  }, [listingTypesForAmenities, additionalExtensionType]);
+
+  const groupedAmenities = useMemo(
+    () => groupAmenityTemplatesForPicker(amenityTemplates, amenityPropertyTypes),
+    [amenityTemplates, amenityPropertyTypes]
   );
 
-  const amenitiesQueries = useQueries({
-    queries: amenityPropertyTypes.map(pt => ({
-      queryKey: ['amenities', pt],
-      queryFn: () => PropertyService.getAmenities(pt),
-      enabled: amenityPropertyTypes.length > 0,
-    })),
-  });
+  const templatesByKey = useMemo(
+    () => new Map(amenityTemplates.map(t => [t.key, t])),
+    [amenityTemplates]
+  );
 
-  const isLoadingAmenities = amenitiesQueries.some(q => q.isFetching || q.isPending);
+  useEffect(() => {
+    if (!amenityTemplates.length) return;
+    const allowed = new Set(
+      amenityTemplates
+        .filter(t => !t.archived && amenityPropertyTypes.some(pt => amenityTemplateAppliesTo(t, pt)))
+        .map(t => t.key)
+    );
+    const current = getValues('amenities') ?? [];
+    const next = current.filter(key => allowed.has(key));
+    if (next.length !== current.length) {
+      setValue('amenities', next, { shouldDirty: true });
+    }
+    const descriptions = getValues('amenityDescriptions');
+    if (descriptions) {
+      const pruned = { ...descriptions };
+      let changed = false;
+      for (const key of Object.keys(pruned)) {
+        if (!next.includes(key)) {
+          delete pruned[key];
+          changed = true;
+        }
+      }
+      if (changed) {
+        setValue('amenityDescriptions', Object.keys(pruned).length > 0 ? pruned : undefined, {
+          shouldDirty: true,
+        });
+      }
+    }
+  }, [amenityTemplates, amenityPropertyTypes, getValues, setValue]);
 
-  const amenityNameById = useMemo(() => {
-    const map = new Map<string, string>();
-    amenitiesQueries.forEach(q => {
-      const list = q.data as Amenity[] | undefined;
-      list?.forEach(a => map.set(a.id, a.name));
-    });
-    return map;
-  }, [amenitiesQueries]);
+  const handleAmenityChange = (amenityKey: string, isChecked: boolean) => {
+    if (isChecked) {
+      setValue('amenities', Array.from(new Set([...selectedAmenities, amenityKey])));
+    } else {
+      setValue('amenities', selectedAmenities.filter(id => id !== amenityKey));
+      if (amenityDescriptions?.[amenityKey]) {
+        const next = { ...amenityDescriptions };
+        delete next[amenityKey];
+        setValue(
+          'amenityDescriptions',
+          Object.keys(next).length > 0 ? next : undefined,
+          { shouldDirty: true }
+        );
+      }
+    }
+  };
 
   const extensionKindsOrdered = useMemo(
     () => distinctAmenityPropertyTypesForListings(listingTypesForAmenities),
@@ -87,7 +134,7 @@ export function PropertyFormStep2({
   );
 
   const missingExtensionKinds = useMemo(
-    () => ALL_EXTENSION_KINDS.filter(k => !extensionKindsOrdered.includes(k)),
+    () => ADDABLE_EXTENSION_KINDS.filter(k => !extensionKindsOrdered.includes(k)),
     [extensionKindsOrdered]
   );
 
@@ -108,22 +155,11 @@ export function PropertyFormStep2({
     setValue('additionalExtensionType', undefined);
   }, [editMode, extensionPanel, setValue]);
 
-  const handleAmenityChange = (amenityId: string, isChecked: boolean) => {
-    if (isChecked) {
-      setValue('amenities', Array.from(new Set([...selectedAmenities, amenityId])));
-    } else {
-      setValue('amenities', selectedAmenities.filter(id => id !== amenityId));
-      if (amenityDescriptions?.[amenityId]) {
-        const next = { ...amenityDescriptions };
-        delete next[amenityId];
-        setValue(
-          'amenityDescriptions',
-          Object.keys(next).length > 0 ? next : undefined,
-          { shouldDirty: true }
-        );
-      }
+  useEffect(() => {
+    if (additionalExtensionType === 'RealEstate') {
+      setValue('additionalExtensionType', undefined);
     }
-  };
+  }, [additionalExtensionType, setValue]);
 
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,47 +287,65 @@ export function PropertyFormStep2({
               <div className="text-gray-500">Cargando servicios...</div>
             </div>
           )}
-          {amenityPropertyTypes.length > 0 &&
-            !isLoadingAmenities &&
-            amenityPropertyTypes.map((apt, idx) => {
-              const list = amenitiesQueries[idx]?.data as Amenity[] | undefined;
-              if (!list?.length) return null;
-              return (
-                <div key={apt} className="mb-6 last:mb-0">
-                  <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                    Servicios — {getPropertyTypeShortLabelEs(apt)}
-                  </h4>
+          {amenityPropertyTypes.length > 0 && !isLoadingAmenities && (
+            <>
+              {groupedAmenities.shared.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3">Servicios compartidos</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {list.map((amenity: Amenity) => (
-                      <div key={amenity.id} className="flex items-center">
+                    {groupedAmenities.shared.map(template => (
+                      <div key={template.key} className="flex items-center">
                         <Checkbox
-                          id={`amenity-${apt}-${amenity.id}`}
-                          checked={selectedAmenities.includes(amenity.id)}
-                          onChange={e => handleAmenityChange(amenity.id, e.target.checked)}
+                          id={`amenity-${template.key}`}
+                          checked={selectedAmenities.includes(template.key)}
+                          onChange={e => handleAmenityChange(template.key, e.target.checked)}
                         />
-                        <Label htmlFor={`amenity-${apt}-${amenity.id}`} className="ml-2">
-                          {amenity.name}
+                        <Label htmlFor={`amenity-${template.key}`} className="ml-2">
+                          {amenityTemplateName(template)}
                         </Label>
                       </div>
                     ))}
                   </div>
                 </div>
-              );
-            })}
-          {amenityPropertyTypes.length > 0 &&
-            !isLoadingAmenities &&
-            amenityPropertyTypes.every(
-              (_, idx) => !((amenitiesQueries[idx]?.data as Amenity[] | undefined)?.length ?? 0)
-            ) && (
-            <div className="text-center py-4">
-              <div className="text-gray-500">No hay servicios disponibles</div>
-            </div>
+              )}
+              {groupedAmenities.byType.map(({ type, templates }) => {
+                if (!templates.length) return null;
+                return (
+                  <div key={type} className="mb-6 last:mb-0">
+                    <h4 className="text-sm font-semibold text-gray-800 mb-3">
+                      Servicios — {getPropertyTypeShortLabelEs(type)}
+                    </h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {templates.map(template => (
+                        <div key={template.key} className="flex items-center">
+                          <Checkbox
+                            id={`amenity-${type}-${template.key}`}
+                            checked={selectedAmenities.includes(template.key)}
+                            onChange={e => handleAmenityChange(template.key, e.target.checked)}
+                          />
+                          <Label htmlFor={`amenity-${type}-${template.key}`} className="ml-2">
+                            {amenityTemplateName(template)}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {groupedAmenities.shared.length === 0 &&
+                groupedAmenities.byType.every(g => g.templates.length === 0) && (
+                  <div className="text-center py-4">
+                    <div className="text-gray-500">No hay servicios disponibles</div>
+                  </div>
+                )}
+            </>
           )}
         </div>
 
         <AmenityDescriptionsSection
-          selectedAmenityIds={selectedAmenities}
-          amenityNameById={amenityNameById}
+          selectedKeys={selectedAmenities}
+          templatesByKey={templatesByKey}
+          canWriteCustom={canWriteCustom}
         />
 
         {!editMode && propertyType === 'RealEstate' && <RealEstateExtensionForm />}

@@ -1,40 +1,53 @@
 import { useState } from 'react';
 import { Card } from 'flowbite-react';
-import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
-import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 import { PropertyCreationWizard } from '../../components/dashboard/properties/PropertyCreationWizard';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
 import { useQuery } from '@tanstack/react-query';
 import subscriptionService from '../../services/SubscriptionService';
 import type { PropertyType } from '../../models/properties';
+import {
+  CREATE_BLOCKED_NO_TYPES_MESSAGE,
+  resolveCreatablePropertyTypesFromSubscription,
+} from '../../models/properties/creatablePropertyTypes';
+
 interface AddPropertyFormProps {
   onClose: () => void;
 }
 
 export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
   const [view, setView] = useState<'form' | 'success'>('form');
-  const [showOnboardingSuccessMessage, setShowOnboardingSuccessMessage] = useState(false);
-  const [wizardStep, setWizardStep] = useState(1);
-  const {
-    isEligibleForOnboarding,
-    isFreePlan,
-    planPublishedLimit,
-    currentStep: onboardingStep,
-    setStep,
-    complete,
-  } = useOwnerOnboarding();
 
-  const { data: subscription } = useQuery({
+  const { data: subscription, isLoading } = useQuery({
     queryKey: ['current-subscription'],
     queryFn: () => subscriptionService.getCurrentSubscription(),
   });
 
   const availablePropertyTypes: PropertyType[] =
-    subscription?.propertyTypes && subscription.propertyTypes.length > 0
-      ? subscription.propertyTypes
-      : subscription?.propertyType
-      ? [subscription.propertyType]
-      : ['RealEstate'];
+    resolveCreatablePropertyTypesFromSubscription(subscription);
+
+  if (isLoading) {
+    return (
+      <Card className="min-h-full">
+        <p className="text-sm text-gray-500">Cargando…</p>
+      </Card>
+    );
+  }
+
+  if (availablePropertyTypes.length === 0) {
+    return (
+      <Card className="min-h-full">
+        <p className="text-sm text-gray-700 dark:text-gray-200">{CREATE_BLOCKED_NO_TYPES_MESSAGE}</p>
+        <button
+          type="button"
+          className="mt-4 text-sm text-primary-700 underline"
+          onClick={onClose}
+        >
+          Volver
+        </button>
+      </Card>
+    );
+  }
+
   return (
     <Card className="min-h-full">
       {view === 'form' && (
@@ -46,68 +59,17 @@ export function AddPropertyForm({ onClose }: AddPropertyFormProps) {
               availablePropertyTypes,
             }}
             onComplete={async () => {
-              if (isEligibleForOnboarding) {
-                setShowOnboardingSuccessMessage(true);
-                await complete();
-              }
               setView('success');
             }}
             onClose={onClose}
-            onStepChange={setWizardStep}
           />
         </div>
       )}
       {view === 'success' && (
         <SuccessDisplay
-          title={showOnboardingSuccessMessage ? 'Your property has been published!' : '¡Registro de propiedad exitoso!'}
-          message={showOnboardingSuccessMessage ? 'You can view and manage it from your properties list.' : 'La propiedad ha sido registrada correctamente.'}
+          title="¡Registro de propiedad exitoso!"
+          message="La propiedad ha sido registrada correctamente."
           redirectUrl="/dashboard/properties"
-        />
-      )}
-      {/* Owner onboarding: Plan limit (Free plan only) */}
-      {view === 'form' && isEligibleForOnboarding && isFreePlan && wizardStep === 1 && onboardingStep <= 2 && (
-        <OwnerOnboardingTour
-          active={true}
-          step={{
-            element: '#onboarding-plan-limit',
-            title: 'Free Plan',
-            description: `You're using the Free Plan, which allows up to ${planPublishedLimit} properties. Reservations made through this plan include a commission fee.`,
-            nextBtnText: 'Continue',
-          }}
-          onNext={() => setStep(3)}
-          onDismiss={() => {}}
-        />
-      )}
-
-      {/* Owner onboarding: Step 4a — Description, pricing, availability (form step 2) */}
-      {view === 'form' && isEligibleForOnboarding && wizardStep === 2 && (
-        <OwnerOnboardingTour
-          active={true}
-          step={{
-            element: '#onboarding-form-details',
-            title: 'Property details',
-            description:
-              'Set the size, rooms, services, and type-specific details for your property. Title, description, pricing, and availability are set in the last step before you publish.',
-            nextBtnText: 'Next',
-          }}
-          onNext={() => {}}
-          onDismiss={() => {}}
-        />
-      )}
-
-      {/* Owner onboarding: Step 4b — Photos (form step 3) */}
-      {view === 'form' && isEligibleForOnboarding && wizardStep === 3 && (
-        <OwnerOnboardingTour
-          active={true}
-          step={{
-            element: '#onboarding-form-photos',
-            title: 'Add photos',
-            description:
-              'Photos help your listing stand out. Add clear images of the property, rooms, and amenities.',
-            nextBtnText: 'Next',
-          }}
-          onNext={() => {}}
-          onDismiss={() => {}}
         />
       )}
     </Card>

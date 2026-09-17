@@ -11,6 +11,7 @@ import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
+import { PropertySavingOverlay } from './PropertySavingOverlay';
 import PropertyService from '../../../services/PropertyService';
 import { PropertyData, ListingType, PropertyType } from '../../../models/properties';
 import PropertyListingService, { ListingIntentPayload } from '../../../services/PropertyListingService';
@@ -141,6 +142,16 @@ export function PropertyCreationWizard({
     }
   }, [watchedPropertyType, watchedRealEstateOfferMode, setValue]);
 
+  useEffect(() => {
+    const types = initialContext.availablePropertyTypes;
+    if (!types.length) return;
+    const current = watch('propertyType') as PropertyType | undefined;
+    if (current && types.includes(current)) return;
+    const preferred =
+      types.length === 1 ? types[0] : types.includes('SummerRent') ? 'SummerRent' : types[0];
+    setValue('propertyType', preferred, { shouldValidate: false });
+  }, [initialContext.availablePropertyTypes, setValue, watch]);
+
   const stepCount = 5;
 
   useEffect(() => {
@@ -261,6 +272,7 @@ export function PropertyCreationWizard({
 
   return (
     <FormProvider {...methods}>
+      <PropertySavingOverlay show={isSubmitting} />
       <Card className="min-h-full">
         {view === 'form' && (
           <>
@@ -374,6 +386,7 @@ export function PropertyCreationWizard({
                 <PropertyFormStep2
                   onNext={handleNext}
                   onBack={handleBack}
+                  canWriteCustom={initialContext.isAdmin}
                 />
               )}
               {currentStep === 3 && (
@@ -394,6 +407,13 @@ export function PropertyCreationWizard({
                   onNext={handleNext}
                   onBack={handleBack}
                   displayImages={displayImages}
+                  canWriteCustom={initialContext.isAdmin}
+                  allowedListingTypes={
+                    watch('listingType') ? [watch('listingType') as ListingType] : undefined
+                  }
+                  allowedPropertyTypes={
+                    watchedPropertyType ? [watchedPropertyType as PropertyType] : undefined
+                  }
                 />
               )}
               {currentStep === 5 && (

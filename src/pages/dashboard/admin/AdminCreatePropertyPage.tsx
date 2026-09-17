@@ -16,6 +16,7 @@ import { PropertyFormStep2 } from '../../../components/dashboard/properties/Prop
 import { PropertyFormStep3 } from '../../../components/dashboard/properties/PropertyFormStep3';
 import { PropertyFormStep4 } from '../../../components/dashboard/properties/PropertyFormStep4';
 import { PropertyFormStep4Sections } from '../../../components/dashboard/properties/PropertyFormStep4Sections';
+import { PropertySavingOverlay } from '../../../components/dashboard/properties/PropertySavingOverlay';
 import { DisplayImage } from '../../../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../../../components/dashboard/properties/DocumentManager';
 import { DisplayVideo } from '../../../components/dashboard/properties/VideoManager';
@@ -24,8 +25,8 @@ import { getMemberById, getMemberByEmail } from '../../../services/AdminMemberSe
 import { AdminCreateMemberForm } from '../../../components/admin/properties/AdminCreateMemberForm';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import { useAuth } from '../../../contexts/AuthContext';
-import { supabase } from '../../../config/supabase';
 import type { PropertyType } from '../../../models/properties';
+import { CREATABLE_PROPERTY_TYPES } from '../../../models/properties/creatablePropertyTypes';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -49,11 +50,10 @@ export function AdminCreatePropertyPage() {
   const [displayDocuments, setDisplayDocuments] = useState<DisplayDocument[]>([]);
   const [displayVideos, setDisplayVideos] = useState<DisplayVideo[]>([]);
   const [isSubmittingProperty, setIsSubmittingProperty] = useState(false);
-  const [loadingPropertyTypes, setLoadingPropertyTypes] = useState(false);
   const [propertyTypeLocked, setPropertyTypeLocked] = useState(false);
 
-  // For admin-created properties, always allow choosing between the three core types.
-  const ALL_PROPERTY_TYPES: PropertyType[] = ['RealEstate', 'SummerRent', 'EventVenue'];
+  // Admin create: SummerRent + EventVenue only (RealEstate soft-deprecated for new creates).
+  const ALL_PROPERTY_TYPES: PropertyType[] = [...CREATABLE_PROPERTY_TYPES];
 
   const methods = useForm<AdminPropertyCreateFormData>({
     resolver: zodResolver(adminPropertyCreateFormSchema),
@@ -68,7 +68,7 @@ export function AdminCreatePropertyPage() {
       country: 'Uruguay',
       location: { lat: -30.8994, lng: -55.5469 },
       title: '',
-      propertyType: undefined,
+      propertyType: 'SummerRent',
       areaValue: 0,
       areaUnit: undefined,
       bedrooms: 1,
@@ -120,64 +120,9 @@ export function AdminCreatePropertyPage() {
 
   useEffect(() => {
     if (!ownerUserId) return;
-    const loadPropertyTypes = async () => {
-      setLoadingPropertyTypes(true);
-      try {
-        const { data: memberRow, error: memberErr } = await supabase
-          .from('Members')
-          .select('Id')
-          .eq('UserId', ownerUserId)
-          .eq('IsDeleted', false)
-          .maybeSingle();
-
-        if (memberErr) throw memberErr;
-        if (!memberRow?.Id) {
-          const fallback: PropertyType[] = ['RealEstate'];
-          if (!watch('propertyType')) {
-            setValue('propertyType', fallback[0], { shouldValidate: false });
-          }
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from('BillingPlanAssignments')
-          .select(
-            `
-            *,
-            Plans (*)
-          `
-          )
-          .eq('SubjectType', 'member')
-          .eq('MemberOrCompanyId', memberRow.Id)
-          .eq('IsActive', true)
-          .order('StartDate', { ascending: false });
-
-        if (error) throw error;
-
-        const typesFromPlans: PropertyType[] =
-          data
-            ?.map((row: any) => row.Plans?.PropertyType)
-            .filter((t: any) => t) ?? [];
-
-        const uniqueTypes = Array.from(new Set(typesFromPlans)) as PropertyType[];
-        const finalTypes = uniqueTypes.length > 0 ? uniqueTypes : (['RealEstate'] as PropertyType[]);
-
-        // Ensure form has a default propertyType when entering the property phase.
-        if (!watch('propertyType') && finalTypes[0]) {
-          setValue('propertyType', finalTypes[0], { shouldValidate: false });
-        }
-      } catch (err) {
-        console.error('Error loading property types for owner:', err);
-        const fallback: PropertyType[] = ['RealEstate'];
-        if (!watch('propertyType')) {
-          setValue('propertyType', fallback[0], { shouldValidate: false });
-        }
-      } finally {
-        setLoadingPropertyTypes(false);
-      }
-    };
-
-    void loadPropertyTypes();
+    if (!watch('propertyType')) {
+      setValue('propertyType', 'SummerRent', { shouldValidate: false });
+    }
   }, [ownerUserId, setValue, watch]);
 
   const handleBack = () => {
@@ -269,6 +214,7 @@ export function AdminCreatePropertyPage() {
 
   return (
     <div className="space-y-6">
+      <PropertySavingOverlay show={isSubmittingProperty} />
       <div className="flex items-center gap-4">
         <Button color="light" size="sm" onClick={handleBack} className="flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />
@@ -398,9 +344,7 @@ export function AdminCreatePropertyPage() {
                       <h2 className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-300">
                         Tipo de propiedad
                       </h2>
-                      {loadingPropertyTypes ? (
-                        <p className="text-sm text-gray-500">Cargando tipos de propiedad disponibles…</p>
-                      ) : propertyTypeLocked ? (
+                      {propertyTypeLocked ? (
                         <p className="text-sm text-gray-700 dark:text-gray-200">
                           {getPropertyTypeLabelEs(watchedPropertyType)}
                         </p>
@@ -451,6 +395,7 @@ export function AdminCreatePropertyPage() {
                 <PropertyFormStep2
                   onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
+                  canWriteCustom
                 />
               )}
               {propertyStep === 3 && (
@@ -470,6 +415,15 @@ export function AdminCreatePropertyPage() {
                   onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
                   displayImages={displayImages}
+                  canWriteCustom
+                  allowedListingTypes={
+                    watch('listingType')
+                      ? [watch('listingType') as 'SummerRent' | 'EventVenue' | 'AnnualRent' | 'RealEstate']
+                      : undefined
+                  }
+                  allowedPropertyTypes={
+                    watchedPropertyType ? [watchedPropertyType] : undefined
+                  }
                 />
               )}
               {propertyStep === 5 && (

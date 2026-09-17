@@ -5,12 +5,13 @@ import {
     PropertyData,
     PublicProperty,
     Amenity,
+    type PropertyType,
 } from '../models/properties';
 import { DuplicatedEstateProperty } from '../models/properties/DuplicatedEstateProperty';
 
 import { supabase } from '../config/supabase';
 import { getCurrentUserId, mapDbToPropertyData, mapDbToPublicProperty } from './SupabaseHelpers';
-import { buildAmenityLinksForRpc } from '../models/properties/amenityDescriptions';
+import { buildAmenityLinksForRpc, amenityEditorFromDb, type AmenityEditorRow } from '../models/properties/amenityDescriptions';
 import { buildPoliciesForRpc } from '../models/properties/propertyPolicies';
 import { buildContentSectionsForRpc } from '../models/properties/propertyContentSections';
 import {
@@ -108,6 +109,7 @@ const isMissingPropertyEditorContentRpcError = (error: unknown): boolean => {
         message.includes('replace_estate_property_content_sections') ||
         message.includes('replace_estate_property_policies') ||
         message.includes('get_estate_property_editor_content') ||
+        message.includes('replace_estate_property_amenities') ||
         message.includes('update_estate_property_wizard_extensions')
     );
 };
@@ -131,6 +133,12 @@ const persistPropertyEditorContent = async (
         p_policies: policiesPayload,
     });
     if (policiesError) throw policiesError;
+
+    const { error: amenitiesError } = await supabase.rpc('replace_estate_property_amenities', {
+        p_property_id: estatePropertyId,
+        p_links: buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions),
+    });
+    if (amenitiesError) throw amenitiesError;
 };
 
 const loadPropertyEditorContent = async (estatePropertyId: string) => {
@@ -139,18 +147,26 @@ const loadPropertyEditorContent = async (estatePropertyId: string) => {
     });
     if (error) {
         if (isMissingPropertyEditorContentRpcError(error)) {
-            return { contentSections: [], propertyPolicies: [] };
+            return {
+                contentSections: [],
+                propertyPolicies: [],
+                amenityEditor: { keys: [] as string[], descriptions: {} },
+                amenities: [] as Amenity[],
+            };
         }
         throw error;
     }
     const raw = (data ?? {}) as {
         contentSections?: PropertyContentSectionFromDb[];
         policies?: PropertyPolicyFromDb[];
+        amenityEditor?: AmenityEditorRow[];
+        amenities?: Amenity[];
     };
-    const imageKeyById: Record<string, string> = {};
     return {
-        contentSections: contentSectionsFromDb(raw.contentSections ?? [], imageKeyById),
+        contentSections: contentSectionsFromDb(raw.contentSections ?? []),
         propertyPolicies: propertyPoliciesFromDb(raw.policies ?? []),
+        amenityEditor: amenityEditorFromDb(raw.amenityEditor ?? []),
+        amenities: Array.isArray(raw.amenities) ? raw.amenities : [],
     };
 };
 
@@ -349,10 +365,38 @@ const getPropertyById = async (id: string, params?: PropertyParams): Promise<Pub
             throw new Error('Property not found');
         }
 
-        return mapDbToPublicProperty(data as any);
+        return attachPublicPropertyContent(mapDbToPublicProperty(data as any));
     } catch (error: any) {
         console.error(`Error fetching property ${id}:`, error.message);
         throw error;
+    }
+};
+
+const attachPublicPropertyContent = async (
+    property: PublicProperty
+): Promise<PublicProperty> => {
+    try {
+        const { data, error } = await supabase.rpc('get_public_property_content', {
+            p_property_id: property.id,
+            p_listing_type: property.listingType ?? null,
+        });
+        if (error) throw error;
+        const raw = (data ?? {}) as {
+            policies?: PublicProperty['policies'];
+            contentSections?: PublicProperty['contentSections'];
+            amenities?: PublicProperty['amenities'];
+        };
+        return {
+            ...property,
+            policies: raw.policies ?? [],
+            contentSections: raw.contentSections ?? [],
+            amenities: Array.isArray(raw.amenities) && raw.amenities.length
+                ? raw.amenities
+                : property.amenities,
+        };
+    } catch (contentError) {
+        console.error('Error fetching public property content:', contentError);
+        return { ...property, policies: [], contentSections: [] };
     }
 };
 
@@ -415,7 +459,13 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
             const property = mapDbToPropertyData(data);
             const editor = await loadPropertyEditorContent(id);
-            return { ...property, ...editor } as PropertyData;
+            const { amenityEditor, amenities: resolvedAmenities, ...editorRest } = editor;
+            return {
+                ...property,
+                ...editorRest,
+                amenities: resolvedAmenities.length ? resolvedAmenities : property.amenities,
+                amenityEditor,
+            } as PropertyData;
         }
 
         // Get all company IDs for this member
@@ -487,7 +537,13 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         const property = mapDbToPropertyData(data);
         const editor = await loadPropertyEditorContent(id);
-        return { ...property, ...editor } as PropertyData;
+        const { amenityEditor, amenities: resolvedAmenities, ...editorRest } = editor;
+        return {
+            ...property,
+            ...editorRest,
+            amenities: resolvedAmenities.length ? resolvedAmenities : property.amenities,
+            amenityEditor,
+        } as PropertyData;
     } catch (error: any) {
         console.error(`Error fetching property ${id}:`, error.message);
         throw error;
@@ -826,11 +882,8 @@ const createPropertyWithOwnerUserId = async (
             p_extension_type: extensionType,
 
             // amenities
-            p_amenity_ids: formData.amenities && formData.amenities.length > 0 ? formData.amenities : null,
-            p_amenity_links:
-                formData.amenities && formData.amenities.length > 0
-                    ? buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions)
-                    : null,
+            p_amenity_ids: null,
+            p_amenity_links: null,
             p_company_id: companyId || null,
         });
 
@@ -1508,8 +1561,8 @@ const updateProperty = async (
             p_property_images: allImages,
             p_property_documents: allDocuments,
             p_property_videos: videos,
-            p_amenity_ids: formData.amenities || [],
-            p_amenity_links: buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions),
+            p_amenity_ids: null,
+            p_amenity_links: null,
             p_policies: policiesPayload,
             p_content_sections: sectionsPayload,
             p_user_id: userId
@@ -1539,6 +1592,14 @@ const updateProperty = async (
         });
         if (wizardExtError && !isMissingPropertyEditorContentRpcError(wizardExtError)) {
             throw wizardExtError;
+        }
+
+        const { error: amenitiesError } = await supabase.rpc('replace_estate_property_amenities', {
+            p_property_id: id,
+            p_links: buildAmenityLinksForRpc(formData.amenities, formData.amenityDescriptions),
+        });
+        if (amenitiesError && !isMissingPropertyEditorContentRpcError(amenitiesError)) {
+            throw amenitiesError;
         }
 
         const isPublishedNow = !!(formData.isPropertyVisible && formData.isActive);

@@ -358,15 +358,15 @@ export function UserProfile() {
                 {renderInputField("Correo Electrónico", "email", formData.email, "email", MailIcon, true, true)}
                 
                 <h4 className="text-md font-semibold pt-2">Dirección (Opcional)</h4>
-                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", false)}
-                {renderInputField("Apartamento, suite, etc.", "address.street2", formData.address.street2, "text", false)}
+                {renderInputField("Calle y Número", "address.street", formData.address.street, "text", undefined, false)}
+                {renderInputField("Apartamento, suite, etc.", "address.street2", formData.address.street2, "text", undefined, false)}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", false)}
-                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", false)}
+                    {renderInputField("Ciudad", "address.city", formData.address.city, "text", undefined, false)}
+                    {renderInputField("Estado / Provincia", "address.state", formData.address.state, "text", undefined, false)}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", false)}
-                    {renderInputField("País", "address.country", formData.address.country, "text", false)}
+                    {renderInputField("Código Postal", "address.postalCode", formData.address.postalCode, "text", undefined, false)}
+                    {renderInputField("País", "address.country", formData.address.country, "text", undefined, false)}
                 </div>
 
                 {error && isUpdating && (

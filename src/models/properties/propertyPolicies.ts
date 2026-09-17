@@ -3,17 +3,20 @@ import {
   type LocalizedTextByLanguage,
   pruneLocalizedText,
   pickLocalizedText,
-  LOCALIZED_LANGUAGES,
 } from './localizedText';
 
 export interface PropertyPolicyFormRow {
   listingType: ListingType;
+  templateKey?: string | null;
+  slotValues?: Record<string, string>;
   title: LocalizedTextByLanguage;
   description: LocalizedTextByLanguage;
 }
 
 export interface PropertyPolicyForRpc {
   listingType: ListingType;
+  templateKey?: string | null;
+  slotValues?: Record<string, string>;
   title: LocalizedTextByLanguage;
   description: LocalizedTextByLanguage;
   displayOrder?: number;
@@ -21,26 +24,42 @@ export interface PropertyPolicyForRpc {
 
 export function buildPoliciesForRpc(rows: PropertyPolicyFormRow[] | undefined): PropertyPolicyForRpc[] {
   if (!rows?.length) return [];
-  return rows
-    .map((row, index) => {
-      const title = pruneLocalizedText(row.title);
-      const description = pruneLocalizedText(row.description);
-      if (Object.keys(title).length === 0 && Object.keys(description).length === 0) {
-        return null;
-      }
-      return {
+  const out: PropertyPolicyForRpc[] = [];
+  for (const [index, row] of rows.entries()) {
+    const templateKey = row.templateKey?.trim() || null;
+    if (templateKey) {
+      out.push({
         listingType: row.listingType,
-        title,
-        description,
+        templateKey,
+        slotValues: row.slotValues ?? {},
+        title: {},
+        description: {},
         displayOrder: index,
-      };
-    })
-    .filter((r): r is PropertyPolicyForRpc => r !== null);
+      });
+      continue;
+    }
+    const title = pruneLocalizedText(row.title);
+    const description = pruneLocalizedText(row.description);
+    if (Object.keys(title).length === 0 && Object.keys(description).length === 0) {
+      continue;
+    }
+    out.push({
+      listingType: row.listingType,
+      templateKey: null,
+      slotValues: {},
+      title,
+      description,
+      displayOrder: index,
+    });
+  }
+  return out;
 }
 
 export interface PropertyPolicyFromDb {
   id?: string;
   listingType: ListingType;
+  templateKey?: string | null;
+  slotValues?: Record<string, string>;
   title?: LocalizedTextByLanguage;
   description?: LocalizedTextByLanguage;
   displayOrder?: number;
@@ -49,6 +68,8 @@ export interface PropertyPolicyFromDb {
 export function propertyPoliciesFromDb(policies: PropertyPolicyFromDb[]): PropertyPolicyFormRow[] {
   return policies.map(p => ({
     listingType: p.listingType,
+    templateKey: p.templateKey ?? null,
+    slotValues: p.slotValues ?? {},
     title: pruneLocalizedText(p.title),
     description: pruneLocalizedText(p.description),
   }));
@@ -67,5 +88,3 @@ export function pickPolicyDescription(
 ): string | undefined {
   return pickLocalizedText(policy.description, preferredLocale);
 }
-
-export { LOCALIZED_LANGUAGES };
