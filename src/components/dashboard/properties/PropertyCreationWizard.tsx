@@ -72,12 +72,14 @@ interface PropertyCreationWizardProps {
   initialContext: PropertyCreationInitialContext;
   onComplete?: (result: PropertyCreationResult) => void;
   onClose?: () => void;
+  onStepChange?: (step: number) => void;
 }
 
 export function PropertyCreationWizard({
   initialContext,
   onComplete,
   onClose,
+  onStepChange,
 }: PropertyCreationWizardProps) {
   const queryClient = useQueryClient();
 
@@ -140,6 +142,10 @@ export function PropertyCreationWizard({
   }, [watchedPropertyType, watchedRealEstateOfferMode, setValue]);
 
   const stepCount = 5;
+
+  useEffect(() => {
+    onStepChange?.(currentStep);
+  }, [currentStep, onStepChange]);
 
   const handleNext = () => {
     setCurrentStep(prev => {
