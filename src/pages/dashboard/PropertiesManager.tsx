@@ -10,9 +10,7 @@ import { PropertyData } from '../../models/properties';
 import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
 import { useAuth } from '../../contexts/AuthContext';
-import { useOwnerOnboarding } from '../../hooks/useOwnerOnboarding';
 import { useContactVerificationGate } from '../../hooks/useContactVerificationGate';
-import { OwnerOnboardingTour } from '../../components/onboarding/OwnerOnboardingTour';
 import { EditListingModal } from '../../components/dashboard/properties/EditListingModal';
 import { ContactVerificationGateBanner } from '../../components/user/ContactVerificationGateBanner';
 import { formatPlanLimit } from '../../models/subscriptions/PlanData';
@@ -43,17 +41,7 @@ const PropertiesManagerComponent = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
-  const [showVerificationGateTooltip, setShowVerificationGateTooltip] = useState(false);
   const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
-
-  const {
-    isEligibleForOnboarding,
-    isExperiencedOwner,
-    currentStep,
-    completedAt,
-    setStep,
-    dismiss,
-  } = useOwnerOnboarding();
 
   const { needsVerification } = useContactVerificationGate();
   const showVerificationBanner = needsVerification;
@@ -199,7 +187,6 @@ const PropertiesManagerComponent = () => {
                 id="add-property-button"
                 onClick={() => {
                   if (needsVerification) {
-                    setShowVerificationGateTooltip(true);
                     return;
                   }
                   if (isAtTotalLimit) {
@@ -328,13 +315,11 @@ const PropertiesManagerComponent = () => {
             onDeleteProperty={handleDeleteRequest}
             onEditListing={(property) => {
               if (needsVerification) {
-                setShowVerificationGateTooltip(true);
                 return;
               }
               setEditingListingPropertyId(property.id);
             }}
             editBlocked={needsVerification}
-            onEditBlocked={() => setShowVerificationGateTooltip(true)}
           />
         )}
       </Card>
@@ -438,86 +423,6 @@ const PropertiesManagerComponent = () => {
           </div>
         </ModalBody>
       </Modal>}
-
-      {/* Owner onboarding: Step 1 — Welcome */}
-      {!isExperiencedOwner && (
-        <OwnerOnboardingTour
-          active={
-            isEligibleForOnboarding &&
-            currentStep === 0 &&
-            !showAddProperty &&
-            !showVerificationGateTooltip
-          }
-          step={
-            currentStep === 0
-              ? {
-                  element: '#add-property-button',
-                  title: "Welcome! Let's publish your first property.",
-                  description:
-                    "We'll guide you through the process step by step.",
-                  nextBtnText: 'Create property',
-                }
-              : null
-          }
-          onNext={() => setStep(1)}
-          onDismiss={() => dismiss()}
-        />
-      )}
-
-      {/* Owner onboarding: Step 2 — Verification gate */}
-      {!isExperiencedOwner && (
-        <OwnerOnboardingTour
-          active={showVerificationGateTooltip && showVerificationBanner}
-          step={
-            showVerificationGateTooltip
-              ? {
-                  element: '#onboarding-verification-gate',
-                  title: 'Verifica tu correo y teléfono',
-                  description:
-                    'Antes de crear o editar propiedades, necesitamos verificar tu correo electrónico y teléfono. Esto ayuda a mantener la confianza y la comunicación con los huéspedes.',
-                  nextBtnText: 'Ir al perfil',
-                }
-              : null
-          }
-          onNext={() => {
-            setShowVerificationGateTooltip(false);
-            navigate('/dashboard/profile');
-          }}
-          onDismiss={() => setShowVerificationGateTooltip(false)}
-        />
-      )}
-
-      {/* Owner onboarding: Step 5a — Subscription tip (post-activation) */}
-      {completedAt && currentStep === 5 && (
-        <OwnerOnboardingTour
-          active={true}
-          step={{
-            element: '#onboarding-nav-subscription',
-            title: 'Upgrade your plan',
-            description:
-              'You can upgrade your plan anytime to publish more properties or reduce commission fees.',
-            nextBtnText: 'Next',
-          }}
-          onNext={() => setStep(6)}
-          onDismiss={() => setStep(7)}
-        />
-      )}
-
-      {/* Owner onboarding: Step 5b — Company tip (post-activation) */}
-      {completedAt && currentStep === 6 && (
-        <OwnerOnboardingTour
-          active={true}
-          step={{
-            element: '#onboarding-nav-company',
-            title: 'Companies & agencies',
-            description:
-              'If you manage properties with a team, you can create a company or real estate agency. Companies allow multiple users to manage properties together.',
-            nextBtnText: 'Got it',
-          }}
-          onNext={() => setStep(7)}
-          onDismiss={() => setStep(7)}
-        />
-      )}
     </div>
   );
 };

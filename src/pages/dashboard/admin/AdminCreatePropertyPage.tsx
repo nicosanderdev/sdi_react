@@ -16,6 +16,7 @@ import { PropertyFormStep2 } from '../../../components/dashboard/properties/Prop
 import { PropertyFormStep3 } from '../../../components/dashboard/properties/PropertyFormStep3';
 import { PropertyFormStep4 } from '../../../components/dashboard/properties/PropertyFormStep4';
 import { PropertyFormStep4Sections } from '../../../components/dashboard/properties/PropertyFormStep4Sections';
+import { PropertySavingOverlay } from '../../../components/dashboard/properties/PropertySavingOverlay';
 import { DisplayImage } from '../../../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../../../components/dashboard/properties/DocumentManager';
 import { DisplayVideo } from '../../../components/dashboard/properties/VideoManager';
@@ -269,6 +270,7 @@ export function AdminCreatePropertyPage() {
 
   return (
     <div className="space-y-6">
+      <PropertySavingOverlay show={isSubmittingProperty} />
       <div className="flex items-center gap-4">
         <Button color="light" size="sm" onClick={handleBack} className="flex items-center gap-2">
           <ArrowLeft className="w-4 h-4" />

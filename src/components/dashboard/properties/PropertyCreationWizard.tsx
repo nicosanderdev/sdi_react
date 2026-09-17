@@ -11,6 +11,7 @@ import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4 } from './PropertyFormStep4';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
+import { PropertySavingOverlay } from './PropertySavingOverlay';
 import PropertyService from '../../../services/PropertyService';
 import { PropertyData, ListingType, PropertyType } from '../../../models/properties';
 import PropertyListingService, { ListingIntentPayload } from '../../../services/PropertyListingService';
@@ -261,6 +262,7 @@ export function PropertyCreationWizard({
 
   return (
     <FormProvider {...methods}>
+      <PropertySavingOverlay show={isSubmitting} />
       <Card className="min-h-full">
         {view === 'form' && (
           <>
