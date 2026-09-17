@@ -451,6 +451,7 @@ export function AdminCreatePropertyPage() {
                 <PropertyFormStep2
                   onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
+                  canWriteCustom
                 />
               )}
               {propertyStep === 3 && (
@@ -470,6 +471,15 @@ export function AdminCreatePropertyPage() {
                   onNext={handlePropertyNext}
                   onBack={handlePropertyBack}
                   displayImages={displayImages}
+                  canWriteCustom
+                  allowedListingTypes={
+                    watch('listingType')
+                      ? [watch('listingType') as 'SummerRent' | 'EventVenue' | 'AnnualRent' | 'RealEstate']
+                      : undefined
+                  }
+                  allowedPropertyTypes={
+                    watchedPropertyType ? [watchedPropertyType] : undefined
+                  }
                 />
               )}
               {propertyStep === 5 && (

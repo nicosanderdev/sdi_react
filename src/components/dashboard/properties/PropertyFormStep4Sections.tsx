@@ -3,21 +3,19 @@ import { Button } from 'flowbite-react';
 import type { DisplayImage } from './ImageManager';
 import { PropertyContentSectionsManager } from './PropertyContentSectionsManager';
 import { PropertyPoliciesManager } from './PropertyPoliciesManager';
+import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
 
 interface PropertyFormStep4SectionsProps {
   onNext?: () => void;
   onBack: () => void;
   displayImages: DisplayImage[];
   hideNextButton?: boolean;
-  /** Renders on the right of the footer row (e.g. edit wizard save actions). Same max-width as content. */
   footerExtra?: ReactNode;
-  /** Edit flow: restrict policy listing types to active modalities. */
-  allowedListingTypes?: import('../../../models/properties/PropertyData').ListingType[];
+  allowedListingTypes?: ListingType[];
+  allowedPropertyTypes?: PropertyType[];
+  canWriteCustom?: boolean;
 }
 
-/**
- * Dedicated step for dynamic content sections (after media, before listing/publish).
- */
 export function PropertyFormStep4Sections({
   onNext,
   onBack,
@@ -25,12 +23,21 @@ export function PropertyFormStep4Sections({
   hideNextButton = false,
   footerExtra,
   allowedListingTypes,
+  allowedPropertyTypes,
+  canWriteCustom = false,
 }: PropertyFormStep4SectionsProps) {
   return (
     <div className="max-w-4xl mx-auto w-full" id="onboarding-form-sections">
       <div className="space-y-6">
-        <PropertyContentSectionsManager displayImages={displayImages} />
-        <PropertyPoliciesManager allowedListingTypes={allowedListingTypes} />
+        <PropertyContentSectionsManager
+          displayImages={displayImages}
+          allowedPropertyTypes={allowedPropertyTypes}
+          canWriteCustom={canWriteCustom}
+        />
+        <PropertyPoliciesManager
+          allowedListingTypes={allowedListingTypes}
+          canWriteCustom={canWriteCustom}
+        />
 
         <div className="flex flex-wrap items-center justify-between gap-4 pt-4">
           <Button color="alternative" onClick={onBack}>

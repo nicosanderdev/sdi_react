@@ -42,3 +42,22 @@ export function pickLocalizedText(
   }
   return undefined;
 }
+
+export function interpolateLocalizedText(
+  text: LocalizedTextByLanguage | undefined,
+  slots?: Record<string, string>
+): LocalizedTextByLanguage {
+  const pruned = pruneLocalizedText(text);
+  if (!slots || Object.keys(slots).length === 0) return pruned;
+  const out: LocalizedTextByLanguage = {};
+  for (const lang of LOCALIZED_LANGUAGES) {
+    const original = pruned[lang];
+    if (!original) continue;
+    let next = original;
+    for (const [key, value] of Object.entries(slots)) {
+      next = next.split(`{${key}}`).join(value ?? '');
+    }
+    out[lang] = next;
+  }
+  return pruneLocalizedText(out);
+}

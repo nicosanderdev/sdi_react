@@ -244,6 +244,7 @@ interface AmenitiesRow {
   Id: string;
   Name: string;
   IconId: string | null;
+  Key?: string | null;
   IsDeleted: boolean;
   Created: string;
   LastModified: string;
@@ -282,6 +283,7 @@ function mapEstatePropertyAmenityRows(
     .filter((epa: any) => epa?.Amenities)
     .map((epa: EstatePropertyAmenityRow & { Amenities: AmenitiesRow }) => ({
       id: epa.Amenities.Id,
+      key: epa.Amenities.Key || undefined,
       name: epa.Amenities.Name,
       iconId: epa.Amenities.IconId || undefined,
       descriptions: mapLocalizedDescriptions(

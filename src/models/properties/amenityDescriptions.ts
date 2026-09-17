@@ -1,23 +1,23 @@
 import type { AmenityLanguage } from './Amenity';
 import {
   LOCALIZED_LANGUAGES,
-  LOCALIZED_LANGUAGE_LABELS,
   pruneLocalizedText,
   pickLocalizedText,
+  type LocalizedTextByLanguage,
 } from './localizedText';
 
 export type { AmenityLanguage };
 
 export const AMENITY_LANGUAGES = LOCALIZED_LANGUAGES as AmenityLanguage[];
-export const AMENITY_LANGUAGE_LABELS = LOCALIZED_LANGUAGE_LABELS as Record<AmenityLanguage, string>;
+export { LOCALIZED_LANGUAGE_LABELS as AMENITY_LANGUAGE_LABELS } from './localizedText';
 
 export type AmenityDescriptionsByLanguage = Partial<Record<AmenityLanguage, string>>;
 
-/** Form state: amenityId -> per-language optional description */
-export type AmenityDescriptionsFormState = Record<string, AmenityDescriptionsByLanguage>;
+/** Form state: amenity template key -> per-language optional custom description */
+export type AmenityDescriptionsFormState = Record<string, AmenityDescriptionsByLanguage | undefined>;
 
 export interface AmenityLinkForRpc {
-  amenityId: string;
+  key: string;
   descriptions: AmenityDescriptionsByLanguage;
 }
 
@@ -27,35 +27,45 @@ function pruneDescriptions(
   return pruneLocalizedText(descriptions) as AmenityDescriptionsByLanguage;
 }
 
-/** Build RPC payload for create_estate_property / update_estate_property */
+/** Build RPC payload for replace_estate_property_amenities */
 export function buildAmenityLinksForRpc(
-  amenityIds: string[] | undefined,
+  amenityKeys: string[] | undefined,
   amenityDescriptions?: AmenityDescriptionsFormState
 ): AmenityLinkForRpc[] {
-  const ids = amenityIds ?? [];
-  return ids.map(amenityId => ({
-    amenityId,
-    descriptions: pruneDescriptions(amenityDescriptions?.[amenityId]),
+  const keys = [...new Set(amenityKeys ?? [])].filter(Boolean);
+  return keys.map(key => ({
+    key,
+    descriptions: pruneDescriptions(amenityDescriptions?.[key]),
   }));
 }
 
-/** Map loaded amenities (with descriptions) into form state */
-export function amenityDescriptionsFromAmenities(
-  amenities: { id: string; descriptions?: AmenityDescriptionsByLanguage }[]
-): AmenityDescriptionsFormState {
-  const out: AmenityDescriptionsFormState = {};
-  for (const a of amenities) {
-    const pruned = pruneDescriptions(a.descriptions);
+export interface AmenityEditorRow {
+  key?: string;
+  descriptions?: AmenityDescriptionsByLanguage;
+}
+
+/** Map editor RPC rows (raw custom copy only) into form state */
+export function amenityEditorFromDb(rows: AmenityEditorRow[] | undefined): {
+  keys: string[];
+  descriptions: AmenityDescriptionsFormState;
+} {
+  const keys: string[] = [];
+  const descriptions: AmenityDescriptionsFormState = {};
+  for (const row of rows ?? []) {
+    const key = row.key?.trim();
+    if (!key) continue;
+    if (!keys.includes(key)) keys.push(key);
+    const pruned = pruneDescriptions(row.descriptions);
     if (Object.keys(pruned).length > 0) {
-      out[a.id] = pruned;
+      descriptions[key] = pruned;
     }
   }
-  return out;
+  return { keys, descriptions };
 }
 
 export function pickAmenityDescription(
-  descriptions: AmenityDescriptionsByLanguage | undefined,
+  descriptions: AmenityDescriptionsByLanguage | LocalizedTextByLanguage | undefined,
   preferredLocale?: string
 ): string | undefined {
-  return pickLocalizedText(descriptions, preferredLocale);
+  return pickLocalizedText(descriptions as LocalizedTextByLanguage | undefined, preferredLocale);
 }

@@ -374,6 +374,7 @@ export function PropertyCreationWizard({
                 <PropertyFormStep2
                   onNext={handleNext}
                   onBack={handleBack}
+                  canWriteCustom={initialContext.isAdmin}
                 />
               )}
               {currentStep === 3 && (
@@ -394,6 +395,13 @@ export function PropertyCreationWizard({
                   onNext={handleNext}
                   onBack={handleBack}
                   displayImages={displayImages}
+                  canWriteCustom={initialContext.isAdmin}
+                  allowedListingTypes={
+                    watch('listingType') ? [watch('listingType') as ListingType] : undefined
+                  }
+                  allowedPropertyTypes={
+                    watchedPropertyType ? [watchedPropertyType as PropertyType] : undefined
+                  }
                 />
               )}
               {currentStep === 5 && (
