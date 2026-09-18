@@ -8,8 +8,10 @@
  *          supabase/migrations/20260602120000_dynamic_pricing_schema.sql
  *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
  *          supabase/migrations/20260721220000_get_public_property_owner.sql
+ *          supabase/migrations/20260918180000_public_property_images.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
+ * Property images (search + detail): docs/handoffs/guest-property-images-frontend.md
  * Mercado Pago guest UI: docs/handoffs/guest-mercado-pago-frontend.md
  * Mercado Pago backend/operator: docs/handoffs/guest-mercado-pago-payments.md
  * See also docs/handoffs/dynamic-pricing-guest-client.md
@@ -73,6 +75,21 @@ export interface GetPublicPropertyOwnerParams {
 
 /** Null when the property is missing or has no public guest listing. */
 export type GetPublicPropertyOwnerResponse = PublicPropertyOwner | null;
+
+/**
+ * One photo from `get_public_event_venue_property_by_id` / `get_public_summer_rent_property_by_id`
+ * column `Images` (jsonb). Ordered IsMain desc, then DisplayOrder, then Created.
+ * Search cards use camelCase `imageUrl` / `imageAltText` on `portal_search_properties` items
+ * (see `PortalSearchResultItem` in `src/services/search/types.ts`).
+ * List RPCs expose PascalCase `MainImageUrl` / `MainImageAltText`.
+ */
+export interface PublicPropertyImage {
+  propertyImageId: string;
+  url: string;
+  altText?: string | null;
+  isMain: boolean;
+  displayOrder: number;
+}
 
 /**
  * Booked-guest host profile from `get_booking_property_owner`.
