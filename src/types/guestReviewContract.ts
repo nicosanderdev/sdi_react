@@ -9,9 +9,11 @@
  *          supabase/migrations/20260602120100_dynamic_pricing_validation.sql
  *          supabase/migrations/20260721220000_get_public_property_owner.sql
  *          supabase/migrations/20260918180000_public_property_images.sql
+ *          supabase/migrations/20260918200000_public_featured_properties.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
  * Property images (search + detail): docs/handoffs/guest-property-images-frontend.md
+ * Homepage featured listings: docs/handoffs/guest-featured-properties-frontend.md
  * Mercado Pago guest UI: docs/handoffs/guest-mercado-pago-frontend.md
  * Mercado Pago backend/operator: docs/handoffs/guest-mercado-pago-payments.md
  * See also docs/handoffs/dynamic-pricing-guest-client.md
@@ -90,6 +92,87 @@ export interface PublicPropertyImage {
   isMain: boolean;
   displayOrder: number;
 }
+
+/**
+ * Params for `get_public_featured_event_venue_properties` /
+ * `get_public_featured_summer_rent_properties`.
+ * Omitted/`null` → 6; server clamps to 1–20. Result size is min(p_limit, 10, available).
+ */
+export interface GetPublicFeaturedPropertiesParams {
+  p_limit?: number | null;
+}
+
+export type PublicLocationCategory = 'rural' | 'city' | 'near_shore';
+export type PublicViewType = 'city' | 'mountain' | 'rural' | 'sea';
+
+/** Columns shared by EventVenue and SummerRent public list / featured RPCs. */
+export interface PublicPropertyListRowBase {
+  EstatePropertyId: string;
+  OwnerId: string;
+  Neighborhood: string | null;
+  City: string | null;
+  State: string | null;
+  Country: string | null;
+  LocationLatitude: number | null;
+  LocationLongitude: number | null;
+  AreaValue: number | null;
+  AreaUnit: number | null;
+  Bedrooms: number | null;
+  Bathrooms: number | null;
+  HasGarage: boolean | null;
+  GarageSpaces: number | null;
+  HasLaundryRoom: boolean | null;
+  HasPool: boolean | null;
+  HasBalcony: boolean | null;
+  IsFurnished: boolean | null;
+  Capacity: number | null;
+  LocationCategory: PublicLocationCategory | null;
+  ViewType: PublicViewType | null;
+  ListingId: string;
+  ListingType: GuestSiteListingType;
+  Title: string | null;
+  ListingDescription: string | null;
+  AvailableFrom: string | null;
+  ListingCapacity: number | null;
+  Currency: number | null;
+  SalePrice: number | null;
+  RentPrice: number | null;
+  HasCommonExpenses: boolean | null;
+  CommonExpensesValue: number | null;
+  IsElectricityIncluded: boolean | null;
+  IsWaterIncluded: boolean | null;
+  IsPriceVisible: boolean | null;
+  Status: number | null;
+  IsActive: boolean;
+  IsPropertyVisible: boolean;
+  IsFeatured: boolean;
+  BlockedForBooking: boolean;
+  AmenityNames: string[];
+  MainImageUrl: string | null;
+  MainImageAltText: string | null;
+}
+
+/** Row from `get_public_event_venue_properties` / `get_public_featured_event_venue_properties`. */
+export interface PublicEventVenueListRow extends PublicPropertyListRowBase {
+  ListingType: 'EventVenue';
+  MaxGuests: number | null;
+  HasCatering: boolean | null;
+  HasSoundSystem: boolean | null;
+  ClosingHour: string | null;
+  AllowedEventsDescription: string | null;
+}
+
+/** Row from `get_public_summer_rent_properties` / `get_public_featured_summer_rent_properties`. */
+export interface PublicSummerRentListRow extends PublicPropertyListRowBase {
+  ListingType: 'SummerRent';
+  MinStayDays: number | null;
+  MaxStayDays: number | null;
+  LeadTimeDays: number | null;
+  BufferDays: number | null;
+}
+
+export type GetPublicFeaturedEventVenuePropertiesResponse = PublicEventVenueListRow[];
+export type GetPublicFeaturedSummerRentPropertiesResponse = PublicSummerRentListRow[];
 
 /**
  * Booked-guest host profile from `get_booking_property_owner`.
