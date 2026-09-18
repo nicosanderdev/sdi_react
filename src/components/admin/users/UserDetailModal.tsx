@@ -99,8 +99,8 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
 
   React.useEffect(() => {
     if (!detailModalOpen) return;
-    subscriptionService.getPlans('member').then((rows) => {
-      setMemberPlans(rows.filter((plan) => plan.isActive));
+    subscriptionService.getPlans('member', { forAdmin: true }).then((rows) => {
+      setMemberPlans(rows);
     }).catch(() => setMemberPlans([]));
   }, [detailModalOpen]);
 

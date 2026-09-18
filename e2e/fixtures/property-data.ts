@@ -34,7 +34,7 @@ const basePropertyData: Omit<PropertyFormData, 'type' | 'status'> = {
   // Pricing and availability
   description: 'Excelente apartamento en ubicación céntrica, ideal para estudiantes o jóvenes profesionales.',
   availableFrom: new Date().toISOString().split('T')[0], // Today
-  currency: 'USD',
+  currency: 'UYU',
   salePrice: '',
   rentPrice: '1200',
   hasCommonExpenses: true,

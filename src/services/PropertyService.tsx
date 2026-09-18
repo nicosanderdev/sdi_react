@@ -905,7 +905,7 @@ const createPropertyWithOwnerUserId = async (
             | 'AnnualRent'
             | 'RealEstate';
 
-        const currencyKey = ((formData.currency ?? 'USD') as string) as keyof typeof currencyMap;
+        const currencyKey = ((formData.currency ?? 'UYU') as string) as keyof typeof currencyMap;
 
         const isSaleListing = listingType === 'RealEstate';
         const salePriceValue =
@@ -1095,7 +1095,7 @@ const createPropertyWithOwnerUserId = async (
             description: formData.description || undefined,
             availableFrom: availableFromDate,
             availableFromText: availableFromDate.toLocaleDateString(),
-            currency: (formData.currency ?? 'USD') as any,
+            currency: (formData.currency ?? 'UYU') as any,
             salePrice: undefined,
             rentPrice: rentPriceString,
             hasCommonExpenses: false,
@@ -1279,7 +1279,7 @@ const updatePropertyWizard = async (
         description: formData.description?.trim()
             ? formData.description
             : (featuredListing?.description || formData.description),
-        currency: featuredListing?.currency ?? formData.currency ?? 'USD',
+        currency: featuredListing?.currency ?? formData.currency ?? 'UYU',
         salePrice: featuredListing?.salePrice ?? formData.salePrice,
         rentPrice: featuredListing?.rentPrice ?? formData.rentPrice,
         status: featuredListing?.status ?? formData.status ?? 'sale',
@@ -1547,7 +1547,9 @@ const updateProperty = async (
             p_garage_spaces: formData.garageSpaces,
             p_description: formData.description || null,
             p_available_from: new Date(((formData as any).availableFrom || new Date()) as any).toISOString(),
-            p_currency: currencyMap[((formData as any).currency ?? 'USD') as string],
+            p_currency: formData.currency
+                ? currencyMap[formData.currency]
+                : currencyMap[((featuredListing?.currency ?? 'UYU') as string)],
             p_sale_price: formData.salePrice ? parseFloat(formData.salePrice) : null,
             p_rent_price: formData.rentPrice ? parseFloat(formData.rentPrice) : null,
             p_has_common_expenses: formData.hasCommonExpenses,

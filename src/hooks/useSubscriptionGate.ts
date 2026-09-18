@@ -67,7 +67,7 @@ export function useSubscriptionGate(): SubscriptionGateState {
           key: PlanKey.FREE,
           name: 'Free',
           monthlyPrice: 0,
-          currency: 'USD',
+          currency: 'UYU',
           maxProperties: 20,
           maxUsers: 1,
           maxStorageMb: 0,

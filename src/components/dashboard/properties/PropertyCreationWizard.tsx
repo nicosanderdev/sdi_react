@@ -123,6 +123,7 @@ export function PropertyCreationWizard({
       propertyPolicies: [],
       rentPricePeriod: 'PerNight',
       realEstateOfferMode: 'sale',
+      currency: 'UYU',
       isActive: true,
       blockedForBooking: false,
     } as any,

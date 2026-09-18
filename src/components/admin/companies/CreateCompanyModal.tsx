@@ -21,8 +21,8 @@ export function CreateCompanyModal({ open, onClose, hook }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    subscriptionService.getPlans('company').then((rows) => {
-      setPlans(rows.filter((plan) => plan.isActive));
+    subscriptionService.getPlans('company', { forAdmin: true }).then((rows) => {
+      setPlans(rows);
     }).catch((err: Error) => {
       setFormError(err.message);
     });
