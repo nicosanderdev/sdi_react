@@ -602,7 +602,7 @@ WHERE "IsDeleted" = false
 -- Move members without a UYU assignment onto Plan BASE-Inicial.
 DO $$
 DECLARE
-  v_base_inicial uuid := '44444444-4444-4444-8444-444444444444';
+  v_base_inicial uuid := 'b1bfccc0-f354-4c63-a575-ff5f0c712d0b';
   v_company_free uuid := '66666666-6666-4666-8666-666666666666';
   v_member_id uuid;
   v_company_id uuid;
