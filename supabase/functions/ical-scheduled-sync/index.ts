@@ -8,6 +8,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { createLogger } from '../_shared/logger.ts'
+import { logCronExecution } from '../_shared/adminActivityLog.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -242,6 +243,7 @@ Deno.serve(async (req) => {
       }
 
       await logCronJobExecution(result)
+      await logCronExecution(req, 'ical-scheduled-sync', true, '0 integrations')
 
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -299,6 +301,19 @@ Deno.serve(async (req) => {
 
     // Log execution for monitoring
     await logCronJobExecution(cronResult)
+    await logCronExecution(
+      req,
+      'ical-scheduled-sync',
+      cronResult.success,
+      cronResult.success
+        ? `${cronResult.successfulSyncs}/${cronResult.integrationsProcessed} syncs`
+        : (cronResult.error ?? `${cronResult.failedSyncs} failed`),
+      {
+        integrationsProcessed: cronResult.integrationsProcessed,
+        successfulSyncs: cronResult.successfulSyncs,
+        failedSyncs: cronResult.failedSyncs,
+      },
+    )
 
     return new Response(JSON.stringify(cronResult), {
       status: 200,
@@ -322,6 +337,7 @@ Deno.serve(async (req) => {
 
     // Log the error
     await logCronJobExecution(errorResult)
+    await logCronExecution(req, 'ical-scheduled-sync', false, error.message)
 
     return new Response(JSON.stringify(errorResult), {
       status: 500,

@@ -104,6 +104,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
     <div className="overflow-x-auto">
       <Table hoverable>
         <TableHead>
+          <TableRow>
           <TableHeadCell className="w-12 p-4">
             <input
               ref={selectAllRef}
@@ -122,6 +123,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
           <TableHeadCell>Actividad</TableHeadCell>
           <SortableHeader field="createdAt">Creado</SortableHeader>
           <SortableHeader field="lastModified">Modificado</SortableHeader>
+          </TableRow>
         </TableHead>
         <TableBody className="divide-y">
           {properties.map((property: AdminPropertyListItem) => (

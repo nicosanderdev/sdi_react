@@ -16,6 +16,7 @@
  * Homepage featured listings: docs/handoffs/guest-featured-properties-frontend.md
  * Mercado Pago guest UI: docs/handoffs/guest-mercado-pago-frontend.md
  * Mercado Pago backend/operator: docs/handoffs/guest-mercado-pago-payments.md
+ * Guest visit tracking: docs/handoffs/guest-site-visits-tracking.md
  * See also docs/handoffs/dynamic-pricing-guest-client.md
  */
 

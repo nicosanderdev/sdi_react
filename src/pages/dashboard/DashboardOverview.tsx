@@ -1,29 +1,30 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PropertyStats } from '../../components/dashboard/PropertyStats';
-// Messaging out of scope for this version
-// import { RecentMessages } from '../../components/dashboard/RecentMessages';
 import { PendingBookingsCard } from '../../components/dashboard/PendingBookingsCard';
 import { DashboardStatCard } from '../../components/dashboard/DashboardStatCard';
 import { DashboardChartCard } from '../../components/dashboard/DashboardChartCard';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { CalendarIcon, EyeIcon, HomeIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import { GuestSiteFilter, type GuestSiteFilterValue } from '../../components/dashboard/GuestSiteFilter';
+import { GuestVisitSummaryCards } from '../../components/dashboard/GuestVisitSummaryCards';
+import { CalendarIcon, HomeIcon } from 'lucide-react';
 
-// Import services
 import reportService from './../../services/ReportService';
 import { Dropdown, DropdownItem } from 'flowbite-react';
 import { COMPANY_SELECTOR_OPTIONS, CompanySelector } from '../../components/dashboard/CompanySelector';
+import {
+  GUEST_TRAFFIC_SOURCE_LABELS_ES,
+  GUEST_TRAFFIC_SOURCES,
+  type GuestTrafficSource,
+} from '../../types/guestVisitContract';
 
-// Helper function to format numbers (optional)
 const formatNumber = (num: number) => num?.toLocaleString('es-ES') || '0';
 
-
 export function DashboardOverview() {
-
     const [period, setPeriod] = useState('last30days');
     const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+    const [listingType, setListingType] = useState<GuestSiteFilterValue>(null);
 
-    // Helper function to get company filter for API calls
     const getCompanyFilter = () => {
         if (company === COMPANY_SELECTOR_OPTIONS.ALL_PROPERTIES) {
             return { companyId: 'all' };
@@ -38,8 +39,21 @@ export function DashboardOverview() {
     };
 
     const { data: summaryData, isLoading: isLoadingSummary, isError: isErrorSummary } = useQuery({
-        queryKey: ['dashboardSummary', period, company],
-        queryFn: () => reportService.getDashboardSummary({ period, ...getCompanyFilter() })
+        queryKey: ['dashboardSummary', period, company, listingType],
+        queryFn: () => reportService.getDashboardSummary({
+            period,
+            ...getCompanyFilter(),
+            listingType,
+        })
+    });
+
+    const { data: visitsBySource, isLoading: isLoadingTraffic } = useQuery({
+        queryKey: ['dashboardTraffic', period, company, listingType],
+        queryFn: () => reportService.getVisitsBySource({
+            period,
+            ...getCompanyFilter(),
+            listingType,
+        }),
     });
 
     const TIME_RANGES = [
@@ -49,38 +63,24 @@ export function DashboardOverview() {
         { id: 'thisyear', label: 'Este año' },
     ];
 
-
-
-
-
     const renderCardValue = (value: any, isLoading: boolean, isError: boolean, unit = '') => {
         if (isLoading) return <span className="text-gray-400">Cargando...</span>;
         if (isError || typeof value === 'undefined' || value === null) return <span className="text-gray-400">No disponible</span>;
         return <>{formatNumber(value)}{unit}</>;
     };
 
-    const renderPercentageChange = (
-        percentage: number | undefined,
-        direction: 'increase' | 'decrease' | 'neutral' | undefined,
-        isLoading: boolean,
-        isError: boolean
-    ): JSX.Element | null => {
-        if (isLoading) return <p className="text-sm text-gray-400 mt-1">Calculando...</p>;
-        if (isError || typeof percentage === 'undefined' || !direction || direction === 'neutral') {
-            return null;
+    const trafficMap: Partial<Record<GuestTrafficSource, number>> = {};
+    if (visitsBySource) {
+        const labelToSource = Object.fromEntries(
+            GUEST_TRAFFIC_SOURCES.map((s) => [GUEST_TRAFFIC_SOURCE_LABELS_ES[s], s])
+        ) as Record<string, GuestTrafficSource>;
+        for (const row of visitsBySource) {
+            const source = labelToSource[row.source] ?? (row.source as GuestTrafficSource);
+            if (GUEST_TRAFFIC_SOURCES.includes(source)) {
+                trafficMap[source] = row.visits;
+            }
         }
-
-        const color = direction === 'increase' ? 'text-green-600' : 'text-red-600';
-        const Icon = direction === 'increase' ? TrendingUpIcon : TrendingDownIcon;
-
-        return (
-            <p className={`flex items-center text-sm font-medium ${color} mt-1`}>
-                <Icon className="mr-1 h-4 w-4" />
-                {Math.abs(percentage).toFixed(1)}% vs período anterior
-            </p>
-        );
-    };
-
+    }
 
     return (
         <div className="space-y-6">
@@ -99,13 +99,13 @@ export function DashboardOverview() {
                 </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
                 <CompanySelector
                     mode="without-all"
                     value={company}
                     onChange={setCompany}
-                    className="mr-4"
                 />
+                <GuestSiteFilter value={listingType} onChange={setListingType} />
                 <Dropdown
                     value={period}
                     dismissOnClick={true}
@@ -118,63 +118,39 @@ export function DashboardOverview() {
                 </Dropdown>
             </div>
 
-            {/* --- Stats Cards Row --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <DashboardStatCard
-                    title="Visitas a propiedades"
-                    icon={EyeIcon}
-                    value={renderCardValue(summaryData?.visits?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    trend={{
-                        value: summaryData?.visits?.percentageChange || 0,
-                        direction: summaryData?.visits?.changeDirection || 'neutral'
-                    }}
-                />
-
-                {/* Messaging out of scope for this version
-                <DashboardStatCard
-                    title="Mensajes recibidos por consulta"
-                    icon={MessageSquareIcon}
-                    value={renderCardValue(summaryData?.messages?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    trend={{
-                        value: summaryData?.messages?.percentageChange || 0,
-                        direction: summaryData?.messages?.changeDirection || 'neutral'
-                    }}
-                />
-                */}
-
                 <DashboardStatCard
                     title="Propiedades publicadas"
                     icon={HomeIcon}
                     value={renderCardValue(summaryData?.totalProperties?.currentPeriod, isLoadingSummary, isErrorSummary)}
-                    trend={{
-                        value: summaryData?.totalProperties?.percentageChange || 0,
-                        direction: summaryData?.totalProperties?.changeDirection || 'neutral'
-                    }}
                 />
-
             </div>
 
-            {/* --- Main Dashboard Grid --- */}
+            <GuestVisitSummaryCards
+                mode="owner"
+                loading={isLoadingSummary || isLoadingTraffic}
+                data={{
+                    propertyViews: summaryData?.visits?.currentPeriod ?? null,
+                    conversionRate: summaryData?.conversionRate ?? null,
+                    traffic: trafficMap,
+                }}
+            />
+
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                {/* Left Column - Charts and Progress */}
                 <div className="xl:col-span-2 space-y-6">
-                    {/* Analytics Chart */}
                     <DashboardChartCard title="Análisis de Rendimiento">
-                        <PropertyStats period={period} companyId={getCompanyFilter().companyId} />
+                        <PropertyStats
+                            period={period}
+                            companyId={getCompanyFilter().companyId}
+                            listingType={listingType}
+                        />
                     </DashboardChartCard>
-
-
                 </div>
 
-                {/* Right Column - Pending bookings */}
                 <div className="space-y-6">
                     <PendingBookingsCard />
-                    {/* Messaging out of scope for this version
-                    <RecentMessages />
-                    */}
                 </div>
             </div>
-
         </div>
     );
 }

@@ -32,6 +32,7 @@ import {
   createUnauthorizedResponse,
   createForbiddenResponse
 } from '../_shared/auth.ts'
+import { logAdminActivity } from '../_shared/adminActivityLog.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -86,12 +87,17 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     })
 
-    // Create auth user (trigger on auth.users will insert a Members row via handle_new_user)
+    // Create auth user (trigger on auth.users will insert a Members row via handle_new_user).
+    // created_by_admin skips registration log in the trigger; we log with admin as actor below.
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim(),
       password,
       email_confirm: true,
-      user_metadata: { firstName: firstName.trim(), lastName: lastName.trim() }
+      user_metadata: {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        created_by_admin: true,
+      }
     })
 
     if (authError) {
@@ -203,6 +209,29 @@ serve(async (req) => {
         })
       }
     }
+
+    const adminMember = await supabase
+      .from('Members')
+      .select('Id')
+      .eq('UserId', authResult.user!.id)
+      .eq('IsDeleted', false)
+      .limit(1)
+      .maybeSingle()
+
+    const displayName = `${firstName.trim()} ${lastName.trim()}`.trim()
+    const targetDisplay = `${displayName} <${email.trim()}>`.trim()
+    await logAdminActivity(
+      {
+        eventType: 'user',
+        action: 'user_registration',
+        targetId: memberId,
+        targetDisplay,
+        performedBy: adminMember.data?.Id ?? null,
+        performedByDisplay: adminMember.data?.Id ? null : (authResult.user!.email ?? 'Admin'),
+        details: { authUserId: userId, createdByAdmin: true },
+      },
+      supabase,
+    )
 
     return new Response(
       JSON.stringify({ userId, memberId }),

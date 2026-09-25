@@ -2,14 +2,18 @@
  * Admin-only dispatcher for scheduled Edge Functions.
  * GET: catalog. POST { job }: proxy to the existing function with the service role.
  * Cron endpoints are unchanged; this is the dashboard auth door.
+ * Passes x-admin-activity-actor so jobs attribute the run to the admin.
  */
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { CRON_ACTOR_HEADER } from '../_shared/adminActivityLog.ts'
 import {
   authenticateUser,
   createForbiddenResponse,
   createUnauthorizedResponse,
   isAdmin,
+  type AuthUser,
 } from '../_shared/auth.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -51,23 +55,38 @@ function jsonResponse(status: number, body: unknown): Response {
   })
 }
 
-async function requireAdmin(req: Request): Promise<Response | null> {
+async function requireAdmin(req: Request): Promise<{ error: Response } | { user: AuthUser }> {
   const authResult = await authenticateUser(req)
   if (authResult.error || !authResult.user) {
-    return createUnauthorizedResponse(authResult.error ?? 'Authentication failed')
+    return { error: createUnauthorizedResponse(authResult.error ?? 'Authentication failed') }
   }
   if (!isAdmin(authResult.user)) {
-    return createForbiddenResponse('Admin only')
+    return { error: createForbiddenResponse('Admin only') }
   }
-  return null
+  return { user: authResult.user }
 }
 
-async function proxyJob(jobId: string): Promise<Response> {
+async function memberIdForUser(userId: string): Promise<string | null> {
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  const { data } = await supabase
+    .from('Members')
+    .select('Id')
+    .eq('UserId', userId)
+    .eq('IsDeleted', false)
+    .limit(1)
+    .maybeSingle()
+  return data?.Id ?? null
+}
+
+async function proxyJob(jobId: string, actorHeader: string): Promise<Response> {
   const response = await fetch(`${supabaseUrl}/functions/v1/${jobId}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${supabaseServiceKey}`,
       'Content-Type': 'application/json',
+      [CRON_ACTOR_HEADER]: actorHeader,
     },
     body: JSON.stringify({}),
   })
@@ -89,8 +108,8 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const denied = await requireAdmin(req)
-  if (denied) return denied
+  const auth = await requireAdmin(req)
+  if ('error' in auth) return auth.error
 
   if (req.method === 'GET') {
     return jsonResponse(200, { jobs: JOBS })
@@ -110,8 +129,11 @@ Deno.serve(async (req) => {
     return jsonResponse(400, { error: 'Unknown job' })
   }
 
+  const memberId = await memberIdForUser(auth.user.id)
+  const actorHeader = memberId ? `member:${memberId}` : (auth.user.email || auth.user.id)
+
   try {
-    return await proxyJob(jobId)
+    return await proxyJob(jobId, actorHeader)
   } catch (error) {
     return jsonResponse(502, {
       success: false,

@@ -20,6 +20,8 @@ const EVENT_TYPE_LABELS: Record<AdminLogEventType, string> = {
   user: 'Usuario',
   property: 'Propiedad',
   booking: 'Reserva',
+  company: 'Empresa',
+  system: 'Sistema',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -35,6 +37,15 @@ const ACTION_LABELS: Record<string, string> = {
   created: 'Creado',
   updated: 'Actualizado',
   RECEIPT_MARKED_AS_PAID: 'Recibo marcado como pagado',
+  create_property: 'Crear propiedad',
+  create_listing: 'Crear publicación',
+  confirm: 'Confirmar',
+  cancel: 'Cancelar',
+  payment: 'Pago de reserva',
+  create_company: 'Crear empresa',
+  add_company_member: 'Agregar usuario a empresa',
+  user_registration: 'Registro de usuario',
+  cron_execution: 'Ejecución de cron',
 };
 
 function actionLabel(action: string): string {
