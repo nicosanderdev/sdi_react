@@ -1,5 +1,5 @@
 // src/components/admin/properties/PropertyDetailModal.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { Modal, Button, Tabs, Card, ModalHeader, ModalBody, TabItem, ModalFooter } from 'flowbite-react';
 import {
   MapPinIcon,
@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 import reportService from '../../../services/ReportService';
+import { GuestSiteFilter, type GuestSiteFilterValue } from '../../dashboard/GuestSiteFilter';
 
 interface PropertyDetailModalProps {
   hook: UseAdminPropertiesReturn;
@@ -55,22 +56,30 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
     openDeleteConfirmModal,
   } = hook;
 
+  const [listingType, setListingType] = useState<GuestSiteFilterValue>(null);
+
   const { data: propertyViewsData, isLoading: loadingViews } = useQuery({
-    queryKey: ['propertyViews', selectedProperty?.id, PROPERTY_VIEWS_PERIOD],
-    queryFn: () => reportService.getPropertyViews(selectedProperty!.id, { period: PROPERTY_VIEWS_PERIOD }),
+    queryKey: ['propertyViews', selectedProperty?.id, PROPERTY_VIEWS_PERIOD, listingType],
+    queryFn: () => reportService.getPropertyViews(selectedProperty!.id, {
+      period: PROPERTY_VIEWS_PERIOD,
+      listingType,
+    }),
     enabled: !!selectedProperty?.id,
   });
 
   const { data: propertyViewsBySource, isLoading: loadingViewsBySource } = useQuery({
-    queryKey: ['propertyViewsBySource', selectedProperty?.id, PROPERTY_VIEWS_PERIOD],
-    queryFn: () => reportService.getPropertyViewsBySource(selectedProperty!.id, { period: PROPERTY_VIEWS_PERIOD }),
+    queryKey: ['propertyViewsBySource', selectedProperty?.id, PROPERTY_VIEWS_PERIOD, listingType],
+    queryFn: () => reportService.getPropertyViewsBySource(selectedProperty!.id, {
+      period: PROPERTY_VIEWS_PERIOD,
+      listingType,
+    }),
     enabled: !!selectedProperty?.id,
   });
 
   const totalViews = propertyViewsData?.reduce((sum, d) => sum + d.count, 0) ?? 0;
   const chartData = (propertyViewsData ?? []).map(d => ({
     date: d.date,
-    dateLabel: new Date(d.date).toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
+    dateLabel: new Date(d.date + 'T12:00:00').toLocaleDateString(undefined, { day: '2-digit', month: '2-digit' }),
     visits: d.count,
   }));
 
@@ -243,6 +252,9 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
             {/* Analytics / Views Tab */}
             <TabItem title="Visitas" icon={BarChart3Icon}>
               <div className="space-y-6">
+                <div className="flex justify-end">
+                  <GuestSiteFilter value={listingType} onChange={setListingType} />
+                </div>
                 {loadingViews && loadingViewsBySource ? (
                   <div className="flex justify-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />

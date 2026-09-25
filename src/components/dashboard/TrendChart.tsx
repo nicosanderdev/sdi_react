@@ -3,13 +3,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DashboardChartCard } from './DashboardChartCard';
 import { AdminMetricsTimeseries } from '../../services/AdminService';
 
-/** Extended point for optional sessions/bookings (for future wiring) */
-export type TrendChartDataPoint = AdminMetricsTimeseries & { sessions?: number; bookings?: number };
+export type TrendChartDataPoint = AdminMetricsTimeseries;
 
 interface TrendChartProps {
   data: TrendChartDataPoint[];
   loading?: boolean;
   className?: string;
+  /** When false, hide the Usuarios line (site filter active). Default true. */
+  showUsers?: boolean;
 }
 
 const CHART_TITLE = 'Tendencias de usuarios y propiedades';
@@ -17,7 +18,8 @@ const CHART_TITLE = 'Tendencias de usuarios y propiedades';
 export const TrendChart: React.FC<TrendChartProps> = ({
   data,
   loading = false,
-  className = ''
+  className = '',
+  showUsers = true,
 }) => {
   if (loading) {
     return (
@@ -52,21 +54,20 @@ export const TrendChart: React.FC<TrendChartProps> = ({
 
   const chartData = data.map(item => ({
     ...item,
-    sessions: item.sessions ?? 0,
-    bookings: item.bookings ?? 0,
-    dateLabel: new Date(item.date).toLocaleDateString(undefined, {
+    propertyViews: item.propertyViews ?? 0,
+    pageViews: item.pageViews ?? 0,
+    dateLabel: new Date(item.date + 'T12:00:00').toLocaleDateString(undefined, {
       month: 'short',
       day: 'numeric'
     }),
-    fullDate: new Date(item.date).toLocaleDateString(undefined, {
+    fullDate: new Date(item.date + 'T12:00:00').toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     })
   }));
 
-  // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
@@ -109,15 +110,17 @@ export const TrendChart: React.FC<TrendChartProps> = ({
               height={36}
               wrapperStyle={{ fontSize: '12px' }}
             />
-            <Line
-              type="monotone"
-              dataKey="users"
-              name="Usuarios"
-              stroke="#1B4965"
-              strokeWidth={2.5}
-              dot={{ r: 3, fill: '#1B4965', strokeWidth: 1, stroke: '#FDFFFC' }}
-              activeDot={{ r: 5, fill: '#1B4965', strokeWidth: 2, stroke: '#FDFFFC' }}
-            />
+            {showUsers && (
+              <Line
+                type="monotone"
+                dataKey="users"
+                name="Usuarios"
+                stroke="#1B4965"
+                strokeWidth={2.5}
+                dot={{ r: 3, fill: '#1B4965', strokeWidth: 1, stroke: '#FDFFFC' }}
+                activeDot={{ r: 5, fill: '#1B4965', strokeWidth: 2, stroke: '#FDFFFC' }}
+              />
+            )}
             <Line
               type="monotone"
               dataKey="properties"
@@ -129,8 +132,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             />
             <Line
               type="monotone"
-              dataKey="sessions"
-              name="Sesiones"
+              dataKey="propertyViews"
+              name="Vistas de propiedades"
               stroke="#B565A7"
               strokeWidth={2}
               dot={{ r: 2, fill: '#B565A7', strokeWidth: 1, stroke: '#FDFFFC' }}
@@ -138,8 +141,8 @@ export const TrendChart: React.FC<TrendChartProps> = ({
             />
             <Line
               type="monotone"
-              dataKey="bookings"
-              name="Reservas"
+              dataKey="pageViews"
+              name="Vistas de páginas"
               stroke="#5FA8D3"
               strokeWidth={2}
               dot={{ r: 2, fill: '#5FA8D3', strokeWidth: 1, stroke: '#FDFFFC' }}

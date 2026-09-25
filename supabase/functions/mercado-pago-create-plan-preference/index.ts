@@ -100,7 +100,11 @@ Deno.serve(async (req: Request) => {
     if (planError || !plan || plan.IsDeleted) {
       return json({ success: false, error: 'Plan not found or inactive' }, 400);
     }
-    if (plan.Audience !== 'company' || !(plan.IsActiveV2 ?? plan.IsActive)) {
+    if (
+      plan.Audience !== 'company' ||
+      !(plan.IsActiveV2 ?? plan.IsActive) ||
+      String(plan.Currency || '').toUpperCase() !== 'UYU'
+    ) {
       return json({ success: false, error: 'Plan is not available for this entity type.' }, 400);
     }
 

@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
+import { logCronExecution } from '../_shared/adminActivityLog.ts';
 import {
   authenticateUser,
   createForbiddenResponse,
@@ -130,6 +131,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    await logCronExecution(
+      req,
+      'daily-property-search-scores',
+      true,
+      `${succeeded} ok / ${processed} processed`,
+      { processed, succeeded, skipped, errorCount: errors.length },
+    );
     return new Response(
       JSON.stringify({
         success: true,
@@ -144,6 +152,11 @@ Deno.serve(async (req) => {
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Unknown error';
+    await logCronExecution(req, 'daily-property-search-scores', false, message, {
+      processed,
+      succeeded,
+      skipped,
+    });
     return new Response(
       JSON.stringify({
         success: false,

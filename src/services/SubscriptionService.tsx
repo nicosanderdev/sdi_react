@@ -128,7 +128,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                     key: PlanKey.FREE,
                     name: 'Free',
                     monthlyPrice: 0,
-                    currency: 'USD',
+                    currency: 'UYU',
                     maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,
@@ -219,7 +219,7 @@ const getCurrentSubscription = async (): Promise<SubscriptionData> => {
                 key: PlanKey.FREE,
                 name: 'Free',
                 monthlyPrice: 0,
-                currency: 'USD',
+                currency: 'UYU',
                 maxProperties: 20,
                 maxUsers: 1,
                 maxStorageMb: 0,
@@ -350,14 +350,20 @@ const getBillingHistory = async (filters?: {
  * Gets all available plans
  * @returns List of available plans
  */
-const getPlans = async (audience?: 'member' | 'company'): Promise<PlanData[]> => {
+const getPlans = async (
+    audience?: 'member' | 'company',
+    options?: { forAdmin?: boolean }
+): Promise<PlanData[]> => {
     try {
         let query = supabase
             .from('Plans')
             .select('*')
             .eq('IsDeleted', false)
-            .or('IsActiveV2.eq.true,IsActive.eq.true')
             .order('Price', { ascending: true });
+
+        if (!options?.forAdmin) {
+            query = query.or('IsActiveV2.eq.true,IsActive.eq.true').eq('Currency', 'UYU');
+        }
 
         if (audience) {
             query = query.eq('Audience', audience);
@@ -600,7 +606,7 @@ const getSubscriptionStatus = async (user?: any): Promise<{
                     key: PlanKey.FREE,
                     name: 'Free',
                     monthlyPrice: 0,
-                    currency: 'USD',
+                    currency: 'UYU',
                     maxProperties: 20,
                     maxUsers: 1,
                     maxStorageMb: 0,

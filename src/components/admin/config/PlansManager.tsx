@@ -64,7 +64,7 @@ type FormState = {
 const emptyForm = (key = ''): FormState => ({
   key,
   name: '',
-  currency: 'USD',
+  currency: 'UYU',
   pricingModel: 'hybrid',
   price: '0',
   monthlyPrice: '0',

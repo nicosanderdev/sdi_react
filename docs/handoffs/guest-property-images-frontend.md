@@ -18,6 +18,8 @@ Point the guest app at an environment where `20260918180000_public_property_imag
 | Ranked search | `portal_search_properties` | Per item: `imageUrl`, `imageAltText` (camelCase; `null` when no photos) |
 | EventVenue list | `get_public_event_venue_properties` | `MainImageUrl`, `MainImageAltText` |
 | SummerRent list | `get_public_summer_rent_properties` | `MainImageUrl`, `MainImageAltText` |
+| EventVenue homepage featured | `get_public_featured_event_venue_properties` | `MainImageUrl`, `MainImageAltText` (same list row) |
+| SummerRent homepage featured | `get_public_featured_summer_rent_properties` | `MainImageUrl`, `MainImageAltText` (same list row) |
 | EventVenue detail | `get_public_event_venue_property_by_id` | `Images` jsonb array |
 | SummerRent detail | `get_public_summer_rent_property_by_id` | `Images` jsonb array |
 
@@ -105,7 +107,9 @@ Repeat search + detail for casas / SummerRent when the same client code is share
 - Changing Supabase RPCs, RLS, or migrations
 - Panel upload / `ImageManager` / R2 configuration
 - Opening `PropertyImages` to anonymous PostgREST
-- Calling `build_property_images_json` or `build_property_main_image_json` directly — use only the search / list / detail RPCs above (helpers are not guest-callable)
+- Calling `build_property_images_json` or `build_property_main_image_json` directly — use only the search / list / featured / detail RPCs (helpers are not guest-callable)
+
+Homepage ranking (not images): [`guest-featured-properties-frontend.md`](./guest-featured-properties-frontend.md).
 
 ## Smoke checks (guest app)
 

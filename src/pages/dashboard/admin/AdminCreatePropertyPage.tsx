@@ -82,7 +82,7 @@ export function AdminCreatePropertyPage() {
       capacity: 1,
       description: '',
       availableFrom: new Date().toISOString().split('T')[0],
-      currency: 'USD',
+      currency: 'UYU',
       listingType: undefined,
       realEstateOfferMode: 'sale',
       salePrice: '',

@@ -5,6 +5,8 @@ import {
   parsePeriod,
   fillDateRange
 } from './SupabaseHelpers';
+import type { PropertyVisitBySite } from '../types/guestVisitContract';
+import { getGuestTrafficSourceLabelEs } from '../types/guestVisitContract';
 
 // --- Parameter Interface Definitions ---
 export interface MonthlySummaryParams {
@@ -23,22 +25,26 @@ export interface VisitsByPropertyParams {
   page?: number;
   companyId?: string;
   propertyId?: string;
+  listingType?: string | null;
 }
 
 export interface PropertySpecificReportParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string;
+  listingType?: string | null;
 }
 
 export interface DailyVisitsParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string;
   companyId?: string;
   propertyId?: string;
+  listingType?: string | null;
 }
 
 export interface VisitsBySourceParams {
   period: 'last7days' | 'last30days' | 'last90days' | 'thisyear' | string;
   companyId?: string;
   propertyId?: string;
+  listingType?: string | null;
 }
 
 // --- Response Data Interface Definitions ---
@@ -74,6 +80,8 @@ export interface PropertyVisitStat {
   visitsTrend?: 'up' | 'down' | 'flat';
   conversion?: string; // e.g., '13%'
   conversionTrend?: 'up' | 'down' | 'flat';
+  holds?: number;
+  bySite?: PropertyVisitBySite[];
 }
 
 export interface VisitsByPropertyData {
@@ -107,7 +115,9 @@ export interface DashboardSummaryData {
   visits: DashboardSummaryStat;
   messages: DashboardSummaryStat;
   totalProperties?: DashboardSummaryStat;
-  conversionRate?: DashboardSummaryStat;
+  /** Hold starts ÷ property views for the period (percent), or null when no views. */
+  conversionRate?: number | null;
+  holds?: DashboardSummaryStat;
 }
 
 export interface DailyVisit {
@@ -321,13 +331,25 @@ const getVisitsByProperty = async (params: VisitsByPropertyParams): Promise<Visi
       p_company_id: normalizeCompanyIdForRpc(params.companyId),
       p_user_id: userId,
       p_property_id: normalizePropertyIdForRpc(params.propertyId),
+      p_listing_type: normalizeListingTypeForRpc(params.listingType),
     });
 
     if (error) throw error;
 
     const payload = (data ?? {}) as Partial<VisitsByPropertyData>;
+    const rows = Array.isArray(payload.data) ? payload.data : [];
     return {
-      data: Array.isArray(payload.data) ? payload.data : [],
+      data: rows.map((row) => ({
+        ...row,
+        bySite: Array.isArray(row.bySite)
+          ? row.bySite.map((site: Record<string, unknown>) => ({
+              listingType: site.listingType as PropertyVisitBySite['listingType'],
+              visitCount: Number(site.visitCount ?? 0),
+              holds: Number(site.holds ?? 0),
+              conversion: String(site.conversion ?? '—'),
+            }))
+          : undefined,
+      })),
       total: Number(payload.total ?? 0),
       page: Number(payload.page ?? params.page ?? 1),
       limit: Number(payload.limit ?? params.limit ?? 100),
@@ -447,6 +469,7 @@ const getDashboardSummary = async (params?: {
   period: string;
   companyId?: string;
   propertyId?: string;
+  listingType?: string | null;
 }): Promise<DashboardSummaryData> => {
   try {
     const userId = await getCurrentUserId();
@@ -456,11 +479,29 @@ const getDashboardSummary = async (params?: {
       p_company_id: normalizeCompanyIdForRpc(params?.companyId),
       p_user_id: userId,
       p_property_id: normalizePropertyIdForRpc(params?.propertyId),
+      p_listing_type: normalizeListingTypeForRpc(params?.listingType),
     });
 
     if (error) throw error;
 
-    return data as DashboardSummaryData;
+    const raw = (data ?? {}) as Record<string, unknown>;
+    const visits = (raw.visits ?? { currentPeriod: 0 }) as DashboardSummaryStat;
+    const messages = (raw.messages ?? { currentPeriod: 0 }) as DashboardSummaryStat;
+    const totalProperties = raw.totalProperties as DashboardSummaryStat | undefined;
+    const holds = raw.holds as DashboardSummaryStat | undefined;
+    const conversionRate =
+      raw.conversionRate == null || raw.conversionRate === undefined
+        ? null
+        : Number(raw.conversionRate);
+
+    return {
+      propertiesNeedingAttention: raw.propertiesNeedingAttention ?? [],
+      visits,
+      messages,
+      totalProperties,
+      holds,
+      conversionRate,
+    };
 
   } catch (error: any) {
     console.error('Error fetching dashboard summary:', error.message);
@@ -476,6 +517,11 @@ const normalizeCompanyIdForRpc = (companyId?: string): string | null => {
 const normalizePropertyIdForRpc = (propertyId?: string): string | null => {
   if (!propertyId || propertyId === 'all') return null;
   return propertyId;
+};
+
+const normalizeListingTypeForRpc = (listingType?: string | null): string | null => {
+  if (!listingType || listingType === 'all' || listingType === 'todos') return null;
+  return listingType;
 };
 
 const getReportPropertyOptions = async (params?: { companyId?: string }): Promise<ReportPropertyOption[]> => {
@@ -509,6 +555,7 @@ const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }
       p_company_id: normalizeCompanyIdForRpc(params.companyId),
       p_user_id: userId,
       p_property_id: normalizePropertyIdForRpc(params.propertyId),
+      p_listing_type: normalizeListingTypeForRpc(params.listingType),
     });
 
     if (error) throw error;
@@ -528,7 +575,7 @@ const getDailyVisits = async (params: DailyVisitsParams & { companyId?: string }
 
     return filledData.map(item => ({
       date: item.date,
-      dayName: new Date(item.date).toLocaleDateString('es-ES', { weekday: 'short' }),
+      dayName: new Date(item.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'short' }),
       visits: item.count
     }));
   } catch (error: any) {
@@ -614,12 +661,13 @@ const getVisitsBySource = async (params: VisitsBySourceParams & { companyId?: st
       p_company_id: normalizeCompanyIdForRpc(params.companyId),
       p_user_id: userId,
       p_property_id: normalizePropertyIdForRpc(params.propertyId),
+      p_listing_type: normalizeListingTypeForRpc(params.listingType),
     });
 
     if (error) throw error;
 
     const result: VisitSource[] = (rows || []).map((row: { source: string; visits: number }) => ({
-      source: row.source || 'website',
+      source: getGuestTrafficSourceLabelEs(row.source || 'direct'),
       visits: Number(row.visits ?? 0)
     })).sort((a: VisitSource, b: VisitSource) => b.visits - a.visits);
 
@@ -642,7 +690,8 @@ const getPropertyViews = async (
     const { data: rows, error } = await supabase.rpc('get_property_views', {
       p_property_id: propertyId,
       p_period: params.period || 'last30days',
-      p_user_id: userId
+      p_user_id: userId,
+      p_listing_type: normalizeListingTypeForRpc(params.listingType),
     });
 
     if (error) throw error;
@@ -677,13 +726,14 @@ const getPropertyViewsBySource = async (
     const { data: rows, error } = await supabase.rpc('get_property_views_by_source', {
       p_property_id: propertyId,
       p_period: params.period || 'last30days',
-      p_user_id: userId
+      p_user_id: userId,
+      p_listing_type: normalizeListingTypeForRpc(params.listingType),
     });
 
     if (error) throw error;
 
     return (rows || []).map((row: { source: string; visits: number }) => ({
-      source: row.source || 'website',
+      source: getGuestTrafficSourceLabelEs(row.source || 'direct'),
       visits: Number(row.visits ?? 0)
     })).sort((a: VisitSource, b: VisitSource) => b.visits - a.visits);
   } catch (error: any) {
