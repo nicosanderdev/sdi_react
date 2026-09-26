@@ -10,6 +10,7 @@ import { UserManagementToolbar } from '../../../components/admin/users/UserManag
 import { UserDetailModal } from '../../../components/admin/users/UserDetailModal';
 import { UserViewModal } from '../../../components/admin/users/UserViewModal';
 import { UserEditModal } from '../../../components/admin/users/UserEditModal';
+import { ChangeUserPlanModal } from '../../../components/admin/users/ChangeUserPlanModal';
 import { DeleteUserConfirmModal } from '../../../components/admin/users/DeleteUserConfirmModal';
 import { UnlinkMercadoPagoConfirmModal } from '../../../components/admin/users/UnlinkMercadoPagoConfirmModal';
 import { UserStatistics } from '../../../components/admin/users/UserStatistics';
@@ -202,6 +203,7 @@ const UserManagementPage: React.FC = () => {
       <UserViewModal hook={hook} />
       <UserEditModal hook={hook} />
       <UserDetailModal hook={hook} />
+      <ChangeUserPlanModal hook={hook} />
       <DeleteUserConfirmModal hook={hook} />
       <UnlinkMercadoPagoConfirmModal hook={hook} />
       <CreateUserModal

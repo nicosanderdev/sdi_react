@@ -812,7 +812,14 @@ const createPropertyWithOwnerUserId = async (
         const physicalType = ((formData as any).type ?? 'house') as string;
         const propertyCategoryCode = propertyTypeMap[physicalType] ?? propertyTypeMap.house;
 
-        const areaUnitCode = areaUnitMap[((formData as any).areaUnit ?? 'm²') as string] ?? areaUnitMap['m²'];
+        const areaUnitRaw = (formData as any).areaUnit as string | undefined;
+        const areaUnitCode =
+          areaUnitRaw != null && areaUnitRaw !== ''
+            ? areaUnitMap[areaUnitRaw] ?? null
+            : null;
+        const areaValueRaw = formData.areaValue;
+        const areaValue =
+          areaValueRaw != null && Number(areaValueRaw) > 0 ? Number(areaValueRaw) : null;
 
         // The creation wizard currently does not capture location/view categories.
         // Use sensible defaults aligned with the enum order in `public_schema_base.sql`.
@@ -838,7 +845,7 @@ const createPropertyWithOwnerUserId = async (
 
             // structural
             p_property_category: propertyCategoryCode,
-            p_area_value: formData.areaValue,
+            p_area_value: areaValue,
             p_area_unit: areaUnitCode,
             p_bedrooms: formData.bedrooms,
             p_bathrooms: formData.bathrooms,

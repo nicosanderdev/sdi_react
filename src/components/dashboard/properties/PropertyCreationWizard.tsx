@@ -29,6 +29,7 @@ import {
   propertyCreatePublishSchema,
   PropertyFormData,
   resolveCreationListingType,
+  DEFAULT_CREATE_MAP_LOCATION,
 } from '../../../models/properties/PropertyFormSchema';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 import { selectUserCompanies } from '../../../store/slices/userSlice';
@@ -118,7 +119,7 @@ export function PropertyCreationWizard({
     mode: 'onTouched',
     defaultValues: {
       // Ensure location is always defined when the wizard is used directly
-      location: { lat: -34.9011, lng: -56.1645 },
+      location: { ...DEFAULT_CREATE_MAP_LOCATION },
       contentSections: [],
       propertyPolicies: [],
       rentPricePeriod: 'PerNight',

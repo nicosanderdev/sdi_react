@@ -97,8 +97,27 @@ export const propertyPolicySchema = z
 
 const locationBaseSchema = z.object({ lat: z.number(), lng: z.number() });
 
+/** Shared opening pin for member and admin property create maps (Rivera). */
+export const DEFAULT_CREATE_MAP_LOCATION = { lat: -30.8994, lng: -55.5469 } as const;
+
+const areaUnitEnum = z.enum(['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'], {
+  errorMap: () => ({ message: 'La unidad de área es requerida.' }),
+});
+
+const optionalCreateAreaValueSchema = z.preprocess(
+  val => (val === '' || val === null || val === undefined ? undefined : val),
+  z.coerce.number().min(1, 'El área debe ser al menos 1.').optional()
+);
+
+const optionalCreateAreaUnitSchema = z.preprocess(
+  val => (val === '' || val === null || val === undefined ? undefined : val),
+  areaUnitEnum.optional()
+);
+
 const strictCreateLocationSchema = locationBaseSchema.refine(
-  val => val.lat !== -34.9011 || val.lng !== -56.1645,
+  val =>
+    val.lat !== DEFAULT_CREATE_MAP_LOCATION.lat ||
+    val.lng !== DEFAULT_CREATE_MAP_LOCATION.lng,
   {
     message: 'Por favor, confirma la ubicación en el mapa.',
   }
@@ -123,9 +142,7 @@ export const propertyFormBaseSchema = z.object({
     .optional() as z.ZodType<PropertyType | undefined>,
   // structural / infrastructure
   areaValue: z.coerce.number().min(1, 'El área debe ser al menos 1.'),
-  areaUnit: z.enum(['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'], {
-    errorMap: () => ({ message: 'La unidad de área es requerida.' }),
-  }),
+  areaUnit: areaUnitEnum,
   bedrooms: z.coerce.number().int().min(0),
   bathrooms: z.coerce.number().min(0),
   hasGarage: z.boolean(),
@@ -203,9 +220,30 @@ export const propertyFormBaseSchema = z.object({
 
 export const propertyFormSchema = propertyFormBaseSchema;
 
-export const propertyCreateSchema = propertyFormBaseSchema.extend({
-  location: strictCreateLocationSchema,
-});
+export const propertyCreateSchema = propertyFormBaseSchema
+  .extend({
+    location: strictCreateLocationSchema,
+    areaValue: optionalCreateAreaValueSchema,
+    areaUnit: optionalCreateAreaUnitSchema,
+  })
+  .superRefine((data, ctx) => {
+    const hasAreaValue = data.areaValue != null;
+    const hasAreaUnit = data.areaUnit != null;
+    if (hasAreaValue && !hasAreaUnit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La unidad de área es requerida.',
+        path: ['areaUnit'],
+      });
+    }
+    if (hasAreaUnit && !hasAreaValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'El área debe ser al menos 1.',
+        path: ['areaValue'],
+      });
+    }
+  });
 
 /** Create wizard + admin create: publishing requires currency and the correct price column. */
 export const propertyCreatePublishSchema = propertyCreateSchema

@@ -26,7 +26,7 @@ interface Props {
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('es-UY', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'UYU',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value || 0);

@@ -1,7 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { RootState } from '../../../store/store';
 import {
     Crown,
     CreditCard,
@@ -9,23 +6,17 @@ import {
     AlertCircle,
     CheckCircle,
     Clock,
-    BarChart3,
-    Users,
-    Building2,
-    MessageSquare
 } from 'lucide-react';
 import subscriptionService from '../../../services/SubscriptionService';
 import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
-import { Button, Card, Spinner, Alert } from 'flowbite-react';
+import { Button, Card, Spinner } from 'flowbite-react';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
 import type { PropertyType } from '../../../models/properties/PropertyData';
 import { PlanData, formatPlanLimit } from '../../../models/subscriptions/PlanData';
 
 export function ManagerSubscriptionPage() {
-    const user = useSelector((state: RootState) => state.user.profile);
-    const navigate = useNavigate();
     const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
     const [memberPlans, setMemberPlans] = useState<PlanData[]>([]);
     const [billingHistory, setBillingHistory] = useState<BillingHistoryData[]>([]);
@@ -125,29 +116,30 @@ export function ManagerSubscriptionPage() {
         );
     }
 
-
-    const formatDate = (dateStr : string) => {
-        if (!dateStr) return "";
-        const d = new Date(dateStr);
-        const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-        return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
-      };
-
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'active': return 'text-green-600 bg-green-100';
-            case 'expired': return 'text-red-600 bg-red-100';
-            case 'pending': return 'text-yellow-600 bg-yellow-100';
+            case '1': return 'text-green-600 bg-green-100';
+            case '2': return 'text-yellow-600 bg-yellow-100';
+            case '0':
             default: return 'text-gray-600 bg-gray-100';
         }
     };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case '0': return <CheckCircle className="w-4 h-4" />;
-            case '1': return <AlertCircle className="w-4 h-4" />;
+            case '1': return <CheckCircle className="w-4 h-4" />;
             case '2': return <Clock className="w-4 h-4" />;
-            default: return <Clock className="w-4 h-4" />;
+            case '0':
+            default: return <AlertCircle className="w-4 h-4" />;
+        }
+    };
+
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case '1': return 'Activo';
+            case '2': return 'Pendiente';
+            case '0':
+            default: return 'Inactivo';
         }
     };
 
@@ -177,6 +169,8 @@ export function ManagerSubscriptionPage() {
         isQuotaLoading || displayTotalLimit == null || displayTotalLimit <= 0
             ? 0
             : Math.min(100, (ownedCount / displayTotalLimit) * 100);
+
+    const statusKey = subscription?.status.toString() ?? '';
 
     return (
         <div className="max-w-6xl mx-auto p-6">
@@ -212,199 +206,157 @@ export function ManagerSubscriptionPage() {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Subscription Overview */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Current Plan Card */}
-                    <Card>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-xl font-semibold">Plan Actual</h2>
-                            <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(subscription?.status ?? '')}`}>
-                                {getStatusIcon(subscription?.status.toString() ?? '')}
+            <div className="space-y-6">
+                {/* Current Plan Card */}
+                <Card>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold">Plan Actual</h2>
+                        <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(statusKey)}`}>
+                            {getStatusIcon(statusKey)}
+                            <span>{getStatusLabel(statusKey)}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h3 className="text-2xl font-bold mb-2">
+                                {subscription?.plan.name ?? ''}
+                            </h3>
+                            <div className="flex items-baseline space-x-2 mb-4">
+                                <span className="text-3xl font-bold">
+                                    {subscription?.plan.monthlyPrice ?? ''} {subscription?.plan.currency ?? ''}
+                                </span>
+                                {subscription.plan.key !== PlanKey.FREE && (
+                                    <span className="text-gray-600">/{subscription?.plan.billingCycle ?? ''}</span>
+                                )}
                             </div>
+                            {Number(subscription?.plan.monthlyPrice ?? 0) === 0 ? (
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                    Plan permanente. Se factura solo si hay actividad.
+                                </p>
+                            ) : (
+                                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                                    Plan permanente. Un administrador de la plataforma debe cambiarlo.
+                                </p>
+                            )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
                             <div>
-                                <h3 className="text-2xl font-bold mb-2">
-                                    {subscription?.plan.name ?? ''}
-                                </h3>
-                                <div className="flex items-baseline space-x-2 mb-4">
-                                    <span className="text-3xl font-bold">
-                                        {subscription?.plan.monthlyPrice ?? ''} {subscription?.plan.currency ?? ''}
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-600 dark:text-gray-300">Propiedades publicadas</span>
+                                    <span className="font-medium">
+                                        {isQuotaLoading ? '...' : `${publishedCount}/${formatPlanLimit(displayPublishedLimit)}`}
                                     </span>
-                                    {subscription.plan.key !== PlanKey.FREE && (
-                                        <span className="text-gray-600">/{subscription?.plan.billingCycle ?? ''}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    {isQuotaLoading ? (
+                                        <div className="bg-gray-300 h-2 rounded-full animate-pulse" style={{ width: "50%" }}></div>
+                                    ) : (
+                                        <div
+                                            className="bg-[#1B4965] h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${publishedPercentage}%` }}
+                                        >
+                                        </div>
                                     )}
                                 </div>
-                                {Number(subscription?.plan.monthlyPrice ?? 0) === 0 ? (
-                                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                        Plan permanente. Se factura solo si hay actividad.
-                                    </p>
-                                ) : (
-                                    <p className="text-gray-600 dark:text-gray-400 mb-4">
-                                        Plan permanente. Un administrador de la plataforma debe cambiarlo.
-                                    </p>
-                                )}
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    El cambio de plan personal no está disponible por ahora. Tu plan y uso se muestran a continuación.
-                                </p>
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-gray-600 dark:text-gray-300">Propiedades publicadas</span>
-                                        <span className="font-medium">
-                                            {isQuotaLoading ? '...' : `${publishedCount}/${formatPlanLimit(displayPublishedLimit)}`}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        {isQuotaLoading ? (
-                                            <div className="bg-gray-300 h-2 rounded-full animate-pulse" style={{ width: "50%" }}></div>
-                                        ) : (
-                                            <div
-                                                className="bg-[#1B4965] h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${publishedPercentage}%` }}
-                                            >
-                                            </div>
-                                        )}
-                                    </div>
+                            <div>
+                                <div className="flex justify-between text-sm mb-1">
+                                    <span className="text-gray-600 dark:text-gray-300">Propiedades totales</span>
+                                    <span className="font-medium">
+                                        {isQuotaLoading ? '...' : `${ownedCount}/${formatPlanLimit(displayTotalLimit)}`}
+                                    </span>
                                 </div>
-
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-gray-600 dark:text-gray-300">Propiedades totales</span>
-                                        <span className="font-medium">
-                                            {isQuotaLoading ? '...' : `${ownedCount}/${formatPlanLimit(displayTotalLimit)}`}
-                                        </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        {isQuotaLoading ? (
-                                            <div className="bg-gray-300 h-2 rounded-full animate-pulse" style={{ width: "50%" }}></div>
-                                        ) : (
-                                            <div
-                                                className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${totalPercentage}%` }}
-                                            ></div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* <div>
-                                    <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-gray-600 dark:text-gray-300">Usuarios</span>
-                                        <span className="font-medium">1/{subscription?.plan.maxUsers ?? '0'}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                    {isQuotaLoading ? (
+                                        <div className="bg-gray-300 h-2 rounded-full animate-pulse" style={{ width: "50%" }}></div>
+                                    ) : (
                                         <div
-                                            className="bg-blue-500 h-2 rounded-full"
-                                            style={{ width: "18%" }}
+                                            className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${totalPercentage}%` }}
                                         ></div>
-                                    </div>
-                                </div> */}
-                            </div>
-                        </div>
-                    </Card>
-
-                    {memberPlans.length > 0 && (
-                    <Card data-testid="member-plans-catalog">
-                        <h3 className="text-lg font-semibold mb-2">Planes personales</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            Solo un administrador de la plataforma puede cambiar tu plan.
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {memberPlans.map((plan) => {
-                                const isCurrent = plan.id === subscription?.planId;
-                                return (
-                                    <div
-                                        key={plan.id}
-                                        className={`rounded-lg border p-4 ${isCurrent ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200 dark:border-gray-700'}`}
-                                    >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <h4 className="font-semibold">{plan.name}</h4>
-                                            {isCurrent && (
-                                                <span className="text-xs font-medium text-green-700">Actual</span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm mb-2">
-                                            {plan.monthlyPrice} {plan.currency}
-                                        </p>
-                                        <p className="text-xs text-gray-600">
-                                            {formatPlanLimit(plan.totalProperties)} propiedades · {formatPlanLimit(plan.maxUsers)} usuarios
-                                        </p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </Card>
-                    )}
-
-                    {/* Billing History */}
-                    <Card>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold">Historial de Facturación</h3>
-                            <p>Últimas facturas</p>
-                        </div>
-                        {billingHistory.length > 0 && (
-                        <div className="space-y-3">
-                            {billingHistory.map((invoice : BillingHistoryData) => (
-                                <div key={invoice.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                    <div>
-                                        <p className="font-medium">{invoice.providerInvoiceId}</p>
-                                        <p className="text-sm text-gray-600 dark:text-gray-400">{new Date(invoice.paidAt).toLocaleDateString('es-ES')}</p>
-                                    </div>
-                                    <div className="flex items-center space-x-4">
-                                        <span className="font-semibold">{invoice.currency} {invoice.amount}</span>
-                                        <button
-                                            onClick={() => handleDownloadInvoice(invoice.id)}
-                                            className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-400 transition-colors"
-                                        >
-                                            <Download className="w-4 h-4" />
-                                            <span className="text-sm">Descargar</span>
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
-                                ))}
                             </div>
-                        )}
-                        {billingHistory.length === 0 && (
-                            <div className="text-center py-8">
-                                <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                <h3 className="text-xl font-semibold mb-2">No hay facturas</h3>
-                                <p className="text-gray-600">Aún no hay facturas para esta suscripción.</p>
-                            </div>
-                        )}
-                    </Card>
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                    {/* Quick Actions */}
-                    <Card>
-                        <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
-                        <div className="space-y-3">
-                            <button 
-                                onClick={() => navigate('/dashboard/subscription/billing-history')}
-                                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                            >
-                                <CreditCard className="w-5 h-5" />
-                                <span>Historial de Facturación</span>
-                            </button>
                         </div>
-                    </Card>
-
-                    {/* Support */}
-                    <div className="bg-gradient-to-r from-blue-500 to-green-600 rounded-lg p-6 text-white">
-                        <h3 className="text-lg font-semibold mb-2">¿Necesitas Ayuda?</h3>
-                        <p className="text-blue-100 mb-4">
-                            Nuestro equipo de soporte está aquí para ayudarte con cualquier pregunta sobre tu suscripción.
-                        </p>
-                        <button className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                            Contactar Soporte
-                        </button>
                     </div>
-                </div>
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-6 w-full">
+                        El cambio de plan personal no está disponible por ahora. Tu plan y uso se muestran a continuación.
+                    </p>
+                </Card>
+
+                {memberPlans.length > 0 && (
+                <Card data-testid="member-plans-catalog">
+                    <h3 className="text-lg font-semibold mb-2">Planes personales</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Solo un administrador de la plataforma puede cambiar tu plan.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {memberPlans.map((plan) => {
+                            const isCurrent = plan.id === subscription?.planId;
+                            return (
+                                <div
+                                    key={plan.id}
+                                    className={`rounded-lg border p-4 ${isCurrent ? 'border-green-500 ring-1 ring-green-500' : 'border-gray-200 dark:border-gray-700'}`}
+                                >
+                                    <div className="flex items-center justify-between mb-1">
+                                        <h4 className="font-semibold">{plan.name}</h4>
+                                        {isCurrent && (
+                                            <span className="text-xs font-medium text-green-700">Actual</span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm mb-2">
+                                        {plan.monthlyPrice} {plan.currency}
+                                    </p>
+                                    <p className="text-xs text-gray-600">
+                                        {formatPlanLimit(plan.totalProperties)} propiedades · {formatPlanLimit(plan.maxUsers)} usuarios
+                                    </p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+                )}
+
+                {/* Billing History */}
+                <Card>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold">Historial de Facturación</h3>
+                        <p>Últimas facturas</p>
+                    </div>
+                    {billingHistory.length > 0 && (
+                    <div className="space-y-3">
+                        {billingHistory.map((invoice : BillingHistoryData) => (
+                            <div key={invoice.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div>
+                                    <p className="font-medium">{invoice.providerInvoiceId}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">{new Date(invoice.paidAt).toLocaleDateString('es-ES')}</p>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="font-semibold">{invoice.currency} {invoice.amount}</span>
+                                    <button
+                                        onClick={() => handleDownloadInvoice(invoice.id)}
+                                        className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-400 transition-colors"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        <span className="text-sm">Descargar</span>
+                                    </button>
+                                </div>
+                            </div>
+                            ))}
+                        </div>
+                    )}
+                    {billingHistory.length === 0 && (
+                        <div className="text-center py-8">
+                            <CreditCard className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                            <h3 className="text-xl font-semibold mb-2">No hay facturas</h3>
+                            <p className="text-gray-600">Aún no hay facturas para esta suscripción.</p>
+                        </div>
+                    )}
+                </Card>
             </div>
         </div>
     );

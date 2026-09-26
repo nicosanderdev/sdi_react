@@ -164,12 +164,13 @@ export function PropertyFormStep2({
   const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
     const baseFieldsToValidate: (keyof PropertyFormData)[] = [
-      'areaValue',
-      'areaUnit',
       'bedrooms',
       'bathrooms',
       'garageSpaces',
     ];
+    if (editMode) {
+      baseFieldsToValidate.unshift('areaValue', 'areaUnit');
+    }
 
     const isValid = await trigger(baseFieldsToValidate);
     if (isValid) {
@@ -192,7 +193,7 @@ export function PropertyFormStep2({
           <div>
             <div className="mb-2 block">
               <Label htmlFor="areaValue">
-                Área Total*
+                {editMode ? 'Área Total*' : 'Área Total'}
               </Label>
             </div>
             <TextInput
@@ -206,7 +207,7 @@ export function PropertyFormStep2({
           <div>
             <div className="mb-2 block">
               <Label htmlFor="areaUnit">
-                Unidad de Área*
+                {editMode ? 'Unidad de Área*' : 'Unidad de Área'}
               </Label>
             </div>
             <Select

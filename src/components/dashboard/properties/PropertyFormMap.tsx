@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { DEFAULT_CREATE_MAP_LOCATION } from '../../../models/properties/PropertyFormSchema';
 
 interface PropertyFormMapProps {
   location: {
@@ -22,8 +23,6 @@ export function PropertyFormMap({
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const isInternalUpdateRef = useRef(false);
 
-  const effectiveLocation = location ?? { lat: -34.9011, lng: -56.1645 };
-
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -33,10 +32,10 @@ export function PropertyFormMap({
       const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
       mapboxgl.accessToken = mapboxToken;
 
-      // Default to Montevideo center if no location is set or location is (0,0)
+      // Default to Rivera center if no location is set or location is (0,0)
       const defaultLocation =
         !location || (location.lat === 0 && location.lng === 0)
-          ? [-34.9011, -56.1645]
+          ? [DEFAULT_CREATE_MAP_LOCATION.lng, DEFAULT_CREATE_MAP_LOCATION.lat]
           : [location.lng, location.lat];
 
       mapInstanceRef.current = new mapboxgl.Map({

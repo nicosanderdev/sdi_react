@@ -1,7 +1,7 @@
 // src/components/admin/users/UserManagementToolbar.tsx
 import React from 'react';
 import { Button } from 'flowbite-react';
-import { EyeIcon, Edit2Icon, TrashIcon, LinkIcon, UnlinkIcon } from 'lucide-react';
+import { EyeIcon, Edit2Icon, TrashIcon, LinkIcon, UnlinkIcon, CreditCardIcon } from 'lucide-react';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 import { UserActionsMenu } from './UserActionsMenu';
 
@@ -18,6 +18,7 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
     openDeleteConfirmModal,
     sendMercadoPagoLink,
     openUnlinkMercadoPagoModal,
+    openChangePlanModal,
     actionLoading,
   } = hook;
 
@@ -42,6 +43,11 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
   const handleDelete = () => {
     if (!primarySelectedUser) return;
     openDeleteConfirmModal(primarySelectedUser);
+  };
+
+  const handleChangePlan = () => {
+    if (!primarySelectedUser) return;
+    openChangePlanModal(primarySelectedUser);
   };
 
   const handleSendMpLink = () => {
@@ -82,6 +88,17 @@ export const UserManagementToolbar: React.FC<UserManagementToolbarProps> = ({ ho
             <span>Editar</span>
           </Button>
           <UserActionsMenu user={primarySelectedUser} hook={hook} />
+          <Button
+            size="sm"
+            color="light"
+            disabled={disabled}
+            onClick={handleChangePlan}
+            className="flex items-center gap-2"
+            data-testid="admin-users-change-plan"
+          >
+            <CreditCardIcon className="w-4 h-4 shrink-0" />
+            <span>Cambiar plan</span>
+          </Button>
           <Button
             size="sm"
             color="light"

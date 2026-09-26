@@ -395,8 +395,28 @@ const getCompanyFreeLandingPlan = async (): Promise<PlanData | null> => {
 };
 
 /**
- * Active company-subject BillingPlanAssignment, or null when none.
+ * Active BillingPlanAssignment plan for a member or company, or null when none.
+ * Includes inactive plan rows: assignment wins even if the SKU is inactive.
  */
+const getActiveAssignedPlan = async (
+    subjectType: 'member' | 'company',
+    subjectId: string,
+): Promise<PlanData | null> => {
+    const { data, error } = await supabase
+        .from('BillingPlanAssignments')
+        .select('*, Plans (*)')
+        .eq('SubjectType', subjectType)
+        .eq('MemberOrCompanyId', subjectId)
+        .eq('IsActive', true)
+        .order('StartDate', { ascending: false })
+        .limit(1);
+
+    if (error) throw error;
+    const plan = data?.[0]?.Plans;
+    if (!plan) return null;
+    return mapPlanRow(plan);
+};
+
 const getCompanySubscription = async (companyId: string): Promise<SubscriptionData | null> => {
     const { data, error } = await supabase
         .from('BillingPlanAssignments')
@@ -648,6 +668,7 @@ const subscriptionService = {
     getCompanyFreeLandingPlan,
     getBillingHistory,
     getPlans,
+    getActiveAssignedPlan,
     getCompanySubscription,
     getAdminSubscriptions,
     downloadInvoice,
