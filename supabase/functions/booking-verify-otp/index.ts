@@ -50,6 +50,7 @@ Deno.serve(async (req: Request) => {
     });
 
     if (verifyError) {
+      console.error('booking-verify-otp rpc failed:', verifyError);
       return jsonResponse({ success: false, error: 'OTP verification failed' }, 500);
     }
 

@@ -51,8 +51,8 @@ function computeNightly(
   const raw =
     listing.basePrice * seasonFactor * specialFactor * demandFactor * anticipationFactor;
   const rounding = getRoundingMode(params);
-  const clamped = clampPrice(raw, listing.minPrice, listing.maxPrice);
-  const rounded = commercialRound(clamped, rounding);
+  const rounded = commercialRound(raw, rounding);
+  const clamped = clampPrice(rounded, listing.minPrice, listing.maxPrice);
   return {
     seasonFactor,
     specialFactor,
@@ -72,8 +72,8 @@ export function computeFromPrice(
   const lowSeason = paramNumber(params, 'SEASON_FACTOR_LOW', 0.9);
   const raw = listing.basePrice * lowSeason;
   const rounding = getRoundingMode(params);
-  const clamped = clampPrice(raw, listing.minPrice, listing.maxPrice);
-  return commercialRound(clamped, rounding);
+  const rounded = commercialRound(raw, rounding);
+  return clampPrice(rounded, listing.minPrice, listing.maxPrice);
 }
 
 export function calculateDisplayPrice(
@@ -117,7 +117,7 @@ export function calculateDisplayPrice(
   let subtotal = 0;
   const nightDetails = nightDates.map(dateIso => {
     const n = computeNightly(listing, dateIso, params, searchDate, dailyFactors);
-    subtotal += n.roundedNightly;
+    subtotal += n.clampedNightly;
     return {
       date: dateIso,
       basePrice: listing.basePrice,

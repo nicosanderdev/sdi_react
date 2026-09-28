@@ -10,6 +10,7 @@ import {
   propertyCreatePublishSchema,
   PropertyFormData,
   resolveCreationListingType,
+  DEFAULT_CREATE_MAP_LOCATION,
 } from '../../../models/properties/PropertyFormSchema';
 import { PropertyFormStep1 } from '../../../components/dashboard/properties/PropertyFormStep1';
 import { PropertyFormStep2 } from '../../../components/dashboard/properties/PropertyFormStep2';
@@ -66,10 +67,10 @@ export function AdminCreatePropertyPage() {
       state: '',
       zipCode: '',
       country: 'Uruguay',
-      location: { lat: -30.8994, lng: -55.5469 },
+      location: { ...DEFAULT_CREATE_MAP_LOCATION },
       title: '',
       propertyType: 'SummerRent',
-      areaValue: 0,
+      areaValue: undefined,
       areaUnit: undefined,
       bedrooms: 1,
       bathrooms: 1,
@@ -177,11 +178,11 @@ export function AdminCreatePropertyPage() {
     setIsSubmittingProperty(true);
     try {
       const publishNow = formData.isActive === true;
-      const propertyPayload: PropertyFormData = {
+      const propertyPayload = {
         ...formData,
         isPropertyVisible: publishNow,
         isActive: publishNow,
-      };
+      } as PropertyFormData;
       const processedImages = displayImages.map((img) => ({
         ...img,
         altText: img.alt || '',

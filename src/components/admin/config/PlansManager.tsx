@@ -232,6 +232,7 @@ export function PlansManager() {
   const [rows, setRows] = useState<AdminPlanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -253,35 +254,42 @@ export function PlansManager() {
     void load();
   }, [load]);
 
+  const closeModal = () => {
+    setModalOpen(false);
+    setFormError(null);
+  };
+
   const openCreate = () => {
     setForm(emptyForm(String(nextPlanKey(rows))));
+    setFormError(null);
     setModalOpen(true);
   };
 
   const openEdit = (row: AdminPlanRow) => {
     setForm(rowToForm(row));
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
-      setError(null);
+      setFormError(null);
 
       if (!form.name.trim()) {
-        setError('El nombre es obligatorio');
+        setFormError('El nombre es obligatorio');
         return;
       }
       if (!form.id && (form.key.trim() === '' || Number.isNaN(parseInt(form.key, 10)))) {
-        setError('No se pudo asignar la clave (Key) del plan');
+        setFormError('No se pudo asignar la clave (Key) del plan');
         return;
       }
 
       await upsertAdminPlan(formToPayload(form));
-      setModalOpen(false);
+      closeModal();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar');
+      setFormError(e instanceof Error ? e.message : 'Error al guardar');
     } finally {
       setSaving(false);
     }
@@ -356,9 +364,14 @@ export function PlansManager() {
         </div>
       )}
 
-      <Modal show={modalOpen} onClose={() => setModalOpen(false)} size="4xl">
+      <Modal show={modalOpen} onClose={closeModal} size="4xl">
         <ModalHeader>{isEdit ? 'Editar plan' : 'Nuevo plan'}</ModalHeader>
         <ModalBody>
+          {formError && (
+            <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
             <FieldGroup title="Identificación">
               {isEdit && (
@@ -592,7 +605,7 @@ export function PlansManager() {
             </FieldGroup>
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button color="alternative" onClick={() => setModalOpen(false)}>
+              <Button color="alternative" onClick={closeModal}>
                 Cancelar
               </Button>
               <Button onClick={() => void handleSave()} disabled={saving}>
