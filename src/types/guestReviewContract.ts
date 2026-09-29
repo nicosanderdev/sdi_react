@@ -12,6 +12,7 @@
  *          supabase/migrations/20260918200000_public_featured_properties.sql
  * Consumer: client/trips apps (not wired in sdi_react dashboard today).
  * Messaging / OTP handoff: docs/handoffs/guest-booking-messaging.md
+ * Cancellation policies + partial payments: docs/handoffs/booking-cancellation-policies.md
  * Property images (search + detail): docs/handoffs/guest-property-images-frontend.md
  * Homepage featured listings: docs/handoffs/guest-featured-properties-frontend.md
  * Mercado Pago guest UI: docs/handoffs/guest-mercado-pago-frontend.md
@@ -175,6 +176,39 @@ export interface PublicSummerRentListRow extends PublicPropertyListRowBase {
 export type GetPublicFeaturedEventVenuePropertiesResponse = PublicEventVenueListRow[];
 export type GetPublicFeaturedSummerRentPropertiesResponse = PublicSummerRentListRow[];
 
+/** Structured cancellation / deposit policy (property or frozen on booking). */
+export interface PublicCancellationPolicy {
+  freeCancellationDays: number;
+  refundPercentBefore: number;
+  refundPercentAfter: number;
+  depositPercent: number;
+  balanceDueDays: number | null;
+}
+
+/** `get_public_property_content` payload (policies + cancellationPolicy). */
+export interface PublicPropertyContent {
+  policies: unknown[];
+  contentSections: unknown[];
+  amenities: unknown[];
+  cancellationPolicy: PublicCancellationPolicy | null;
+}
+
+export type BookingPaymentStatusCode =
+  | 0 // Unpaid
+  | 1 // Paid
+  | 2 // PartiallyPaid
+  | 3 // PartiallyRefunded
+  | 4; // Refunded
+
+export type BookingRefundStatusCode =
+  | 0 // NotRequired
+  | 1 // Owed
+  | 2 // PartiallyRefunded
+  | 3 // Refunded
+  | 4; // Overdue
+
+export type CancellationInitiator = 'guest' | 'host' | 'admin' | 'system';
+
 /**
  * Booked-guest host profile from `get_booking_property_owner`.
  * Auth with manage token OR reservation code + listing type.
@@ -234,6 +268,12 @@ export interface GuestReservation {
   /** True when seller is connected, booking unpaid via MP, and amount > 0. */
   canPayOnline?: boolean;
   sellerConnected?: boolean;
+  amountPaid?: number | null;
+  amountDue?: number | null;
+  depositAmount?: number | null;
+  paymentStatus?: BookingPaymentStatusCode | number | null;
+  refundStatus?: BookingRefundStatusCode | number | null;
+  cancellationPolicy?: PublicCancellationPolicy | null;
 }
 
 export interface GetReservationByCodeSuccess {
@@ -257,7 +297,10 @@ export type GuestBookingErrorCode =
   | 'CANNOT_PAY'
   | 'INVALID_AMOUNT'
   | 'AMOUNT_MISMATCH'
-  | 'CURRENCY_MISMATCH';
+  | 'CURRENCY_MISMATCH'
+  | 'BOOKING_CANCELLED'
+  | 'PAYMENT_DEADLINE_PASSED'
+  | 'PREVIEW_MISMATCH';
 
 export type GetReservationByCodeResponse =
   | GetReservationByCodeSuccess
@@ -283,6 +326,12 @@ export interface ManageBookingView {
   mercadoPagoApprovedAt?: string | null;
   canPayOnline?: boolean;
   sellerConnected?: boolean;
+  amountPaid?: number | null;
+  amountDue?: number | null;
+  depositAmount?: number | null;
+  paymentStatus?: BookingPaymentStatusCode | number | null;
+  refundStatus?: BookingRefundStatusCode | number | null;
+  cancellationPolicy?: PublicCancellationPolicy | null;
 }
 
 /** create_booking_hold / confirm_booking_from_hold Mercado Pago eligibility. */
@@ -317,13 +366,22 @@ export interface BookingPaymentStatusSuccess {
   booking_id: string;
   reservation_code: string | null;
   amount: number | null;
+  total_amount?: number | null;
+  amount_paid?: number | null;
+  amount_due?: number | null;
+  deposit_amount?: number | null;
   currency: number | null;
   currency_code: string;
+  payment_status?: number | null;
+  refund_status?: number | null;
   mercado_pago_approved: boolean;
   mercado_pago_approved_at: string | null;
   can_pay_online: boolean;
   seller_connected: boolean;
   seller_error_code?: string | null;
+  cancellation_policy?: PublicCancellationPolicy | null;
+  deposit_deadline_at?: string | null;
+  balance_due_at?: string | null;
 }
 
 export type BookingPaymentStatusResponse =
@@ -446,6 +504,9 @@ export interface ConfirmBookingFromHoldSuccess {
   total_amount?: number;
   currency?: number;
   currency_code?: string;
+  cancellation_policy?: PublicCancellationPolicy;
+  deposit_amount?: number;
+  amount_due?: number;
   mercado_pago?: MercadoPagoBookingEligibility;
 }
 
@@ -492,3 +553,20 @@ export function isGuestBookingOverlapError(
   }
   return 'hasOverlap' in result && result.hasOverlap === true;
 }
+
+export interface CancellationPreviewSuccess {
+  success: true;
+  bookingId: string;
+  initiator: CancellationInitiator;
+  canCancel: boolean;
+  policyTier: 'before' | 'after' | 'host_full' | 'n/a' | string;
+  amountPaid: number;
+  refundPercent: number;
+  refundAmount: number;
+  refundDueAt: string | null;
+  policySnapshot: PublicCancellationPolicy;
+  previewHash: string;
+  message?: string | null;
+}
+
+export type CancellationPreviewResponse = CancellationPreviewSuccess | RpcFailure;

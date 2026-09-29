@@ -163,16 +163,25 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!paymentInfo.can_pay_online) {
+      const payBlockCode =
+        typeof paymentInfo.pay_block_code === 'string' ? paymentInfo.pay_block_code : null;
+      const errorCode = paymentInfo.mercado_pago_approved
+        ? 'ALREADY_APPROVED'
+        : payBlockCode || paymentInfo.seller_error_code || 'CANNOT_PAY';
+      const errorMessage =
+        errorCode === 'ALREADY_APPROVED'
+          ? 'Booking payment already approved'
+          : errorCode === 'BOOKING_CANCELLED'
+            ? 'Booking is cancelled'
+            : errorCode === 'PAYMENT_DEADLINE_PASSED'
+              ? 'Payment deadline has passed'
+              : errorCode === 'SELLER_NOT_CONNECTED'
+                ? 'Property owner is not connected to Mercado Pago'
+                : 'Online payment is not available for this booking';
       return json({
         success: false,
-        error: paymentInfo.mercado_pago_approved
-          ? 'Booking payment already approved'
-          : paymentInfo.seller_error_code === 'SELLER_NOT_CONNECTED'
-            ? 'Property owner is not connected to Mercado Pago'
-            : 'Online payment is not available for this booking',
-        error_code: paymentInfo.mercado_pago_approved
-          ? 'ALREADY_APPROVED'
-          : paymentInfo.seller_error_code || 'CANNOT_PAY',
+        error: errorMessage,
+        error_code: errorCode,
       }, 409);
     }
 
@@ -270,35 +279,47 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('MERCADO_PAGO_NOTIFICATION_URL') ||
       `${supabaseUrl}/functions/v1/mercado-pago-webhook`;
 
+    const preferenceBody: Record<string, unknown> = {
+      items: [
+        {
+          id: resolved.bookingId,
+          title: `Reserva ${paymentInfo.reservation_code || resolved.bookingId}`,
+          quantity: 1,
+          currency_id: currencyCode,
+          unit_price: amount,
+        },
+      ],
+      external_reference: externalReference,
+      notification_url: notificationUrl,
+      back_urls: {
+        success: `${returnBase}/pago-mercado-pago/resultado?status=success&bookingId=${resolved.bookingId}`,
+        pending: `${returnBase}/pago-mercado-pago/resultado?status=pending&bookingId=${resolved.bookingId}`,
+        failure: `${returnBase}/pago-mercado-pago/resultado?status=failure&bookingId=${resolved.bookingId}`,
+      },
+      auto_return: 'approved',
+      metadata: {
+        booking_id: resolved.bookingId,
+        attempt_id: attemptId,
+        seller_member_id: sellerMemberId,
+      },
+      // marketplace_fee intentionally omitted (zero marketplace fee).
+    };
+
+    const deadlineRaw =
+      paymentInfo.deposit_deadline_at || paymentInfo.balance_due_at || null;
+    if (typeof deadlineRaw === 'string' && deadlineRaw.length > 0) {
+      const deadline = new Date(deadlineRaw);
+      if (!Number.isNaN(deadline.getTime()) && deadline.getTime() > Date.now()) {
+        preferenceBody.expiration_date_to = deadline.toISOString();
+        preferenceBody.expires = true;
+      }
+    }
+
     const preference = await mpApiRequest<PreferenceResponse>('/checkout/preferences', {
       accessToken,
       method: 'POST',
       idempotencyKey,
-      body: {
-        items: [
-          {
-            id: resolved.bookingId,
-            title: `Reserva ${paymentInfo.reservation_code || resolved.bookingId}`,
-            quantity: 1,
-            currency_id: currencyCode,
-            unit_price: amount,
-          },
-        ],
-        external_reference: externalReference,
-        notification_url: notificationUrl,
-        back_urls: {
-          success: `${returnBase}/pago-mercado-pago/resultado?status=success&bookingId=${resolved.bookingId}`,
-          pending: `${returnBase}/pago-mercado-pago/resultado?status=pending&bookingId=${resolved.bookingId}`,
-          failure: `${returnBase}/pago-mercado-pago/resultado?status=failure&bookingId=${resolved.bookingId}`,
-        },
-        auto_return: 'approved',
-        metadata: {
-          booking_id: resolved.bookingId,
-          attempt_id: attemptId,
-          seller_member_id: sellerMemberId,
-        },
-        // marketplace_fee intentionally omitted (zero marketplace fee).
-      },
+      body: preferenceBody,
     });
 
     await supabase

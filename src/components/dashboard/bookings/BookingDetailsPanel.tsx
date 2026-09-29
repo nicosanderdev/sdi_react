@@ -7,10 +7,6 @@ import {
   DollarSign,
   Calendar as CalendarIcon,
   Users,
-  Edit3,
-  Trash2,
-  Save,
-  X,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -18,16 +14,34 @@ import {
   CheckSquare
 } from 'lucide-react';
 import { Button, Card, Label, TextInput, Textarea, Select, Modal, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
-import BookingService, { BookingWithMember, BookingFormData } from '../../../services/BookingService';
+import BookingService, { BookingWithMember } from '../../../services/BookingService';
+import BookingPaymentsService from '../../../services/BookingPaymentsService';
+import BookingCancellationService from '../../../services/BookingCancellationService';
 import { BookingStatus, Currency, CURRENCY_NAMES, CURRENCY_SYMBOLS } from '../../../models/calendar/CalendarSync';
+import { CancelBookingModal } from './CancelBookingModal';
 
-/** Etiquetas de estado en español (panel solo usado en reservas por propiedad) */
 const BOOKING_STATUS_ES: Record<BookingStatus, string> = {
   [BookingStatus.Pending]: 'Pendiente',
   [BookingStatus.Confirmed]: 'Confirmada',
   [BookingStatus.Cancelled]: 'Cancelada',
   [BookingStatus.Completed]: 'Completada',
   [BookingStatus.NoShow]: 'No se presentó'
+};
+
+const PAYMENT_STATUS_ES: Record<number, string> = {
+  0: 'Sin pagar',
+  1: 'Pagada',
+  2: 'Pago parcial',
+  3: 'Reembolso parcial',
+  4: 'Reembolsada'
+};
+
+const REFUND_STATUS_ES: Record<number, string> = {
+  0: 'No aplica',
+  1: 'Reembolso pendiente',
+  2: 'Reembolso parcial',
+  3: 'Reembolsada',
+  4: 'Reembolso vencido'
 };
 
 interface BookingDetailsPanelProps {
@@ -42,197 +56,44 @@ interface BookingDetailsPanelProps {
   onCancel: () => void;
 }
 
-interface BookingFormState {
-  checkInDate: string;
-  checkOutDate: string;
-  guestId: string | null;
-  guestCount: number;
-  totalAmount: number;
-  currency: Currency;
-  notes: string;
-  bookingSource: string;
-  externalBookingId: string;
-}
-
 const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
-  propertyId,
   selectedBooking,
   selectedDate,
   availableBookings = [],
   onBookingChange,
-  onNewBooking,
-  onBookingDelete,
   onBookingSelect,
   onCancel
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [payAmount, setPayAmount] = useState('');
+  const [payNote, setPayNote] = useState('');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundNote, setRefundNote] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
 
-  const [formData, setFormData] = useState<BookingFormState>({
-    checkInDate: '',
-    checkOutDate: '',
-    guestId: '',
-    guestCount: 1,
-    totalAmount: 0,
-    currency: Currency.UYU,
-    notes: '',
-    bookingSource: 'internal',
-    externalBookingId: ''
-  });
-
-  // Initialize form data when booking is selected
   useEffect(() => {
-    if (selectedBooking) {
-      setFormData({
-        checkInDate: selectedBooking.CheckInDate,
-        checkOutDate: selectedBooking.CheckOutDate,
-        guestId: selectedBooking.GuestId,
-        guestCount: selectedBooking.GuestCount,
-        totalAmount: selectedBooking.TotalAmount || 0,
-        currency: selectedBooking.Currency,
-        notes: selectedBooking.Notes || '',
-        bookingSource: selectedBooking.BookingSource || 'internal',
-        externalBookingId: selectedBooking.ExternalBookingId || ''
-      });
-      setIsEditing(false);
-      setIsCreating(false);
-    } else if (selectedDate) {
-      // Initialize for new booking
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      setFormData({
-        checkInDate: dateStr,
-        checkOutDate: dateStr,
-        guestId: '',
-        guestCount: 1,
-        totalAmount: 0,
-        currency: Currency.UYU,
-        notes: '',
-        bookingSource: 'internal',
-        externalBookingId: ''
-      });
-      setIsCreating(true);
-      setIsEditing(true);
-    } else {
-      // Reset form
-      setFormData({
-        checkInDate: '',
-        checkOutDate: '',
-        guestId: '',
-        guestCount: 1,
-        totalAmount: 0,
-        currency: Currency.UYU,
-        notes: '',
-        bookingSource: 'internal',
-        externalBookingId: ''
-      });
-      setIsEditing(false);
-      setIsCreating(false);
-    }
     setErrors([]);
-  }, [selectedBooking, selectedDate]);
+    setShowCancelModal(false);
+    setShowPayModal(false);
+    setShowRefundModal(false);
+  }, [selectedBooking?.Id]);
 
-  // Handle form input changes
-  const handleInputChange = (field: keyof BookingFormState, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Start editing existing booking
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  // Cancel editing
-  const handleCancel = () => {
-    if (selectedBooking) {
-      // Reset to original values
-      setFormData({
-        checkInDate: selectedBooking.CheckInDate,
-        checkOutDate: selectedBooking.CheckOutDate,
-        guestId: selectedBooking.GuestId,
-        guestCount: selectedBooking.GuestCount,
-        totalAmount: selectedBooking.TotalAmount || 0,
-        currency: selectedBooking.Currency,
-        notes: selectedBooking.Notes || '',
-        bookingSource: selectedBooking.BookingSource || 'internal',
-        externalBookingId: selectedBooking.ExternalBookingId || ''
-      });
-      setIsEditing(false);
-    } else {
-      onCancel();
-    }
-    setErrors([]);
-  };
-
-  // Save booking changes
-  const handleSave = async () => {
-    setIsSaving(true);
-    setErrors([]);
-
-    try {
-      const bookingFormData: BookingFormData = {
-        estatePropertyId: propertyId,
-        guestId: formData.guestId,
-        checkInDate: formData.checkInDate,
-        checkOutDate: formData.checkOutDate,
-        guestCount: formData.guestCount,
-        totalAmount: formData.totalAmount,
-        currency: formData.currency,
-        notes: formData.notes,
-        bookingSource: formData.bookingSource,
-        externalBookingId: formData.externalBookingId
-      };
-
-      let result;
-      if (isCreating) {
-        result = await BookingService.createBooking(bookingFormData, { status: BookingStatus.Confirmed });
-        if (result.succeeded && result.data) {
-          onNewBooking(result.data);
-          setIsCreating(false);
-          setIsEditing(false);
-        }
-      } else if (selectedBooking) {
-        result = await BookingService.updateBooking(selectedBooking.Id, bookingFormData);
-        if (result.succeeded && result.data) {
-          onBookingChange(result.data);
-          setIsEditing(false);
-        }
-      }
-
-      if (!result?.succeeded) {
-        setErrors([result?.errorMessage || 'Error al guardar la reserva']);
-      }
-    } catch (error: any) {
-      setErrors([error.message || 'Error al guardar la reserva']);
-    } finally {
-      setIsSaving(false);
+  const reloadBooking = async (id: string) => {
+    const result = await BookingService.getBookingById(id);
+    if (result.succeeded && result.data) {
+      onBookingChange(result.data);
     }
   };
 
-  // Handle booking deletion
-  const handleDelete = async () => {
-    if (!selectedBooking) return;
-
-    try {
-      const result = await BookingService.deleteBooking(selectedBooking.Id);
-      if (result.succeeded) {
-        onBookingDelete(selectedBooking.Id);
-        setShowDeleteModal(false);
-        onCancel();
-      } else {
-        setErrors([result.errorMessage || 'Error al eliminar la reserva']);
-      }
-    } catch (error: any) {
-      setErrors([error.message || 'Error al eliminar la reserva']);
-    }
-  };
-
-  // Update booking status
   const handleStatusChange = async (newStatus: BookingStatus) => {
     if (!selectedBooking) return;
-
+    if (newStatus === BookingStatus.Cancelled) {
+      setShowCancelModal(true);
+      return;
+    }
     try {
       const result = await BookingService.updateBooking(selectedBooking.Id, { status: newStatus });
       if (result.succeeded && result.data) {
@@ -240,12 +101,11 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
       } else {
         setErrors([result.errorMessage || 'Error al actualizar el estado']);
       }
-    } catch (error: any) {
-      setErrors([error.message || 'Error al actualizar el estado']);
+    } catch (error: unknown) {
+      setErrors([(error as Error).message || 'Error al actualizar el estado']);
     }
   };
 
-  // Get status icon and color
   const getStatusDisplay = (status: BookingStatus) => {
     switch (status) {
       case BookingStatus.Confirmed:
@@ -263,60 +123,104 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
     }
   };
 
-  // Show booking selector when multiple bookings exist for the selected date
+  const recordPayment = async () => {
+    if (!selectedBooking) return;
+    const amount = parseFloat(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrors(['Ingresá un monto válido']);
+      return;
+    }
+    setIsBusy(true);
+    setErrors([]);
+    try {
+      await BookingPaymentsService.recordPayment({
+        bookingId: selectedBooking.Id,
+        amount,
+        method: 'transfer',
+        note: payNote || undefined,
+      });
+      await reloadBooking(selectedBooking.Id);
+      setShowPayModal(false);
+      setPayAmount('');
+      setPayNote('');
+    } catch (e) {
+      setErrors([e instanceof Error ? e.message : 'Error al registrar pago']);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const recordRefund = async () => {
+    if (!selectedBooking) return;
+    const amount = parseFloat(refundAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrors(['Ingresá un monto válido']);
+      return;
+    }
+    setIsBusy(true);
+    setErrors([]);
+    try {
+      await BookingPaymentsService.recordRefund({
+        bookingId: selectedBooking.Id,
+        amount,
+        method: 'transfer',
+        note: refundNote || undefined,
+      });
+      await reloadBooking(selectedBooking.Id);
+      setShowRefundModal(false);
+      setRefundAmount('');
+      setRefundNote('');
+    } catch (e) {
+      setErrors([e instanceof Error ? e.message : 'Error al registrar reembolso']);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   if (selectedDate && availableBookings.length > 1 && !selectedBooking) {
     return (
       <Card>
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">
-              Múltiples Reservas - {format(selectedDate, 'dd/MM/yyyy')}
-            </h3>
-          </div>
-
-          {/* Booking Selection */}
+          <h3 className="text-lg font-medium">
+            Múltiples Reservas - {format(selectedDate, 'dd/MM/yyyy')}
+          </h3>
           <div className="space-y-3">
             {availableBookings.map((booking) => {
-              const isCheckIn = format(parseISO(booking.CheckInDate), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
-              const isCheckOut = format(parseISO(booking.CheckOutDate), 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
+              const isCheckIn =
+                format(parseISO(booking.CheckInDate), 'yyyy-MM-dd') ===
+                format(selectedDate, 'yyyy-MM-dd');
+              const isCheckOut =
+                format(parseISO(booking.CheckOutDate), 'yyyy-MM-dd') ===
+                format(selectedDate, 'yyyy-MM-dd');
               const statusDisplay = getStatusDisplay(booking.Status);
               const StatusIcon = statusDisplay.icon;
 
               return (
                 <div
                   key={booking.Id}
-                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-colors hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  onClick={() => onBookingSelect && onBookingSelect(booking)}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={() => onBookingSelect?.(booking)}
                 >
-                  <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          Reserva {isCheckIn ? '(Entrada)' : isCheckOut ? '(Salida)' : ''}
-                        </span>
-                        <div className={`px-2 py-1 text-xs rounded-full flex items-center space-x-1 ${statusDisplay.bgColor}`}>
-                          <StatusIcon className={`h-3 w-3 ${statusDisplay.color}`} />
-                          <span className={statusDisplay.color}>{BOOKING_STATUS_ES[booking.Status]}</span>
-                        </div>
-                      </div>
-
-                      {booking.Guest && (
-                        <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-                          {booking.Guest.FirstName} {booking.Guest.LastName}
-                        </div>
-                      )}
-
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {format(parseISO(booking.CheckInDate), 'dd/MM/yyyy')} → {format(parseISO(booking.CheckOutDate), 'dd/MM/yyyy')}
-                        {booking.GuestCount && ` · ${booking.GuestCount} persona${booking.GuestCount > 1 ? 's' : ''}`}
-                      </div>
-
-                      {booking.Notes && (
-                        <div className="text-sm text-gray-600 dark:text-gray-400 mt-1 truncate">
-                          {booking.Notes}
-                        </div>
-                      )}
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="text-sm font-medium">
+                      Reserva {isCheckIn ? '(Entrada)' : isCheckOut ? '(Salida)' : ''}
+                    </span>
+                    <div
+                      className={`px-2 py-1 text-xs rounded-full flex items-center space-x-1 ${statusDisplay.bgColor}`}
+                    >
+                      <StatusIcon className={`h-3 w-3 ${statusDisplay.color}`} />
+                      <span className={statusDisplay.color}>{BOOKING_STATUS_ES[booking.Status]}</span>
                     </div>
+                  </div>
+                  {booking.Guest && (
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                      {booking.Guest.FirstName} {booking.Guest.LastName}
+                    </div>
+                  )}
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {format(parseISO(booking.CheckInDate), 'dd/MM/yyyy')} →{' '}
+                    {format(parseISO(booking.CheckOutDate), 'dd/MM/yyyy')}
+                  </div>
                 </div>
               );
             })}
@@ -326,46 +230,56 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
     );
   }
 
-  if (!selectedBooking && !selectedDate) {
+  if (!selectedBooking) {
     return (
       <Card>
         <div className="text-center py-8">
           <CalendarIcon className="mx-auto h-12 w-12 text-gray-800 dark:text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Seleccionar Fecha</h3>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Seleccionar fecha
+          </h3>
           <p className="text-gray-600 dark:text-gray-300">
-            Haz clic en una fecha del calendario para ver reservas o crear una nueva.
+            Elegí una fecha del calendario para ver reservas. Para bloquear fechas usá el modo de
+            disponibilidad (no se crean reservas manuales).
           </p>
+          <Button color="alternative" className="mt-4" onClick={onCancel}>
+            Cerrar
+          </Button>
         </div>
       </Card>
     );
   }
 
-  const StatusIcon = selectedBooking ? getStatusDisplay(selectedBooking.Status).icon : Clock;
+  const StatusIcon = getStatusDisplay(selectedBooking.Status).icon;
+  const paymentStatus = Number((selectedBooking as BookingWithMember & { PaymentStatus?: number }).PaymentStatus ?? 0);
+  const refundStatus = Number((selectedBooking as BookingWithMember & { RefundStatus?: number }).RefundStatus ?? 0);
+  const amountPaid = Number((selectedBooking as BookingWithMember & { AmountPaid?: number }).AmountPaid ?? 0);
+  const canCancel =
+    selectedBooking.Status === BookingStatus.Pending ||
+    selectedBooking.Status === BookingStatus.Confirmed;
+  const canRecordPayment =
+    selectedBooking.Status === BookingStatus.Pending ||
+    selectedBooking.Status === BookingStatus.Confirmed;
+  const canRecordRefund =
+    amountPaid > 0 &&
+    (selectedBooking.Status === BookingStatus.Cancelled ||
+      selectedBooking.Status === BookingStatus.Completed ||
+      selectedBooking.Status === BookingStatus.NoShow ||
+      refundStatus === 1 ||
+      refundStatus === 2 ||
+      refundStatus === 4);
 
   return (
     <>
       <Card>
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium">
-              {isCreating ? 'Nueva Reserva' : selectedBooking ? 'Detalles de Reserva' : 'Seleccionar Fecha'}
-            </h3>
-            {selectedBooking && !isEditing && (
-              <div className="flex space-x-2">
-                <Button size="sm" color="alternative" onClick={handleEdit}>
-                  <Edit3 className="h-4 w-4 mr-1" />
-                  Editar
-                </Button>
-                <Button size="sm" color="red" onClick={() => setShowDeleteModal(true)}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Eliminar
-                </Button>
-              </div>
-            )}
+            <h3 className="text-lg font-medium">Detalles de Reserva</h3>
+            <Button size="sm" color="alternative" onClick={onCancel}>
+              Cerrar
+            </Button>
           </div>
 
-          {/* Errors */}
           {errors.length > 0 && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               <ul className="list-disc list-inside">
@@ -376,128 +290,82 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
             </div>
           )}
 
-          {/* Status */}
-          {selectedBooking && (
-            <div className="flex items-center space-x-3">
-              <div className={`p-2 rounded-full ${getStatusDisplay(selectedBooking.Status).bgColor}`}>
-                <StatusIcon className={`h-5 w-5 ${getStatusDisplay(selectedBooking.Status).color}`} />
-              </div>
-              <div>
-                <p className="font-medium">{BOOKING_STATUS_ES[selectedBooking.Status]}</p>
-                {!isEditing && (
-                  <Select
-                    value={selectedBooking.Status.toString()}
-                    onChange={(e) => handleStatusChange(parseInt(e.target.value) as BookingStatus)}
-                    className="mt-1"
-                    sizing="sm"
-                  >
-                  {Object.entries(BOOKING_STATUS_ES).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                  </Select>
-                )}
-              </div>
+          <div className="flex items-center space-x-3">
+            <div className={`p-2 rounded-full ${getStatusDisplay(selectedBooking.Status).bgColor}`}>
+              <StatusIcon className={`h-5 w-5 ${getStatusDisplay(selectedBooking.Status).color}`} />
             </div>
-          )}
-
-          {/* Booking Form */}
-          <div className="space-y-4">
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="checkInDate">Entrada</Label>
-                <TextInput
-                  id="checkInDate"
-                  type="date"
-                  value={formData.checkInDate}
-                  onChange={(e) => handleInputChange('checkInDate', e.target.value)}
-                  disabled={!isEditing}
-                  sizing="sm"
-                />
-              </div>
-              <div>
-                <Label htmlFor="checkOutDate">Salida</Label>
-                <TextInput
-                  id="checkOutDate"
-                  type="date"
-                  value={formData.checkOutDate}
-                  onChange={(e) => handleInputChange('checkOutDate', e.target.value)}
-                  disabled={!isEditing}
-                  sizing="sm"
-                />
-              </div>
-            </div>
-
-            {/* Guest Count */}
-            <div>
-              <Label htmlFor="guestCount">Número de Huéspedes</Label>
-              <TextInput
-                id="guestCount"
-                type="number"
-                min="1"
-                value={formData.guestCount}
-                onChange={(e) => handleInputChange('guestCount', parseInt(e.target.value) || 1)}
-                disabled={!isEditing}
-                sizing="sm"
-                icon={Users}
-              />
-            </div>
-
-            {/* Amount */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="totalAmount">Monto Total</Label>
-                <TextInput
-                  id="totalAmount"
-                  type="number"
-                  step="0.01"
-                  value={formData.totalAmount}
-                  onChange={(e) => handleInputChange('totalAmount', parseFloat(e.target.value) || 0)}
-                  disabled={!isEditing}
-                  sizing="sm"
-                  icon={DollarSign}
-                />
-              </div>
-              <div>
-                <Label htmlFor="currency">Moneda</Label>
+            <div className="flex-1">
+              <p className="font-medium">{BOOKING_STATUS_ES[selectedBooking.Status]}</p>
+              {canCancel && (
                 <Select
-                  id="currency"
-                  value={formData.currency.toString()}
-                  onChange={(e) => handleInputChange('currency', parseInt(e.target.value) as Currency)}
-                  disabled={!isEditing}
+                  value={selectedBooking.Status.toString()}
+                  onChange={(e) => handleStatusChange(parseInt(e.target.value, 10) as BookingStatus)}
+                  className="mt-1"
                   sizing="sm"
                 >
-                  {Object.entries(CURRENCY_NAMES).map(([value, label]) => (
-                    <option key={value} value={value}>{CURRENCY_SYMBOLS[parseInt(value) as Currency]} {label}</option>
-                  ))}
+                  <option value={BookingStatus.Pending}>{BOOKING_STATUS_ES[BookingStatus.Pending]}</option>
+                  <option value={BookingStatus.Confirmed}>
+                    {BOOKING_STATUS_ES[BookingStatus.Confirmed]}
+                  </option>
+                  <option value={BookingStatus.Cancelled}>
+                    {BOOKING_STATUS_ES[BookingStatus.Cancelled]}
+                  </option>
+                  <option value={BookingStatus.Completed}>
+                    {BOOKING_STATUS_ES[BookingStatus.Completed]}
+                  </option>
+                  <option value={BookingStatus.NoShow}>{BOOKING_STATUS_ES[BookingStatus.NoShow]}</option>
                 </Select>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                disabled={!isEditing}
-                rows={3}
-              />
+              )}
             </div>
           </div>
 
-          {/* Guest Information */}
-          {selectedBooking?.Guest && (
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Entrada</Label>
+                <p>{format(parseISO(selectedBooking.CheckInDate), 'dd/MM/yyyy')}</p>
+              </div>
+              <div>
+                <Label>Salida</Label>
+                <p>{format(parseISO(selectedBooking.CheckOutDate), 'dd/MM/yyyy')}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-500" />
+              <span>{selectedBooking.GuestCount} huésped(es)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-gray-500" />
+              <span>
+                Total: {CURRENCY_SYMBOLS[selectedBooking.Currency]}{' '}
+                {(selectedBooking.TotalAmount ?? 0).toFixed(2)}{' '}
+                {CURRENCY_NAMES[selectedBooking.Currency]}
+              </span>
+            </div>
+            <p>
+              Pagado: {CURRENCY_SYMBOLS[selectedBooking.Currency]} {amountPaid.toFixed(2)} —{' '}
+              {PAYMENT_STATUS_ES[paymentStatus] ?? '—'}
+            </p>
+            {selectedBooking.Status === BookingStatus.Cancelled && (
+              <p>Reembolso: {REFUND_STATUS_ES[refundStatus] ?? '—'}</p>
+            )}
+            {selectedBooking.Notes && (
+              <p className="text-gray-600 dark:text-gray-400">{selectedBooking.Notes}</p>
+            )}
+          </div>
+
+          {selectedBooking.Guest && (
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3 flex items-center">
                 <User className="h-5 w-5 mr-2" />
-                Información del Huésped
+                Huésped
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-2 text-sm">
                 <div className="flex items-center">
                   <User className="h-4 w-4 mr-2 text-gray-500" />
-                  <span>{selectedBooking.Guest.FirstName} {selectedBooking.Guest.LastName}</span>
+                  <span>
+                    {selectedBooking.Guest.FirstName} {selectedBooking.Guest.LastName}
+                  </span>
                 </div>
                 {selectedBooking.Guest.Email && (
                   <div className="flex items-center">
@@ -515,65 +383,117 @@ const BookingDetailsPanel: React.FC<BookingDetailsPanelProps> = ({
             </div>
           )}
 
-          {/* Action Buttons */}
-          {isEditing && (
-            <div className="flex space-x-2 pt-4 border-t">
-              <Button
-                color="alternative"
-                onClick={handleCancel}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                <X className="h-6 w-6 mr-2" />
-                Cancelar
+          <div className="flex flex-wrap gap-2 pt-4 border-t">
+            {canCancel && (
+              <Button color="failure" size="sm" onClick={() => setShowCancelModal(true)}>
+                Cancelar reserva
               </Button>
-              <Button
-                color="green"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                {isSaving ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-6 w-6 mr-2" />
-                    {isCreating ? 'Crear Reserva' : 'Guardar'}
-                  </>
-                )}
+            )}
+            {canRecordPayment && (
+              <Button color="green" size="sm" onClick={() => setShowPayModal(true)}>
+                Registrar pago
               </Button>
-            </div>
-          )}
+            )}
+            {canRecordRefund && (
+              <Button color="alternative" size="sm" onClick={() => setShowRefundModal(true)}>
+                Registrar reembolso
+              </Button>
+            )}
+          </div>
         </div>
       </Card>
 
-      {/* Delete Confirmation Modal */}
-      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)}>
-        <ModalHeader>Confirmar Eliminación</ModalHeader>
+      <CancelBookingModal
+        open={showCancelModal}
+        bookingId={selectedBooking.Id}
+        onClose={() => setShowCancelModal(false)}
+        onCancelled={async () => {
+          try {
+            await BookingCancellationService.handlePostCancellation({
+              bookingId: selectedBooking.Id,
+              estatePropertyId: selectedBooking.EstatePropertyId,
+              checkInDate: selectedBooking.CheckInDate,
+              checkOutDate: selectedBooking.CheckOutDate,
+              guestEmail: selectedBooking.Guest?.Email,
+              guestPhone: selectedBooking.Guest?.Phone,
+            });
+          } catch (e) {
+            console.warn('Cancellation email failed', e);
+          }
+          await reloadBooking(selectedBooking.Id);
+        }}
+      />
+
+      <Modal show={showPayModal} onClose={() => setShowPayModal(false)}>
+        <ModalHeader>Registrar pago</ModalHeader>
         <ModalBody>
-          <p className="text-gray-700">
-            ¿Estás seguro de que quieres eliminar esta reserva? Esta acción no se puede deshacer.
-          </p>
-          {selectedBooking && (
-            <div className="mt-4 p-3 bg-gray-50 rounded">
-              <p className="font-medium">
-                {selectedBooking.Guest?.FirstName} {selectedBooking.Guest?.LastName}
-              </p>
-              <p className="text-sm text-gray-600">
-                {format(parseISO(selectedBooking.CheckInDate), 'dd/MM/yyyy')} - {format(parseISO(selectedBooking.CheckOutDate), 'dd/MM/yyyy')}
-              </p>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="payAmount">Monto</Label>
+              <TextInput
+                id="payAmount"
+                type="number"
+                step="0.01"
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+              />
             </div>
-          )}
+            <div>
+              <Label htmlFor="payNote">Nota (opcional)</Label>
+              <Textarea
+                id="payNote"
+                rows={2}
+                value={payNote}
+                onChange={(e) => setPayNote(e.target.value)}
+              />
+            </div>
+          </div>
         </ModalBody>
         <ModalFooter>
-          <Button color="alternative" onClick={() => setShowDeleteModal(false)}>
-            Cancelar
+          <Button color="alternative" onClick={() => setShowPayModal(false)}>
+            Volver
           </Button>
-          <Button color="red" onClick={handleDelete}>
-            Eliminar Reserva
+          <Button color="green" onClick={recordPayment} disabled={isBusy}>
+            Guardar
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal show={showRefundModal} onClose={() => setShowRefundModal(false)}>
+        <ModalHeader>Registrar reembolso</ModalHeader>
+        <ModalBody>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Registrá el reembolso que hiciste fuera de la plataforma (transferencia, Mercado Pago,
+              etc.). Máximo pagado: {amountPaid.toFixed(2)}.
+            </p>
+            <div>
+              <Label htmlFor="refundAmount">Monto</Label>
+              <TextInput
+                id="refundAmount"
+                type="number"
+                step="0.01"
+                value={refundAmount}
+                onChange={(e) => setRefundAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="refundNote">Referencia / nota</Label>
+              <Textarea
+                id="refundNote"
+                rows={2}
+                value={refundNote}
+                onChange={(e) => setRefundNote(e.target.value)}
+              />
+            </div>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="alternative" onClick={() => setShowRefundModal(false)}>
+            Volver
+          </Button>
+          <Button onClick={recordRefund} disabled={isBusy}>
+            Guardar
           </Button>
         </ModalFooter>
       </Modal>

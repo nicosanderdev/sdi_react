@@ -20,6 +20,7 @@ import SyncStatusBar from '../../components/dashboard/bookings/SyncStatusBar';
 import AvailabilityManager from '../../components/dashboard/bookings/AvailabilityManager';
 import ICalIntegrationManager from '../../components/dashboard/calendar/ICalIntegrationManager';
 import ICalExportPanel from '../../components/dashboard/calendar/ICalExportPanel';
+import { CancellationPolicyEditor } from '../../components/dashboard/properties/CancellationPolicyEditor';
 import propertyService from '../../services/PropertyService';
 import { useCanManagePropertyCalendar } from '../../hooks/useCanManagePropertyCalendar';
 
@@ -393,6 +394,10 @@ const PropertyBookingsPage: React.FC = () => {
           isSyncing={state.isSyncing}
           canManage={canManageCalendar}
         />
+      )}
+
+      {propertyId && state.viewMode === 'bookings' && (
+        <CancellationPolicyEditor propertyId={propertyId} />
       )}
 
       {/* Main Content */}

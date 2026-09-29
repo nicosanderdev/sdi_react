@@ -212,6 +212,13 @@ export interface Booking {
   CreatedBy?: string
   LastModified: string
   LastModifiedBy?: string
+  PaymentStatus?: number
+  AmountPaid?: number
+  DepositAmount?: number
+  RefundStatus?: number
+  RefundDueAt?: string | null
+  CancellationInitiator?: string | null
+  CancellationPolicySnapshot?: Record<string, unknown> | null
 }
 
 /**

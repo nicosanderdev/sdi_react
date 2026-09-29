@@ -8,6 +8,7 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import { useAdminPayments } from '../../../hooks/useAdminPayments';
 import { BookingsReceiptGenerationSection } from '../../../components/admin/payments/BookingsReceiptGenerationSection';
 import { ReceiptsManagementSection } from '../../../components/admin/payments/ReceiptsManagementSection';
+import { BookingRefundsComplianceSection } from '../../../components/admin/payments/BookingRefundsComplianceSection';
 
 export function AdminPaymentsPage() {
   const {
@@ -49,7 +50,9 @@ export function AdminPaymentsPage() {
       <Card>
         <Tabs
           onActiveTabChange={(activeTab) =>
-            setActiveSection(activeTab === 0 ? 'bookings' : 'receipts')
+            setActiveSection(
+              activeTab === 0 ? 'bookings' : activeTab === 1 ? 'receipts' : 'refunds'
+            )
           }
         >
           <TabItem active={activeSection === 'bookings'} title="Operaciones - Generación de Facturas">
@@ -88,6 +91,10 @@ export function AdminPaymentsPage() {
               onRefresh={loadReceipts}
               onUpdateStatus={setReceiptStatus}
             />
+          </TabItem>
+
+          <TabItem title="Reembolsos de reservas">
+            <BookingRefundsComplianceSection />
           </TabItem>
         </Tabs>
       </Card>
