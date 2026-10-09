@@ -44,6 +44,12 @@ const JOBS = [
     description:
       'Importa iCal de integraciones activas que no se sincronizaron en los últimos 30 minutos (igual que el cron). Cero procesadas no es un fallo si se sincronizaron hace poco.',
   },
+  {
+    id: 'bookings-overdue-cancel',
+    label: 'Cancelar reservas vencidas',
+    description:
+      'Cancela reservas sin seña o sin saldo a tiempo, libera el calendario y marca reembolsos vencidos. Efecto real.',
+  },
 ] as const
 
 const ALLOWED_JOB_IDS = new Set<string>(JOBS.map((job) => job.id))

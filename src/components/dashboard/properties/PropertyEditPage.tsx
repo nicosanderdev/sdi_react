@@ -9,6 +9,7 @@ import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
+import { CancellationPolicyEditor } from './CancellationPolicyEditor';
 import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import propertyService from '../../../services/PropertyService';
@@ -308,6 +309,11 @@ export function PropertyEditPage() {
               <div className="max-w-4xl mx-auto w-full">
                 <PropertyListingCopyFields />
               </div>
+              {propertyId && (
+                <div className="max-w-4xl mx-auto w-full">
+                  <CancellationPolicyEditor propertyId={propertyId} />
+                </div>
+              )}
               <PropertyFormStep4Sections
                 onBack={() => setCurrentStep(3)}
                 displayImages={displayImages}

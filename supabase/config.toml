@@ -383,6 +383,10 @@ verify_jwt = false
 [functions.flexible-invoice-overdue-unpublish]
 verify_jwt = false
 
+# Cancel bookings past deposit/balance deadlines; mark overdue refunds.
+[functions.bookings-overdue-cancel]
+verify_jwt = false
+
 # Daily portal search score precompute; service role in handler.
 [functions.daily-property-search-scores]
 verify_jwt = false
