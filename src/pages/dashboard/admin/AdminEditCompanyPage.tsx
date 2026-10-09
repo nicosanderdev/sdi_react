@@ -5,6 +5,7 @@ import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle
 import { useAdminCompanies } from '../../../hooks/useAdminCompanies';
 import AddCompanyUserModal from '../../../components/admin/companies/AddCompanyUserModal';
 import { CompanyEditStatistics } from '../../../components/admin/companies/CompanyEditStatistics';
+import { CompanyPlanChangeCard } from '../../../components/admin/companies/CompanyPlanChangeCard';
 
 export function AdminEditCompanyPage() {
   const { companyId } = useParams<{ companyId: string }>();
@@ -120,6 +121,10 @@ export function AdminEditCompanyPage() {
           </div>
         </form>
       </Card>
+
+      {companyId && companyDetail?.company ? (
+        <CompanyPlanChangeCard companyId={companyId} companyName={companyDetail.company.name} />
+      ) : null}
 
       <Card>
         <div className="mb-4 flex items-center justify-between">

@@ -35,9 +35,16 @@ import { PropertyVideo } from '../../models/properties/PropertyVideo';
 import { PropertyDocument } from '../../models/properties/PropertyDocument';
 import { Amenity } from '../../models/properties/Amenity';
 import { pickAmenityDescription } from '../../models/properties/amenityDescriptions';
+import { pickPolicyDescription, pickPolicyTitle } from '../../models/properties/propertyPolicies';
+import { pickSectionDescription, pickSectionName } from '../../models/properties/propertyContentSections';
 import { DuplicatedEstateProperty } from '../../models/properties/DuplicatedEstateProperty';
 import { EstatePropertyValues } from '../../models/properties/EstatePropertyValues';
 import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
+import type { ListingType } from '../../models/properties/PropertyData';
+import {
+  DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE,
+  listingTypesBlockRealEstateDuplication,
+} from '../../models/properties/creatablePropertyTypes';
 
 const InfoField: React.FC<{ icon: React.ReactNode; label: string; value?: string | number | null; children?: React.ReactNode; }> = ({ icon, label, value, children }) => {
     if (!value && !children) return null;
@@ -100,6 +107,7 @@ export function PropertyViewPage() {
     const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
     const [showDuplicateModal, setShowDuplicateModal] = useState<boolean>(false);
     const [duplicating, setDuplicating] = useState<boolean>(false);
+    const [duplicateBlockedMessage, setDuplicateBlockedMessage] = useState<string | null>(null);
     const [selectedVersion, setSelectedVersion] = useState<EstatePropertyValues | null>(null);
 
     // Helper function to get current property data (either main property or selected version)
@@ -242,7 +250,18 @@ export function PropertyViewPage() {
 
     // Duplicate property function
     const handleDuplicateProperty = async () => {
-        if (!propertyId) return;
+        if (!propertyId || !property) return;
+
+        const blocksDuplicate = listingTypesBlockRealEstateDuplication(
+            (property as PropertyData & { activeListingTypes?: ListingType[] }).activeListingTypes,
+            (property as PropertyData & { listingType?: ListingType }).listingType
+        );
+        if (blocksDuplicate) {
+            setShowDuplicateModal(false);
+            setDuplicateBlockedMessage(DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE);
+            return;
+        }
+        setDuplicateBlockedMessage(null);
         
         try {
             setDuplicating(true);
@@ -265,6 +284,11 @@ export function PropertyViewPage() {
         return <div className="text-center text-gray-600 mt-10">Propiedad no encontrada.</div>;
     }
 
+    const blocksRealEstateDuplicate = listingTypesBlockRealEstateDuplication(
+        (property as PropertyData & { activeListingTypes?: ListingType[] }).activeListingTypes,
+        (property as PropertyData & { listingType?: ListingType }).listingType
+    );
+
     return (<>
         <Card>
             <div className="flex justify-between items-center mb-4">
@@ -273,7 +297,8 @@ export function PropertyViewPage() {
                     <Button 
                         color="alternative" 
                         onClick={() => setShowDuplicateModal(true)}
-                        disabled={duplicating}
+                        disabled={duplicating || blocksRealEstateDuplicate}
+                        title={blocksRealEstateDuplicate ? DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE : undefined}
                     >
                         <Copy size={16} className="mr-2" />
                         Duplicar
@@ -283,6 +308,16 @@ export function PropertyViewPage() {
                     </Button>
                 </div>
             </div>
+            {blocksRealEstateDuplicate && (
+                <p className="mb-4 text-sm text-amber-800 dark:text-amber-200">
+                    {DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE}
+                </p>
+            )}
+            {duplicateBlockedMessage && !blocksRealEstateDuplicate && (
+                <p className="mb-4 text-sm text-amber-800 dark:text-amber-200">
+                    {duplicateBlockedMessage}
+                </p>
+            )}
             
             {/* Version History Dropdown */}
             {property.estatePropertyValues && property.estatePropertyValues.length > 0 && (
@@ -568,16 +603,57 @@ export function PropertyViewPage() {
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {property.amenities.map((amenity: Amenity) => {
                                 const description = pickAmenityDescription(amenity.descriptions, 'es');
+                                const name = pickAmenityDescription(amenity.localizedName, 'es') || amenity.name;
                                 return (
-                                <div key={amenity.id} className="flex items-start space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
+                                <div key={amenity.key ?? amenity.id} className="flex items-start space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
                                     <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />
                                     <div>
-                                      <span className="text-sm font-medium text-[#1B4965]">{amenity.name}</span>
+                                      <span className="text-sm font-medium text-[#1B4965]">{name}</span>
                                       {description && (
                                         <p className="text-xs text-[#1B4965]/80 mt-1 whitespace-pre-line">{description}</p>
                                       )}
                                     </div>
                                 </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {(property.contentSections?.length ?? 0) > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-xl font-semibold mb-4 border-b pb-2">Secciones</h3>
+                        <div className="space-y-6">
+                            {property.contentSections!.map((section, index) => {
+                                const title = pickSectionName(section, 'es');
+                                const description = pickSectionDescription(section, 'es');
+                                return (
+                                    <div key={`${section.templateKey ?? 'custom'}-${index}`}>
+                                        {title && <h4 className="font-medium text-[#1B4965]">{title}</h4>}
+                                        {description && (
+                                            <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">{description}</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {(property.propertyPolicies?.length ?? 0) > 0 && (
+                    <div className="mb-8">
+                        <h3 className="text-xl font-semibold mb-4 border-b pb-2">Políticas</h3>
+                        <div className="space-y-4">
+                            {property.propertyPolicies!.map((policy, index) => {
+                                const title = pickPolicyTitle(policy, 'es');
+                                const description = pickPolicyDescription(policy, 'es');
+                                return (
+                                    <div key={`${policy.templateKey ?? 'custom'}-${index}`}>
+                                        {title && <h4 className="font-medium text-[#1B4965]">{title}</h4>}
+                                        {description && (
+                                            <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">{description}</p>
+                                        )}
+                                    </div>
                                 );
                             })}
                         </div>

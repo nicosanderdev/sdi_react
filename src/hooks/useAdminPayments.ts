@@ -38,7 +38,7 @@ const defaultReceiptFilters: ReceiptFiltersState = {
 
 /** Admin pagos: facturas = Invoices (RPC admin_*); nombres internos "receipt" = filas de factura hasta renombrar tipos. */
 export function useAdminPayments() {
-  const [activeSection, setActiveSection] = useState<'bookings' | 'receipts'>('bookings');
+  const [activeSection, setActiveSection] = useState<'bookings' | 'receipts' | 'refunds'>('bookings');
   const [filters, setFilters] = useState<BookingFiltersState>(defaultFilters);
   const [receiptFilters, setReceiptFilters] = useState<ReceiptFiltersState>(defaultReceiptFilters);
   const [bookings, setBookings] = useState<AdminPaymentBookingRow[]>([]);

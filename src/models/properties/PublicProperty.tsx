@@ -1,6 +1,9 @@
 import { Amenity } from "./Amenity";
 import { PropertyImage } from "./PropertyImage";
 import { PropertyVideo } from "./PropertyVideo";
+import type { LocalizedTextByLanguage } from "./localizedText";
+import type { PropertySectionDisplayVariant, PropertySectionLayoutType } from "./propertyContentSections";
+import type { ListingType, PropertyType } from "./PropertyData";
 
 export interface PublicProperty {
   id: string;
@@ -42,4 +45,24 @@ export interface PublicProperty {
   ownerId?: string;
   /** When true, property is visible but not accepting new bookings (e.g. overdue unpaid receipt). */
   blockedForBooking?: boolean;
+  policies?: PublicPropertyPolicy[];
+  contentSections?: PublicPropertyContentSection[];
+}
+
+export interface PublicPropertyPolicy {
+  listingType?: ListingType;
+  templateKey?: string | null;
+  title?: LocalizedTextByLanguage;
+  description?: LocalizedTextByLanguage;
+  displayOrder?: number;
+}
+
+export interface PublicPropertyContentSection {
+  propertyType?: PropertyType;
+  templateKey?: string | null;
+  localizedName?: LocalizedTextByLanguage;
+  localizedDescription?: LocalizedTextByLanguage;
+  layoutType?: PropertySectionLayoutType;
+  layoutConfig?: { displayVariant?: PropertySectionDisplayVariant };
+  images?: Array<{ propertyImageId?: string; url: string; altText?: string; displayOrder?: number }>;
 }

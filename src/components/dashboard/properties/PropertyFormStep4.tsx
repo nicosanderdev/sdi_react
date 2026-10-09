@@ -19,7 +19,7 @@ export function PropertyFormStep4({ onSubmit, onBack, isSubmitting }: PropertyFo
         </p>
 
         <div className="flex justify-between pt-4">
-          <Button color="alternative" onClick={onBack}>
+          <Button color="alternative" onClick={onBack} disabled={isSubmitting}>
             Atrás
           </Button>
           <Button type="submit" disabled={isSubmitting}>

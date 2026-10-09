@@ -1,14 +1,20 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Button, Label, Select } from 'flowbite-react';
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { DisplayImage } from './ImageManager';
 import type { PropertyFormData, PropertyContentSectionFormData } from '../../../models/properties/PropertyFormSchema';
 import type { PropertyType } from '../../../models/properties';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
-import { localizedFromLegacyNameDescription } from '../../../models/properties/propertyContentSections';
 import { LocalizedTitleDescriptionFields } from './LocalizedTextFields';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
+import { usePropertySectionTemplates } from '../../../hooks/usePropertyContentTemplates';
+import {
+  isNonEmptyString,
+  sectionTemplateAppliesTo,
+  type PropertySectionTemplate,
+} from '../../../models/properties/contentTemplates';
+import { pickLocalizedText } from '../../../models/properties/localizedText';
 
 type LayoutType = PropertyContentSectionFormData['layoutType'];
 type DisplayVariant = PropertyContentSectionFormData['displayVariant'];
@@ -37,48 +43,44 @@ const DISPLAY_LABEL_ES: Record<DisplayVariant, string> = {
   hero: 'Destacado',
 };
 
-const SECTION_TEMPLATES: Partial<
-  Record<PropertyType, Array<{ name: string; description: string }>>
-> = {
-  SummerRent: [
-    {
-      name: 'Espacios exteriores',
-      description: 'Describe patio, jardín, parrillero, piscina u otras zonas al aire libre.',
-    },
-    {
-      name: 'Distribución de la vivienda',
-      description: 'Resume cómo se distribuyen los ambientes y la circulación de la casa.',
-    },
-  ],
-  EventVenue: [
-    {
-      name: 'Decoración',
-      description: 'Cuenta el estilo de ambientación y opciones de decoración disponibles.',
-    },
-    {
-      name: 'Catering / comida',
-      description: 'Explica menús, opciones gastronómicas y modalidades de servicio.',
-    },
-    {
-      name: 'DJ',
-      description: 'Indica equipamiento, cabina, horarios y servicios de música para eventos.',
-    },
-  ],
-};
-
 interface PropertyContentSectionsManagerProps {
   displayImages: DisplayImage[];
+  allowedPropertyTypes?: PropertyType[];
+  canWriteCustom?: boolean;
 }
 
-export function PropertyContentSectionsManager({ displayImages }: PropertyContentSectionsManagerProps) {
+export function PropertyContentSectionsManager({
+  displayImages,
+  allowedPropertyTypes,
+  canWriteCustom = false,
+}: PropertyContentSectionsManagerProps) {
   const { control, register, watch, setValue, getValues } = useFormContext<PropertyFormData>();
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove, move, replace } = useFieldArray({
     control,
     name: 'contentSections',
   });
+  const { data: templates = [] } = usePropertySectionTemplates();
 
   const rootPropertyType = (watch('propertyType') ?? 'RealEstate') as PropertyType;
+  const additionalExtensionType = watch('additionalExtensionType');
   const sectionValues = watch('contentSections') ?? [];
+
+  const typeOptions = useMemo(() => {
+    const set = new Set<PropertyType>(allowedPropertyTypes?.length ? allowedPropertyTypes : [rootPropertyType]);
+    if (additionalExtensionType) set.add(additionalExtensionType);
+    return Array.from(set);
+  }, [allowedPropertyTypes, rootPropertyType, additionalExtensionType]);
+
+  const choosableTypeOptions = useMemo(
+    () => typeOptions.filter(pt => pt !== 'RealEstate'),
+    [typeOptions]
+  );
+
+  const templateByKey = useMemo(() => new Map(templates.map(t => [t.key, t])), [templates]);
+  const activeTemplates = useMemo(
+    () => templates.filter(t => !t.archived && typeOptions.some(pt => sectionTemplateAppliesTo(t, pt))),
+    [templates, typeOptions]
+  );
 
   const enforceLayoutConstraints = useCallback(
     (index: number, propertyType: PropertyType, nextLayout?: LayoutType) => {
@@ -102,42 +104,75 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
   );
 
   useEffect(() => {
-    const n = fields.length;
-    for (let i = 0; i < n; i += 1) {
-      setValue(`contentSections.${i}.propertyType`, rootPropertyType, {
-        shouldDirty: false,
-        shouldValidate: true,
-      });
-      enforceLayoutConstraints(i, rootPropertyType);
+    const allowed = new Set(typeOptions);
+    const current = getValues('contentSections') ?? [];
+    let changed = false;
+    const next = current.filter(row => {
+      if (row.propertyType && !allowed.has(row.propertyType)) {
+        changed = true;
+        return false;
+      }
+      return true;
+    });
+
+    const templateKeys = [...new Set(next.map(r => r.templateKey).filter(isNonEmptyString))];
+    for (const key of templateKeys) {
+      const tmpl = templateByKey.get(key);
+      if (!tmpl) continue;
+      const source = next.find(r => r.templateKey === key);
+      for (const pt of typeOptions) {
+        if (pt === 'RealEstate') continue;
+        if (!sectionTemplateAppliesTo(tmpl, pt)) continue;
+        if (next.some(r => r.templateKey === key && r.propertyType === pt)) continue;
+        const defaultLayout = clampLayout(pt, tmpl.defaultLayoutType);
+        next.push({
+          templateKey: key,
+          propertyType: pt,
+          localizedName: {},
+          localizedDescription: {},
+          layoutType: defaultLayout,
+          displayVariant: clampVariant(defaultLayout, tmpl.defaultDisplayVariant),
+          imageKeys: [...(source?.imageKeys ?? [])],
+        });
+        changed = true;
+      }
     }
-  }, [rootPropertyType, fields.length, setValue, enforceLayoutConstraints]);
 
-  const handleAddSection = () => {
-    append(createSectionDraft());
+    if (changed) replace(next);
+  }, [typeOptions.join('|'), templateByKey, getValues, replace]);
+
+  const addTemplate = (template: PropertySectionTemplate) => {
+    const matchingTypes = choosableTypeOptions.filter(pt => sectionTemplateAppliesTo(template, pt));
+    const current = getValues('contentSections') ?? [];
+    const next = [...current];
+    for (const pt of matchingTypes) {
+      if (next.some(r => r.templateKey === template.key && r.propertyType === pt)) continue;
+      const defaultLayout = clampLayout(pt, template.defaultLayoutType);
+      next.push({
+        templateKey: template.key,
+        propertyType: pt,
+        localizedName: {},
+        localizedDescription: {},
+        layoutType: defaultLayout,
+        displayVariant: clampVariant(defaultLayout, template.defaultDisplayVariant),
+        imageKeys: [],
+      });
+    }
+    replace(next);
   };
 
-  const createSectionDraft = (
-    overrides?: Partial<Pick<PropertyContentSectionFormData, 'localizedName' | 'localizedDescription'>>
-  ) => {
-    const defaultLayoutType = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[rootPropertyType][0] ?? 'split';
-    const defaultVariant = DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[defaultLayoutType][0] ?? 'default';
-
-    return {
-      localizedName: overrides?.localizedName ?? {},
-      localizedDescription: overrides?.localizedDescription ?? {},
-      propertyType: rootPropertyType,
+  const addCustom = () => {
+    const pt = choosableTypeOptions[0] ?? (rootPropertyType !== 'RealEstate' ? rootPropertyType : 'SummerRent');
+    const defaultLayoutType = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[pt][0] ?? 'split';
+    append({
+      templateKey: null,
+      localizedName: {},
+      localizedDescription: {},
+      propertyType: pt,
       layoutType: defaultLayoutType,
-      displayVariant: defaultVariant,
+      displayVariant: DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[defaultLayoutType][0] ?? 'default',
       imageKeys: [],
-    };
-  };
-
-  const handleAddTemplateSection = (template: { name: string; description: string }) => {
-    const { localizedName, localizedDescription } = localizedFromLegacyNameDescription(
-      template.name,
-      template.description
-    );
-    append(createSectionDraft({ localizedName, localizedDescription }));
+    });
   };
 
   const toggleSectionImage = (sectionIndex: number, imageKey: string) => {
@@ -146,56 +181,63 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
     setValue(`contentSections.${sectionIndex}.imageKeys`, next, { shouldDirty: true, shouldValidate: true });
   };
 
+  const usedTemplateKeys = new Set(sectionValues.map(s => s.templateKey).filter(isNonEmptyString));
+
   return (
     <div className="p-4 md:p-6 border rounded-lg border-gray-200 dark:border-gray-700 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-semibold">Secciones de contenido</h3>
-          <p className="text-sm text-gray-500">
-            Configura secciones dinámicas para la página de detalle de la propiedad (texto por idioma).
-          </p>
-        </div>
-        <Button type="button" onClick={handleAddSection}>
-          <Plus size={16} className="mr-2" />
-          Agregar sección
-        </Button>
+      <div>
+        <h3 className="text-xl font-semibold">Secciones de contenido</h3>
+        <p className="text-sm text-gray-500">
+          Elegí bloques con título traducido y asignales fotos de la propiedad.
+        </p>
       </div>
 
-      {SECTION_TEMPLATES[rootPropertyType] && (
-        <div className="rounded-lg border border-dashed border-gray-200 dark:border-gray-700 p-3">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
-            Plantillas sugeridas (opcional)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {SECTION_TEMPLATES[rootPropertyType]!.map(template => (
+      {activeTemplates.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {activeTemplates.map(template => {
+            const already = usedTemplateKeys.has(template.key);
+            return (
               <Button
-                key={template.name}
+                key={template.key}
                 type="button"
                 size="xs"
-                color="light"
-                onClick={() => handleAddTemplateSection(template)}
+                color={already ? 'light' : 'blue'}
+                disabled={already}
+                onClick={() => addTemplate(template)}
               >
-                {template.name}
+                {pickLocalizedText(template.localizedName, 'es')}
               </Button>
-            ))}
-          </div>
+            );
+          })}
         </div>
+      )}
+
+      {canWriteCustom && (
+        <Button type="button" color="light" onClick={addCustom}>
+          Agregar sección personalizada
+        </Button>
       )}
 
       {fields.length === 0 && (
         <div className="rounded-lg border border-dashed p-4 text-sm text-gray-500">
-          Aún no agregaste secciones. Usa "Agregar sección" para comenzar.
+          Opcional: agregá galerías como exteriores, distribución o decoración.
         </div>
       )}
 
       <div className="space-y-4">
         {fields.map((field, index) => {
           const section = sectionValues[index];
-          const propertyType = rootPropertyType;
+          const propertyType = (section?.propertyType ?? rootPropertyType) as PropertyType;
+          const template = section?.templateKey ? templateByKey.get(section.templateKey) : undefined;
+          const isCustom = !section?.templateKey;
+          const canEditCustom = isCustom && canWriteCustom;
           const layoutOptions = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[propertyType];
-          const currentLayout = (section?.layoutType ?? layoutOptions[0] ?? 'split') as LayoutType;
-          const variantOptions = DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[currentLayout];
-          const imageKeys = (section?.imageKeys ?? []) as string[];
+          const variantOptions = DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[(section?.layoutType as LayoutType) ?? layoutOptions[0]];
+          const imageKeys = section?.imageKeys ?? [];
+          const title =
+            pickLocalizedText(template?.localizedName, 'es') ??
+            pickLocalizedText(section?.localizedName, 'es') ??
+            `Sección ${index + 1}`;
 
           return (
             <div
@@ -203,7 +245,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
               className="rounded-lg border border-gray-200 dark:border-gray-700 border-dashed p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
-                <h4 className="font-medium">Sección {index + 1}</h4>
+                <h4 className="font-medium">{title}</h4>
                 <div className="flex items-center gap-2">
                   <Button
                     size="xs"
@@ -229,31 +271,70 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                 </div>
               </div>
 
-              <div className="max-w-xs">
-                <Label>Tipo de propiedad</Label>
-                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                  {getPropertyTypeLabelEs(rootPropertyType)}
-                </p>
-              </div>
+              <p className="text-xs text-gray-500">{getPropertyTypeLabelEs(propertyType)}</p>
 
-              <LocalizedTitleDescriptionFields
-                idPrefix={`section-${index}`}
-                title={section?.localizedName ?? {}}
-                description={section?.localizedDescription ?? {}}
-                titleMaxLength={120}
-                descriptionMaxLength={500}
-                onTitleChange={next =>
-                  setValue(`contentSections.${index}.localizedName`, next, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  })
-                }
-                onDescriptionChange={next =>
-                  setValue(`contentSections.${index}.localizedDescription`, next, {
-                    shouldDirty: true,
-                  })
-                }
-              />
+              {canEditCustom && (
+                <>
+                  {(() => {
+                    const selectOptions =
+                      propertyType === 'RealEstate'
+                        ? [propertyType, ...choosableTypeOptions]
+                        : choosableTypeOptions;
+                    if (selectOptions.length <= 1) return null;
+                    return (
+                    <div className="max-w-xs">
+                      <Label htmlFor={`contentSections.${index}.propertyType`}>Tipo de propiedad</Label>
+                      <Select
+                        id={`contentSections.${index}.propertyType`}
+                        className="mt-2"
+                        value={propertyType}
+                        onChange={e => {
+                          const nextType = e.target.value as PropertyType;
+                          setValue(`contentSections.${index}.propertyType`, nextType, {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
+                          enforceLayoutConstraints(index, nextType);
+                        }}
+                      >
+                        {selectOptions.map(pt => (
+                          <option key={pt} value={pt}>
+                            {getPropertyTypeLabelEs(pt)}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    );
+                  })()}
+                  <LocalizedTitleDescriptionFields
+                    idPrefix={`section-${index}`}
+                    title={section?.localizedName ?? {}}
+                    description={section?.localizedDescription ?? {}}
+                    titleMaxLength={120}
+                    descriptionMaxLength={500}
+                    onTitleChange={next =>
+                      setValue(`contentSections.${index}.localizedName`, next, {
+                        shouldDirty: true,
+                        shouldValidate: true,
+                      })
+                    }
+                    onDescriptionChange={next =>
+                      setValue(`contentSections.${index}.localizedDescription`, next, {
+                        shouldDirty: true,
+                      })
+                    }
+                  />
+                </>
+              )}
+
+              {isCustom && !canEditCustom && (
+                <p className="text-sm text-gray-600 whitespace-pre-line">
+                  {pickLocalizedText(section?.localizedName, 'es')}
+                  {pickLocalizedText(section?.localizedDescription, 'es')
+                    ? `\n${pickLocalizedText(section?.localizedDescription, 'es')}`
+                    : ''}
+                </p>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -293,7 +374,7 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                 <Label>Imágenes de la sección</Label>
                 {displayImages.length === 0 ? (
                   <p className="mt-2 text-sm text-gray-500">
-                    Sube imágenes en el paso anterior (medios) para poder asignarlas a esta sección.
+                    Subí imágenes en el paso anterior (medios) para poder asignarlas a esta sección.
                   </p>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -321,9 +402,12 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
                     })}
                   </div>
                 )}
+                {section?.templateKey && imageKeys.length === 0 && (
+                  <p className="text-sm text-red-600 mt-2">Elegí al menos una imagen.</p>
+                )}
                 {displayImages.length > 0 && (
                   <p className="text-xs text-gray-500 mt-2">
-                    Toca una miniatura para incluirla o quitarla de la sección.
+                    Tocá una miniatura para incluirla o quitarla de la sección.
                   </p>
                 )}
               </div>
@@ -333,4 +417,14 @@ export function PropertyContentSectionsManager({ displayImages }: PropertyConten
       </div>
     </div>
   );
+}
+
+function clampLayout(propertyType: PropertyType, layout: LayoutType): LayoutType {
+  const valid = LAYOUT_OPTIONS_BY_PROPERTY_TYPE[propertyType];
+  return valid.includes(layout) ? layout : valid[0];
+}
+
+function clampVariant(layout: LayoutType, variant: DisplayVariant): DisplayVariant {
+  const valid = DISPLAY_VARIANT_OPTIONS_BY_LAYOUT[layout];
+  return valid.includes(variant) ? variant : valid[0];
 }

@@ -9,6 +9,7 @@ import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
 import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
+import { CancellationPolicyEditor } from './CancellationPolicyEditor';
 import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import propertyService from '../../../services/PropertyService';
@@ -17,12 +18,14 @@ import type { DisplayDocument } from './DocumentManager';
 import type { DisplayVideo } from './VideoManager';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
 import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../../../models/properties/propertyTypeLabels';
-import { amenityDescriptionsFromAmenities } from '../../../models/properties/amenityDescriptions';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
 import { ContactVerificationGateBanner } from '../../user/ContactVerificationGateBanner';
 import { supabase } from '../../../config/supabase';
 import { GLOBAL_MAX_PHOTOS_PER_PROPERTY } from '../../../utils/photoLimits';
+import { useSelector } from 'react-redux';
+import { selectUserProfile } from '../../../store/slices/userSlice';
+import { isAdmin } from '../../../utils/RoleUtils';
 
 function firstValidationMessage(errors: FieldErrors<PropertyFormData>): string {
   const walk = (node: unknown): string | null => {
@@ -65,6 +68,8 @@ export function PropertyEditPage() {
   });
 
   const { handleSubmit, reset, watch } = methods;
+  const userProfile = useSelector(selectUserProfile);
+  const canWriteCustom = isAdmin(userProfile);
 
   const { data: property, isLoading, isError, error } = useQuery({
     queryKey: ['property', propertyId],
@@ -93,6 +98,18 @@ export function PropertyEditPage() {
     return ['RealEstate'];
   }, [property]);
 
+  const additionalExtensionType = watch('additionalExtensionType');
+  const listingTypesForContent: ListingType[] = useMemo(() => {
+    const types = [...activeListingTypesForEdit];
+    if (additionalExtensionType === 'SummerRent' && !types.includes('SummerRent')) types.push('SummerRent');
+    if (additionalExtensionType === 'EventVenue' && !types.includes('EventVenue')) types.push('EventVenue');
+    return types;
+  }, [activeListingTypesForEdit, additionalExtensionType]);
+  const propertyTypesForContent: PropertyType[] = useMemo(() => {
+    const mapped = listingTypesForContent.map(listingTypeToFormPropertyType);
+    return [...new Set(mapped)];
+  }, [listingTypesForContent]);
+
   useEffect(() => {
     if (!property) return;
     const lt = (property as any).listingType as ListingType | undefined;
@@ -117,8 +134,12 @@ export function PropertyEditPage() {
       bathrooms: (property as any).bathrooms ?? 0,
       hasGarage: (property as any).hasGarage ?? false,
       garageSpaces: (property as any).garageSpaces ?? 0,
-      amenities: ((property as any).amenities || []).map((a: any) => a.id),
-      amenityDescriptions: amenityDescriptionsFromAmenities((property as any).amenities || []),
+      amenities: ((property as any).amenityEditor?.keys?.length
+        ? (property as any).amenityEditor.keys
+        : ((property as any).amenities || [])
+            .map((a: { key?: string; id?: string }) => a.key)
+            .filter(Boolean)) as string[],
+      amenityDescriptions: (property as any).amenityEditor?.descriptions,
       contentSections: ((property as any).contentSections ?? []),
       propertyPolicies: ((property as any).propertyPolicies ?? []),
       additionalExtensionType: undefined,
@@ -267,6 +288,7 @@ export function PropertyEditPage() {
               editMode
               basePropertyType={propertyType as PropertyType}
               activeListingTypes={activeListingTypesForEdit}
+              canWriteCustom={canWriteCustom}
             />
           )}
           {currentStep === 3 && (
@@ -287,10 +309,17 @@ export function PropertyEditPage() {
               <div className="max-w-4xl mx-auto w-full">
                 <PropertyListingCopyFields />
               </div>
+              {propertyId && (
+                <div className="max-w-4xl mx-auto w-full">
+                  <CancellationPolicyEditor propertyId={propertyId} />
+                </div>
+              )}
               <PropertyFormStep4Sections
                 onBack={() => setCurrentStep(3)}
                 displayImages={displayImages}
-                allowedListingTypes={activeListingTypesForEdit}
+                allowedListingTypes={listingTypesForContent}
+                allowedPropertyTypes={propertyTypesForContent}
+                canWriteCustom={canWriteCustom}
                 hideNextButton
                 footerExtra={
                   <>

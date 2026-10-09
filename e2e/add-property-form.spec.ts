@@ -143,7 +143,9 @@ async function fillPropertyDetailsStep(page: any, data: any) {
 
   // Availability and currency
   await page.fill('#availableFrom', data.availableFrom);
-  await page.selectOption('#currency', data.currency);
+  if (!(await page.locator('#currency').isDisabled())) {
+    await page.selectOption('#currency', data.currency);
+  }
 
   // Price fields (conditional based on status)
   if (data.status === 'sale') {

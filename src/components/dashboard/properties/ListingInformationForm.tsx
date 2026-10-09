@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { useSelector } from 'react-redux';
 import { Checkbox, Label, Select, TextInput } from 'flowbite-react';
 import type { PropertyFormData } from '../../../models/properties/PropertyFormSchema';
 import {
@@ -6,6 +8,12 @@ import {
   usesDynamicListingPricing,
 } from '../../../models/properties/PropertyFormSchema';
 import type { PropertyType } from '../../../models/properties/PropertyData';
+import {
+  ADMIN_LISTING_CURRENCIES,
+  DEFAULT_LISTING_CURRENCY,
+} from '../../../models/properties/listingCurrency';
+import { selectUserProfile } from '../../../store/slices/userSlice';
+import { isAdmin } from '../../../utils/RoleUtils';
 import { PropertyListingCopyFields } from './PropertyListingCopyFields';
 
 const checkboxBool = {
@@ -16,8 +24,16 @@ export function ListingInformationForm() {
   const {
     register,
     watch,
+    setValue,
     formState: { errors },
   } = useFormContext<PropertyFormData>();
+  const canChooseCurrency = isAdmin(useSelector(selectUserProfile));
+
+  useEffect(() => {
+    if (!canChooseCurrency) {
+      setValue('currency', DEFAULT_LISTING_CURRENCY, { shouldValidate: false });
+    }
+  }, [canChooseCurrency, setValue]);
 
   const propertyType = watch('propertyType') as PropertyType | undefined;
   const realEstateOfferMode = watch('realEstateOfferMode');
@@ -75,14 +91,22 @@ export function ListingInformationForm() {
             <div className="mb-2 block">
               <Label htmlFor="currency">Moneda</Label>
             </div>
-            <Select id="currency" {...register('currency')}>
-              <option value="">Selecciona una opción</option>
-              <option value="USD">USD</option>
-              <option value="UYU">UYU</option>
-              <option value="BRL">BRL</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
+            <Select id="currency" disabled={!canChooseCurrency} {...register('currency')}>
+              {canChooseCurrency ? (
+                ADMIN_LISTING_CURRENCIES.map(code => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))
+              ) : (
+                <option value={DEFAULT_LISTING_CURRENCY}>{DEFAULT_LISTING_CURRENCY}</option>
+              )}
             </Select>
+            {!canChooseCurrency && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Los avisos se publican en pesos uruguayos.
+              </p>
+            )}
             {errors.currency && (
               <p className="text-red-500 text-sm mt-1">
                 {errors.currency.message as string}

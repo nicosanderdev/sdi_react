@@ -1,40 +1,46 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import adminService, {
   TimeRange,
   AdminMetricsSummary,
-  AdminMetricsTimeseries,
   AdminActivityData,
-  AdminMetricsParams,
   AdminActivityParams,
-  AdminDashboardStats
+  AdminDashboardStats,
+  AdminDashboardCharts
 } from '../services/AdminService';
+import type { AdminGuestVisitOverview } from '../types/guestVisitContract';
+import type { GuestSiteFilterValue } from '../components/dashboard/GuestSiteFilter';
+
+export type AnalyticsPeriod = '7d' | '30d' | '90d';
 
 interface UseAdminDashboardDataReturn {
-  // Summary data
   summary: AdminMetricsSummary | null;
   summaryLoading: boolean;
   summaryError: string | null;
 
-  // Timeseries data
-  timeseries: AdminMetricsTimeseries[];
-  timeseriesLoading: boolean;
-  timeseriesError: string | null;
+  charts: AdminDashboardCharts | null;
+  chartsLoading: boolean;
+  chartsError: string | null;
 
-  // Activity data
   activity: AdminActivityData | null;
   activityLoading: boolean;
   activityError: string | null;
 
-  // Dashboard stats (Task 2)
   dashboardStats: AdminDashboardStats | null;
   dashboardStatsLoading: boolean;
   dashboardStatsError: string | null;
 
-  // General state
+  guestOverview: AdminGuestVisitOverview | null;
+  guestOverviewLoading: boolean;
+  guestOverviewError: string | null;
+
+  listingType: GuestSiteFilterValue;
+  setListingType: (value: GuestSiteFilterValue) => void;
+  analyticsPeriod: AnalyticsPeriod;
+  setAnalyticsPeriod: (period: AnalyticsPeriod) => void;
+
   isLoading: boolean;
   hasError: boolean;
 
-  // Actions
   refetch: () => void;
   setTimeRange: (range: TimeRange, startDate?: string, endDate?: string) => void;
 }
@@ -49,65 +55,61 @@ export const useAdminDashboardData = (
   const [startDate, setStartDate] = useState<string | undefined>();
   const [endDate, setEndDate] = useState<string | undefined>();
 
-  // Summary state
+  const [listingType, setListingType] = useState<GuestSiteFilterValue>(null);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<AnalyticsPeriod>('30d');
+
   const [summary, setSummary] = useState<AdminMetricsSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  // Timeseries state
-  const [timeseries, setTimeseries] = useState<AdminMetricsTimeseries[]>([]);
-  const [timeseriesLoading, setTimeseriesLoading] = useState(false);
-  const [timeseriesError, setTimeseriesError] = useState<string | null>(null);
+  const [charts, setCharts] = useState<AdminDashboardCharts | null>(null);
+  const [chartsLoading, setChartsLoading] = useState(false);
+  const [chartsError, setChartsError] = useState<string | null>(null);
 
-  // Activity state
   const [activity, setActivity] = useState<AdminActivityData | null>(null);
   const [activityLoading, setActivityLoading] = useState(false);
   const [activityError, setActivityError] = useState<string | null>(null);
 
-  // Dashboard stats state (Task 2)
   const [dashboardStats, setDashboardStats] = useState<AdminDashboardStats | null>(null);
   const [dashboardStatsLoading, setDashboardStatsLoading] = useState(false);
   const [dashboardStatsError, setDashboardStatsError] = useState<string | null>(null);
 
-  const baseParams: AdminMetricsParams = useMemo(() => ({
-    range: timeRange,
-    ...(timeRange === 'custom' && startDate && endDate && { startDate, endDate })
-  }), [timeRange, startDate, endDate]);
+  const [guestOverview, setGuestOverview] = useState<AdminGuestVisitOverview | null>(null);
+  const [guestOverviewLoading, setGuestOverviewLoading] = useState(false);
+  const [guestOverviewError, setGuestOverviewError] = useState<string | null>(null);
 
   const activityParams: AdminActivityParams = {
-    ...baseParams,
-    limit: 20 // Default limit for activity items
+    range: timeRange,
+    ...(timeRange === 'custom' && startDate && endDate && { startDate, endDate }),
+    limit: 20
   };
 
-  // Fetch summary data
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true);
     setSummaryError(null);
     try {
-      const data = await adminService.getMetricsSummary(baseParams);
+      const data = await adminService.getMetricsSummary({ range: timeRange });
       setSummary(data);
     } catch (error: any) {
       setSummaryError(error.message || 'Failed to fetch summary data');
     } finally {
       setSummaryLoading(false);
     }
-  }, [baseParams.range, baseParams.startDate, baseParams.endDate]);
+  }, [timeRange]);
 
-  // Fetch timeseries data
-  const fetchTimeseries = useCallback(async () => {
-    setTimeseriesLoading(true);
-    setTimeseriesError(null);
+  const fetchCharts = useCallback(async () => {
+    setChartsLoading(true);
+    setChartsError(null);
     try {
-      const data = await adminService.getMetricsTimeseries(baseParams);
-      setTimeseries(data);
+      const data = await adminService.getDashboardCharts(analyticsPeriod, listingType);
+      setCharts(data);
     } catch (error: any) {
-      setTimeseriesError(error.message || 'Failed to fetch timeseries data');
+      setChartsError(error.message || 'Failed to fetch dashboard charts');
     } finally {
-      setTimeseriesLoading(false);
+      setChartsLoading(false);
     }
-  }, [baseParams.range, baseParams.startDate, baseParams.endDate]);
+  }, [analyticsPeriod, listingType]);
 
-  // Fetch activity data
   const fetchActivity = useCallback(async () => {
     setActivityLoading(true);
     setActivityError(null);
@@ -121,7 +123,6 @@ export const useAdminDashboardData = (
     }
   }, [activityParams.range, activityParams.startDate, activityParams.endDate, activityParams.limit]);
 
-  // Fetch dashboard stats data (Task 2)
   const fetchDashboardStats = useCallback(async () => {
     setDashboardStatsLoading(true);
     setDashboardStatsError(null);
@@ -135,55 +136,81 @@ export const useAdminDashboardData = (
     }
   }, []);
 
-  // Fetch all data
+  const fetchGuestOverview = useCallback(async () => {
+    setGuestOverviewLoading(true);
+    setGuestOverviewError(null);
+    try {
+      const data = await adminService.getGuestVisitOverview(analyticsPeriod, listingType);
+      setGuestOverview(data);
+      setGuestOverviewError(null);
+    } catch (error: any) {
+      setGuestOverviewError(error.message || 'Failed to fetch guest visit overview');
+    } finally {
+      setGuestOverviewLoading(false);
+    }
+  }, [analyticsPeriod, listingType]);
+
   const fetchAll = useCallback(() => {
     fetchSummary();
-    fetchTimeseries();
+    fetchCharts();
     fetchActivity();
     fetchDashboardStats();
-  }, [fetchSummary, fetchTimeseries, fetchActivity, fetchDashboardStats]);
+    fetchGuestOverview();
+  }, [fetchSummary, fetchCharts, fetchActivity, fetchDashboardStats, fetchGuestOverview]);
 
-  // Set time range and update data
   const setTimeRange = useCallback((range: TimeRange, start?: string, end?: string) => {
     setTimeRangeState(range);
     setStartDate(start);
     setEndDate(end);
   }, []);
 
-  // Initial fetch and refetch when time range changes
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
 
-  const isLoading = summaryLoading || timeseriesLoading || activityLoading || dashboardStatsLoading;
-  const hasError = !!(summaryError || timeseriesError || activityError || dashboardStatsError);
+  const isLoading =
+    summaryLoading ||
+    chartsLoading ||
+    activityLoading ||
+    dashboardStatsLoading ||
+    guestOverviewLoading;
+  const hasError = !!(
+    summaryError ||
+    chartsError ||
+    activityError ||
+    dashboardStatsError ||
+    guestOverviewError
+  );
 
   return {
-    // Summary data
     summary,
     summaryLoading,
     summaryError,
 
-    // Timeseries data
-    timeseries,
-    timeseriesLoading,
-    timeseriesError,
+    charts,
+    chartsLoading,
+    chartsError,
 
-    // Activity data
     activity,
     activityLoading,
     activityError,
 
-    // Dashboard stats (Task 2)
     dashboardStats,
     dashboardStatsLoading,
     dashboardStatsError,
 
-    // General state
+    guestOverview,
+    guestOverviewLoading,
+    guestOverviewError,
+
+    listingType,
+    setListingType,
+    analyticsPeriod,
+    setAnalyticsPeriod,
+
     isLoading,
     hasError,
 
-    // Actions
     refetch: fetchAll,
     setTimeRange
   };

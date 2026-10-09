@@ -58,6 +58,7 @@ import PropertyManagementPage from './pages/dashboard/admin/PropertyManagementPa
 import { AdminCreatePropertyPage } from './pages/dashboard/admin/AdminCreatePropertyPage';
 import { AdminConfigPage } from './pages/dashboard/admin/AdminConfigPage';
 import { AdminLogsPage } from './pages/dashboard/admin/AdminLogsPage';
+import { AdminCronJobsPage } from './pages/dashboard/admin/AdminCronJobsPage';
 import { AdminBookingsPage } from './pages/dashboard/admin/AdminBookingsPage';
 import { AdminPaymentsPage } from './pages/dashboard/admin/AdminPaymentsPage';
 import { AdminCompaniesPage } from './pages/dashboard/admin/AdminCompaniesPage';
@@ -150,6 +151,7 @@ export function App() {
             <Route path="admin/properties/create" element={<AdminOnlyRoute><AdminCreatePropertyPage /></AdminOnlyRoute>} />
             <Route path="admin/config" element={<AdminOnlyRoute><AdminConfigPage /></AdminOnlyRoute>} />
             <Route path="admin/logs" element={<AdminOnlyRoute><AdminLogsPage /></AdminOnlyRoute>} />
+            <Route path="admin/cron" element={<AdminOnlyRoute><AdminCronJobsPage /></AdminOnlyRoute>} />
             <Route path="admin/bookings" element={<AdminOnlyRoute><AdminBookingsPage /></AdminOnlyRoute>} />
             <Route path="admin/payments" element={<AdminOnlyRoute><AdminPaymentsPage /></AdminOnlyRoute>} />
             <Route path="admin/users" element={<AdminOnlyRoute><UserManagementPage /></AdminOnlyRoute>} />

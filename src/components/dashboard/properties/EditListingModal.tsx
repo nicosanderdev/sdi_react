@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { Button, Checkbox, Label, Modal, ModalBody, ModalHeader, Select, TextInput, Textarea } from 'flowbite-react';
 import propertyService from '../../../services/PropertyService';
 import type { ListingType } from '../../../models/properties/PropertyData';
 import { usesDynamicListingPricing } from '../../../models/properties/PropertyFormSchema';
+import {
+  ADMIN_LISTING_CURRENCIES,
+  DEFAULT_LISTING_CURRENCY,
+  type ListingCurrencyCode,
+} from '../../../models/properties/listingCurrency';
+import { selectUserProfile } from '../../../store/slices/userSlice';
+import { isAdmin } from '../../../utils/RoleUtils';
 
 interface EditListingModalProps {
   isOpen: boolean;
@@ -16,7 +24,7 @@ type ListingFormState = {
   title: string;
   description: string;
   availableFrom: string;
-  currency: 'USD' | 'UYU' | 'BRL' | 'EUR' | 'GBP';
+  currency: ListingCurrencyCode;
   salePrice: string;
   rentPrice: string;
   basePrice: string;
@@ -37,7 +45,7 @@ const emptyForm: ListingFormState = {
   title: '',
   description: '',
   availableFrom: '',
-  currency: 'USD',
+  currency: DEFAULT_LISTING_CURRENCY,
   salePrice: '',
   rentPrice: '',
   basePrice: '',
@@ -54,6 +62,7 @@ const emptyForm: ListingFormState = {
 };
 
 export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditListingModalProps) {
+  const canChooseCurrency = isAdmin(useSelector(selectUserProfile));
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +93,7 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
           title: listing.title ?? '',
           description: listing.description ?? '',
           availableFrom: listing.availableFrom ? listing.availableFrom.slice(0, 10) : '',
-          currency: listing.currency,
+          currency: canChooseCurrency ? listing.currency : DEFAULT_LISTING_CURRENCY,
           salePrice: listing.salePrice ?? '',
           rentPrice: listing.rentPrice ?? '',
           basePrice: listing.basePrice ?? '',
@@ -114,7 +123,7 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
     };
 
     void loadListing();
-  }, [isOpen, propertyId]);
+  }, [isOpen, propertyId, canChooseCurrency]);
 
   const setField = <K extends keyof ListingFormState>(key: K, value: ListingFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -193,13 +202,26 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
               </div>
               <div>
                 <Label htmlFor="currency">Moneda</Label>
-                <Select id="currency" value={form.currency} onChange={e => setField('currency', e.target.value as ListingFormState['currency'])}>
-                  <option value="USD">USD</option>
-                  <option value="UYU">UYU</option>
-                  <option value="BRL">BRL</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
+                <Select
+                  id="currency"
+                  value={form.currency}
+                  disabled={!canChooseCurrency}
+                  onChange={e => setField('currency', e.target.value as ListingFormState['currency'])}
+                >
+                  {(canChooseCurrency
+                    ? Array.from(new Set<ListingCurrencyCode>([...ADMIN_LISTING_CURRENCIES, form.currency]))
+                    : [DEFAULT_LISTING_CURRENCY]
+                  ).map(code => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
                 </Select>
+                {!canChooseCurrency && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Al guardar se crea un aviso nuevo en pesos uruguayos.
+                  </p>
+                )}
               </div>
             </div>
             {isSaleListing ? (

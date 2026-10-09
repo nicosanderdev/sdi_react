@@ -1,7 +1,7 @@
 // src/components/admin/users/UserActionsMenu.tsx
 import React from 'react';
 import { Button } from 'flowbite-react';
-import { UserMinusIcon, UserCheckIcon, RotateCcwIcon, LogOutIcon } from 'lucide-react';
+import { UserMinusIcon, UserCheckIcon, LogOutIcon } from 'lucide-react';
 import { UserListItem } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 
@@ -11,7 +11,7 @@ interface UserActionsMenuProps {
 }
 
 export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) => {
-  const { suspendUser, reactivateUser, resetOnboarding, forceLogout, actionLoading } = hook;
+  const { suspendUser, reactivateUser, forceLogout, actionLoading } = hook;
 
   const disabled = !user || actionLoading;
 
@@ -22,10 +22,6 @@ export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) 
   const handleReactivate = () => {
     if (!user) return;
     void reactivateUser(user.id);
-  };
-  const handleResetOnboarding = () => {
-    if (!user) return;
-    void resetOnboarding(user.id);
   };
   const handleForceLogout = () => {
     if (!user) return;
@@ -49,16 +45,6 @@ export const UserActionsMenu: React.FC<UserActionsMenuProps> = ({ user, hook }) 
           <UserCheckIcon className="w-4 h-4 shrink-0" aria-hidden />
         )}
         <span>{isActive ? 'Suspender usuario' : 'Reactivar usuario'}</span>
-      </Button>
-      <Button
-        size="sm"
-        color="light"
-        className="flex items-center gap-2"
-        disabled={disabled}
-        onClick={handleResetOnboarding}
-      >
-        <RotateCcwIcon className="w-4 h-4 shrink-0" aria-hidden />
-        <span>Reiniciar onboarding</span>
       </Button>
       <Button
         size="sm"

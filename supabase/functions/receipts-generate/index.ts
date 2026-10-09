@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { logCronExecution } from '../_shared/adminActivityLog.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -94,15 +95,29 @@ Deno.serve(async (req) => {
       durationMs: Date.now() - startTime,
       errors: errors.length > 0 ? errors : undefined
     }
+    await logCronExecution(
+      req,
+      'receipts-generate',
+      body.success,
+      body.success
+        ? `${invoicesCreated} invoices / ${cyclesProcessed} cycles`
+        : (errors[0] ?? 'completed with errors'),
+      body as unknown as Record<string, unknown>,
+    )
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   } catch (error) {
+    const message = (error as Error).message
+    await logCronExecution(req, 'receipts-generate', false, message, {
+      cyclesProcessed,
+      invoicesCreated,
+    })
     return new Response(
       JSON.stringify({
         success: false,
-        error: (error as Error).message,
+        error: message,
         cyclesProcessed,
         invoicesCreated,
         durationMs: Date.now() - startTime

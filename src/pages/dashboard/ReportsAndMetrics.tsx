@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DownloadIcon, BarChartIcon, Loader2Icon, TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
+import { DownloadIcon, BarChartIcon, Loader2Icon, TrendingUpIcon, TrendingDownIcon, Percent } from 'lucide-react';
 import { VisitsBySourceChart } from '../../components/reports/VisitsBySourceChart';
 import { VisitsByDateChart } from '../../components/reports/VisitsByDateChart';
 import { PropertiesPerformanceTable } from '../../components/reports/PropertiesPerformanceTable';
+import { GuestSiteFilter, type GuestSiteFilterValue } from '../../components/dashboard/GuestSiteFilter';
 import reportService, {
   DashboardSummaryData,
   DailyVisit,
@@ -39,6 +40,7 @@ export function ReportsAndMetrics() {
   const [timeRange, setTimeRange] = useState<string>('last30days');
   const [company, setCompany] = useState<string>('my');
   const [propertyId, setPropertyId] = useState<string>(ALL_PROPERTIES_FILTER);
+  const [listingType, setListingType] = useState<GuestSiteFilterValue>(null);
   const [propertyOptions, setPropertyOptions] = useState<ReportPropertyOption[]>([]);
 
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummaryData | null>(null);
@@ -79,7 +81,12 @@ export function ReportsAndMetrics() {
 
     const companyFilter = getCompanyFilter();
     const propertyFilter = getPropertyFilter();
-    const requestParams = { period: currentPeriod, ...companyFilter, ...propertyFilter };
+    const requestParams = {
+      period: currentPeriod,
+      ...companyFilter,
+      ...propertyFilter,
+      listingType,
+    };
 
     setIsLoadingSummary(true);
     try {
@@ -132,7 +139,7 @@ export function ReportsAndMetrics() {
     } finally {
       setIsLoadingPropertiesPerf(false);
     }
-  }, [timeRange, getCompanyFilter, getPropertyFilter]);
+  }, [timeRange, getCompanyFilter, getPropertyFilter, listingType]);
 
   useEffect(() => {
     fetchData();
@@ -253,6 +260,8 @@ export function ReportsAndMetrics() {
             className="mr-2"
           />
 
+          <GuestSiteFilter value={listingType} onChange={setListingType} />
+
           <Dropdown
             data-testid="report-property-filter"
             dismissOnClick={true}
@@ -298,7 +307,7 @@ export function ReportsAndMetrics() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <SummaryCard
           title="Visitas Totales"
           testId="report-total-visits"
@@ -308,17 +317,17 @@ export function ReportsAndMetrics() {
           trendDirection={dashboardSummary?.visits?.changeDirection}
           isLoading={isLoadingSummary}
         />
-        {/* Messaging out of scope for this version
         <SummaryCard
-          title="Consultas Recibidas"
-          testId="report-total-messages"
-          value={dashboardSummary?.messages?.currentPeriod ?? '-'}
-          icon={<LineChartIcon size={20} className="text-[#1B4965]" />}
-          trendValue={dashboardSummary?.messages?.percentageChange}
-          trendDirection={dashboardSummary?.messages?.changeDirection}
+          title="Tasa de conversión"
+          testId="report-conversion-rate"
+          value={
+            dashboardSummary?.conversionRate == null
+              ? '—'
+              : `${Number(dashboardSummary.conversionRate).toFixed(1)}%`
+          }
+          icon={<Percent size={20} className="text-[#1B4965]" />}
           isLoading={isLoadingSummary}
         />
-        */}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -355,7 +364,7 @@ export function ReportsAndMetrics() {
             <Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" />
           </div>
         ) : (
-          <PropertiesPerformanceTable properties={propertiesPerformance} />
+          <PropertiesPerformanceTable properties={propertiesPerformance} showBySite />
         )}
       </Card>
     </div>

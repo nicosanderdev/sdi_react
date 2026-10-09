@@ -1,48 +1,38 @@
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
-import reportService from './../../services/ReportService'; // Adjust path if needed
+import reportService from './../../services/ReportService';
 import { Card } from 'flowbite-react';
+import type { GuestSiteFilterValue } from './GuestSiteFilter';
 
 export interface PropertyStatsProps {
   /** Time period for charts (default last7days) */
   period?: string;
   /** Company filter: undefined = my properties, or company UUID for a specific company */
   companyId?: string | null;
+  /** Guest site filter: null = all tracked sites */
+  listingType?: GuestSiteFilterValue;
 }
 
-export function PropertyStats({ period = 'last7days', companyId }: PropertyStatsProps) {
+export function PropertyStats({ period = 'last7days', companyId, listingType = null }: PropertyStatsProps) {
   const companyFilter = companyId ? { companyId } : {};
+  const listingFilter = { listingType };
 
-  // --- Data Fetching for Visits Per Day Chart ---
   const {
     data: dailyVisitsData,
     isLoading: isLoadingDailyVisits,
     isError: isErrorDailyVisits,
     error: errorDailyVisits,
   } = useQuery({
-    queryKey: ['dailyVisits', period, companyId],
-    queryFn: () => reportService.getDailyVisits({ period, ...companyFilter }),
+    queryKey: ['dailyVisits', period, companyId, listingType],
+    queryFn: () => reportService.getDailyVisits({ period, ...companyFilter, ...listingFilter }),
   });
 
-  // Messaging out of scope for this version — getDailyMessages / get_daily_dashboard_messages kept for later
-  // const {
-  //   data: dailyMessagesData,
-  //   isLoading: isLoadingDailyMessages,
-  //   isError: isErrorDailyMessages,
-  //   error: errorDailyMessages,
-  // } = useQuery({
-  //   queryKey: ['dailyMessages', period, companyId],
-  //   queryFn: () => reportService.getDailyMessages({ period, ...companyFilter }),
-  // });
-
-  // --- Data Fetching for Visits By Source Chart ---
   const { data: visitsBySourceData, isLoading: isLoadingVisitsBySource, isError: isErrorVisitsBySource, error: errorVisitsBySource } = useQuery({
-    queryKey: ['visitsBySource', period, companyId],
-    queryFn: () => reportService.getVisitsBySource({ period, ...companyFilter }),
+    queryKey: ['visitsBySource', period, companyId, listingType],
+    queryFn: () => reportService.getVisitsBySource({ period, ...companyFilter, ...listingFilter }),
     select: (response) => response
   });
 
-  // Helper for chart loading/error
   const renderChartArea = (isLoading: boolean, isError: boolean, error: any, ChartComponent: any) => {
     if (isLoading) return <p className="text-center text-gray-500">Cargando datos del gráfico...</p>;
     if (isError) return <p className="text-center text-red-500">Error al cargar datos: {error?.message}</p>;
@@ -68,7 +58,7 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={dailyVisitsData || []}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="dayName" /> {/* Assuming API returns 'dayName' */}
+                <XAxis dataKey="dayName" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
@@ -80,17 +70,6 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
                   strokeWidth={2}
                   activeDot={{ r: 6 }}
                 />
-                {/* Messaging out of scope for this version
-                <Line
-                  type="monotone"
-                  dataKey="messages"
-                  name="Mensajes recibidos"
-                  stroke="#E6AF2E"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-                */}
               </LineChart>
             </ResponsiveContainer>
           )}
@@ -105,7 +84,7 @@ export function PropertyStats({ period = 'last7days', companyId }: PropertyStats
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={visitsBySourceData || []}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="source" /> {/* Assuming API returns 'source' */}
+                <XAxis dataKey="source" />
                 <YAxis />
                 <Tooltip />
                 <Legend />

@@ -175,6 +175,7 @@ export function CompanyManagementPage() {
             </p>
             <Button
               data-testid="company-create-cta"
+              className="mx-auto w-fit"
               onClick={() => navigate('/dashboard/company/subscription')}
             >
               Crear Empresa

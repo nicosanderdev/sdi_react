@@ -10,6 +10,8 @@ import PropertyContact from '../../components/messages/PropertyContact';
 import propertyService from '../../services/PropertyService';
 import { PropertyParams, PublicProperty, Amenity } from '../../models/properties';
 import { pickAmenityDescription } from '../../models/properties/amenityDescriptions';
+import { PropertyPoliciesList } from '../../components/public/properties/PropertyPoliciesList';
+import { PropertyContentSectionsView } from '../../components/public/properties/PropertyContentSectionsView';
 
 
 
@@ -136,11 +138,12 @@ function PublicPropertyViewPage() {
             <div className='grid grid-cols-1 md:grid-cols-3 gap-4 p-4'>
               {property.amenities.map((e: Amenity) => {
                 const description = pickAmenityDescription(e.descriptions, 'es');
+                const name = pickAmenityDescription(e.localizedName, 'es') || e.name;
                 return (
-                  <div key={e.id} className='flex items-start space-x-2'>
+                  <div key={e.key ?? e.id} className='flex items-start space-x-2'>
                     <IconWrapper icon={Home} hoverable={true} size={25} />
                     <div>
-                      <span className={description ? 'font-semibold' : ''}>{e.name}</span>
+                      <span className={description ? 'font-semibold' : ''}>{name}</span>
                       {description && (
                         <p className="text-sm text-gray-600 mt-1 whitespace-pre-line">{description}</p>
                       )}
@@ -150,6 +153,9 @@ function PublicPropertyViewPage() {
               })}
             </div>
           </Card>
+
+          <PropertyContentSectionsView sections={property.contentSections} locale="es" />
+          <PropertyPoliciesList policies={property.policies} locale="es" />
           
           {/* Property Videos */}
           <PropertyVideoSection videos={property.propertyVideos} />

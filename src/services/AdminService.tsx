@@ -1,5 +1,17 @@
 // src/services/AdminService.ts
 import { supabase } from '../config/supabase';
+import type {
+  AdminGuestVisitOverview,
+  AdminGuestVisitTimeseriesPoint,
+  GuestContentPageKey,
+  GuestTrackedListingType,
+  GuestTrafficSource,
+} from '../types/guestVisitContract';
+import {
+  GUEST_CONTENT_PAGE_KEYS,
+  GUEST_TRACKED_LISTING_TYPES,
+  GUEST_TRAFFIC_SOURCES,
+} from '../types/guestVisitContract';
 
 // Time range options for admin metrics
 export type TimeRange = '7d' | '30d' | '90d' | 'custom';
@@ -26,6 +38,8 @@ export interface AdminMetricsTimeseries {
   date: string; // "YYYY-MM-DD"
   users: number;
   properties: number;
+  propertyViews?: number;
+  pageViews?: number;
 }
 
 export interface AdminActivityItem {
@@ -72,16 +86,90 @@ export interface AdminDashboardStats {
   viewsLast30Days?: number;
 }
 
+export interface AdminPlanUserCount {
+  key: number | null;
+  name: string;
+  users: number;
+}
+
+export interface AdminDashboardCharts {
+  plans: AdminPlanUserCount[];
+  properties: Record<GuestTrackedListingType, number>;
+  propertyViewsBySite: Record<GuestTrackedListingType, number>;
+  pageViews: Array<Record<GuestTrackedListingType, number> & { pageKey: GuestContentPageKey }>;
+  traffic: Record<GuestTrafficSource, number>;
+}
+
 // Request parameters
 export interface AdminMetricsParams {
   range: TimeRange;
   startDate?: string; // For custom range
   endDate?: string;   // For custom range
+  listingType?: string | null;
 }
 
 export interface AdminActivityParams extends AdminMetricsParams {
   type?: ActivityType;
   limit?: number;
+}
+
+function emptySiteCounts(): Record<GuestTrackedListingType, number> {
+  return { SummerRent: 0, EventVenue: 0 };
+}
+
+function readSiteCounts(raw: unknown): Record<GuestTrackedListingType, number> {
+  const counts = emptySiteCounts();
+  if (!raw || typeof raw !== 'object') return counts;
+  const record = raw as Record<string, unknown>;
+  for (const listingType of GUEST_TRACKED_LISTING_TYPES) {
+    counts[listingType] = Number(record[listingType] ?? 0);
+  }
+  return counts;
+}
+
+export function mapAdminDashboardCharts(raw: unknown): AdminDashboardCharts {
+  const payload = (raw ?? {}) as Record<string, unknown>;
+  const planRows = Array.isArray(payload.plans) ? payload.plans : [];
+  const plans: AdminPlanUserCount[] = planRows.map((row) => {
+    const plan = row as Record<string, unknown>;
+    const key = plan.key == null || plan.key === '' ? null : Number(plan.key);
+    return {
+      key: key != null && Number.isFinite(key) ? key : null,
+      name: String(plan.name ?? ''),
+      users: Number(plan.users ?? 0),
+    };
+  });
+  if (!plans.some((plan) => plan.key == null)) {
+    plans.push({ key: null, name: 'Sin plan', users: 0 });
+  }
+
+  const pageRows = Array.isArray(payload.pageViews) ? payload.pageViews : [];
+  const pageByKey = new Map<string, Record<string, unknown>>();
+  for (const row of pageRows) {
+    const page = row as Record<string, unknown>;
+    pageByKey.set(String(page.pageKey ?? ''), page);
+  }
+
+  const trafficRaw = (payload.traffic ?? {}) as Record<string, unknown>;
+  const traffic = {} as Record<GuestTrafficSource, number>;
+  for (const source of GUEST_TRAFFIC_SOURCES) {
+    traffic[source] = Number(trafficRaw[source] ?? 0);
+  }
+
+  return {
+    plans,
+    properties: readSiteCounts(payload.properties),
+    propertyViewsBySite: readSiteCounts(payload.propertyViewsBySite),
+    pageViews: GUEST_CONTENT_PAGE_KEYS.map((pageKey) => {
+      const page = pageByKey.get(pageKey);
+      return {
+        pageKey,
+        SummerRent: Number(page?.SummerRent ?? 0),
+        EventVenue: Number(page?.EventVenue ?? 0),
+      };
+    }),
+    traffic,
+  };
 }
 
 class AdminService {
@@ -302,12 +390,18 @@ class AdminService {
 
       if (userError) throw userError;
 
-      const { data: propertyData, error: propertyError } = await supabase
+      let listingsQuery = supabase
         .from('Listings')
         .select('Created')
         .eq('IsDeleted', false)
         .gte('Created', startDate.toISOString())
         .lte('Created', endDate.toISOString());
+
+      if (params.listingType) {
+        listingsQuery = listingsQuery.eq('ListingType', params.listingType);
+      }
+
+      const { data: propertyData, error: propertyError } = await listingsQuery;
 
       if (propertyError) throw propertyError;
 
@@ -558,6 +652,107 @@ class AdminService {
       stats = this.mergeViewsSummary(stats, viewsSummary);
     }
     return stats;
+  }
+
+  private mapAnalyticsPeriodToRpc(period: TimeRange | string): string {
+    switch (period) {
+      case '7d':
+      case 'last7days':
+        return 'last7days';
+      case '90d':
+      case 'last90days':
+        return 'last90days';
+      case 'thisyear':
+        return 'thisyear';
+      case '30d':
+      case 'last30days':
+      default:
+        return 'last30days';
+    }
+  }
+
+  /**
+   * Admin guest-site visit overview: property/page views, conversion, traffic, top rankings.
+   */
+  async getGuestVisitOverview(
+    period: TimeRange | string = '30d',
+    listingType?: string | null
+  ): Promise<AdminGuestVisitOverview> {
+    const args = {
+      p_period: this.mapAnalyticsPeriodToRpc(period),
+      p_listing_type: listingType ?? null,
+    };
+    let { data, error } = await supabase.rpc('get_admin_guest_visit_overview', args);
+    // Kong sometimes closes this RPC before headers (502). One retry is enough.
+    if (error && /invalid response was received from the upstream server/i.test(error.message)) {
+      ({ data, error } = await supabase.rpc('get_admin_guest_visit_overview', args));
+    }
+    if (error) throw new Error(`Failed to fetch guest visit overview: ${error.message}`);
+
+    const raw = (data ?? {}) as Record<string, unknown>;
+    const trafficRaw = (raw.traffic ?? {}) as Record<string, number>;
+    return {
+      period: String(raw.period ?? this.mapAnalyticsPeriodToRpc(period)),
+      listingType: (raw.listingType as GuestTrackedListingType | null) ?? null,
+      propertyViews: Number(raw.propertyViews ?? 0),
+      pageViews: Number(raw.pageViews ?? 0),
+      holds: Number(raw.holds ?? 0),
+      conversionRate: raw.conversionRate == null ? null : Number(raw.conversionRate),
+      traffic: {
+        direct: Number(trafficRaw.direct ?? 0),
+        organic: Number(trafficRaw.organic ?? 0),
+        social: Number(trafficRaw.social ?? 0),
+        referral: Number(trafficRaw.referral ?? 0),
+        paid: Number(trafficRaw.paid ?? 0),
+        email: Number(trafficRaw.email ?? 0),
+      },
+      topViewed: Array.isArray(raw.topViewed)
+        ? (raw.topViewed as AdminGuestVisitOverview['topViewed'])
+        : [],
+      topConversion: Array.isArray(raw.topConversion)
+        ? (raw.topConversion as AdminGuestVisitOverview['topConversion'])
+        : [],
+    };
+  }
+
+  /**
+   * Daily property views and page views for the admin trend chart.
+   */
+  async getGuestVisitTimeseries(
+    period: TimeRange | string = '30d',
+    listingType?: string | null
+  ): Promise<AdminGuestVisitTimeseriesPoint[]> {
+    const { data, error } = await supabase.rpc('get_admin_guest_visit_timeseries', {
+      p_period: this.mapAnalyticsPeriodToRpc(period),
+      p_listing_type: listingType ?? null,
+    });
+    if (error) throw new Error(`Failed to fetch guest visit timeseries: ${error.message}`);
+
+    return (data ?? []).map((row: { date: string; property_views: number; page_views: number }) => ({
+      date: typeof row.date === 'string' ? row.date.split('T')[0] : String(row.date),
+      property_views: Number(row.property_views ?? 0),
+      page_views: Number(row.page_views ?? 0),
+    }));
+  }
+
+  /**
+   * Snapshot bars for the admin global dashboard.
+   * Plan and property counts ignore period and site; visit charts use both.
+   */
+  async getDashboardCharts(
+    period: TimeRange | string = '30d',
+    listingType?: string | null
+  ): Promise<AdminDashboardCharts> {
+    const args = {
+      p_period: this.mapAnalyticsPeriodToRpc(period),
+      p_listing_type: listingType ?? null,
+    };
+    let { data, error } = await supabase.rpc('get_admin_dashboard_charts', args);
+    if (error && /invalid response was received from the upstream server/i.test(error.message)) {
+      ({ data, error } = await supabase.rpc('get_admin_dashboard_charts', args));
+    }
+    if (error) throw new Error(`Failed to fetch dashboard charts: ${error.message}`);
+    return mapAdminDashboardCharts(data);
   }
 }
 

@@ -80,34 +80,64 @@ async function insertCompanyProperty(
   });
   if (summerError) throw summerError;
 
+  const { error: listingError } = await client.from('Listings').insert({
+    EstatePropertyId: propertyId,
+    ListingType: 'SummerRent',
+    Title: streetName,
+    Description: 'E2E seeded summer listing',
+    AvailableFrom: now,
+    Capacity: 4,
+    Currency: 0,
+    RentPrice: 100,
+    IsPriceVisible: true,
+    Status: 1,
+    IsActive: true,
+    IsPropertyVisible: true,
+    IsFeatured: false,
+    IsDeleted: false,
+    Created: now,
+    CreatedBy: createdBy,
+    LastModified: now,
+    LastModifiedBy: createdBy,
+  });
+  if (listingError) throw listingError;
+
   return propertyId;
 }
 
 async function insertVisitLogs(
   client: SupabaseClient,
   propertyId: string,
-  createdBy: string,
 ): Promise<number> {
-  const now = new Date().toISOString();
-  const rows = [
-    { source: 'website' },
-    { source: 'website' },
-    { source: 'website' },
-    { source: 'instagram' },
-  ].map((row) => ({
-    Id: randomUUID(),
-    PropertyId: propertyId,
-    VisitedOnUtc: now,
-    Source: row.source,
-    IsDeleted: false,
-    Created: now,
-    CreatedBy: createdBy,
-    LastModified: now,
-    LastModifiedBy: createdBy,
-  }));
-  const { error } = await client.from('PropertyVisitLogs').insert(rows);
-  if (error) throw error;
-  return rows.length;
+  // Unique session per row so dedupe (session + property + Montevideo day) still counts each visit.
+  const visits = [
+    { utm_source: null as string | null, utm_medium: null as string | null, referrer: null as string | null },
+    { utm_source: null, utm_medium: null, referrer: null },
+    { utm_source: null, utm_medium: null, referrer: null },
+    { utm_source: 'instagram', utm_medium: 'social', referrer: 'instagram.com' },
+  ];
+
+  let counted = 0;
+  for (const visit of visits) {
+    const { data, error } = await client.rpc('record_guest_visit', {
+      p_session_id: randomUUID(),
+      p_listing_type: 'SummerRent',
+      p_page_key: 'property_detail',
+      p_property_id: propertyId,
+      p_page_host: 'localhost',
+      p_referrer_host: visit.referrer,
+      p_utm_source: visit.utm_source,
+      p_utm_medium: visit.utm_medium,
+      p_utm_campaign: null,
+    });
+    if (error) throw error;
+    const result = data as { success?: boolean; counted_property?: boolean; error?: string };
+    if (!result?.success) {
+      throw new Error(`record_guest_visit failed: ${result?.error ?? 'unknown'}`);
+    }
+    if (result.counted_property) counted += 1;
+  }
+  return counted;
 }
 
 async function insertGuest(client: SupabaseClient): Promise<{ id: string; firstName: string; lastName: string; email: string }> {
@@ -178,7 +208,7 @@ export async function seedManagerPanel(
 
   const propertyTitle = `E2E Visitas ${Date.now()}`;
   const propertyId = await insertCompanyProperty(client, company.companyId, admin.authUserId, propertyTitle);
-  const visitCount = await insertVisitLogs(client, propertyId, admin.authUserId);
+  const visitCount = await insertVisitLogs(client, propertyId);
   const guest = await insertGuest(client);
   const pendingBookingId = await insertPendingBooking(client, propertyId, guest.id);
 

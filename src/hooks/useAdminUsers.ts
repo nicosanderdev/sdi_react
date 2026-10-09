@@ -54,6 +54,8 @@ export interface UseAdminUsersReturn {
   userToDelete: AdminUserDeletable | null;
   unlinkMercadoPagoModalOpen: boolean;
   userToUnlinkMercadoPago: UserListItem | null;
+  changePlanModalOpen: boolean;
+  userToChangePlan: UserListItem | null;
   viewModalOpen: boolean;
   viewUser: UserDetail | null;
   editModalOpen: boolean;
@@ -96,6 +98,9 @@ export interface UseAdminUsersReturn {
   confirmDeleteUser: (reason?: string) => Promise<void>;
 
   sendMercadoPagoLink: (memberId: string) => Promise<void>;
+  openChangePlanModal: (user: UserListItem) => void;
+  closeChangePlanModal: () => void;
+  confirmChangeMemberPlan: (memberId: string, planId: string) => Promise<void>;
   openUnlinkMercadoPagoModal: (user: UserListItem) => void;
   closeUnlinkMercadoPagoModal: () => void;
   confirmUnlinkMercadoPago: () => Promise<void>;
@@ -149,6 +154,8 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
   const [userToDelete, setUserToDelete] = useState<AdminUserDeletable | null>(null);
   const [unlinkMercadoPagoModalOpen, setUnlinkMercadoPagoModalOpen] = useState(false);
   const [userToUnlinkMercadoPago, setUserToUnlinkMercadoPago] = useState<UserListItem | null>(null);
+  const [changePlanModalOpen, setChangePlanModalOpen] = useState(false);
+  const [userToChangePlan, setUserToChangePlan] = useState<UserListItem | null>(null);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [viewUser, setViewUser] = useState<UserDetail | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -472,6 +479,36 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     [fetchUsers],
   );
 
+  const openChangePlanModal = useCallback((user: UserListItem) => {
+    setActionError(null);
+    setActionSuccess(null);
+    setUserToChangePlan(user);
+    setChangePlanModalOpen(true);
+  }, []);
+
+  const closeChangePlanModal = useCallback(() => {
+    setChangePlanModalOpen(false);
+    setUserToChangePlan(null);
+    setActionError(null);
+  }, []);
+
+  const confirmChangeMemberPlan = useCallback(async (memberId: string, planId: string) => {
+    setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+    try {
+      await userAdminService.assignMemberPlan(memberId, planId);
+      setActionSuccess('Plan personal actualizado');
+      closeChangePlanModal();
+      await fetchUsers();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo cambiar el plan.';
+      setActionError(message || 'No se pudo cambiar el plan.');
+    } finally {
+      setActionLoading(false);
+    }
+  }, [closeChangePlanModal, fetchUsers]);
+
   const openUnlinkMercadoPagoModal = useCallback((user: UserListItem) => {
     setActionError(null);
     setActionSuccess(null);
@@ -598,6 +635,8 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     userToDelete,
     unlinkMercadoPagoModalOpen,
     userToUnlinkMercadoPago,
+    changePlanModalOpen,
+    userToChangePlan,
     viewModalOpen,
     viewUser,
     editModalOpen,
@@ -635,6 +674,9 @@ export const useAdminUsers = (): UseAdminUsersReturn => {
     confirmDeleteUser,
 
     sendMercadoPagoLink,
+    openChangePlanModal,
+    closeChangePlanModal,
+    confirmChangeMemberPlan,
     openUnlinkMercadoPagoModal,
     closeUnlinkMercadoPagoModal,
     confirmUnlinkMercadoPago,

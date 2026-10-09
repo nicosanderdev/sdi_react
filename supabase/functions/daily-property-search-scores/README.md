@@ -24,17 +24,15 @@ Supabase Dashboard → Edge Functions → Cron, e.g. `0 4 * * *` (04:00 UTC dail
 | Caller | Authorization |
 |--------|----------------|
 | Supabase cron / curl | `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` |
-| Admin UI (`sdi_react`) | Logged-in admin JWT via `supabase.functions.invoke` (handler checks `Members.Role = admin`) |
+| Admin UI (`sdi_react`) | Logged-in admin JWT via `admin-run-cron` (`/dashboard/admin/cron`) |
 
 ## Admin UI
 
-On **Gestión de propiedades** (`/dashboard/admin/properties`), admins can click **Ejecutar scoring** to run the full batch without curl. Requires:
+On **Ejecuciones recurrentes** (`/dashboard/admin/cron`), admins can run this job through `admin-run-cron`. Requires:
 
-- This function deployed to the project matching `VITE_SUPABASE_URL`
+- `daily-property-search-scores` and `admin-run-cron` deployed to the project matching `VITE_SUPABASE_URL`
 - Migration `20260603120000_property_search_schema.sql` applied
 - Local: `supabase start` (edge functions at `/functions/v1/...`)
-
-Implementation: `PropertyAdminService.runSearchScoringBatch()` → `daily-property-search-scores`.
 
 ## Invoke manually (service role)
 

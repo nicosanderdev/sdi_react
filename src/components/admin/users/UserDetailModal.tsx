@@ -88,7 +88,6 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
     actionLoading,
     suspendUser,
     reactivateUser,
-    resetOnboarding,
     forceLogout,
     updateUserRole,
     assignMemberPlan,
@@ -100,8 +99,8 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
 
   React.useEffect(() => {
     if (!detailModalOpen) return;
-    subscriptionService.getPlans('member').then((rows) => {
-      setMemberPlans(rows.filter((plan) => plan.isActive));
+    subscriptionService.getPlans('member', { forAdmin: true }).then((rows) => {
+      setMemberPlans(rows);
     }).catch(() => setMemberPlans([]));
   }, [detailModalOpen]);
 
@@ -117,7 +116,6 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
 
   const handleSuspend = () => handleQuickAction(() => suspendUser(selectedUser.id, 'Suspended by admin'));
   const handleReactivate = () => handleQuickAction(() => reactivateUser(selectedUser.id));
-  const handleResetOnboarding = () => handleQuickAction(() => resetOnboarding(selectedUser.id));
   const handleForceLogout = () => handleQuickAction(() => forceLogout(selectedUser.id, 'Forced logout by admin'));
   const handleDelete = () => openDeleteConfirmModal(selectedUser);
 
@@ -170,9 +168,6 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
                         Reactivate User
                       </Button>
                     )}
-                    <Button color="light" size="sm" onClick={handleResetOnboarding}>
-                      Reset Onboarding
-                    </Button>
                     <Button color="light" size="sm" onClick={handleForceLogout}>
                       Force Logout
                     </Button>

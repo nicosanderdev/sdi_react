@@ -13,6 +13,10 @@ import {
 } from 'lucide-react';
 import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 import propertyService from '../../../services/PropertyService';
+import {
+  DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE,
+  adminTypeSummaryBlocksRealEstateDuplication,
+} from '../../../models/properties/creatablePropertyTypes';
 
 interface PropertyManagementToolbarProps {
   hook: UseAdminPropertiesReturn;
@@ -21,6 +25,7 @@ interface PropertyManagementToolbarProps {
 export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps> = ({ hook }) => {
   const navigate = useNavigate();
   const [duplicating, setDuplicating] = useState(false);
+  const [duplicateBlockedMessage, setDuplicateBlockedMessage] = useState<string | null>(null);
   const {
     selectedPropertyIds,
     primarySelectedProperty,
@@ -32,6 +37,9 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
 
   const singleSelection = selectedPropertyIds.length === 1;
   const selectedId = singleSelection ? selectedPropertyIds[0] : null;
+  const blocksRealEstateDuplicate = adminTypeSummaryBlocksRealEstateDuplication(
+    primarySelectedProperty?.propertyTypesSummary
+  );
 
   const handleCalendar = () => {
     if (!selectedId) return;
@@ -60,6 +68,11 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
 
   const handleDuplicate = async () => {
     if (!selectedId) return;
+    if (blocksRealEstateDuplicate) {
+      setDuplicateBlockedMessage(DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE);
+      return;
+    }
+    setDuplicateBlockedMessage(null);
     setDuplicating(true);
     try {
       const result = await propertyService.duplicateProperty(selectedId);
@@ -73,6 +86,7 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
   };
 
   const disabled = !singleSelection || duplicating;
+  const duplicateDisabled = disabled || blocksRealEstateDuplicate;
 
   return (
     <div className="flex flex-col gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 mb-3">
@@ -130,9 +144,10 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
         <Button
           size="sm"
           color="light"
-          disabled={disabled}
+          disabled={duplicateDisabled}
           onClick={() => void handleDuplicate()}
           className="flex items-center gap-2"
+          title={blocksRealEstateDuplicate ? DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE : undefined}
         >
           {duplicating ? (
             <Loader2Icon className="w-4 h-4 shrink-0 animate-spin" />
@@ -146,6 +161,9 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
         <p className="text-xs text-amber-700 dark:text-amber-400">
           Seleccione una sola fila para usar estas acciones.
         </p>
+      )}
+      {duplicateBlockedMessage && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">{duplicateBlockedMessage}</p>
       )}
     </div>
   );

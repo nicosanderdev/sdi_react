@@ -1,6 +1,6 @@
 import { supabase } from '../config/supabase';
 
-export type AdminLogEventType = 'user' | 'property' | 'booking';
+export type AdminLogEventType = 'user' | 'property' | 'booking' | 'company' | 'system';
 
 export interface AdminLogEntry {
   event_type: AdminLogEventType;
@@ -14,8 +14,8 @@ export interface AdminLogEntry {
 
 /**
  * Fetches admin audit events for a given date from the get_admin_logs_for_date RPC.
- * Returns user actions (MemberActionHistory), property moderation (PropertyModerationActions),
- * and booking created/updated events. Requires admin role (RLS on underlying tables).
+ * Includes MemberActionHistory, PropertyModerationActions, booking created/updated,
+ * and AdminActivityLog (property/listing/company/registration/payment/cron, etc.).
  */
 export async function getLogsForDate(date: Date): Promise<AdminLogEntry[]> {
   const dateStr = date.toISOString().slice(0, 10);
