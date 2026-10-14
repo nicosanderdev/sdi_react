@@ -1,23 +1,49 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, Button, Spinner } from 'flowbite-react';
 import { CheckCircle } from 'lucide-react';
-import { useDispatch } from 'react-redux';
-import { fetchUserProfile } from '../../../store/slices/userSlice';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUserProfile, selectUserCompanies, selectUserProfile, selectUserStatus } from '../../../store/slices/userSlice';
+import { hasRole } from '../../../utils/RoleUtils';
+import { Roles } from '../../../models/Roles';
 
 export function CompanyPlanCheckoutSuccessPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const attemptId = searchParams.get('attemptId');
+  const user = useSelector(selectUserProfile);
+  const status = useSelector(selectUserStatus);
+  const companies = useSelector(selectUserCompanies);
+  const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
+  const profileReady = status === 'succeeded' || status === 'failed';
+  const redirectToCompany = profileReady && !isPlatformAdmin && companies.length === 0;
 
   useEffect(() => {
-    dispatch(fetchUserProfile() as any);
+    if (status === 'idle') {
+      dispatch(fetchUserProfile(undefined) as any);
+    }
+  }, [dispatch, status]);
+
+  useEffect(() => {
+    if (!profileReady || redirectToCompany) return;
     const timer = setTimeout(() => {
       navigate('/dashboard/company');
     }, 2500);
     return () => clearTimeout(timer);
-  }, [dispatch, navigate]);
+  }, [navigate, profileReady, redirectToCompany]);
+
+  if (!profileReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="xl" />
+      </div>
+    );
+  }
+
+  if (redirectToCompany) {
+    return <Navigate to="/dashboard/company" replace />;
+  }
 
   return (
     <div className="max-w-lg mx-auto p-6" data-testid="company-plan-checkout-success">

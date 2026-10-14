@@ -38,9 +38,10 @@ export function CompanySubscriptionPage() {
 
     const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
     const companyRole = companies.find(c => c.id === id)?.role;
-    const isCompanyAdmin = isPlatformAdmin || companyService.isCompanyAdminRole(companyRole);
+    const canViewPlans = isPlatformAdmin || companyService.isCompanyAdminRole(companyRole);
+    const canChangePlan = isPlatformAdmin;
     const currentPrice = Number(subscription?.plan.monthlyPrice ?? 0);
-    const canCancel = Boolean(isCompanyAdmin && subscription && currentPrice > 0 && landingPlan);
+    const canCancel = Boolean(canChangePlan && subscription && currentPrice > 0 && landingPlan);
 
     const fetchData = async (options?: { silent?: boolean }) => {
         if (!id) {
@@ -72,9 +73,14 @@ export function CompanySubscriptionPage() {
     }, [id]);
 
     const tabIndexByName = useMemo(() => {
-        const names = ['overview', 'change', ...(canCancel ? ['cancel'] : []), 'billing'];
+        const names = [
+            'overview',
+            ...(canViewPlans ? ['change'] : []),
+            ...(canCancel ? ['cancel'] : []),
+            'billing',
+        ];
         return names;
-    }, [canCancel]);
+    }, [canCancel, canViewPlans]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -201,14 +207,26 @@ export function CompanySubscriptionPage() {
                             <Card>
                                 <h3 className="text-lg font-semibold mb-4">Acciones Rápidas</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Button
-                                        onClick={() => setActiveTab('change')}
-                                        color="blue"
-                                        className="flex items-center justify-center space-x-2"
-                                    >
-                                        <Settings className="w-4 h-4" />
-                                        <span>Cambiar Plan</span>
-                                    </Button>
+                                    {canChangePlan && (
+                                        <Button
+                                            onClick={() => setActiveTab('change')}
+                                            color="blue"
+                                            className="flex items-center justify-center space-x-2"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            <span>Cambiar Plan</span>
+                                        </Button>
+                                    )}
+                                    {!canChangePlan && canViewPlans && (
+                                        <Button
+                                            onClick={() => navigate('/dashboard/company/subscription')}
+                                            color="blue"
+                                            className="flex items-center justify-center space-x-2"
+                                        >
+                                            <Settings className="w-4 h-4" />
+                                            <span>Ver planes</span>
+                                        </Button>
+                                    )}
                                     {canCancel && (
                                         <Button
                                             onClick={() => setActiveTab('cancel')}
@@ -236,33 +254,49 @@ export function CompanySubscriptionPage() {
                                 <Crown className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                                 <h3 className="text-xl font-semibold mb-2">Sin Suscripción</h3>
                                 <p className="text-gray-600 mb-4">
-                                    Esta compañía no tiene una suscripción activa.
+                                    {canViewPlans && !canChangePlan
+                                        ? 'Solo un administrador de la aplicación puede cambiar el plan.'
+                                        : !canViewPlans
+                                            ? 'Tu empresa no tiene un plan activo. Un administrador de la aplicación debe asignarlo.'
+                                            : 'Esta compañía no tiene una suscripción activa.'}
                                 </p>
-                                <Button onClick={() => navigate('/dashboard/company/subscription')}>
-                                    Crear Suscripción
-                                </Button>
+                                {canChangePlan && (
+                                    <Button onClick={() => navigate('/dashboard/company/subscription')}>
+                                        Crear Suscripción
+                                    </Button>
+                                )}
+                                {!canChangePlan && canViewPlans && (
+                                    <Button onClick={() => navigate('/dashboard/company/subscription')}>
+                                        Ver planes
+                                    </Button>
+                                )}
                             </div>
                         </Card>
                     )}
                 </TabItem>
-                <TabItem active={activeTab === 'change'} title="Cambiar Plan" icon={Settings}>
+                {canViewPlans && (
+                <TabItem active={activeTab === 'change'} title={canChangePlan ? 'Cambiar Plan' : 'Ver planes'} icon={Settings}>
                     <Card>
                         <div className="text-center py-8">
                             <Settings className="w-12 h-12 text-purple-500 mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold mb-2">Cambiar plan de empresa</h3>
+                            <h3 className="text-lg font-semibold mb-2">
+                                {canChangePlan ? 'Cambiar plan de empresa' : 'Planes de empresa'}
+                            </h3>
                             <p className="text-gray-600 mb-4">
-                                Los cambios de plan de empresa se gestionan desde el flujo de suscripción de empresa.
-                                El plan personal permanece congelado.
+                                {canChangePlan
+                                    ? 'Los cambios de plan de empresa se gestionan desde el flujo de suscripción de empresa. El plan personal permanece congelado.'
+                                    : 'Solo un administrador de la aplicación puede cambiar el plan.'}
                             </p>
                             <Button
                               onClick={() => navigate('/dashboard/company/subscription')}
                               color="purple"
                             >
-                              Ir a suscripción de empresa
+                              {canChangePlan ? 'Ir a suscripción de empresa' : 'Ver planes'}
                             </Button>
                         </div>
                     </Card>
                 </TabItem>
+                )}
                 {canCancel && subscription && landingPlan && id && (
                     <TabItem active={activeTab === 'cancel'} title="Cancelar" icon={AlertCircle}>
                         <CancelSubscriptionPage
