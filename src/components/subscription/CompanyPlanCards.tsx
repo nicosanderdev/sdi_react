@@ -13,11 +13,13 @@ export function CompanyPlanCards({
   selectedPlanId,
   onSelect,
   disabled,
+  readOnly,
 }: {
   plans: PlanData[];
   selectedPlanId: string | null;
   onSelect: (planId: string) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 }) {
   if (plans.length === 0) {
     return <p className="text-sm text-gray-600 dark:text-gray-300">No hay planes de empresa activos.</p>;
@@ -26,20 +28,16 @@ export function CompanyPlanCards({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {plans.map((plan) => {
-        const selected = selectedPlanId === plan.id;
-        return (
-          <button
-            key={plan.id}
-            type="button"
-            data-testid={`company-plan-option-${plan.id}`}
-            disabled={disabled}
-            onClick={() => onSelect(plan.id)}
-            className={`text-left rounded-xl border-2 p-4 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
-              selected
-                ? 'border-primary-600 bg-primary-50 text-gray-900 shadow-md ring-2 ring-primary-600 dark:border-primary-400 dark:bg-primary-950/60 dark:text-white'
-                : 'border-gray-300 bg-white text-gray-900 shadow-sm hover:border-primary-500 hover:bg-primary-50/60 hover:shadow-md dark:border-gray-400 dark:bg-gray-900 dark:text-white dark:hover:border-primary-400 dark:hover:bg-gray-800'
-            }`}
-          >
+        const selected = !readOnly && selectedPlanId === plan.id;
+        const className = `text-left rounded-xl border-2 p-4 transition-all ${
+          readOnly
+            ? 'border-gray-300 bg-white text-gray-900 shadow-sm dark:border-gray-400 dark:bg-gray-900 dark:text-white'
+            : selected
+              ? 'cursor-pointer border-primary-600 bg-primary-50 text-gray-900 shadow-md ring-2 ring-primary-600 dark:border-primary-400 dark:bg-primary-950/60 dark:text-white'
+              : 'cursor-pointer border-gray-300 bg-white text-gray-900 shadow-sm hover:border-primary-500 hover:bg-primary-50/60 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-400 dark:bg-gray-900 dark:text-white dark:hover:border-primary-400 dark:hover:bg-gray-800'
+        }`;
+        const body = (
+          <>
             <h3 className="text-lg font-bold mb-1 text-gray-900 dark:text-white">{plan.name}</h3>
             <p className="text-2xl font-semibold mb-3 text-gray-900 dark:text-white">
               {formatMoney(plan)}
@@ -55,6 +53,29 @@ export function CompanyPlanCards({
                 {formatPlanLimit(plan.maxUsers)} usuarios
               </li>
             </ul>
+          </>
+        );
+        if (readOnly) {
+          return (
+            <div
+              key={plan.id}
+              data-testid={`company-plan-option-${plan.id}`}
+              className={className}
+            >
+              {body}
+            </div>
+          );
+        }
+        return (
+          <button
+            key={plan.id}
+            type="button"
+            data-testid={`company-plan-option-${plan.id}`}
+            disabled={disabled}
+            onClick={() => onSelect(plan.id)}
+            className={className}
+          >
+            {body}
           </button>
         );
       })}

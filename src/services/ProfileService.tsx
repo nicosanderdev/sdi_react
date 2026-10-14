@@ -306,14 +306,36 @@ const changeRole = async (request: ChangeRoleRequest): Promise<ChangeRoleRespons
 }
 
 /**
+ * supabase-js sets data to null on non-2xx and throws FunctionsHttpError
+ * ("Edge Function returned a non-2xx status code"). The JSON body is on error.context.
+ */
+async function functionErrorMessage(error: unknown): Promise<string | null> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
+  if (!context || typeof context.json !== 'function') return null;
+  try {
+    const body = await context.json() as { error?: unknown };
+    return typeof body?.error === 'string' && body.error.trim() ? body.error : null;
+  } catch {
+    return null;
+  }
+}
+
+async function throwFunctionError(data: { error?: string } | null, error: unknown): Promise<void> {
+  if (data?.error) throw new Error(data.error);
+  if (!error) return;
+  const message = await functionErrorMessage(error);
+  if (message) throw new Error(message);
+  throw error;
+}
+
+/**
  * Sends an email verification code. Omit email to use the current member email.
  */
 const sendEmailVerification = async (email?: string): Promise<{ message: string; email: string }> => {
   const { data, error } = await supabase.functions.invoke('send-email-verification', {
     body: email ? { email } : {},
   });
-  if (data?.error) throw new Error(data.error);
-  if (error) throw error;
+  await throwFunctionError(data, error);
   return { message: data?.message ?? 'Verification code sent', email: data?.email ?? email ?? '' };
 };
 
@@ -324,8 +346,7 @@ const verifyEmailCode = async (code: string): Promise<{ message: string; newEmai
   const { data, error } = await supabase.functions.invoke('verify-email-code', {
     body: { code },
   });
-  if (data?.error) throw new Error(data.error);
-  if (error) throw error;
+  await throwFunctionError(data, error);
   return { message: data?.message ?? 'Email updated', newEmail: data?.newEmail ?? '' };
 };
 
@@ -339,8 +360,7 @@ const sendPhoneVerification = async (
   const { data, error } = await supabase.functions.invoke('send-phone-verification', {
     body: { phone, phonePrefix },
   });
-  if (data?.error) throw new Error(data.error);
-  if (error) throw error;
+  await throwFunctionError(data, error);
   return { message: data?.message ?? 'Verification code sent', phone: data?.phone ?? phone };
 };
 
@@ -351,8 +371,7 @@ const verifyPhoneCode = async (code: string): Promise<{ message: string; newPhon
   const { data, error } = await supabase.functions.invoke('verify-phone-code', {
     body: { code },
   });
-  if (data?.error) throw new Error(data.error);
-  if (error) throw error;
+  await throwFunctionError(data, error);
   return { message: data?.message ?? 'Phone updated', newPhone: data?.newPhone ?? '' };
 };
 

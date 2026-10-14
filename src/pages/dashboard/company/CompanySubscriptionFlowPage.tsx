@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store/store';
 import { fetchUserProfile } from '../../../store/slices/userSlice';
@@ -23,7 +23,7 @@ import { CompanyPlanCards } from '../../../components/subscription/CompanyPlanCa
 import { PlanData } from '../../../models/subscriptions/PlanData';
 import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
 import { ContactVerificationGateBanner } from '../../../components/user/ContactVerificationGateBanner';
-import { selectUserCompanies } from '../../../store/slices/userSlice';
+import { selectUserCompanies, selectUserStatus } from '../../../store/slices/userSlice';
 import { hasRole } from '../../../utils/RoleUtils';
 import { Roles } from '../../../models/Roles';
 
@@ -32,6 +32,10 @@ export function CompanySubscriptionFlowPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { needsVerification } = useContactVerificationGate();
+    const user = useSelector((state: RootState) => state.user.profile);
+    const profileStatus = useSelector(selectUserStatus);
+    const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
+    const profileReady = profileStatus === 'succeeded' || profileStatus === 'failed';
 
     // Subscription gate state
     const {
@@ -59,6 +63,12 @@ export function CompanySubscriptionFlowPage() {
             setError('El pago quedó pendiente. El plan se activará cuando Mercado Pago lo confirme.');
         }
     }, [searchParams]);
+
+    useEffect(() => {
+        if (profileStatus === 'idle') {
+            dispatch(fetchUserProfile(undefined) as any);
+        }
+    }, [dispatch, profileStatus]);
 
     const hasMultipleCompanies = companyIds.length > 1;
     const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -115,18 +125,22 @@ export function CompanySubscriptionFlowPage() {
     const handleCreateCompanySuccess = async (newCompany: any) => {
         setShowCreateCompanyModal(false);
         setCompanyInfo(newCompany);
-        await dispatch(fetchUserProfile() as any).unwrap();
+        await dispatch(fetchUserProfile(undefined) as any).unwrap();
         await refetchSubscriptionGate();
         navigate('/dashboard/company');
     };
 
     // Show loading state while determining access
-    if (isGatingLoading) {
+    if (isGatingLoading || !profileReady) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Spinner size="xl" />
             </div>
         );
+    }
+
+    if (!isPlatformAdmin && !hasCompanyMembership) {
+        return <Navigate to="/dashboard/company" replace />;
     }
 
     // Show error state if gating failed
@@ -274,11 +288,9 @@ export function CompanySubscriptionFlowPage() {
     );
 }
 
-function canManageCompanyPlan(role: string | undefined, isPlatformAdmin: boolean): boolean {
+function canViewCompanyPlans(role: string | undefined, isPlatformAdmin: boolean): boolean {
     if (isPlatformAdmin) return true;
-    if (!role) return false;
-    const r = String(role).trim().toLowerCase();
-    return r === 'admin' || r === '2';
+    return companyService.isCompanyAdminRole(role);
 }
 
 // Component for company plan selection / change
@@ -295,7 +307,8 @@ function CompanyPlanSelection({
     const userCompanies = useSelector(selectUserCompanies);
     const companyRole = userCompanies.find(c => c.id === companyId)?.role;
     const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
-    const canManage = canManageCompanyPlan(companyRole, isPlatformAdmin);
+    const canChange = isPlatformAdmin;
+    const canView = canViewCompanyPlans(companyRole, isPlatformAdmin);
 
     const [plans, setPlans] = useState<PlanData[]>([]);
     const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -323,8 +336,8 @@ function CompanyPlanSelection({
     };
 
     const handleProceedToPayment = async () => {
-        if (!canManage) {
-            setError('Solo los administradores de la empresa pueden cambiar el plan.');
+        if (!canChange) {
+            setError('Solo un administrador de la aplicación puede cambiar el plan.');
             return;
         }
         if (!selectedPlanId) {
@@ -371,6 +384,19 @@ function CompanyPlanSelection({
         }
     };
 
+    if (!canView) {
+        return (
+            <Card>
+                <div className="text-center py-12">
+                    <Crown className="w-12 h-12 text-purple-500 mx-auto mb-4" />
+                    <p className="text-gray-600">
+                        Tu empresa no tiene un plan activo. Un administrador de la aplicación debe asignarlo.
+                    </p>
+                </div>
+            </Card>
+        );
+    }
+
     if (isLoading) {
         return (
             <Card>
@@ -394,7 +420,11 @@ function CompanyPlanSelection({
                 <div className="text-center mb-6">
                     <Crown className="w-12 h-12 text-purple-500 mx-auto mb-4" />
                     <h2 className="text-2xl font-bold mb-2">Plan de Empresa para {companyName}</h2>
-                    <p className="text-gray-600">Selecciona un plan de empresa para acceder a funciones avanzadas.</p>
+                    <p className="text-gray-600">
+                        {canChange
+                            ? 'Selecciona un plan de empresa para acceder a funciones avanzadas.'
+                            : 'Solo un administrador de la aplicación puede cambiar el plan.'}
+                    </p>
                 </div>
 
                 {plans.length === 0 ? (
@@ -407,19 +437,13 @@ function CompanyPlanSelection({
                         plans={plans}
                         selectedPlanId={selectedPlanId}
                         onSelect={handleSelectPlan}
-                        disabled={!canManage}
+                        disabled={!canChange}
+                        readOnly={!canChange}
                     />
                 )}
             </Card>
 
-            {!canManage && (
-                <Alert color="warning" icon={AlertCircle}>
-                    Solo los administradores de la empresa pueden suscribirse o cambiar el plan.
-                </Alert>
-            )}
-
-            {/* Proceed Button */}
-            {selectedPlanId && canManage && (
+            {selectedPlanId && canChange && (
                 <div className="flex justify-center">
                     <Button
                         onClick={handleProceedToPayment}
@@ -459,7 +483,8 @@ function CompanySubscriptionDetails({
     const userCompanies = useSelector(selectUserCompanies);
     const companyRole = userCompanies.find(c => c.id === companyInfo.id)?.role;
     const isPlatformAdmin = user ? hasRole(user, Roles.Admin) : false;
-    const canManage = canManageCompanyPlan(companyRole, isPlatformAdmin);
+    const canChange = isPlatformAdmin;
+    const canView = canViewCompanyPlans(companyRole, isPlatformAdmin);
     const [showChangePlan, setShowChangePlan] = useState(false);
 
     const getStatusColor = (status: string) => {
@@ -554,7 +579,7 @@ function CompanySubscriptionDetails({
                         <Crown className="w-4 h-4" />
                         <span>Gestionar Detalles</span>
                     </Button>
-                    {canManage ? (
+                    {canChange ? (
                         <Button
                             onClick={() => setShowChangePlan(true)}
                             color="gray"
@@ -563,12 +588,16 @@ function CompanySubscriptionDetails({
                             <CreditCard className="w-4 h-4" />
                             <span>Cambiar Plan</span>
                         </Button>
-                    ) : (
-                        <Button color="gray" disabled className="flex items-center justify-center space-x-2">
+                    ) : canView ? (
+                        <Button
+                            onClick={() => setShowChangePlan(true)}
+                            color="gray"
+                            className="flex items-center justify-center space-x-2"
+                        >
                             <CreditCard className="w-4 h-4" />
-                            <span>Solo Admin</span>
+                            <span>Ver planes</span>
                         </Button>
-                    )}
+                    ) : null}
                     <Button
                         onClick={onRefresh}
                         color="light"

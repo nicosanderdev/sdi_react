@@ -15,7 +15,7 @@ import {
 } from '../_shared/otp.ts';
 import { sendWhatsappTemplateViaMeta, shouldUseWhatsappMock } from '../_shared/whatsapp.ts';
 
-const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva';
+const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva_1';
 const OTP_WHATSAPP_TEMPLATE_LANGUAGE = 'es';
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -169,7 +169,9 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', otpRequestId);
-      return jsonResponse({ error: 'Could not send the verification code via WhatsApp' }, 502);
+      return jsonResponse({
+        error: waResult.error ?? 'Could not send the verification code via WhatsApp',
+      }, 502);
     }
 
     await supabaseAdmin

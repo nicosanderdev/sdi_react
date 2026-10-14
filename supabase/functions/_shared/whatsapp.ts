@@ -37,6 +37,24 @@ export interface WhatsappTemplateSendParams {
   bodyParameters?: string[];
 }
 
+/** Meta Cloud API `to` is international digits only: country code + subscriber number, no plus. */
+export function toWhatsappRecipient(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+function metaErrorMessage(payload: Record<string, unknown>, status: number): string {
+  const apiError = payload.error as {
+    message?: string;
+    error_data?: { details?: string };
+  } | undefined;
+  const message = apiError?.message?.trim();
+  const details = apiError?.error_data?.details?.trim();
+  if (message && details && !message.includes(details)) {
+    return `${message} (${details})`;
+  }
+  return message || details || `Meta API returned ${status}`;
+}
+
 async function postWhatsappMessage(
   phone: string,
   payloadBody: Record<string, unknown>
@@ -45,6 +63,11 @@ async function postWhatsappMessage(
   const phoneNumberId = Deno.env.get('META_WHATSAPP_PHONE_NUMBER_ID');
   if (!token || !phoneNumberId) {
     return { ok: false, error: 'Meta WhatsApp credentials are missing' };
+  }
+
+  const to = toWhatsappRecipient(phone);
+  if (!to) {
+    return { ok: false, error: 'WhatsApp recipient is empty' };
   }
 
   const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
@@ -56,15 +79,14 @@ async function postWhatsappMessage(
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to: phone,
+      to,
       ...payloadBody,
     }),
   });
 
   const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   if (!response.ok) {
-    const apiError = (payload.error as { message?: string } | undefined)?.message;
-    return { ok: false, error: apiError ?? `Meta API returned ${response.status}` };
+    return { ok: false, error: metaErrorMessage(payload, response.status) };
   }
 
   const messageId = ((payload.messages as Array<{ id?: string }> | undefined)?.[0]?.id ?? undefined);

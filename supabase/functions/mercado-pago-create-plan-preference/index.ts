@@ -89,6 +89,14 @@ Deno.serve(async (req: Request) => {
       return json({ success: false, error: 'Member not found' }, 400);
     }
 
+    const isPlatformAdmin = String(member.Role ?? '').toLowerCase() === 'admin';
+    if (!isPlatformAdmin) {
+      return json({
+        success: false,
+        error: 'Solo un administrador de la aplicación puede crear una empresa o cambiar su plan.',
+      }, 403);
+    }
+
     const { data: plan, error: planError } = await supabase
       .from('Plans')
       .select(

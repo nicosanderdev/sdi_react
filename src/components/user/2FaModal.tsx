@@ -1,11 +1,6 @@
-import { Clipboard, ClipboardCheck, KeyRound, Loader2, X } from "lucide-react";
+import { KeyRound, Loader2, ShieldCheck, X } from "lucide-react";
 import { useState, useEffect } from "react";
-// --- START: Key Change ---
-// Import the stylish six-box input component
 import { TwoFactorInput } from '../public/TwoFactorInput';
-// Note: You might need to adjust the import path '../public/form/TwoFactorInput'
-// based on your actual file structure.
-// --- END: Key Change ---
 
 export type TwoFactorStep = 'password' | 'code' | 'success';
 export type ActionType = 'enable' | 'disable';
@@ -16,7 +11,6 @@ interface TwoFactorAuthModalProps {
   isOpen: boolean;
   isSubmitting: boolean;
   error: string | null;
-  recoveryCode: string | null;
   onClose: () => void;
   onPasswordSubmit: (password: string) => void;
   onCodeSubmit: (code: string) => void;
@@ -28,21 +22,17 @@ export function TwoFactorAuthModal({
   isOpen,
   isSubmitting,
   error,
-  recoveryCode,
   onClose,
   onPasswordSubmit,
   onCodeSubmit }: TwoFactorAuthModalProps) {
 
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
-  
-  // Effect to clear local state when the modal re-opens or changes step
+
   useEffect(() => {
     if (isOpen) {
         setPassword('');
         setCode('');
-        setIsCopied(false);
     }
   }, [isOpen, step]);
 
@@ -50,14 +40,6 @@ export function TwoFactorAuthModal({
   if (!isOpen) {
     return null;
   }
-
-  const handleCopy = () => {
-    if (recoveryCode) {
-      navigator.clipboard.writeText(recoveryCode);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
-  };
 
   const handlePasswordFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -73,13 +55,15 @@ export function TwoFactorAuthModal({
   let description = '';
   if (step === 'password') {
     title = 'Confirmar Acción';
-    description = `Por tu seguridad, por favor ingresa tu contraseña para ${actionType === 'enable' ? 'habilitar' : 'deshabilitar'} la autenticación de dos factores.`
+    description = `Por tu seguridad, ingresá tu contraseña para ${actionType === 'enable' ? 'habilitar' : 'deshabilitar'} la autenticación de dos factores.`
   } else if (step === 'code') {
     title = `Verificar Código de ${actionType === 'enable' ? 'Activación' : 'Desactivación'}`;
-    description = `Hemos enviado un código de verificación a tu correo electrónico. Ingrésalo a continuación.`;
+    description = `Enviamos un código de 6 dígitos por WhatsApp al teléfono verificado de tu cuenta. Ingresalo a continuación.`;
   } else {
-    title = 'Código de Recuperación';
-    description = 'Guarda este código de recuperación en un lugar seguro. Lo necesitarás para acceder a tu cuenta si pierdes el acceso a tu autenticador.';
+    title = actionType === 'enable' ? '2FA habilitado' : '2FA deshabilitado';
+    description = actionType === 'enable'
+      ? 'La autenticación de dos factores quedó activa. En el próximo inicio de sesión te pediremos un código por WhatsApp.'
+      : 'La autenticación de dos factores quedó desactivada para tu cuenta.';
   }
 
   return (
@@ -94,7 +78,6 @@ export function TwoFactorAuthModal({
 
         <p className="text-gray-600 mb-6 text-sm">{description}</p>
 
-        {/* --- Step 1: Password Prompt --- */}
         {step === 'password' && (
           <form onSubmit={handlePasswordFormSubmit} className="space-y-4">
             <div>
@@ -123,7 +106,6 @@ export function TwoFactorAuthModal({
           </form>
         )}
 
-        {/* --- Step 2: 2FA Code Prompt --- */}
         {step === 'code' && (
           <form onSubmit={handleCodeFormSubmit} className="space-y-6">
             <div>
@@ -132,7 +114,6 @@ export function TwoFactorAuthModal({
                 value={code}
                 onChange={setCode}
                 onComplete={(completedCode) => {
-                  // Automatically submit when the code is complete for better UX
                   if (!isSubmitting) {
                     onCodeSubmit(completedCode);
                   }
@@ -151,31 +132,16 @@ export function TwoFactorAuthModal({
           </form>
         )}
 
-        {/* --- Step 3: Success Screen --- */}
         {step === 'success' && (
             <div className="space-y-4">
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                    <p className="font-mono text-2xl text-center tracking-widest text-blue-800 bg-blue-100 p-3 rounded">{recoveryCode}</p>
+                <div className="flex justify-center">
+                  <div className="rounded-full bg-green-100 p-3">
+                    <ShieldCheck className="h-8 w-8 text-green-700" />
+                  </div>
                 </div>
-                <button
-                    onClick={handleCopy}
-                    className="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                >
-                    {isCopied ? (
-                        <>
-                            <ClipboardCheck size={18} className="mr-2" />
-                            ¡Copiado!
-                        </>
-                    ) : (
-                        <>
-                            <Clipboard size={18} className="mr-2" />
-                            Copiar Código
-                        </>
-                    )}
-                </button>
                 <div className="flex justify-end pt-2">
                     <button type="button" onClick={onClose} className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#47A9C2] transition-colors text-sm">
-                        Entendido, he guardado mi código
+                        Entendido
                     </button>
                 </div>
             </div>

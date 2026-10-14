@@ -438,6 +438,19 @@ verify_jwt = false
 [functions.verify-email-code]
 verify_jwt = false
 
+# Login 2FA via WhatsApp OTP; JWT validated in authenticated handlers.
+[functions.login-challenge]
+verify_jwt = false
+
+[functions.login-verify-2fa]
+verify_jwt = false
+
+[functions.send-login-2fa]
+verify_jwt = false
+
+[functions.confirm-login-2fa]
+verify_jwt = false
+
 # Public contact forms (panel + guest sites); no JWT required.
 [functions.send-contact-email]
 verify_jwt = false
