@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserIcon, MailIcon, LockIcon, EyeIcon, EyeOffIcon, CalendarIcon, AlertCircleIcon, UserPlus } from 'lucide-react';
 import AuthService, { RegisterUserPayload } from '../../services/AuthService';
 import { SuccessDisplay } from '../../components/ui/SuccessDisplay';
@@ -12,6 +12,7 @@ import { PhonePrefixInput } from '../../components/user/PhonePrefixInput';
 import { DEFAULT_MEMBER_PHONE_PREFIX, isAllowedMemberPhonePrefix } from '../../utils/memberPhone';
 
 export function RegisterPage() {
+  const navigate = useNavigate();
   const [view, setView] = useState<'form' | 'success' | 'error'>('form');
   const [formData, setFormData] = useState({
     firstName: '',
@@ -196,13 +197,19 @@ export function RegisterPage() {
       if (error.message) {
         const errorMsg = error.message.toLowerCase();
 
-        if (errorMsg.includes('email') && errorMsg.includes('already')) {
-          errorMessage = 'Esta dirección de correo electrónico ya está registrada. Por favor, intenta iniciar sesión o utiliza una dirección diferente.';
-        } else if (
+        if (
           (errorMsg.includes('phone') && (errorMsg.includes('already') || errorMsg.includes('unique') || errorMsg.includes('duplicate'))) ||
-          errorMsg.includes('members_phone')
+          errorMsg.includes('members_phone') ||
+          errorMsg.includes('ix_members_phone')
         ) {
           errorMessage = 'Este número de teléfono ya está registrado. Por favor, utiliza un número diferente.';
+        } else if (
+          (errorMsg.includes('email') && (errorMsg.includes('already') || errorMsg.includes('unique') || errorMsg.includes('duplicate'))) ||
+          errorMsg.includes('already registered') ||
+          errorMsg.includes('user already') ||
+          errorMsg.includes('members_email')
+        ) {
+          errorMessage = 'Esta dirección de correo electrónico ya está registrada. Por favor, intenta iniciar sesión o utiliza una dirección diferente.';
         } else if (errorMsg.includes('network') || errorMsg.includes('connection')) {
           errorMessage = 'Error de conexión. Por favor, verifica tu conexión a internet e inténtalo de nuevo.';
         } else if (errorMsg.includes('temporarily unavailable') || errorMsg.includes('default signup plan')) {
@@ -485,8 +492,17 @@ export function RegisterPage() {
         {view === 'success' && (
           <SuccessDisplay
             title="¡Registro exitoso!"
-            message="Tu cuenta ha sido creada. Serás redirigido al panel de control."
-            redirectUrl="/dashboard"
+            message="Tu cuenta ha sido creada. Verifica tu correo electrónico antes de iniciar sesión."
+            action={
+              <Button
+                type="button"
+                color="green"
+                className="w-full"
+                onClick={() => navigate('/login', { state: { email: formData.email.trim().toLowerCase() } })}
+              >
+                Iniciar sesión
+              </Button>
+            }
           />
         )}
 

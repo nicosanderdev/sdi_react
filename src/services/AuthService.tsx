@@ -445,14 +445,19 @@ export const registerUser = async (userData: RegisterUserPayload): Promise<{ suc
       // Differentiate error types for better user experience
       const errorMessage = error.message?.toLowerCase() || '';
 
-      if (errorMessage.includes('email') && errorMessage.includes('already')) {
-        throw new Error('This email address is already registered. Please try logging in or use a different email address.');
-      } else if (
+      if (
         (errorMessage.includes('phone') && (errorMessage.includes('unique') || errorMessage.includes('duplicate') || errorMessage.includes('already'))) ||
         errorMessage.includes('members_phone') ||
         errorMessage.includes('ix_members_phone')
       ) {
         throw new Error('This phone number is already registered. Please use a different phone number.');
+      } else if (
+        (errorMessage.includes('email') && (errorMessage.includes('already') || errorMessage.includes('unique') || errorMessage.includes('duplicate'))) ||
+        errorMessage.includes('already registered') ||
+        errorMessage.includes('user already') ||
+        errorMessage.includes('members_email')
+      ) {
+        throw new Error('This email address is already registered. Please try logging in or use a different email address.');
       } else if (errorMessage.includes('plan base-inicial') || errorMessage.includes('default signup plan')) {
         throw new Error('Registration is temporarily unavailable. Please try again later.');
       } else if (errorMessage.includes('password') && errorMessage.includes('weak')) {

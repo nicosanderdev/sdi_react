@@ -71,10 +71,13 @@ Deno.serve(async (req) => {
 
     const nextEmail = (payload.email ?? '').trim();
     const previousEmail = (payload.previous_email ?? '').trim();
-    if (nextEmail && nextEmail.toLowerCase() !== previousEmail.toLowerCase()) {
+    if (nextEmail) {
+      const emailChanged = nextEmail.toLowerCase() !== previousEmail.toLowerCase();
       const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
         authResult.user.id,
-        { email: nextEmail, email_confirm: true }
+        emailChanged
+          ? { email: nextEmail, email_confirm: true }
+          : { email_confirm: true }
       );
       if (authUpdateError) {
         console.error('verify-email-code auth email update failed:', authUpdateError);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import authService from '../../services/AuthService';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon, Shield } from 'lucide-react';
 import { TwoFactorInput } from '../../components/public/TwoFactorInput';
@@ -17,12 +17,16 @@ const PANEL_ALLOWED_ROLES = new Set<string>([Roles.Admin, Roles.User]);
 const SHOW_REGISTER_LINK = true;
 
 export function LoginPage() {
+  const location = useLocation();
+  const prefilledEmail = typeof (location.state as { email?: unknown } | null)?.email === 'string'
+    ? (location.state as { email: string }).email
+    : '';
 
   const [isVerifying, setIsVerifying] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loginStep, setLoginStep] = useState<'credentials' | '2fa'>('credentials');
   const [formData, setFormData] = useState({
-    email: '',
+    email: prefilledEmail,
     password: '',
     twoFactorCode: ''
   });

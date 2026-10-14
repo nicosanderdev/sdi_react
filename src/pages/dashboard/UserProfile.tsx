@@ -261,7 +261,7 @@ export function UserProfile() {
               </button>
             </div>
             <h2 className="text-xl font-semibold mt-4">{currentData.firstName} {currentData.lastName}</h2>
-            <p>{currentData.title || 'Título no especificado'}</p>
+            <p className="text-gray-900 dark:text-white">{currentData.title?.trim() || '-'}</p>
           </div>
 
           {/* Personal Information / Edit Form */}
