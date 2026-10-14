@@ -4,7 +4,7 @@
 -- Loaded after migrations on database reset.
 -- Contents:
 --   - Optional enum bootstrap (company_roles, plan_keys) when not already present
---   - Reference data: Plans (flexible-pricing upsert), AppParameters (dynamic pricing)
+--   - Reference data: Plans (six UYU catalog plans), AppParameters (dynamic pricing)
 --   - Amenities catalog is seeded in migration 20260917180000_amenity_templates.sql
 --
 -- Object storage is outside Supabase (external provider, e.g. R2); this file does
@@ -41,8 +41,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- supabase/migrations/20260917180000_amenity_templates.sql so db reset does not
 -- insert a second copy of UUID rows.
 
--- Reference plans with flexible-pricing fields (migration-safe: only if column exists).
--- Upserts by "Id"; fills NOT NULL legacy columns aligned with listing limits and app Key mapping.
+-- UYU catalog. Upserts by "Id".
+-- Plan gratuito compañía is inserted by migration 20260907180000 and stays active.
+-- The five legacy seed plans are deactivated when those rows exist.
 DO $$
 BEGIN
   IF EXISTS (
@@ -51,6 +52,12 @@ BEGIN
     WHERE table_schema = 'public'
       AND table_name = 'Plans'
       AND column_name = 'PricingModel'
+  ) AND EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Plans'
+      AND column_name = 'Audience'
   ) THEN
     INSERT INTO public."Plans" (
       "Id",
@@ -77,116 +84,69 @@ BEGIN
       "BookingLimit",
       "CommissionPercentage",
       "CommissionMinimumAmount",
-      "BookingReceiptMinimumAmount"
+      "BookingReceiptMinimumAmount",
+      "Audience"
     )
     VALUES
       (
-        '11111111-1111-4111-8111-111111111111'::uuid,
-        0,
-        'Free',
-        0,
-        'USD',
-        3,
-        3,
-        1,
-        512,
-        30,
-        false,
-        false,
-        now(),
-        now(),
-        'hybrid',
-        0,
-        0,
-        NULL,
-        3,
-        30,
-        false,
-        NULL,
-        NULL,
-        NULL,
-        NULL
+        '77777777-7777-4777-8777-777777777777'::uuid,
+        6, 'Standard', 0, 'UYU',
+        10, 10, NULL, NULL,
+        30, true, false, now(), now(),
+        'per_booking', 0, 0, NULL,
+        10, 30, true, NULL,
+        5, 350, NULL,
+        'member'
       ),
       (
-        '22222222-2222-4222-8222-222222222222'::uuid,
-        1,
-        'Manager Pro',
-        29,
-        'USD',
-        25,
-        25,
-        5,
-        4096,
-        30,
-        false,
-        false,
-        now(),
-        now(),
-        'hybrid',
-        NULL,
-        29,
-        2.5,
-        25,
-        30,
-        false,
-        NULL,
-        NULL,
-        NULL,
-        NULL
+        '88888888-8888-4888-8888-888888888888'::uuid,
+        7, 'Partner', 0, 'UYU',
+        20, 20, NULL, NULL,
+        30, true, false, now(), now(),
+        'per_booking', 0, 0, NULL,
+        20, 30, true, NULL,
+        4.5, 300, NULL,
+        'member'
       ),
       (
-        '33333333-3333-4333-8333-333333333333'::uuid,
-        2,
-        'Company Small',
-        15,
-        'USD',
-        200,
-        200,
-        50,
-        8192,
-        30,
-        true,
-        false,
-        now(),
-        now(),
-        'per_listing',
-        15,
-        NULL,
-        NULL,
-        200,
-        30,
-        true,
-        NULL,
-        NULL,
-        NULL,
-        NULL
+        '99999999-9999-4999-8999-999999999999'::uuid,
+        8, 'Premium', 0, 'UYU',
+        NULL, NULL, NULL, NULL,
+        30, true, false, now(), now(),
+        'per_booking', 0, 0, NULL,
+        NULL, 30, true, NULL,
+        4, 250, NULL,
+        'member'
       ),
       (
-        '44444444-4444-4444-8444-444444444444'::uuid,
-        3,
-        'Plan BASE-Inicial',
-        0,
-        'UYU',
-        20,
-        15,
-        NULL,
-        NULL,
-        30,
-        true,
-        false,
-        now(),
-        now(),
-        'per_booking',
-        0,
-        NULL,
-        NULL,
-        20,
-        30,
-        true,
-        NULL,
-        10,
-        700,
-        700
+        'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+        9, 'Monthly standard', 1500, 'UYU',
+        20, 20, NULL, NULL,
+        30, true, false, now(), now(),
+        'hybrid', 1500, 1500, NULL,
+        20, 30, true, NULL,
+        NULL, NULL, NULL,
+        'member'
+      ),
+      (
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid,
+        10, 'Company Standard', 0, 'UYU',
+        20, 20, 10, NULL,
+        30, true, false, now(), now(),
+        'per_booking', 0, 0, NULL,
+        20, 30, true, NULL,
+        4.5, 300, NULL,
+        'company'
+      ),
+      (
+        'cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,
+        11, 'Company Premium', 0, 'UYU',
+        NULL, NULL, 10, NULL,
+        30, true, false, now(), now(),
+        'per_booking', 0, 0, NULL,
+        NULL, 30, true, NULL,
+        4, 250, NULL,
+        'company'
       )
     ON CONFLICT ("Id") DO UPDATE SET
       "Key" = excluded."Key",
@@ -211,84 +171,21 @@ BEGIN
       "BookingLimit" = excluded."BookingLimit",
       "CommissionPercentage" = excluded."CommissionPercentage",
       "CommissionMinimumAmount" = excluded."CommissionMinimumAmount",
-      "BookingReceiptMinimumAmount" = excluded."BookingReceiptMinimumAmount";
-  END IF;
-END $$;
-
--- Plan audience + Company Unlimited (migration-safe if column exists).
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'Plans'
-      AND column_name = 'Audience'
-  ) THEN
-    UPDATE public."Plans"
-    SET "Audience" = 'member'
-    WHERE "Id" IN (
-      '11111111-1111-4111-8111-111111111111'::uuid,
-      '22222222-2222-4222-8222-222222222222'::uuid,
-      '44444444-4444-4444-8444-444444444444'::uuid
-    );
+      "BookingReceiptMinimumAmount" = excluded."BookingReceiptMinimumAmount",
+      "Audience" = excluded."Audience";
 
     UPDATE public."Plans"
     SET
-      "Audience" = 'company',
-      "Currency" = 'UYU',
-      "MonthlyPrice" = 15,
-      "Price" = 15
-    WHERE "Id" = '33333333-3333-4333-8333-333333333333'::uuid;
-
-    INSERT INTO public."Plans" (
-      "Id", "Key", "Name", "MonthlyPrice", "Currency",
-      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
-      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
-      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
-    )
-    VALUES (
-      '55555555-5555-4555-8555-555555555555'::uuid,
-      4,
-      'Company Unlimited',
-      0,
-      'UYU',
-      NULL, NULL, NULL, NULL,
-      30, false, false, now(), now(),
-      'per_listing', 0, 30, false, 'company'
-    )
-    ON CONFLICT ("Id") DO UPDATE SET
-      "Audience" = excluded."Audience",
-      "Currency" = excluded."Currency",
-      "Name" = excluded."Name",
-      "LastModified" = now();
-
-    INSERT INTO public."Plans" (
-      "Id", "Key", "Name", "MonthlyPrice", "Currency",
-      "MaxProperties", "MaxPublishedProperties", "MaxUsers", "MaxStorageMb",
-      "BillingCycle", "IsActive", "IsDeleted", "Created", "LastModified",
-      "PricingModel", "Price", "DurationDays", "IsActiveV2", "Audience"
-    )
-    VALUES (
-      '66666666-6666-4666-8666-666666666666'::uuid,
-      5,
-      'Plan gratuito compañía',
-      0,
-      'UYU',
-      5, 3, 3, 100,
-      30, true, false, now(), now(),
-      'per_listing', 0, 30, true, 'company'
-    )
-    ON CONFLICT ("Id") DO UPDATE SET
-      "Audience" = excluded."Audience",
-      "Currency" = excluded."Currency",
-      "Name" = excluded."Name",
-      "MonthlyPrice" = excluded."MonthlyPrice",
-      "Price" = excluded."Price",
-      "IsActive" = excluded."IsActive",
-      "IsActiveV2" = excluded."IsActiveV2",
-      "IsDeleted" = excluded."IsDeleted",
-      "LastModified" = now();
+      "IsActive" = false,
+      "IsActiveV2" = false,
+      "LastModified" = now()
+    WHERE "Id" IN (
+      '11111111-1111-4111-8111-111111111111'::uuid,
+      '22222222-2222-4222-8222-222222222222'::uuid,
+      '33333333-3333-4333-8333-333333333333'::uuid,
+      '44444444-4444-4444-8444-444444444444'::uuid,
+      '55555555-5555-4555-8555-555555555555'::uuid
+    );
   END IF;
 END $$;
 

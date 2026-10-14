@@ -4,7 +4,7 @@
 -- Prerequisites:
 --   - Member already exists (user2@email.com / 67aae576-4d2b-4fa2-8725-4f949ad1b8aa)
 --   - Owner already exists (bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbb0002)
---   - Plans seeded (uses "Plan BASE-Inicial" if the member has no active assignment)
+--   - Plans seeded (uses Standard if the member has no active assignment)
 --   - Amenities seeded (SummerRent rows are linked by name; skipped if missing)
 --
 -- Does not insert Members, Users, Owners, images, documents, or videos.
@@ -81,14 +81,12 @@ BEGIN
     SELECT p."Id"
     INTO v_plan_id
     FROM public."Plans" p
-    WHERE p."Name" = 'Plan BASE-Inicial'
+    WHERE p."Id" = '77777777-7777-4777-8777-777777777777'::uuid
       AND p."IsDeleted" = false
-      AND coalesce(p."IsActiveV2", p."IsActive", true) = true
-    ORDER BY p."Key"
-    LIMIT 1;
+      AND coalesce(p."IsActiveV2", p."IsActive", true) = true;
 
     IF v_plan_id IS NULL THEN
-      RAISE EXCEPTION 'insert-property: plan "Plan BASE-Inicial" not found or inactive.';
+      RAISE EXCEPTION 'insert-property: plan "Standard" not found or inactive.';
     END IF;
 
     INSERT INTO public."BillingPlanAssignments" (
