@@ -1,7 +1,15 @@
-import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, CalendarIcon, AlertTriangleIcon } from 'lucide-react';
+import { useState } from 'react';
+import { EyeIcon, Edit2Icon as EditIcon, TrashIcon, CalendarIcon, AlertTriangleIcon, ExternalLinkIcon } from 'lucide-react';
 import { PropertyData } from '../../../models/properties';
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
 import { useNavigate } from 'react-router-dom';
+import { PropertyPreviewChooser } from './PropertyPreviewChooser';
+import {
+  guestPreviewTargets,
+  noGuestPreviewTitle,
+  openPropertyPreview,
+  type PropertyPreviewTarget,
+} from '../../../services/propertyPreview';
 
 interface PropertyTableProps {
   properties: PropertyData[];
@@ -22,6 +30,43 @@ export function PropertyTable({
   onEditBlocked,
 }: PropertyTableProps) {
   const navigate = useNavigate();
+  const [chooserTargets, setChooserTargets] = useState<PropertyPreviewTarget[] | null>(null);
+  const [previewPropertyId, setPreviewPropertyId] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [openingPreview, setOpeningPreview] = useState(false);
+
+  const startPreview = async (propertyId: string, targets: PropertyPreviewTarget[]) => {
+    if (targets.length === 0 || openingPreview) return;
+    setPreviewError(null);
+    if (targets.length > 1) {
+      setPreviewPropertyId(propertyId);
+      setChooserTargets(targets);
+      return;
+    }
+    setOpeningPreview(true);
+    try {
+      await openPropertyPreview(propertyId, targets[0].listingType);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : 'No se pudo abrir la vista previa.');
+    } finally {
+      setOpeningPreview(false);
+    }
+  };
+
+  const choosePreviewSite = async (target: PropertyPreviewTarget) => {
+    if (!previewPropertyId) return;
+    setOpeningPreview(true);
+    setPreviewError(null);
+    try {
+      await openPropertyPreview(previewPropertyId, target.listingType);
+      setChooserTargets(null);
+      setPreviewPropertyId(null);
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : 'No se pudo abrir la vista previa.');
+    } finally {
+      setOpeningPreview(false);
+    }
+  };
 
   if (!properties || properties.length === 0) {
     return (
@@ -139,6 +184,21 @@ export function PropertyTable({
               </TableCell>
               <TableCell className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex justify-end space-x-1 md:space-x-2">
+                  {(() => {
+                    const targets = guestPreviewTargets(property.listings);
+                    const disabled = targets.length === 0 || openingPreview;
+                    return (
+                      <button
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => void startPreview(property.id, targets)}
+                        className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                        title={targets.length === 0 ? noGuestPreviewTitle() : 'Vista previa'}
+                      >
+                        <ExternalLinkIcon size={18} />
+                      </button>
+                    );
+                  })()}
                   <button 
                     onClick={() => handleViewClick(property)}
                     className="p-1.5 text-primary-500 hover:text-[#1B4965] transition-colors rounded-md hover:bg-gray-100"
@@ -180,6 +240,20 @@ export function PropertyTable({
           ))}
         </TableBody>
       </Table>
+      {previewError && (
+        <p className="mt-3 text-sm text-red-600" role="alert">{previewError}</p>
+      )}
+      <PropertyPreviewChooser
+        open={chooserTargets !== null}
+        targets={chooserTargets ?? []}
+        busy={openingPreview}
+        onClose={() => {
+          if (openingPreview) return;
+          setChooserTargets(null);
+          setPreviewPropertyId(null);
+        }}
+        onChoose={(target) => void choosePreviewSite(target)}
+      />
     </div>
   );
 }

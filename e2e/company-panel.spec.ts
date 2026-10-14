@@ -99,7 +99,7 @@ test.describe('Company panel — create company', () => {
     await page.getByTestId('admin-create-company-button').click();
     await page.locator('#admin-company-name').fill(companyName);
     await page.locator('#admin-company-billing-email').fill('admin-e2e@example.com');
-    await page.getByTestId('company-plan-option-33333333-3333-4333-8333-333333333333').click();
+    await page.getByTestId('company-plan-option-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb').click();
     await page.getByTestId('admin-create-company-submit').click();
     await expect(page.getByText(companyName)).toBeVisible({ timeout: 20000 });
 
