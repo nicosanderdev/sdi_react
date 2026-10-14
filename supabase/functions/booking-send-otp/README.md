@@ -1,6 +1,6 @@
 # booking-send-otp
 
-Sends a booking verification OTP via WhatsApp (Meta Cloud API template `informacion_reserva`). There is no SMS fallback: if WhatsApp delivery fails, the function returns an error.
+Sends a booking verification OTP via WhatsApp (Meta Cloud API template `informacion_reserva_1`). There is no SMS fallback: if WhatsApp delivery fails, the function returns an error.
 
 Guest sites should offer a **Resend code** action that calls this function again with the same `holdId` and `phone` (rate-limited: 3 requests per phone per 10 minutes).
 
@@ -8,7 +8,7 @@ Guest sites should offer a **Resend code** action that calls this function again
 
 Production OTP WhatsApp delivery uses the approved Meta template:
 
-- **Name:** `informacion_reserva`
+- **Name:** `informacion_reserva_1`
 - **Language:** `es`
 - **Body variable:** the 6-digit OTP code (`{{1}}`)
 

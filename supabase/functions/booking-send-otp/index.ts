@@ -21,7 +21,7 @@ function jsonResponse(payload: unknown, status = 200): Response {
 }
 
 const PHONE_E164_REGEX = /^\+[1-9]\d{7,14}$/;
-const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva';
+const OTP_WHATSAPP_TEMPLATE_NAME = 'informacion_reserva_1';
 const OTP_WHATSAPP_TEMPLATE_LANGUAGE = 'es';
 
 Deno.serve(async (req: Request) => {

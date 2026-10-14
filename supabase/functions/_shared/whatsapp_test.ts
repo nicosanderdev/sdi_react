@@ -48,7 +48,7 @@ Deno.test('WhatsApp template recipient is digits only, without a leading plus', 
 
   try {
     const result = await sendWhatsappTemplateViaMeta('+59899826714', {
-      name: 'informacion_reserva',
+      name: 'informacion_reserva_1',
       languageCode: 'es',
       bodyParameters: ['123456'],
     });
@@ -78,7 +78,7 @@ Deno.test('WhatsApp template failure includes Meta message and details', async (
 
   try {
     const result = await sendWhatsappTemplateViaMeta('+59899826714', {
-      name: 'informacion_reserva',
+      name: 'informacion_reserva_1',
       languageCode: 'es',
       bodyParameters: ['123456'],
     });
