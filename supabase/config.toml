@@ -438,6 +438,10 @@ verify_jwt = false
 [functions.verify-email-code]
 verify_jwt = false
 
+# Public contact forms (panel + guest sites); no JWT required.
+[functions.send-contact-email]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

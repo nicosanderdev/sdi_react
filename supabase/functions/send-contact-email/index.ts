@@ -5,10 +5,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const CONTACT_ORIGINS = {
+  panel: 'Panel',
+  casas: 'Casas',
+  espacios: 'Espacios',
+} as const;
+
+type ContactOrigin = keyof typeof CONTACT_ORIGINS;
+
 type ContactPayload = {
   name?: string;
   email?: string;
   message?: string;
+  origin?: string;
 };
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -35,6 +44,10 @@ function getClientIp(req: Request): string | null {
   return firstIp?.length ? firstIp : null;
 }
 
+function isContactOrigin(value: string): value is ContactOrigin {
+  return Object.prototype.hasOwnProperty.call(CONTACT_ORIGINS, value);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -45,14 +58,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { name, email, message }: ContactPayload = await req.json();
+    const { name, email, message, origin }: ContactPayload = await req.json();
 
     const normalizedName = (name ?? '').trim();
     const normalizedEmail = (email ?? '').trim().toLowerCase();
     const normalizedMessage = (message ?? '').trim();
+    const normalizedOrigin = (origin ?? '').trim().toLowerCase();
 
-    if (!normalizedName || !normalizedEmail || !normalizedMessage) {
+    if (!normalizedName || !normalizedEmail || !normalizedMessage || !normalizedOrigin) {
       return jsonResponse({ error: 'Missing required fields' }, 400);
+    }
+
+    if (!isContactOrigin(normalizedOrigin)) {
+      return jsonResponse({ error: 'Invalid origin' }, 400);
     }
 
     if (!emailRegex.test(normalizedEmail)) {
@@ -62,6 +80,8 @@ Deno.serve(async (req) => {
     if (normalizedMessage.length > MAX_MESSAGE_LENGTH) {
       return jsonResponse({ error: 'Message is too long' }, 400);
     }
+
+    const originLabel = CONTACT_ORIGINS[normalizedOrigin];
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -101,8 +121,9 @@ Deno.serve(async (req) => {
     const sendEmailsEnabled = Deno.env.get('SEND_EMAILS_ENABLED') === 'true';
     const recipientEmail = Deno.env.get('CONTACT_RECIPIENT_EMAIL');
     const fromEmail = Deno.env.get('CONTACT_FROM_EMAIL') ?? 'Contact Form <onboarding@resend.dev>';
-    const subject = `New contact form message from ${normalizedName}`;
+    const subject = `New contact form message from ${normalizedName} (${originLabel})`;
     const text = [
+      `Origin: ${originLabel}`,
       `Name: ${normalizedName}`,
       `Email: ${normalizedEmail}`,
       '',
@@ -121,6 +142,7 @@ Deno.serve(async (req) => {
         to: [recipientEmail],
         reply_to: normalizedEmail,
         subject,
+        origin: normalizedOrigin,
         textLength: text.length,
       });
       return jsonResponse({ success: true, mode: 'dry-run' });

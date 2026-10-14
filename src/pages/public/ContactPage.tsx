@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { UserIcon, MailIcon, MapPinIcon, ClockIcon, PhoneCallIcon, MailOpenIcon, Send } from 'lucide-react';
+import { UserIcon, MailIcon, MailOpenIcon, Send } from 'lucide-react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
 import { Button, TextInput, Textarea, Alert, Label } from 'flowbite-react';
+import ContactService from '../../services/ContactService';
 
 export function ContactPage() {
   const [formData, setFormData] = useState({
@@ -11,11 +12,31 @@ export function ContactPage() {
     message: '',
   });
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowSuccess(true);
-    console.log('Contact form submitted:', formData);
+    setShowSuccess(false);
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    try {
+      await ContactService.sendContactMessage({
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
+        origin: 'panel',
+      });
+      setShowSuccess(true);
+      setFormData({ name: '', email: '', message: '' });
+    } catch {
+      setErrorMessage(
+        'No pudimos enviar tu mensaje. Inténtalo de nuevo en unos minutos.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -46,6 +67,12 @@ export function ContactPage() {
               </Alert>
             )}
 
+            {errorMessage && (
+              <Alert color="failure" className="mb-6">
+                {errorMessage}
+              </Alert>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <Label htmlFor="contact-name" className="mb-2 block">Nombre</Label>
@@ -57,6 +84,7 @@ export function ContactPage() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Tu nombre completo"
                   icon={UserIcon}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -70,6 +98,7 @@ export function ContactPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="tu@email.com"
                   icon={MailIcon}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -82,6 +111,7 @@ export function ContactPage() {
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   placeholder="Describe tu consulta o necesidad…"
                   rows={5}
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -89,9 +119,10 @@ export function ContactPage() {
                 type="submit"
                 color="green"
                 className="w-full bg-green-600 hover:bg-green-700"
+                disabled={isSubmitting}
               >
                 <Send className="w-4 h-4 mr-2" />
-                Enviar mensaje
+                {isSubmitting ? 'Enviando…' : 'Enviar mensaje'}
               </Button>
             </form>
           </div>
