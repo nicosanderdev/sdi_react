@@ -17,6 +17,7 @@ interface User {
 interface UserSettings {
   emailConfirmed: boolean;
   twoFactorEnabled: boolean;
+  phoneVerified: boolean;
   newListings: boolean;
   priceDrops: boolean;
   statusChanges: boolean;
@@ -29,12 +30,9 @@ interface UserSettings {
 interface LoginResponse {
   succeeded: boolean;
   requires2FA: boolean;
+  challengeId?: string;
   user: User | null;
   errorMessage: string | null;
-}
-
-interface RecoveryCodeResponse {
-  recoveryCode: string;
 }
 
 // Keep the same interfaces for backward compatibility
@@ -116,108 +114,184 @@ const mapSupabaseUserToLegacyUser = (supabaseUser: SupabaseUser): User => {
 
 // --- CORE AUTH FUNCTIONS ---
 
+async function functionErrorMessage(error: unknown): Promise<string | null> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context;
+  if (!context || typeof context.json !== 'function') return null;
+  try {
+    const body = await context.json() as { error?: unknown; errorMessage?: unknown };
+    if (typeof body?.error === 'string' && body.error.trim()) return body.error;
+    if (typeof body?.errorMessage === 'string' && body.errorMessage.trim()) return body.errorMessage;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function readFunctionPayload<T extends Record<string, unknown>>(
+  data: T | null,
+  error: unknown
+): Promise<T> {
+  if (data) return data;
+  if (!error) throw new Error('Unexpected empty response');
+  const message = await functionErrorMessage(error);
+  if (message) throw new Error(message);
+  throw error instanceof Error ? error : new Error('Request failed');
+}
+
 /**
- * Logs in the user using Supabase authentication.
- * @param usernameOrEmail - The user's username or email.
- * @param password - The user's password.
- * @param twoFactorCode - Optional 2FA code for MFA verification
- * @returns A promise resolving to the login response data.
+ * Password login via edge function. When 2FA is on, no session is issued until
+ * verifyLogin2fa succeeds.
  */
 const login = async (
   usernameOrEmail: string,
   password?: string,
-  twoFactorCode?: string
+  _twoFactorCode?: string
 ): Promise<LoginResponse> => {
   try {
-    if (twoFactorCode) {
-      // Handle MFA verification
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: usernameOrEmail,
-        token: twoFactorCode,
-        type: 'email'
-      })
+    if (!password) {
+      return {
+        succeeded: false,
+        requires2FA: false,
+        user: null,
+        errorMessage: 'Password is required',
+      };
+    }
 
-      if (error) {
-        return {
-          succeeded: false,
-          requires2FA: false,
-          user: null,
-          errorMessage: error.message
-        }
-      }
+    const { data, error } = await supabase.functions.invoke('login-challenge', {
+      body: { email: usernameOrEmail, password },
+    });
 
-      if (data.user) {
-        const user = mapSupabaseUserToLegacyUser(data.user)
-        return {
-          succeeded: true,
-          requires2FA: false,
-          user,
-          errorMessage: null
-        }
-      }
-    } else if (password) {
-      // Regular password login
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: usernameOrEmail,
-        password
-      })
+    const payload = await readFunctionPayload<{
+      succeeded?: boolean;
+      requires2FA?: boolean;
+      challengeId?: string;
+      access_token?: string;
+      refresh_token?: string;
+      errorMessage?: string | null;
+      error?: string;
+    }>(data, error);
 
-      if (error) {
-        // Check if MFA is required
-        if (error.message.includes('MFA') || error.message.includes('2FA')) {
-          return {
-            succeeded: false,
-            requires2FA: true,
-            user: null,
-            errorMessage: null
-          }
-        }
+    if (payload.requires2FA && payload.challengeId) {
+      return {
+        succeeded: false,
+        requires2FA: true,
+        challengeId: payload.challengeId,
+        user: null,
+        errorMessage: null,
+      };
+    }
 
-        return {
-          succeeded: false,
-          requires2FA: false,
-          user: null,
-          errorMessage: error.message
-        }
-      }
+    if (!payload.succeeded || !payload.access_token || !payload.refresh_token) {
+      return {
+        succeeded: false,
+        requires2FA: false,
+        user: null,
+        errorMessage: payload.errorMessage || payload.error || 'Invalid credentials',
+      };
+    }
 
-      if (data.user) {
-        const user = mapSupabaseUserToLegacyUser(data.user)
-        return {
-          succeeded: true,
-          requires2FA: false,
-          user,
-          errorMessage: null
-        }
-      }
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token,
+    });
+
+    if (sessionError || !sessionData.user) {
+      return {
+        succeeded: false,
+        requires2FA: false,
+        user: null,
+        errorMessage: sessionError?.message || 'Could not establish session',
+      };
     }
 
     return {
-      succeeded: false,
+      succeeded: true,
       requires2FA: false,
-      user: null,
-      errorMessage: 'Invalid credentials or missing parameters'
-    }
+      user: mapSupabaseUserToLegacyUser(sessionData.user),
+      errorMessage: null,
+    };
   } catch (error: any) {
     return {
       succeeded: false,
       requires2FA: false,
       user: null,
-      errorMessage: error.message || 'Login failed'
+      errorMessage: error.message || 'Login failed',
+    };
+  }
+};
+
+/**
+ * Completes login after the WhatsApp OTP is entered.
+ */
+const verifyLogin2fa = async (
+  challengeId: string,
+  code: string
+): Promise<LoginResponse> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('login-verify-2fa', {
+      body: { challengeId, code },
+    });
+
+    const payload = await readFunctionPayload<{
+      succeeded?: boolean;
+      access_token?: string;
+      refresh_token?: string;
+      errorMessage?: string | null;
+      error?: string;
+    }>(data, error);
+
+    if (!payload.succeeded || !payload.access_token || !payload.refresh_token) {
+      return {
+        succeeded: false,
+        requires2FA: true,
+        challengeId,
+        user: null,
+        errorMessage: payload.errorMessage || payload.error || 'Invalid 2FA code',
+      };
     }
+
+    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+      access_token: payload.access_token,
+      refresh_token: payload.refresh_token,
+    });
+
+    if (sessionError || !sessionData.user) {
+      return {
+        succeeded: false,
+        requires2FA: true,
+        challengeId,
+        user: null,
+        errorMessage: sessionError?.message || 'Could not establish session',
+      };
+    }
+
+    return {
+      succeeded: true,
+      requires2FA: false,
+      user: mapSupabaseUserToLegacyUser(sessionData.user),
+      errorMessage: null,
+    };
+  } catch (error: any) {
+    return {
+      succeeded: false,
+      requires2FA: true,
+      challengeId,
+      user: null,
+      errorMessage: error.message || 'Invalid 2FA code',
+    };
   }
 };
 
 export type OAuthProvider = 'google'
 
 /**
- * Starts OAuth sign-in (Google). Redirects to /dashboard on success.
+ * Starts OAuth sign-in (Google). Lands on /login so 2FA can run before the panel.
  */
 const signInWithOAuthProvider = async (provider: OAuthProvider) => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: `${window.location.origin}/dashboard`,
+      redirectTo: `${window.location.origin}/login?oauth=1`,
     },
   })
   return { data, error }
@@ -391,34 +465,95 @@ const getAccessToken = async (): Promise<string | null> => {
   }
 }
 
-// --- LEGACY 2FA METHODS (for backward compatibility) ---
+// --- WHATSAPP LOGIN 2FA (settings) ---
 
 /**
- * Requests a 2FA code to be sent to the user via Supabase MFA.
- * This is called after successful password verification when 2FA is required.
+ * Re-checks the current user's password before enabling/disabling 2FA.
  */
-const requestLogin2faCode = async (): Promise<{ success: boolean; message: string }> => {
+const confirmPassword = async (password: string): Promise<{ success: boolean; errorMessage?: string }> => {
   try {
-    // TODO: Implement MFA challenge
-    return { success: true, message: 'MFA challenge initiated' }
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user?.email) {
+      return { success: false, errorMessage: 'No authenticated user found' }
+    }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password,
+    })
+
+    if (error) {
+      return { success: false, errorMessage: error.message }
+    }
+
+    return { success: true }
   } catch (error: any) {
-    console.error('Error requesting 2FA login code:', error?.message)
-    throw new Error('Could not send verification code. Please try logging in again.')
+    return { success: false, errorMessage: error.message || 'Password confirmation failed' }
   }
 }
 
 /**
- * Enables 2FA for the user using Supabase MFA.
- * @param code The 6-digit code from the user's authenticator app.
+ * Sends a WhatsApp OTP for enabling/disabling 2FA (authenticated).
  */
-const enable2fa = async (code: string): Promise<{ success: boolean; message: string }> => {
-  try {
-    // TODO: Implement MFA enrollment verification
-    return { success: true, message: '2FA enabled successfully' }
-  } catch (error: any) {
-    console.error('Error enabling 2FA:', error?.message)
-    throw error
+const sendSettings2faCode = async (): Promise<{ success: boolean; challengeId: string; message: string }> => {
+  const { data, error } = await supabase.functions.invoke('send-login-2fa', { body: {} })
+  const payload = await readFunctionPayload<{
+    challengeId?: string
+    message?: string
+    error?: string
+  }>(data, error)
+
+  if (!payload.challengeId) {
+    throw new Error(payload.error || 'Could not send verification code')
   }
+
+  return {
+    success: true,
+    challengeId: payload.challengeId,
+    message: payload.message || 'Verification code sent',
+  }
+}
+
+/**
+ * Confirms the WhatsApp OTP and sets Members.twofactorenabled.
+ */
+const confirmSettings2fa = async (
+  challengeId: string,
+  code: string,
+  enabled: boolean
+): Promise<{ success: boolean; twoFactorEnabled: boolean; message: string }> => {
+  const { data, error } = await supabase.functions.invoke('confirm-login-2fa', {
+    body: { challengeId, code, enabled },
+  })
+  const payload = await readFunctionPayload<{
+    twoFactorEnabled?: boolean
+    message?: string
+    error?: string
+  }>(data, error)
+
+  return {
+    success: true,
+    twoFactorEnabled: Boolean(payload.twoFactorEnabled),
+    message: payload.message || (enabled ? '2FA enabled' : '2FA disabled'),
+  }
+}
+
+/** @deprecated Use sendSettings2faCode */
+const requestLogin2faCode = async (_password?: string): Promise<{ success: boolean; message: string; challengeId?: string }> => {
+  const result = await sendSettings2faCode()
+  return { success: result.success, message: result.message, challengeId: result.challengeId }
+}
+
+/** @deprecated Use confirmSettings2fa */
+const enable2fa = async (
+  code: string,
+  challengeId?: string
+): Promise<{ success: boolean; message: string }> => {
+  if (!challengeId) {
+    throw new Error('Missing 2FA challenge')
+  }
+  const result = await confirmSettings2fa(challengeId, code, true)
+  return { success: result.success, message: result.message }
 }
 
 /**
@@ -534,7 +669,7 @@ const challengeMfa = async (factorId: string): Promise<{ challengeId: string }> 
  */
 const verifyMfa = async (factorId: string, challengeId: string, code: string): Promise<{ success: boolean }> => {
   try {
-    const { data, error } = await supabase.auth.mfa.verify({
+    const { error } = await supabase.auth.mfa.verify({
       factorId,
       challengeId,
       code
@@ -552,8 +687,7 @@ const verifyMfa = async (factorId: string, challengeId: string, code: string): P
 }
 
 /**
- * Retrieves the user's settings.
- * Note: This is a stub - settings should be stored in user metadata or separate table.
+ * Retrieves the user's settings from auth + Members.
  */
 const getUserSettings = async (): Promise<UserSettings | null> => {
   try {
@@ -563,10 +697,21 @@ const getUserSettings = async (): Promise<UserSettings | null> => {
       return null
     }
 
-    // TODO: Get settings from user metadata or separate table
+    const { data: member, error: memberError } = await supabase
+      .from('Members')
+      .select('twofactorenabled, PhoneVerifiedAt, EmailVerifiedAt')
+      .eq('UserId', user.id)
+      .eq('IsDeleted', false)
+      .maybeSingle()
+
+    if (memberError) {
+      console.error('Getting member settings failed:', memberError.message)
+    }
+
     return {
-      emailConfirmed: user.email_confirmed_at ? true : false,
-      twoFactorEnabled: user.factors?.length && user.factors.length > 0 || false,
+      emailConfirmed: Boolean(user.email_confirmed_at || member?.EmailVerifiedAt),
+      twoFactorEnabled: Boolean(member?.twofactorenabled),
+      phoneVerified: Boolean(member?.PhoneVerifiedAt),
       newListings: true,
       priceDrops: true,
       statusChanges: true,
@@ -579,6 +724,23 @@ const getUserSettings = async (): Promise<UserSettings | null> => {
     console.error("Getting user settings failed:", error?.message)
     return null
   }
+}
+
+/**
+ * Whether the signed-in member has WhatsApp 2FA enabled.
+ */
+const isMemberTwoFactorEnabled = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return false
+
+  const { data: member } = await supabase
+    .from('Members')
+    .select('twofactorenabled')
+    .eq('UserId', user.id)
+    .eq('IsDeleted', false)
+    .maybeSingle()
+
+  return Boolean(member?.twofactorenabled)
 }
 
 /**
@@ -617,6 +779,7 @@ const validateRecoveryPasswordChange = async (_payload: ValidateRecoveryPayload)
 
 const authService = {
   login,
+  verifyLogin2fa,
   logout,
   signInWithOAuthProvider,
   forgotPassword,
@@ -625,14 +788,17 @@ const authService = {
   confirmEmail,
   resendConfirmationEmail,
   registerUser,
+  confirmPassword,
+  sendSettings2faCode,
+  confirmSettings2fa,
   requestLogin2faCode,
   enable2fa,
   getCurrentUser,
   getAccessToken,
   getUserSettings,
+  isMemberTwoFactorEnabled,
   validate2FaCodePasswordChange,
   validateRecoveryPasswordChange,
-  // New MFA methods
   enrollMfa,
   challengeMfa,
   verifyMfa

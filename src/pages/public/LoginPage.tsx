@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import authService from '../../services/AuthService';
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon, Shield } from 'lucide-react';
 import { TwoFactorInput } from '../../components/public/TwoFactorInput';
@@ -18,6 +18,7 @@ const SHOW_REGISTER_LINK = true;
 
 export function LoginPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const prefilledEmail = typeof (location.state as { email?: unknown } | null)?.email === 'string'
     ? (location.state as { email: string }).email
     : '';
@@ -25,6 +26,7 @@ export function LoginPage() {
   const [isVerifying, setIsVerifying] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loginStep, setLoginStep] = useState<'credentials' | '2fa'>('credentials');
+  const [challengeId, setChallengeId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     email: prefilledEmail,
     password: '',
@@ -34,6 +36,7 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const twoFaFormRef = useRef<HTMLFormElement>(null);
+  const oauthHandledRef = useRef(false);
 
   const resolveRedirectAfterAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -54,12 +57,55 @@ export function LoginPage() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
+    const waitForSession = async (timeoutMs = 4000) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) return session;
+
+      return new Promise<typeof session>((resolve) => {
+        const timer = window.setTimeout(() => {
+          subscription.unsubscribe();
+          void supabase.auth.getSession().then(({ data }) => resolve(data.session));
+        }, timeoutMs);
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          if (nextSession?.user) {
+            window.clearTimeout(timer);
+            subscription.unsubscribe();
+            resolve(nextSession);
+          }
+        });
+      });
+    };
+
     const checkAuthStatus = async () => {
       setIsVerifying(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const isOauthReturn = searchParams.get('oauth') === '1';
+
+      const session = isOauthReturn
+        ? await waitForSession()
+        : (await supabase.auth.getSession()).data.session;
+
+      if (cancelled) return;
 
       if (session?.user) {
         try {
+          if (isOauthReturn && !oauthHandledRef.current) {
+            oauthHandledRef.current = true;
+            setSearchParams({}, { replace: true });
+
+            const twoFactorEnabled = await authService.isMemberTwoFactorEnabled();
+            if (twoFactorEnabled) {
+              const sendResult = await authService.sendSettings2faCode();
+              setChallengeId(sendResult.challengeId);
+              await authService.logout();
+              setLoginStep('2fa');
+              setIsVerifying(false);
+              return;
+            }
+          }
+
           const profile = await dispatch(fetchUserProfile(session.user)).unwrap();
           const normalizedRole = String(profile?.role ?? '').toLowerCase();
 
@@ -70,16 +116,19 @@ export function LoginPage() {
             await authService.logout();
             setError('Tu cuenta no tiene permisos para acceder al panel.');
           }
-        } catch {
+        } catch (err: any) {
           await authService.logout();
-          setError('No se pudo validar tu perfil de acceso al panel.');
+          setError(err?.message || 'No se pudo validar tu perfil de acceso al panel.');
         }
       }
 
-      setIsVerifying(false);
+      if (!cancelled) setIsVerifying(false);
     };
     void checkAuthStatus();
-  }, [dispatch]);
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch, searchParams, setSearchParams]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -123,8 +172,8 @@ export function LoginPage() {
       const response = await authService.login(formData.email, formData.password);
       if (response.succeeded && response.user) {
         await resolveRedirectAfterAuth();
-      } else if (response.requires2FA) {
-        // For Supabase MFA, we need to initiate the challenge
+      } else if (response.requires2FA && response.challengeId) {
+        setChallengeId(response.challengeId);
         setLoginStep('2fa');
       } else {
         setError(response.errorMessage || 'Invalid login attempt. Please check your username and password.');
@@ -142,13 +191,17 @@ export function LoginPage() {
         setError("Please enter the complete 6-digit code.");
         return;
     }
+    if (!challengeId) {
+      setError('El desafío de verificación expiró. Volvé a iniciar sesión.');
+      setLoginStep('credentials');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
     try {
-      // For Supabase, we need to handle MFA verification differently
-      // Since MFA challenge happens during initial login, we use verifyOtp
-      const response = await authService.login(formData.email, undefined, formData.twoFactorCode);
+      const response = await authService.verifyLogin2fa(challengeId, formData.twoFactorCode);
       if (response.succeeded && response.user) {
         await resolveRedirectAfterAuth();
       } else {
@@ -182,7 +235,7 @@ export function LoginPage() {
         title={loginStep === 'credentials' ? 'Iniciar Sesión' : 'Verificación en dos pasos'}
         subtitle={loginStep === 'credentials'
           ? 'Accede a tu panel de gestión'
-          : 'Ingresa el código de 6 dígitos de tu app de autenticación.'}
+          : 'Ingresá el código de 6 dígitos que te enviamos por WhatsApp.'}
         icon={<Shield className="w-8 h-8 text-green-600 dark:text-green-400" />}
       >
         {error && (
@@ -300,6 +353,19 @@ export function LoginPage() {
             >
               {isSubmitting ? 'Verificando...' : 'Verificar Código'}
             </Button>
+            <button
+              type="button"
+              className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-green-600"
+              disabled={isSubmitting}
+              onClick={() => {
+                setLoginStep('credentials');
+                setChallengeId(null);
+                setFormData(prev => ({ ...prev, twoFactorCode: '', password: '' }));
+                setError(null);
+              }}
+            >
+              Volver al inicio de sesión
+            </button>
           </form>
         )}
 
