@@ -169,7 +169,9 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         })
         .eq('id', otpRequestId);
-      return jsonResponse({ error: 'Could not send the verification code via WhatsApp' }, 502);
+      return jsonResponse({
+        error: waResult.error ?? 'Could not send the verification code via WhatsApp',
+      }, 502);
     }
 
     await supabaseAdmin

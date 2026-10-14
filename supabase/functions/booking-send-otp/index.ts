@@ -175,7 +175,7 @@ Deno.serve(async (req: Request) => {
         .eq('id', otpRequestId);
 
       return jsonResponse(
-        { success: false, error: 'Could not send the verification code via WhatsApp' },
+        { success: false, error: waResult.error ?? 'Could not send the verification code via WhatsApp' },
         502
       );
     }
