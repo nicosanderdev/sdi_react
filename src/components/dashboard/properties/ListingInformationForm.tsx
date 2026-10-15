@@ -256,13 +256,7 @@ export function ListingInformationForm() {
           </>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-center min-h-[42px]">
-            <Checkbox id="isPriceVisible" {...register('isPriceVisible', checkboxBool)} />
-            <Label htmlFor="isPriceVisible" className="ml-2">
-              Mostrar precio
-            </Label>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex items-center min-h-[42px]">
             <Checkbox id="isActive" {...register('isActive', checkboxBool)} />
             <Label htmlFor="isActive" className="ml-2">

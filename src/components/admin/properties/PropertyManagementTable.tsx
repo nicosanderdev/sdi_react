@@ -8,10 +8,23 @@ import {
   HomeIcon,
 } from 'lucide-react';
 import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
-import { UseAdminPropertiesReturn, SortField } from '../../../hooks/useAdminProperties';
+import { SortConfig, SortField } from '../../../hooks/useAdminProperties';
+
+interface PropertyManagementTableHook {
+  properties: AdminPropertyListItem[];
+  loading: boolean;
+  sortConfig: SortConfig;
+  setSorting: (field: SortField) => void;
+  fetchPropertyDetail?: (propertyId: string) => Promise<void>;
+  selectedPropertyIds: string[];
+  togglePropertySelection: (propertyId: string) => void;
+  toggleSelectAllOnPage: (pagePropertyIds: string[]) => void;
+}
 
 interface PropertyManagementTableProps {
-  hook: UseAdminPropertiesReturn;
+  hook: PropertyManagementTableHook;
+  /** When set, title click uses this instead of fetchPropertyDetail (member list). */
+  onTitleClick?: (propertyId: string) => void;
 }
 
 const getVisibilityBadgeColor = (isVisible: boolean) => {
@@ -35,7 +48,10 @@ const splitTypeSummary = (summary: string | null): string[] => {
     .filter(Boolean);
 };
 
-export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = ({ hook }) => {
+export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = ({
+  hook,
+  onTitleClick,
+}) => {
   const selectAllRef = useRef<HTMLInputElement>(null);
   const {
     properties,
@@ -47,6 +63,16 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
     togglePropertySelection,
     toggleSelectAllOnPage,
   } = hook;
+
+  const handleTitleClick = (propertyId: string) => {
+    if (onTitleClick) {
+      onTitleClick(propertyId);
+      return;
+    }
+    if (fetchPropertyDetail) {
+      void fetchPropertyDetail(propertyId);
+    }
+  };
 
   const pageIds = useMemo(() => properties.map((p) => p.id), [properties]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedPropertyIds.includes(id));
@@ -143,7 +169,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
                   type="button"
                   className="truncate text-left w-full hover:underline focus:outline-none focus:ring-2 focus:ring-green-500 rounded"
                   title={property.title}
-                  onClick={() => void fetchPropertyDetail(property.id)}
+                  onClick={() => handleTitleClick(property.id)}
                 >
                   {property.title}
                 </button>
