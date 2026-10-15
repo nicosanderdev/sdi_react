@@ -74,9 +74,8 @@ export interface PropertyVisitStat {
   visitCount: number;
   // For PropertiesPerformanceTable, we also need:
   price?: string;
-  status?: string; // 'En venta', 'En alquiler', etc.
-  messages?: number;
-  messagesTrend?: 'up' | 'down' | 'flat';
+  /** Comma-separated type labels: En venta, En alquiler, Alquiler de temporada, Eventos */
+  propertyTypesSummary?: string | null;
   visitsTrend?: 'up' | 'down' | 'flat';
   conversion?: string; // e.g., '13%'
   conversionTrend?: 'up' | 'down' | 'flat';
