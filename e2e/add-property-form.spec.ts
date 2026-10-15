@@ -160,8 +160,6 @@ async function fillPropertyDetailsStep(page: any, data: any) {
   }
 
   // Checkboxes
-  await page.setChecked('#isPriceVisible', data.isPriceVisible);
-
   if (data.hasGarage) {
     await page.setChecked('#hasGarage', true);
     await page.fill('#garageSpaces', data.garageSpaces.toString());

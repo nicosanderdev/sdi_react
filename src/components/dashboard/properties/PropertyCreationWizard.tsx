@@ -142,6 +142,7 @@ export function PropertyCreationWizard({
       rentPricePeriod: 'PerNight',
       realEstateOfferMode: 'sale',
       currency: 'UYU',
+      isPriceVisible: true,
       isActive: true,
       blockedForBooking: false,
     } as any,

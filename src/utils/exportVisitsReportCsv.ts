@@ -1,10 +1,9 @@
 export type VisitsReportCsvRow = {
   propertyTitle: string;
   address?: string;
-  status?: string;
+  propertyTypesSummary?: string | null;
   price?: string;
   visitCount: number;
-  messages?: number;
   conversion?: string;
 };
 
@@ -50,16 +49,15 @@ export function buildVisitsReportCsv(input: VisitsReportCsvInput): string {
   lines.push(`Propiedades,${csvEscape(input.totalProperties)}`);
   lines.push('');
   lines.push('Visitas por propiedad');
-  lines.push('Propiedad,Direccion,Estado,Precio,Visitas,Mensajes,Conversion');
+  lines.push('Propiedad,Direccion,Tipo,Precio,Visitas,Conversion');
   for (const row of input.properties) {
     lines.push(
       [
         csvEscape(row.propertyTitle),
         csvEscape(row.address),
-        csvEscape(row.status),
+        csvEscape(row.propertyTypesSummary),
         csvEscape(row.price),
         csvEscape(row.visitCount),
-        csvEscape(row.messages ?? 0),
         csvEscape(row.conversion),
       ].join(','),
     );

@@ -1,10 +1,17 @@
 // src/components/admin/properties/PropertyStatistics.tsx
 import React from 'react';
 import { HomeIcon, EyeIcon, EyeOffIcon, ArchiveIcon, Loader2Icon } from 'lucide-react';
-import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
+import { PropertyStatistics as PropertyStatisticsData } from '../../../services/PropertyAdminService';
+
+interface PropertyStatisticsHook {
+  statistics: PropertyStatisticsData | null;
+  statisticsLoading: boolean;
+}
 
 interface PropertyStatisticsProps {
-  hook: UseAdminPropertiesReturn;
+  hook: PropertyStatisticsHook;
+  /** Overrides the total card description (admin: system-wide; member: current selection). */
+  totalDescription?: string;
 }
 
 interface StatCardProps {
@@ -77,14 +84,17 @@ const StatCard: React.FC<StatCardProps> = ({
   );
 };
 
-export const PropertyStatistics: React.FC<PropertyStatisticsProps> = ({ hook }) => {
+export const PropertyStatistics: React.FC<PropertyStatisticsProps> = ({
+  hook,
+  totalDescription = 'Todas las propiedades en el sistema',
+}) => {
   const { statistics, statisticsLoading } = hook;
 
   const statCards = [
     {
       title: 'Total de propiedades',
       value: statistics?.totalProperties ?? null,
-      description: 'Todas las propiedades en el sistema',
+      description: totalDescription,
       icon: <HomeIcon className="w-6 h-6" />,
       color: 'blue',
     },

@@ -12,7 +12,7 @@ import {
   Loader2Icon,
   ExternalLinkIcon,
 } from 'lucide-react';
-import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
+import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
 import propertyService from '../../../services/PropertyService';
 import {
   DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE,
@@ -26,11 +26,28 @@ import {
   type PropertyPreviewTarget,
 } from '../../../services/propertyPreview';
 
-interface PropertyManagementToolbarProps {
-  hook: UseAdminPropertiesReturn;
+interface PropertyManagementToolbarHook {
+  selectedPropertyIds: string[];
+  primarySelectedProperty: AdminPropertyListItem | null;
+  fetchPropertyDetail?: (propertyId: string) => Promise<void>;
+  openDeleteConfirmModal: (property: AdminPropertyListItem) => void;
+  fetchProperties: () => Promise<void>;
+  setEditingListingPropertyId: (propertyId: string | null) => void;
 }
 
-export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps> = ({ hook }) => {
+interface PropertyManagementToolbarProps {
+  hook: PropertyManagementToolbarHook;
+  /** When true, edit property and edit publication stay disabled. */
+  editBlocked?: boolean;
+  /** Replaces admin detail modal for “Ver propiedad”. */
+  onViewProperty?: (propertyId: string) => void;
+}
+
+export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps> = ({
+  hook,
+  editBlocked = false,
+  onViewProperty,
+}) => {
   const navigate = useNavigate();
   const [duplicating, setDuplicating] = useState(false);
   const [duplicateBlockedMessage, setDuplicateBlockedMessage] = useState<string | null>(null);
@@ -61,16 +78,22 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
 
   const handleView = () => {
     if (!selectedId) return;
-    void fetchPropertyDetail(selectedId);
+    if (onViewProperty) {
+      onViewProperty(selectedId);
+      return;
+    }
+    if (fetchPropertyDetail) {
+      void fetchPropertyDetail(selectedId);
+    }
   };
 
   const handleEditProperty = () => {
-    if (!selectedId) return;
+    if (!selectedId || editBlocked) return;
     navigate(`/dashboard/property/${selectedId}/edit`);
   };
 
   const handleEditPublication = () => {
-    if (!selectedId) return;
+    if (!selectedId || editBlocked) return;
     setEditingListingPropertyId(selectedId);
   };
 
@@ -159,6 +182,7 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
   };
 
   const disabled = !singleSelection || duplicating;
+  const editDisabled = disabled || editBlocked;
   const previewDisabled =
     disabled || previewTargetsLoading || openingPreview || previewTargets.length === 0;
   const duplicateDisabled = disabled || blocksRealEstateDuplicate;
@@ -208,9 +232,10 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
         <Button
           size="sm"
           color="light"
-          disabled={disabled}
+          disabled={editDisabled}
           onClick={handleEditProperty}
           className="flex items-center gap-2"
+          title={editBlocked ? 'Verifica tu contacto para editar' : undefined}
         >
           <Edit2Icon className="w-4 h-4 shrink-0" />
           <span>Editar propiedad</span>
@@ -218,9 +243,10 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
         <Button
           size="sm"
           color="light"
-          disabled={disabled}
+          disabled={editDisabled}
           onClick={handleEditPublication}
           className="flex items-center gap-2"
+          title={editBlocked ? 'Verifica tu contacto para editar' : undefined}
         >
           <FileTextIcon className="w-4 h-4 shrink-0" />
           <span>Editar publicación</span>

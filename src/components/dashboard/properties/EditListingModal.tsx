@@ -107,7 +107,7 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
               ? String(listing.longStayDiscountPercentage)
               : '',
           rentPricePeriod: listing.rentPricePeriod ?? 'PerNight',
-          isPriceVisible: listing.isPriceVisible,
+          isPriceVisible: true,
           isActive: listing.isActive,
           isPropertyVisible: listing.isPropertyVisible,
           blockedForBooking: listing.blockedForBooking,
@@ -155,7 +155,7 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
             ? parseFloat(form.longStayDiscountPercentage)
             : null,
         rentPricePeriod: isSaleListing ? null : isDynamicPricing ? 'PerNight' : form.rentPricePeriod,
-        isPriceVisible: form.isPriceVisible,
+        isPriceVisible: true,
         isActive: form.isActive,
         isPropertyVisible: form.isPropertyVisible,
         blockedForBooking: form.blockedForBooking,
@@ -291,7 +291,6 @@ export function EditListingModal({ isOpen, propertyId, onClose, onSaved }: EditL
               </div>
             )}
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <Label className="flex items-center gap-2"><Checkbox checked={form.isPriceVisible} onChange={e => setField('isPriceVisible', e.target.checked)} />Mostrar precio</Label>
               <Label className="flex items-center gap-2"><Checkbox checked={form.isPropertyVisible} onChange={e => setField('isPropertyVisible', e.target.checked)} />Visible al publico</Label>
               <Label className="flex items-center gap-2"><Checkbox checked={form.isActive} onChange={e => setField('isActive', e.target.checked)} />Activo</Label>
               <Label className="flex items-center gap-2"><Checkbox checked={form.blockedForBooking} onChange={e => setField('blockedForBooking', e.target.checked)} />Bloqueado para reservas</Label>
