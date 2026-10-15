@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, Dropdown, DropdownItem, Label, Select } from 'flowbite-react';
 import { ArrowLeft, X } from 'lucide-react';
@@ -35,6 +35,22 @@ import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeL
 import { selectUserCompanies } from '../../../store/slices/userSlice';
 
 const PERSONAL_OWNERSHIP = '__personal__';
+
+function firstValidationMessage(errors: FieldErrors<PropertyFormData>): string {
+  const walk = (node: unknown): string | null => {
+    if (!node || typeof node !== 'object') return null;
+    if ('message' in node && typeof (node as { message?: unknown }).message === 'string') {
+      const message = (node as { message: string }).message.trim();
+      if (message) return message;
+    }
+    for (const value of Object.values(node as Record<string, unknown>)) {
+      const found = walk(value);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(errors) || 'Revisá los campos del formulario. Hay datos incompletos o inválidos.';
+}
 
 function isManageableCompanyRole(role?: string | null): boolean {
   if (!role) return false;
@@ -122,6 +138,7 @@ export function PropertyCreationWizard({
       location: { ...DEFAULT_CREATE_MAP_LOCATION },
       contentSections: [],
       propertyPolicies: [],
+      hasGarage: false,
       rentPricePeriod: 'PerNight',
       realEstateOfferMode: 'sale',
       currency: 'UYU',
@@ -161,6 +178,7 @@ export function PropertyCreationWizard({
   }, [currentStep, onStepChange]);
 
   const handleNext = () => {
+    setApiError(null);
     setCurrentStep(prev => {
       if (prev === 1) setPropertyTypeLocked(true);
       return Math.min(prev + 1, stepCount);
@@ -168,7 +186,12 @@ export function PropertyCreationWizard({
   };
 
   const handleBack = () => {
+    setApiError(null);
     setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
+  const onInvalid = (errors: FieldErrors<PropertyFormData>) => {
+    setApiError(firstValidationMessage(errors));
   };
 
   const handleSubmitInternal = async (formData: PropertyCreationFormData) => {
@@ -305,6 +328,11 @@ export function PropertyCreationWizard({
             </div>
 
             <div className="p-6">
+              {apiError && (
+                <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                  {apiError}
+                </div>
+              )}
               {currentStep === 1 && !initialContext.isAdmin && manageableCompanies.length > 0 && (
                 <div className="mb-6 border border-gray-200 rounded-lg mx-auto max-w-md p-4">
                   <Label htmlFor="ownership" className="mb-2 block text-sm font-semibold">
@@ -420,7 +448,7 @@ export function PropertyCreationWizard({
               )}
               {currentStep === 5 && (
                 <PropertyFormStep4
-                  onSubmit={handleSubmit(handleSubmitInternal)}
+                  onSubmit={handleSubmit(handleSubmitInternal, onInvalid)}
                   onBack={handleBack}
                   isSubmitting={isSubmitting}
                 />
