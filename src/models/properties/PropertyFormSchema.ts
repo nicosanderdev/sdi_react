@@ -145,7 +145,7 @@ export const propertyFormBaseSchema = z.object({
   areaUnit: areaUnitEnum,
   bedrooms: z.coerce.number().int().min(0),
   bathrooms: z.coerce.number().min(0),
-  hasGarage: z.boolean(),
+  hasGarage: z.boolean().default(false),
   garageSpaces: z.coerce.number().int().min(0),
   hasLaundryRoom: z.boolean().optional(),
   hasPool: z.boolean().optional(),
