@@ -32,6 +32,110 @@ import { PropertyFormData, resolveCreationListingType } from '../models/properti
 import { DisplayImage } from '../components/dashboard/properties/ImageManager';
 import { DisplayDocument } from '../components/dashboard/properties/DocumentManager';
 import type { ListingType } from '../models/properties/PropertyData';
+import type {
+    AdminPropertyListItem,
+    AdminPropertyOfferKind,
+    PropertyListResponse,
+    PropertyStatistics,
+} from './PropertyAdminService';
+
+export interface MemberPropertyListFilters {
+    page?: number;
+    limit?: number;
+    /** CompanySelector value: my | all | all-companies | company uuid */
+    scope?: string;
+    offerKind?: AdminPropertyOfferKind;
+    location?: string;
+    search?: string;
+}
+
+const mapStatusToEnum = (status: number): AdminPropertyListItem['status'] => {
+    switch (status) {
+        case 0: return 'sale';
+        case 1: return 'rent';
+        case 2: return 'reserved';
+        case 3: return 'sold';
+        case 4: return 'unavailable';
+        default: return 'unavailable';
+    }
+};
+
+const getMemberPropertiesList = async (
+    filters: MemberPropertyListFilters = {}
+): Promise<PropertyListResponse> => {
+    const params = {
+        p_page: filters.page || 1,
+        p_limit: filters.limit || 10,
+        p_scope: filters.scope || 'my',
+        p_location: filters.location || null,
+        p_search: filters.search || null,
+        p_offer_kind: filters.offerKind || null,
+    };
+
+    const { data, error } = await supabase.rpc('get_member_properties_list', params);
+
+    if (error) {
+        throw new Error(`Failed to fetch member properties list: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+        return {
+            properties: [],
+            total: 0,
+            page: filters.page || 1,
+            limit: filters.limit || 10,
+        };
+    }
+
+    const properties: AdminPropertyListItem[] = data.map((property: any) => ({
+        id: property.id,
+        title: property.title,
+        ownerName: property.owner_name,
+        ownerEmail: property.owner_email,
+        city: property.city,
+        state: property.state,
+        status: mapStatusToEnum(property.status),
+        propertyTypesSummary: property.property_types_summary ?? null,
+        isActive: property.is_active,
+        isPropertyVisible: property.is_property_visible,
+        createdAt: property.created,
+        lastModified: property.last_modified,
+    }));
+
+    return {
+        properties,
+        total: data[0].total_count,
+        page: filters.page || 1,
+        limit: filters.limit || 10,
+    };
+};
+
+const getMemberPropertyStatistics = async (scope: string = 'my'): Promise<PropertyStatistics> => {
+    const { data, error } = await supabase.rpc('get_member_property_statistics', {
+        p_scope: scope || 'my',
+    });
+
+    if (error) {
+        throw new Error(`Failed to fetch member property statistics: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+        return {
+            totalProperties: 0,
+            unpublishedProperties: 0,
+            activeProperties: 0,
+            archivedProperties: 0,
+        };
+    }
+
+    const stats = data[0];
+    return {
+        totalProperties: stats.total_properties,
+        unpublishedProperties: stats.unpublished_properties ?? stats.never_published,
+        activeProperties: stats.active_properties,
+        archivedProperties: stats.archived_properties,
+    };
+};
 
 /** PostgREST `or` for Owners embed: personal listing and/or company-owned listings. */
 function ownersAccessOrFilter(memberId: string, companyIds: string[]): string {
@@ -1883,6 +1987,8 @@ const propertyService = {
     getPropertyById,
     getOwnersProperties,
     getOwnersPropertyById,
+    getMemberPropertiesList,
+    getMemberPropertyStatistics,
     createProperty,
     createPropertyForOwner,
     updateProperty,

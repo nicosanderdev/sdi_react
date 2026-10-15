@@ -5,14 +5,28 @@ import { SearchIcon, XIcon } from 'lucide-react';
 import {
   AdminPropertyOfferKind,
   DEFAULT_ADMIN_PROPERTY_LOCATION,
+  PropertyFilters as PropertyFiltersState,
 } from '../../../services/PropertyAdminService';
-import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
 
-interface PropertyFiltersProps {
-  hook: UseAdminPropertiesReturn;
+interface PropertyFiltersHook {
+  filters: PropertyFiltersState;
+  updateFilters: (newFilters: Partial<PropertyFiltersState>) => void;
+  clearFilters: () => void;
 }
 
-export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
+interface PropertyFiltersProps {
+  hook: PropertyFiltersHook;
+  /** When false, hides the owner-id field (member list). Default true for admin. */
+  showOwnerId?: boolean;
+  /** Location value treated as “no filter” for clear-filters state. Admin default: Rivera, Rivera. */
+  defaultLocation?: string;
+}
+
+export const PropertyFilters: React.FC<PropertyFiltersProps> = ({
+  hook,
+  showOwnerId = true,
+  defaultLocation = DEFAULT_ADMIN_PROPERTY_LOCATION,
+}) => {
   const { filters, updateFilters, clearFilters } = hook;
 
   const handleSearchChange = (value: string) => {
@@ -30,11 +44,12 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
   };
 
   const locationTrimmed = (filters.location ?? '').trim();
+  const defaultLocationTrimmed = (defaultLocation ?? '').trim();
   const hasActiveFilters =
     Boolean(filters.search?.trim()) ||
-    Boolean(filters.userId?.trim()) ||
+    (showOwnerId && Boolean(filters.userId?.trim())) ||
     filters.offerKind != null ||
-    locationTrimmed !== DEFAULT_ADMIN_PROPERTY_LOCATION;
+    locationTrimmed !== defaultLocationTrimmed;
 
   const offerKindOptions: { value: 'all' | AdminPropertyOfferKind; label: string }[] = [
     { value: 'all', label: 'Todos' },
@@ -62,7 +77,9 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
         </div>
 
         {/* Filter Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 ${showOwnerId ? 'lg:grid-cols-3' : ''} gap-4`}
+        >
           {/* Offer kind (listing types + extensions) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -94,19 +111,20 @@ export const PropertyFilters: React.FC<PropertyFiltersProps> = ({ hook }) => {
             />
           </div>
 
-          {/* Placeholder for future filters */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              ID del propietario (avanzado)
-            </label>
-            <TextInput
-              type="text"
-              placeholder="Ingrese el ID del miembro propietario..."
-              value={filters.userId || ''}
-              onChange={(e) => updateFilters({ userId: e.target.value || undefined })}
-              className="w-full"
-            />
-          </div>
+          {showOwnerId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                ID del propietario (avanzado)
+              </label>
+              <TextInput
+                type="text"
+                placeholder="Ingrese el ID del miembro propietario..."
+                value={filters.userId || ''}
+                onChange={(e) => updateFilters({ userId: e.target.value || undefined })}
+                className="w-full"
+              />
+            </div>
+          )}
         </div>
 
         {/* Clear Filters Button */}

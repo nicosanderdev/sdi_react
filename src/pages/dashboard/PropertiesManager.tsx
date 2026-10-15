@@ -1,53 +1,53 @@
-import { useState, useEffect, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlusIcon, SearchIcon, Loader2Icon } from 'lucide-react';
+import { PlusIcon, RefreshCwIcon, Loader2Icon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { PropertyTable } from '../../components/dashboard/properties/PropertyTable';
 import { AddPropertyForm } from './AddPropertyForm';
-import propertyService from '../../services/PropertyService';
 import subscriptionService from '../../services/SubscriptionService';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
-import { Button, Card, Dropdown, DropdownItem, Modal, ModalBody, ModalHeader } from 'flowbite-react';
-import { PropertyData } from '../../models/properties';
+import { Button, Card, Modal, ModalBody, ModalHeader } from 'flowbite-react';
 import {
   CREATE_BLOCKED_NO_TYPES_MESSAGE,
   resolveCreatablePropertyTypesFromSubscription,
 } from '../../models/properties/creatablePropertyTypes';
 import { CompanySelector, COMPANY_SELECTOR_OPTIONS } from '../../components/dashboard/CompanySelector';
 import { usePropertyQuota } from '../../hooks/usePropertyQuota';
-import { useAuth } from '../../contexts/AuthContext';
 import { useContactVerificationGate } from '../../hooks/useContactVerificationGate';
 import { EditListingModal } from '../../components/dashboard/properties/EditListingModal';
 import { ContactVerificationGateBanner } from '../../components/user/ContactVerificationGateBanner';
 import { formatPlanLimit } from '../../models/subscriptions/PlanData';
-
-type PropertyPurposeType = 'RealEstate' | 'AnnualRent' | 'EventVenue' | 'SummerRent';
-
-const TABS: { id: 'all' | PropertyPurposeType; label: string }[] = [
-  { id: 'all', label: 'Todas' },
-  { id: 'RealEstate', label: 'En Venta' },
-  { id: 'AnnualRent', label: 'En Alquiler' },
-  { id: 'EventVenue', label: 'Locales' },
-  { id: 'SummerRent', label: 'Alquileres de verano' }
-];
-
-const SEARCH_FIELDS: (keyof PropertyData)[] = ['title', 'streetName', 'houseNumber', 'neighborhood', 'city', 'state'];
+import { useMemberProperties } from '../../hooks/useMemberProperties';
+import { PropertyFilters } from '../../components/admin/properties/PropertyFilters';
+import { PropertyManagementTable } from '../../components/admin/properties/PropertyManagementTable';
+import { PropertyManagementToolbar } from '../../components/admin/properties/PropertyManagementToolbar';
+import { PropertyStatistics } from '../../components/admin/properties/PropertyStatistics';
 
 const PropertiesManagerComponent = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [allProperties, setAllProperties] = useState<PropertyData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | PropertyPurposeType>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const hook = useMemberProperties(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
+  const {
+    totalProperties,
+    currentPage,
+    pageSize,
+    totalPages,
+    loading,
+    error,
+    actionError,
+    actionLoading,
+    fetchProperties,
+    fetchStatistics,
+    scope,
+    setScope,
+    editingListingPropertyId,
+    setEditingListingPropertyId,
+    deleteConfirmModalOpen,
+    propertyToDelete,
+    closeDeleteConfirmModal,
+    confirmDeleteProperty,
+  } = hook;
+
   const [showAddProperty, setShowAddProperty] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
-  const [propertyToDelete, setPropertyToDelete] = useState<PropertyData | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [company, setCompany] = useState<string>(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
-  const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
 
   const { needsVerification } = useContactVerificationGate();
   const showVerificationBanner = needsVerification;
@@ -62,126 +62,38 @@ const PropertiesManagerComponent = () => {
   );
   const canCreateByPropertyType = creatablePropertyTypes.length > 0;
 
-  // Property quota information
   const {
     hasPersonalSubscription,
     ownedCount,
-    publishedCount,
     totalLimit,
     publishedLimit,
-    remainingTotal,
-    remainingPublished,
     isAtTotalLimit,
-    isAtPublishedLimit,
-    isLoading: isQuotaLoading
+    isLoading: isQuotaLoading,
   } = usePropertyQuota();
 
-  // Helper function to get company filter for API calls
-  const getCompanyFilter = () => {
-    if (company === COMPANY_SELECTOR_OPTIONS.ALL_COMPANIES) {
-      return { companyId: 'all-companies' }; // Special value for all companies
-    }
-    if (company === COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES) {
-      return {}; // No company filter for personal properties
-    }
-    return { companyId: company }; // Specific company ID
-  };
-
-  const fetchProperties = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      let data;
-
-      if (company === COMPANY_SELECTOR_OPTIONS.ALL_PROPERTIES) {
-        // Fetch both personal properties and company properties, then combine
-        const [personalData, companyData] = await Promise.all([
-          propertyService.getOwnersProperties({ user }), // Personal properties
-          propertyService.getOwnersProperties({ companyId: 'all-companies', user }) // Company properties
-        ]);
-
-        // Combine and deduplicate properties (in case some properties appear in both)
-        const allItems = [...(personalData.items || []), ...(companyData.items || [])];
-        const uniqueItems = allItems.filter((item, index, self) =>
-          index === self.findIndex(t => t.id === item.id)
-        );
-
-        data = { ...personalData, items: uniqueItems };
-      } else {
-        data = await propertyService.getOwnersProperties({ ...getCompanyFilter(), user });
-      }
-
-      setAllProperties(data.items || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch properties.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProperties();
-  }, [company]);
-
-  const inferPropertyPurposeType = (property: PropertyData): PropertyPurposeType => {
-    // Temporary mapping based on current status values.
-    // As Listings-based types (SummerRent, EventVenue, etc.) become available,
-    // this can be refined to use listingType instead.
-    if (property.status === 'sale') return 'RealEstate';
-    if (property.status === 'rent') return 'AnnualRent';
-    return 'RealEstate';
-  };
-
-  const filteredProperties = useMemo(() => {
-    let properties = [...allProperties];
-
-    if (activeTab !== 'all') {
-      properties = properties.filter(p => inferPropertyPurposeType(p) === activeTab);
-    }
-
-    if (searchTerm.trim() !== '') {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      properties = properties.filter(property => 
-        SEARCH_FIELDS.some(field => {
-          const value = property[field];
-          return typeof value === 'string' && value.toLowerCase().includes(lowerSearchTerm);
-        })
-      );
-    }
-    return properties;
-  }, [allProperties, activeTab, searchTerm]);
-
-  const handleViewBookings = (property: PropertyData) => {
-    navigate(`/dashboard/property/${property.id}/bookings`);
-  };
-
-  const handleDeleteRequest = (property: PropertyData) => {
-    setPropertyToDelete(property);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDeleteProperty = async () => {
-    if (!propertyToDelete) return;
-    setIsDeleting(true);
-    setError(null);
-    try {
-      await propertyService.deleteProperty(propertyToDelete.id);
-      setAllProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
-      setShowDeleteModal(false);
-      setPropertyToDelete(null);
-      
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete property.');
-      console.error(err);
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleRefresh = () => {
+    void fetchProperties();
+    void fetchStatistics();
   };
 
   const handleAddPropertyFormClose = () => {
     setShowAddProperty(false);
-    fetchProperties();
+    void fetchProperties();
+    void fetchStatistics();
+  };
+
+  const handleCreateClick = () => {
+    if (needsVerification) {
+      return;
+    }
+    if (!canCreateByPropertyType) {
+      return;
+    }
+    if (isAtTotalLimit) {
+      setShowLimitModal(true);
+    } else {
+      setShowAddProperty(true);
+    }
   };
 
   if (showAddProperty) {
@@ -189,176 +101,181 @@ const PropertiesManagerComponent = () => {
   }
 
   return (
-    <div>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-      <DashboardPageTitle title="Gestión de Propiedades" />
-        <div className="flex items-center space-x-2">
-            <CompanySelector
-                mode="all-options"
-                value={company}
-                onChange={setCompany}
-                className="mr-4"
-            />
-            <Button
-                id="add-property-button"
-                onClick={() => {
-                  if (needsVerification) {
-                    return;
-                  }
-                  if (!canCreateByPropertyType) {
-                    return;
-                  }
-                  if (isAtTotalLimit) {
-                    setShowLimitModal(true);
-                  } else {
-                    setShowAddProperty(true);
-                  }
-                }}
-                disabled={isQuotaLoading || isSubscriptionLoading || !canCreateByPropertyType}
-                title={!canCreateByPropertyType ? CREATE_BLOCKED_NO_TYPES_MESSAGE : undefined}
-            >
-                <PlusIcon size={18} className="mr-2" />
-                <span>Nueva Propiedad</span>
-            </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <DashboardPageTitle title="Gestión de Propiedades" />
+        <div className="flex flex-wrap items-center gap-2">
+          <CompanySelector
+            mode="all-options"
+            value={scope}
+            onChange={setScope}
+          />
+          <Button
+            color="light"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCwIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Actualizar</span>
+          </Button>
         </div>
       </div>
 
       {!canCreateByPropertyType && !isSubscriptionLoading && (
-        <p className="mb-4 text-sm text-amber-800 dark:text-amber-200">
+        <p className="text-sm text-amber-800 dark:text-amber-200">
           {CREATE_BLOCKED_NO_TYPES_MESSAGE}
         </p>
-      )}
-
-      {/* Property Quota Display */}
-      {!isQuotaLoading && (
-        <>
-          {hasPersonalSubscription ? (
-            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                <div className="flex space-x-6">
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
-                    <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {ownedCount}/{formatPlanLimit(totalLimit)}
-                    </span>
-                    {isAtTotalLimit && (
-                      <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
-                    )}
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
-                    <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {publishedCount}/{formatPlanLimit(publishedLimit)}
-                    </span>
-                    {isAtPublishedLimit && (
-                      <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
-                    )}
-                  </div>
-                </div>
-                {isAtTotalLimit && (
-                  <div className="text-sm text-red-600 font-medium">
-                    No puedes crear más propiedades
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                <div className="flex space-x-6">
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Propiedades totales:</span>
-                    <span className={`ml-2 font-semibold ${isAtTotalLimit ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {ownedCount}/{formatPlanLimit(totalLimit)}
-                    </span>
-                    {isAtTotalLimit && (
-                      <span className="ml-2 text-red-600 text-xs">(Límite alcanzado)</span>
-                    )}
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-gray-600 dark:text-gray-400">Propiedades publicadas:</span>
-                    <span className={`ml-2 font-semibold ${isAtPublishedLimit ? 'text-orange-600' : 'text-gray-900 dark:text-gray-100'}`}>
-                      {publishedCount}/{formatPlanLimit(publishedLimit)}
-                    </span>
-                    {isAtPublishedLimit && (
-                      <span className="ml-2 text-orange-600 text-xs">(Límite alcanzado)</span>
-                    )}
-                  </div>
-                </div>
-                <div className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-medium">Plan Inicial:</span> Puedes crear hasta {formatPlanLimit(totalLimit)} propiedades ({formatPlanLimit(publishedLimit)} publicadas).
-                </div>
-              </div>
-            </div>
-          )}
-        </>
       )}
 
       {showVerificationBanner && (
         <ContactVerificationGateBanner id="onboarding-verification-gate" />
       )}
 
-      {error && !isDeleting && ( 
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
-                <p className="font-bold">Error</p>
-                <p>{error}</p>
-            </div>
-        )}
+      {error && (
+        <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+          <div className="text-red-800 dark:text-red-200">
+            <strong>Error: </strong> {error}
+          </div>
+        </Card>
+      )}
+
+      <PropertyStatistics
+        hook={hook}
+        totalDescription="Propiedades en la selección actual"
+      />
+
+      <PropertyFilters
+        hook={hook}
+        showOwnerId={false}
+        defaultLocation=""
+      />
 
       <Card>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <div className="flex space-x-1 mb-4 md:mb-0 overflow-x-auto p-2">
-            {TABS.map(tab => (
-              <Button
-                color={activeTab === tab.id ? (tab.id === 'archived' ? 'red' : 'default') : 'alternative'}
-                key={tab.id} 
-                onClick={() => setActiveTab(tab.id)} 
-              >
-                {tab.label}
-              </Button>
-            ))}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Total de propiedades</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {totalProperties.toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Página mostrada</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                {currentPage} de {totalPages}
+              </p>
+            </div>
           </div>
-          <div className="relative">
-            <input 
-              type="text" 
-              placeholder="Buscar por título, dirección..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full md:w-72 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB] focus:border-[#62B6CB]" 
-            />
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+
+          <div className="flex items-center gap-4">
+            <Button
+              id="add-property-button"
+              color="green"
+              size="sm"
+              onClick={handleCreateClick}
+              disabled={isQuotaLoading || isSubscriptionLoading || !canCreateByPropertyType}
+              title={!canCreateByPropertyType ? CREATE_BLOCKED_NO_TYPES_MESSAGE : undefined}
+              className="flex items-center space-x-2"
+            >
+              <PlusIcon className="w-4 h-4" />
+              <span>Crear propiedad</span>
+            </Button>
+            <div className="text-right">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Página {currentPage} de {totalPages}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {pageSize} por página
+              </p>
+            </div>
           </div>
         </div>
-        
-        {isLoading ? (
-          <div className="text-center py-10">
-            <Loader2Icon size={48} className="mx-auto text-[#62B6CB] animate-spin mb-4" />
-            <p className="text-gray-500">Cargando propiedades...</p>
-          </div>
-        ) : (
-          <PropertyTable
-            properties={filteredProperties}
-            onViewBookings={handleViewBookings}
-            onDeleteProperty={handleDeleteRequest}
-            onEditListing={(property) => {
-              if (needsVerification) {
-                return;
-              }
-              setEditingListingPropertyId(property.id);
-            }}
-            editBlocked={needsVerification}
-          />
-        )}
       </Card>
+
+      <Card>
+        <PropertyManagementToolbar
+          hook={hook}
+          editBlocked={needsVerification}
+          onViewProperty={(propertyId) => navigate(`/dashboard/property/${propertyId}`)}
+        />
+        <PropertyManagementTable
+          hook={hook}
+          onTitleClick={(propertyId) => navigate(`/dashboard/property/${propertyId}`)}
+        />
+      </Card>
+
+      {totalPages > 1 && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Página {currentPage} de {totalPages}
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Button
+                color="light"
+                size="sm"
+                disabled={currentPage === 1 || loading}
+                onClick={() => hook.setPage(currentPage - 1)}
+              >
+                Anterior
+              </Button>
+
+              <div className="flex items-center space-x-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      color={pageNum === currentPage ? 'green' : 'light'}
+                      size="sm"
+                      disabled={loading}
+                      onClick={() => hook.setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                color="light"
+                size="sm"
+                disabled={currentPage === totalPages || loading}
+                onClick={() => hook.setPage(currentPage + 1)}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <EditListingModal
         isOpen={!!editingListingPropertyId}
         propertyId={editingListingPropertyId}
         onClose={() => setEditingListingPropertyId(null)}
-        onSaved={fetchProperties}
+        onSaved={() => {
+          void fetchProperties();
+          void fetchStatistics();
+        }}
       />
 
-      {/* Property Limit Reached Modal */}
-      <Modal show={showLimitModal} onClose={() => setShowLimitModal(false)} className='text-gray-800 dark:text-gray-50'>
+      <Modal show={showLimitModal} onClose={() => setShowLimitModal(false)} className="text-gray-800 dark:text-gray-50">
         <ModalHeader>
           <h3 className="text-xl font-semibold mb-2">Límite de Propiedades Alcanzado</h3>
         </ModalHeader>
@@ -383,11 +300,8 @@ const PropertiesManagerComponent = () => {
               </div>
             </div>
 
-            <div className='flex justify-center gap-2 w-100'>
-              <Button
-                color="alternative"
-                onClick={() => setShowLimitModal(false)}
-              >
+            <div className="flex justify-center gap-2 w-100">
+              <Button color="alternative" onClick={() => setShowLimitModal(false)}>
                 Entendido
               </Button>
               {!hasPersonalSubscription && (
@@ -395,7 +309,6 @@ const PropertiesManagerComponent = () => {
                   color="primary"
                   onClick={() => {
                     setShowLimitModal(false);
-                    // Navigate to subscription plans
                     window.location.href = '/dashboard/subscription/plans';
                   }}
                 >
@@ -407,49 +320,54 @@ const PropertiesManagerComponent = () => {
         </ModalBody>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      {propertyToDelete &&
-      <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} className='text-gray-800 dark:text-gray-50'>
-        <ModalHeader>
-          <h3 className="text-xl font-semibold mb-2">Confirmar Eliminación</h3>
-        </ModalHeader>
-        <ModalBody>
-          <p className="mb-4 text-xl text-center">
-            ¿Estás seguro de que quieres eliminar la propiedad: <br />
-            <strong>{propertyToDelete.title}</strong>?
-          </p>
-          <p className="text-sm mb-8 text-center">Esta acción no se puede deshacer.</p>
+      {propertyToDelete && (
+        <Modal
+          show={deleteConfirmModalOpen}
+          onClose={() => {
+            closeDeleteConfirmModal();
+          }}
+          className="text-gray-800 dark:text-gray-50"
+        >
+          <ModalHeader>
+            <h3 className="text-xl font-semibold mb-2">Confirmar Eliminación</h3>
+          </ModalHeader>
+          <ModalBody>
+            <p className="mb-4 text-xl text-center">
+              ¿Estás seguro de que quieres eliminar la propiedad: <br />
+              <strong>{propertyToDelete.title}</strong>?
+            </p>
+            <p className="text-sm mb-8 text-center">Esta acción no se puede deshacer.</p>
 
-          {error && isDeleting && ( // Show delete-specific error here
-            <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm mb-3" role="alert">
-              {error}
+            {actionError && (
+              <div
+                className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm mb-3"
+                role="alert"
+              >
+                {actionError}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 w-100">
+              <Button
+                color="alternative"
+                onClick={() => closeDeleteConfirmModal()}
+                disabled={actionLoading}
+              >
+                Cancelar
+              </Button>
+              <Button color="red" onClick={() => void confirmDeleteProperty()} disabled={actionLoading}>
+                {actionLoading ? (
+                  <>
+                    <Loader2Icon size={16} className="animate-spin mr-2" />
+                    Eliminando...
+                  </>
+                ) : (
+                  'Eliminar'
+                )}
+              </Button>
             </div>
-          )}
-          <div className='flex justify-end gap-2 w-100'>
-            <Button
-              color="alternative"
-              onClick={() => { setShowDeleteModal(false); setError(null); }}
-              disabled={isDeleting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              color="red"
-              onClick={confirmDeleteProperty}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2Icon size={16} className="animate-spin mr-2" />
-                  Eliminando...
-                </>
-              ) : (
-                "Eliminar"
-              )}
-            </Button>
-          </div>
-        </ModalBody>
-      </Modal>}
+          </ModalBody>
+        </Modal>
+      )}
     </div>
   );
 };
