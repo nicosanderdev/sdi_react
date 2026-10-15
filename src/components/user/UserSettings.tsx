@@ -1,152 +1,60 @@
-import React, { useState, useEffect } from 'react';
-// Assuming you're using lucide-react for icons
-import { ShieldCheck, ShieldOff, Loader2, Bell, Mail, Smartphone, Trash2, Check, Save, MailCheck } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldCheck, ShieldOff, Loader2, Trash2, MailCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { ActionType, TwoFactorAuthModal, TwoFactorStep } from './2FaModal';
 import AuthService from '../../services/AuthService';
-import { set } from 'lodash';
 import { Button, Card } from 'flowbite-react';
 
-// --- Type Definitions for State and Props ---
-
-// Defines the shape of the notification settings object
-interface NotificationSettings {
-    new_listings: boolean;
-    price_drops: boolean;
-    status_changes: boolean;
-    open_houses: boolean;
-    market_updates: boolean;
-}
-
-// Defines the shape of the notification channels object
-interface NotificationChannels {
-    email: boolean;
-    push: boolean;
-}
-
-// Defines the props for our reusable checkbox component
-interface SettingCheckboxProps {
-    id: keyof NotificationSettings; // Ensure id is a valid key
-    label: string;
-    description: string;
-    checked: boolean;
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-// Defines the props for our reusable channel toggle component
-interface ChannelToggleProps {
-    icon: React.ReactNode;
-    label: string;
-    enabled: boolean;
-    onClick: () => void;
-}
-
-// --- Reusable Typed Sub-components ---
-
-const SettingCheckbox: React.FC<SettingCheckboxProps> = ({ id, label, description, checked, onChange }) => (
-    <div className="flex items-start">
-        <div className="flex items-center h-5">
-            <input
-                id={id}
-                name={id}
-                type="checkbox"
-                checked={checked}
-                onChange={onChange}
-                className="focus:ring-[#47A9C2] h-4 w-4 text-[#62B6CB] border-gray-300 rounded"
-            />
-        </div>
-        <div className="ml-3 text-sm">
-            <label htmlFor={id} className="font-medium text-gray-700">{label}</label>
-            <p className="text-gray-500">{description}</p>
-        </div>
-    </div>
-);
-
-const ChannelToggle: React.FC<ChannelToggleProps> = ({ icon, label, enabled, onClick }) => (
-    <button
-        type="button"
-        onClick={onClick}
-        className={`flex-1 p-3 border rounded-lg flex items-center transition-all duration-200 ${enabled
-            ? 'bg-[#BEE9E8] border-[#62B6CB] text-[#1B4965]'
-            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300'
-            }`}
-    >
-        <div className={`mr-3 p-2 rounded-full ${enabled ? 'bg-white' : 'bg-gray-200'}`}>
-            {React.cloneElement(icon as React.ReactElement<any>, { size: 20, className: enabled ? 'text-[#1B4965]' : 'text-gray-500' })}
-        </div>
-        <span className="font-semibold">{label}</span>
-        {enabled && <Check size={20} className="ml-auto text-green-600" />}
-    </button>
-);
-
 export function UserSettings() {
-    // --- Main Page State ---
-    // --- UPDATED: These states now reflect the user's data, fetched from an API. ---
     const [isEmailConfirmed, setIsEmailConfirmed] = useState<boolean>(false);
+    const [isPhoneVerified, setIsPhoneVerified] = useState<boolean>(false);
     const [is2faEnabled, setIs2faEnabled] = useState<boolean>(false);
-    const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
-        new_listings: true,
-        price_drops: true,
-        status_changes: false,
-        open_houses: true,
-        market_updates: false,
-    });
-    const [notificationChannels, setNotificationChannels] = useState<NotificationChannels>({
-        email: true,
-        push: true,
-    });
 
-    // --- NEW: Loading states for fetching data and specific actions ---
-    const [isLoading, setIsLoading] = useState<boolean>(true); // For initial page load
+    const [isLoading, setIsLoading] = useState<boolean>(true);
     const [isResendingEmail, setIsResendingEmail] = useState<boolean>(false);
-    const [isSavingNotifications, setIsSavingNotifications] = useState<boolean>(false);
+    const [settingsError, setSettingsError] = useState<string | null>(null);
 
-    // --- NEW: State for the Modal Flow ---
     const [modalStep, setModalStep] = useState<TwoFactorStep>('password');
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [modalAction, setModalAction] = useState<ActionType>('enable');
     const [isModalSubmitting, setIsModalSubmitting] = useState<boolean>(false);
     const [modalError, setModalError] = useState<string | null>(null);
-    const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
+    const [challengeId, setChallengeId] = useState<string | null>(null);
 
-    // --- NEW: Fetch user settings on component mount ---
     useEffect(() => {
         const fetchUserSettings = async () => {
             setIsLoading(true);
             try {
-                // This is where you would make your actual API call.
-                // For demonstration, we'll use a mocked AuthService function.
                 const userSettings = await AuthService.getUserSettings();
+                if (!userSettings) {
+                    throw new Error('No se pudieron cargar los ajustes');
+                }
 
-                // Update state with fetched data
-                setIsEmailConfirmed(userSettings!.emailConfirmed);
-                setIs2faEnabled(userSettings!.twoFactorEnabled);
-                setNotificationSettings({
-                    new_listings: userSettings!.newListings,
-                    price_drops: userSettings!.priceDrops,
-                    status_changes: userSettings!.statusChanges,
-                    open_houses: userSettings!.openHouses,
-                    market_updates: userSettings!.marketUpdates,
-                });
-                setNotificationChannels({
-                    email: userSettings!.email,
-                    push: userSettings!.push,
-                });
+                setIsEmailConfirmed(userSettings.emailConfirmed);
+                setIsPhoneVerified(userSettings.phoneVerified);
+                setIs2faEnabled(userSettings.twoFactorEnabled);
             } catch (error) {
                 console.error("Failed to fetch user settings:", error);
-                // Handle error appropriately, e.g., show an error message
+                setSettingsError('No se pudieron cargar los ajustes de seguridad.');
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchUserSettings();
-    }, []); // Empty dependency array ensures this runs only once on mount
+    }, []);
 
 
-    // --- HANDLERS ---
     const handleInitiate2fa = () => {
+        setSettingsError(null);
+        if (!is2faEnabled && !isPhoneVerified) {
+            setSettingsError('Verificá tu teléfono en el perfil antes de habilitar la autenticación en dos pasos.');
+            return;
+        }
         setModalAction(is2faEnabled ? 'disable' : 'enable');
         setModalStep('password');
+        setChallengeId(null);
+        setModalError(null);
         setIsModalOpen(true);
     };
 
@@ -154,6 +62,7 @@ export function UserSettings() {
         setIsModalOpen(false);
         setModalError(null);
         setIsModalSubmitting(false);
+        setChallengeId(null);
     };
 
     const handlePasswordSubmit = async (password: string): Promise<void> => {
@@ -161,21 +70,17 @@ export function UserSettings() {
         setModalError(null);
 
         try {
-            if (modalAction === 'enable') {
-            var response = await AuthService.requestLogin2faCode(password);
-            if (response.success) {
-              console.log('Password verification successful. 2FA code requested.');
-              setModalStep('code');
-            } else {
-              console.log('Password verification failed:', response.errorMessage);
-              setModalError("La contraseña es incorrecta. Por favor, inténtalo de nuevo.");
-              setIsModalSubmitting(false);
+            const passwordCheck = await AuthService.confirmPassword(password);
+            if (!passwordCheck.success) {
+                setModalError('La contraseña es incorrecta. Por favor, inténtalo de nuevo.');
+                return;
             }
-            } else {
-                setModalStep('code');
-            }
+
+            const sendResult = await AuthService.sendSettings2faCode();
+            setChallengeId(sendResult.challengeId);
+            setModalStep('code');
         } catch (error: any) {
-            console.error("Password verification failed:", error);
+            console.error("Password verification / send 2FA failed:", error);
             setModalError(error.message || 'Ocurrió un error inesperado. Por favor, inténtalo de nuevo.');
         } finally {
             setIsModalSubmitting(false);
@@ -183,28 +88,26 @@ export function UserSettings() {
     };
 
     const handleCodeSubmit = async (code: string): Promise<void> => {
+        if (!challengeId) {
+            setModalError('El desafío de verificación expiró. Cerrá el modal e intentá de nuevo.');
+            return;
+        }
+
         setIsModalSubmitting(true);
         setModalError(null);
         try {
-            if (modalAction === 'enable') {
-                const response = await AuthService.enable2fa(code);
-                setRecoveryCode(response.recoveryCode);
-                setModalStep('success');
-                setIs2faEnabled(true);
-            } else {
-                console.log('2FA disabled successfully.');
-                setIs2faEnabled(false);
-                handleCloseModal();
-            }
+            const enabled = modalAction === 'enable';
+            const response = await AuthService.confirmSettings2fa(challengeId, code, enabled);
+            setIs2faEnabled(response.twoFactorEnabled);
+            setModalStep('success');
         } catch (error: any) {
             console.error(`Error during 2FA ${modalAction}:`, error);
-            setModalError(error.response?.data?.message || 'El código de verificación es inválido o ha expirado.');
+            setModalError(error.message || 'El código de verificación es inválido o ha expirado.');
         } finally {
             setIsModalSubmitting(false);
         }
     };
 
-    // --- NEW: Handler for resending the confirmation email ---
     const handleResendConfirmationEmail = async () => {
         setIsResendingEmail(true);
         try {
@@ -216,34 +119,12 @@ export function UserSettings() {
         }
     };
 
-    const handleSaveNotifications = (e: React.FormEvent<HTMLFormElement>): void => {
-        e.preventDefault();
-        setIsSavingNotifications(true);
-        console.log("Saving notification preferences:", { notificationSettings, notificationChannels });
-        setTimeout(() => {
-            setIsSavingNotifications(false);
-        }, 2000);
-    };
-
-    /* const handleChannelChange = (channel: keyof NotificationChannels): void => {
-        setNotificationChannels(prev => ({ ...prev, [channel]: !prev[channel] }));
-    };
-
-    const handleNotificationChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
-        const { name, checked } = event.target;
-        setNotificationSettings(prev => ({
-            ...prev,
-            [name as keyof NotificationSettings]: checked,
-        }));
-    };*/
-    
     const handleDeleteAccount = (): void => {
         if (window.confirm("¿Estás seguro de que quieres eliminar tu cuenta permanentemente? Esta acción no se puede deshacer.")) {
             console.log("Initiating account deletion...");
         }
     };
 
-    // --- NEW: Render a loading state for the whole page ---
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
@@ -257,7 +138,6 @@ export function UserSettings() {
             <h1 className="text-2xl font-bold mb-6">Configuración</h1>
 
             <div className="space-y-8">
-                {/* --- Security Settings Card --- */}
                 <Card className="max-w-4xl">
                     <h2 className="text-lg font-semibold mb-1 text-yellow-500">Seguridad</h2>
                     <p className="text-sm mb-6">Gestiona la seguridad de tu cuenta.</p>
@@ -288,10 +168,23 @@ export function UserSettings() {
                         </Button>
                         </div>
                     ) : (
+                        <div className="flex flex-col gap-3">
+                        {settingsError && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                {settingsError}{' '}
+                                {!isPhoneVerified && (
+                                    <Link to="/dashboard/profile" className="font-semibold underline">
+                                        Ir al perfil
+                                    </Link>
+                                )}
+                            </div>
+                        )}
                         <div className="flex flex-col md:flex-row justify-between items-center p-4 border rounded-lg">
                         <div>
                             <p className="font-medium">Autenticación de dos factores (2FA)</p>
-                            <p className="text-sm mt-1">Añade una capa extra de seguridad a tu cuenta al iniciar sesión.</p>
+                            <p className="text-sm mt-1">
+                                Añade una capa extra de seguridad: al iniciar sesión te enviaremos un código de 6 dígitos por WhatsApp.
+                            </p>
                         </div>
                         <button
                                 onClick={handleInitiate2fa}
@@ -313,70 +206,10 @@ export function UserSettings() {
                             )}
                         </button>
                         </div>
+                        </div>
                     )}
                 </Card>
 
-                {/* --- Notification Settings Card --- 
-                <div className="bg-[#FDFFFC] rounded-lg shadow-sm border border-gray-100 p-6">
-                    <h2 className="text-lg font-semibold text-[#1B4965] mb-1">Notificaciones</h2>
-                    <p className="text-sm text-gray-500 mb-6">Elige qué actualizaciones recibes y cómo las recibes.</p>
-
-                    <form onSubmit={handleSaveNotifications}>
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="text-md font-medium text-gray-800 mb-3">Recibir alertas por:</h3>
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <ChannelToggle
-                                        icon={<Mail />}
-                                        label="Correo Electrónico"
-                                        enabled={notificationChannels.email}
-                                        onClick={() => handleChannelChange('email')}
-                                    />
-                                    <ChannelToggle
-                                        icon={<Smartphone />}
-                                        label="Notificación Push"
-                                        enabled={notificationChannels.push}
-                                        onClick={() => handleChannelChange('push')}
-                                    />
-                                </div>
-                            </div>
-
-                            <hr className="border-gray-200" />
-
-                            <div>
-                                <h3 className="text-md font-medium text-gray-800 mb-4">Notificarme sobre:</h3>
-                                <div className="space-y-4">
-                                    <SettingCheckbox id="new_listings" label="Nuevos Anuncios" description="Propiedades que coinciden con tus búsquedas guardadas." checked={notificationSettings.new_listings} onChange={handleNotificationChange} />
-                                    <SettingCheckbox id="price_drops" label="Bajadas de Precio" description="Alertas cuando una propiedad que te gusta baja de precio." checked={notificationSettings.price_drops} onChange={handleNotificationChange} />
-                                    <SettingCheckbox id="status_changes" label="Cambios de Estado" description="Cuando una propiedad guardada pasa a 'Pendiente' o 'Vendida'." checked={notificationSettings.status_changes} onChange={handleNotificationChange} />
-                                    <SettingCheckbox id="open_houses" label="Open Houses" description="Anuncios de puertas abiertas para propiedades guardadas." checked={notificationSettings.open_houses} onChange={handleNotificationChange} />
-                                    <SettingCheckbox id="market_updates" label="Noticias del Mercado" description="Un resumen semanal o mensual con tendencias de tu zona." checked={notificationSettings.market_updates} onChange={handleNotificationChange} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-6 mt-6 border-t border-gray-200">
-                            <button
-                                type="submit"
-                                disabled={isSavingNotifications}
-                                className="bg-[#5CA4B8] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#62B6CB] transition-colors text-sm flex items-center disabled:opacity-50"
-                            >
-                                {isSavingNotifications ? (
-                                    <>
-                                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                                        Guardando...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Save size={16} className="mr-2" /> Guardar Cambios
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div> */}
-
-                {/* --- Danger Zone Card --- */}
                 <Card>
                     <h2 className="text-lg font-semibold text-red-700 mb-1">Zona Peligrosa</h2>
                     <p className="text-sm mb-6">Estas acciones son permanentes y no se pueden deshacer.</p>
@@ -384,7 +217,7 @@ export function UserSettings() {
                     <div className="flex flex-col md:flex-row justify-between items-center p-4 dark:bg-gray-800 bg-red-50 border dark:border-red-700 border-red-200 rounded-lg">
                         <div>
                             <p className="font-medium ">Eliminar Cuenta</p>
-                            <p className="text-sm mt-1">Una vez que elimines tu cuenta, no hay vuelta atrás. Por favor, ten la certeza.</p>
+                            <p className="text-sm mt-1">Una vez que elimines tu cuenta, no hay vuelta atrás.</p>
                         </div>
                         <Button
                             onClick={handleDeleteAccount}
@@ -403,7 +236,6 @@ export function UserSettings() {
                 actionType={modalAction}
                 isSubmitting={isModalSubmitting}
                 error={modalError}
-                recoveryCode={recoveryCode}
                 onClose={handleCloseModal}
                 onPasswordSubmit={handlePasswordSubmit}
                 onCodeSubmit={handleCodeSubmit}

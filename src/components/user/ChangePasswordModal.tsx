@@ -144,7 +144,17 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to change password.');
+      const code = err?.code as string | undefined;
+      const messageByCode: Record<string, string> = {
+        same_password: 'La nueva contraseña debe ser distinta de la actual.',
+        weak_password: 'La contraseña es demasiado débil.',
+        reauthentication_needed: 'Por seguridad, volvé a iniciar sesión e intentá de nuevo.',
+      };
+      setError(
+        (code && messageByCode[code]) ||
+          err.message ||
+          'No se pudo cambiar la contraseña.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -209,15 +219,16 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                     {/* <p className="text-sm text-green-700 bg-green-100 p-2 rounded-md">Verificación exitosa. Ingresá tu nueva contraseña</p> */}
                     <div>
                         <Label htmlFor="newPassword1" className='text-md'>Nueva contraseña</Label>
-                        <div className="relative my-1"><input id="newPassword1" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => { setNewPassword(e.target.value); handlePasswordChange(e.target.value, true) }} required className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" /><button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">{showNewPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}</button></div>
+                        <div className="relative my-1"><input id="newPassword1" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(e) => handlePasswordChange(e.target.value, true)} required className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" /><button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">{showNewPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}</button></div>
                         <p className="text-xs text-gray-500 mt-1">Minimum 8 characters.</p>
                     </div>
                     <div className='mb-8'>
                         <Label htmlFor="newPassword2" className='text-md'>Confirmar nueva contraseña</Label>
-                        <div className="relative my-1"><input type={showConfirmPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => { setConfirmNewPassword(e.target.value); handlePasswordChange(e.target.value, false) }} required className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">{showConfirmPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}</button></div>
+                        <div className="relative my-1"><input type={showConfirmPassword ? "text" : "password"} value={confirmNewPassword} onChange={(e) => handlePasswordChange(e.target.value, false)} required className="pl-3 pr-10 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" /><button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">{showConfirmPassword ? <EyeOffIcon size={20} /> : <EyeIcon size={20} />}</button></div>
                         {passwordMismatchError && <p className="text-xs text-red-500 mt-1">{passwordMismatchError}</p>}
                     </div>
                     <Button 
+                        type="submit"
                         disabled={isSubmitting || newPassword === '' || confirmNewPassword === '' || newPassword.length < 8 || passwordMismatchError !== null}
                         className='mx-auto w-full'>
                         {isSubmitting ? 

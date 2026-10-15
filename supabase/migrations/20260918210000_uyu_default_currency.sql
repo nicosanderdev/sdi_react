@@ -599,18 +599,107 @@ WHERE "IsDeleted" = false
   AND coalesce("Currency", 0) IS DISTINCT FROM 1
   AND ("IsActive" = true OR "IsPropertyVisible" = true);
 
+-- Plan BASE-Inicial is created outside migrations (tasks/insert_plan.sql) and its
+-- id differs per database. Insert the backfill target when no live UYU row of
+-- that name exists; leave an existing row unchanged.
+INSERT INTO public."Plans" (
+  "Id",
+  "Key",
+  "Name",
+  "MonthlyPrice",
+  "Currency",
+  "MaxProperties",
+  "MaxUsers",
+  "MaxStorageMb",
+  "BillingCycle",
+  "IsActive",
+  "IsDeleted",
+  "Created",
+  "CreatedBy",
+  "LastModified",
+  "LastModifiedBy",
+  "MaxPublishedProperties",
+  "CommissionPercentage",
+  "CommissionMinimumAmount",
+  "BookingReceiptMinimumAmount",
+  "PropertyType",
+  "PricingModel",
+  "Price",
+  "MinMonthlyFee",
+  "PricePerBooking",
+  "ListingLimit",
+  "DurationDays",
+  "IsActiveV2",
+  "BookingLimit",
+  "Audience"
+)
+SELECT
+  'b1bfccc0-f354-4c63-a575-ff5f0c712d0b'::uuid,
+  (SELECT coalesce(max("Key"), -1) + 1 FROM public."Plans"),
+  'Plan BASE-Inicial',
+  0,
+  'UYU',
+  NULL,
+  NULL,
+  NULL,
+  30,
+  true,
+  false,
+  now(),
+  'manual-sql',
+  now(),
+  'manual-sql',
+  NULL,
+  10,
+  700,
+  700,
+  NULL,
+  'per_booking',
+  0,
+  NULL,
+  NULL,
+  NULL,
+  30,
+  true,
+  NULL,
+  'member'
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public."Plans" p
+  WHERE p."IsDeleted" = false
+    AND p."Name" = 'Plan BASE-Inicial'
+    AND upper(trim(coalesce(p."Currency", ''))) = 'UYU'
+)
+ON CONFLICT ("Id") DO NOTHING;
+
 -- Move members without a UYU assignment onto Plan BASE-Inicial.
 DO $$
 DECLARE
-  v_base_inicial uuid := 'b1bfccc0-f354-4c63-a575-ff5f0c712d0b';
+  v_base_inicial uuid;
   v_company_free uuid := '66666666-6666-4666-8666-666666666666';
   v_member_id uuid;
   v_company_id uuid;
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public."Plans" p
-    WHERE p."Id" = v_base_inicial AND p."IsDeleted" = false
-  ) THEN
+  SELECT p."Id"
+  INTO v_base_inicial
+  FROM public."Plans" p
+  WHERE p."IsDeleted" = false
+    AND (
+      p."Id" = 'b1bfccc0-f354-4c63-a575-ff5f0c712d0b'::uuid
+      OR (
+        p."Name" = 'Plan BASE-Inicial'
+        AND upper(trim(coalesce(p."Currency", ''))) = 'UYU'
+      )
+    )
+  ORDER BY
+    CASE
+      WHEN p."Id" = 'b1bfccc0-f354-4c63-a575-ff5f0c712d0b'::uuid THEN 0
+      ELSE 1
+    END,
+    p."Created"
+  LIMIT 1;
+
+  IF v_base_inicial IS NULL THEN
     RAISE EXCEPTION 'Plan BASE-Inicial is required for UYU member backfill.';
   END IF;
 

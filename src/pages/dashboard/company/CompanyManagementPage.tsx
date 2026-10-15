@@ -167,19 +167,12 @@ export function CompanyManagementPage() {
     return (
       <div className="max-w-4xl mx-auto p-4 md:p-6" data-testid="company-management-page">
         <h1 className="text-2xl font-bold mb-6">Gestión de empresa</h1>
-        <Card data-testid="company-create-empty-state">
+        <Card data-testid="company-empty-state">
           <div className="text-center py-12">
             <h3 className="text-xl font-semibold mb-2">No perteneces a ninguna empresa</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Crea una empresa para invitar usuarios y gestionar propiedades en conjunto.
+            <p className="text-gray-600 dark:text-gray-300">
+              Un administrador de la aplicación debe crear la empresa y agregarte.
             </p>
-            <Button
-              data-testid="company-create-cta"
-              className="mx-auto w-fit"
-              onClick={() => navigate('/dashboard/company/subscription')}
-            >
-              Crear Empresa
-            </Button>
           </div>
         </Card>
       </div>
@@ -230,32 +223,42 @@ export function CompanyManagementPage() {
       </div>
 
       {hasCompanyButNoSubscription ? (
-        /* Subscription Required Card */
-        <Card className="max-w-2xl mx-auto">
-          <div className="text-center py-8">
-            <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">Suscripción Requerida</h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Tu empresa necesita una suscripción activa para acceder a todas las funciones de gestión.
-            </p>
-            <div className="flex space-x-3 justify-center">
-              <Button
-                onClick={() => navigate('/dashboard')}
-                color="alternative"
-                className="flex-1 max-w-xs"
-              >
-                Más tarde
-              </Button>
-              <Button
-                onClick={() => navigate('/dashboard/company/subscription')}
-                color="green"
-                className="flex-1 max-w-xs"
-              >
-                Suscribirse
-              </Button>
+        isCompanyAdmin ? (
+          <Card className="max-w-2xl mx-auto">
+            <div className="text-center py-8">
+              <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">Suscripción Requerida</h3>
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                Tu empresa necesita una suscripción activa para acceder a todas las funciones de gestión.
+              </p>
+              <div className="flex space-x-3 justify-center">
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  color="alternative"
+                  className="flex-1 max-w-xs"
+                >
+                  Más tarde
+                </Button>
+                <Button
+                  onClick={() => navigate('/dashboard/company/subscription')}
+                  color="green"
+                  className="flex-1 max-w-xs"
+                >
+                  Suscribirse
+                </Button>
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        ) : (
+          <Card className="max-w-2xl mx-auto">
+            <div className="text-center py-8">
+              <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-300">
+                Tu empresa no tiene un plan activo. Un administrador de la aplicación debe asignarlo.
+              </p>
+            </div>
+          </Card>
+        )
       ) : (
         <>
           {error && !hasNoCompany && (
