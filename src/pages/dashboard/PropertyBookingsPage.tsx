@@ -248,29 +248,41 @@ const PropertyBookingsPage: React.FC = () => {
   }
 
   if (!state.property) {
-    const isAccessError = state.error && (
-      state.error.includes('Access denied') ||
-      state.error.includes('access denied')
+    const isAccessError = Boolean(
+      state.error &&
+        (state.error.includes('Access denied') || state.error.includes('access denied'))
     );
+    const isNotFoundError = Boolean(
+      state.error &&
+        (state.error === 'Property not found' ||
+          state.error.includes('Property not found') ||
+          state.error.includes('not found or access denied'))
+    );
+    const isOtherError = Boolean(state.error) && !isAccessError && !isNotFoundError;
+
+    const title = isAccessError
+      ? 'Acceso Denegado'
+      : isOtherError
+        ? 'No se pudo cargar la propiedad'
+        : 'Propiedad no encontrada';
+
+    const description = isAccessError
+      ? 'No tienes permisos para acceder a esta propiedad. Esto puede suceder si la propiedad pertenece a una empresa y no eres miembro de esa empresa.'
+      : isOtherError
+        ? state.error!
+        : 'La propiedad solicitada no existe en el sistema.';
 
     return (
       <div className="flex flex-col items-center justify-center min-h-96">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">
-          {isAccessError ? 'Acceso Denegado' : 'Propiedad no encontrada'}
-        </h3>
-        <p className="text-gray-600 mb-4 text-center max-w-md">
-          {isAccessError
-            ? 'No tienes permisos para acceder a esta propiedad. Esto puede suceder si la propiedad pertenece a una empresa y no eres miembro de esa empresa.'
-            : 'La propiedad solicitada no existe en el sistema.'
-          }
-        </p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
+        <p className="text-gray-600 mb-4 text-center max-w-md">{description}</p>
         <div className="flex space-x-3">
           <Button onClick={() => navigate('/dashboard/properties')}>
             <ChevronLeft className="mr-2 h-4 w-4" />
             Ver Mis Propiedades
           </Button>
-          {isAccessError && (
+          {(isAccessError || isOtherError) && (
             <Button
               color="alternative"
               onClick={() => window.location.reload()}
