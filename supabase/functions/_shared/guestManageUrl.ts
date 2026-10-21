@@ -38,6 +38,10 @@ export function getGuestPaymentReturnOrigin(
   }
 }
 
+export function hasGuestManageBase(listingType: string | null | undefined): boolean {
+  return getManageBaseUrl(listingType) != null;
+}
+
 export function buildGuestManageUrl(
   reservationCode: string | null | undefined,
   listingType: string | null | undefined
@@ -52,5 +56,23 @@ export function buildGuestManageUrl(
   if (listingType) {
     url.searchParams.set('listingType', listingType);
   }
+  return url.toString();
+}
+
+/** Privileged manage link. Query is the opaque token only. */
+export function buildGuestManageTokenUrl(
+  token: string | null | undefined,
+  listingType: string | null | undefined
+): string | null {
+  const base = getManageBaseUrl(listingType);
+  const raw = token?.trim();
+  if (!base || !raw) {
+    return null;
+  }
+
+  const url = new URL(base);
+  url.searchParams.delete('code');
+  url.searchParams.delete('listingType');
+  url.searchParams.set('token', raw);
   return url.toString();
 }

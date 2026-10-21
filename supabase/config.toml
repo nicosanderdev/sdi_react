@@ -455,6 +455,10 @@ verify_jwt = false
 [functions.send-contact-email]
 verify_jwt = false
 
+# Guest reissue of a manage link. Code + email match is checked inside the handler.
+[functions.request-booking-manage-link]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

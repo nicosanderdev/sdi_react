@@ -250,6 +250,7 @@ export interface GuestReservation {
   hostEmail?: string | null;
   hostPhone?: string | null;
   hostContact?: HostContactInfo | null;
+  /** Always false from `get_reservation_by_code`. Cancel uses the manage token. */
   canCancel: boolean;
   isExpired: boolean;
   isDeleted: boolean;
@@ -265,7 +266,7 @@ export interface GuestReservation {
   /** True after a verified Mercado Pago webhook (PaymentStatus = 1). Independent of booking Status. */
   mercadoPagoApproved?: boolean;
   mercadoPagoApprovedAt?: string | null;
-  /** True when seller is connected, booking unpaid via MP, and amount > 0. */
+  /** Always false from `get_reservation_by_code`. Checkout uses the manage token. */
   canPayOnline?: boolean;
   sellerConnected?: boolean;
   amountPaid?: number | null;
@@ -343,6 +344,13 @@ export interface MercadoPagoBookingEligibility {
 
 export interface CreateMercadoPagoPreferenceRequest {
   manageToken: string;
+}
+
+/** Body for `POST /functions/v1/request-booking-manage-link`. */
+export interface RequestBookingManageLinkBody {
+  reservationCode: string;
+  email: string;
+  listingType: GuestSiteListingType;
 }
 
 export interface CreateMercadoPagoPreferenceSuccess {

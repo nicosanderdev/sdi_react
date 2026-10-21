@@ -1,6 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildGuestManageUrl } from '../_shared/guestManageUrl.ts';
+import { buildGuestManageTokenUrl, hasGuestManageBase } from '../_shared/guestManageUrl.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -156,7 +156,26 @@ serve(async (req) => {
     const property = booking.EstateProperties;
     const propertyTitle = property?.Title || 'Property';
     const reservationCode = booking.ReservationCode ?? booking.Id;
-    const manageUrl = buildGuestManageUrl(booking.ReservationCode, booking.ListingType);
+
+    let manageUrl: string | null = null;
+    if (hasGuestManageBase(booking.ListingType)) {
+      const { data: issued, error: issueError } = await supabase.rpc(
+        'issue_booking_manage_token',
+        { p_booking_id: booking.Id },
+      );
+      const issuedToken = (issued as { token?: string } | null)?.token;
+      manageUrl = buildGuestManageTokenUrl(issuedToken, booking.ListingType);
+      if (issueError || !manageUrl) {
+        console.error('Error issuing manage token:', issueError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Could not issue manage link' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500,
+          }
+        );
+      }
+    }
     const guestName = buildGuestName(guestProfile);
 
     const checkInDate = new Date(booking.CheckInDate).toLocaleDateString('en-US', {
