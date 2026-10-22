@@ -195,19 +195,20 @@ export function AdminBookingsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [bookings, setBookings] = useState<BookingWithMemberAndProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ bookingId: string; action: 'reject' | 'cancel' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'current' | 'past' | 'rejected'>('all');
 
   const fetchBookings = useCallback(async () => {
-    setError(null);
+    setLoadError(null);
     const res = await BookingService.getAdminBookings();
     if (res.succeeded && res.data) {
       setBookings(res.data);
     } else {
-      setError(res.errorMessage ?? 'Error al cargar las reservas');
+      setLoadError(res.errorMessage ?? 'Error al cargar las reservas');
     }
     setIsLoading(false);
   }, []);
@@ -269,6 +270,7 @@ export function AdminBookingsPage() {
   const handleAccept = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Confirmed
       });
@@ -278,9 +280,10 @@ export function AdminBookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al aceptar la reserva');
+        setActionError(res.errorMessage ?? 'Error al aceptar la reserva');
       }
     },
     [dispatch]
@@ -289,6 +292,7 @@ export function AdminBookingsPage() {
   const handleReject = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Cancelled
       });
@@ -298,9 +302,10 @@ export function AdminBookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al rechazar la reserva');
+        setActionError(res.errorMessage ?? 'Error al rechazar la reserva');
       }
     },
     [dispatch]
@@ -309,6 +314,7 @@ export function AdminBookingsPage() {
   const handleCancel = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Cancelled
       });
@@ -318,9 +324,10 @@ export function AdminBookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al cancelar la reserva');
+        setActionError(res.errorMessage ?? 'Error al cancelar la reserva');
       }
     },
     [dispatch]
@@ -335,7 +342,7 @@ export function AdminBookingsPage() {
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="space-y-4">
         <DashboardPageTitle title="Reservas (Administrador)" />
@@ -344,10 +351,10 @@ export function AdminBookingsPage() {
             <AlertCircle className="h-8 w-8 flex-shrink-0" />
             <div>
               <p className="font-medium">Error al cargar las reservas</p>
-              <p className="text-sm mt-1">{error}</p>
+              <p className="text-sm mt-1">{loadError}</p>
             </div>
           </div>
-          <Button color="primary" onClick={() => { setError(null); setIsLoading(true); fetchBookings(); }}>
+          <Button color="primary" onClick={() => { setLoadError(null); setIsLoading(true); fetchBookings(); }}>
             Reintentar
           </Button>
         </Card>
@@ -402,9 +409,9 @@ export function AdminBookingsPage() {
         </div>
       </div>
 
-      {error && (
-        <Alert color="failure" onDismiss={() => setError(null)}>
-          <span className="font-medium">Error:</span> {error}
+      {actionError && (
+        <Alert color="failure" onDismiss={() => setActionError(null)}>
+          <span className="font-medium">Error:</span> {actionError}
         </Alert>
       )}
 
