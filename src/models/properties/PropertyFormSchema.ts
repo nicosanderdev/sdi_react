@@ -100,6 +100,14 @@ const locationBaseSchema = z.object({ lat: z.number(), lng: z.number() });
 /** Shared opening pin for member and admin property create maps (Rivera). */
 export const DEFAULT_CREATE_MAP_LOCATION = { lat: -30.8994, lng: -55.5469 } as const;
 
+/** Local calendar date as `YYYY-MM-DD` for `<input type="date">`. */
+export function todayDateInputValue(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const areaUnitEnum = z.enum(['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'], {
   errorMap: () => ({ message: 'La unidad de área es requerida.' }),
 });

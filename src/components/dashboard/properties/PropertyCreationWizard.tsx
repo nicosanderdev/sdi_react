@@ -30,6 +30,7 @@ import {
   PropertyFormData,
   resolveCreationListingType,
   DEFAULT_CREATE_MAP_LOCATION,
+  todayDateInputValue,
 } from '../../../models/properties/PropertyFormSchema';
 import { getPropertyTypeLabelEs } from '../../../models/properties/propertyTypeLabels';
 import { selectUserCompanies } from '../../../store/slices/userSlice';
@@ -142,6 +143,7 @@ export function PropertyCreationWizard({
       rentPricePeriod: 'PerNight',
       realEstateOfferMode: 'sale',
       currency: 'UYU',
+      availableFrom: todayDateInputValue(),
       isPriceVisible: true,
       isActive: true,
       blockedForBooking: false,
