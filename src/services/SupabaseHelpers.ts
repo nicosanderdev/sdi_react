@@ -686,6 +686,11 @@ function firstRelationRow<T>(rel: T | T[] | null | undefined): T | undefined {
   return Array.isArray(rel) ? rel[0] : rel;
 }
 
+function asRowArray<T>(rel: T | T[] | null | undefined): T[] {
+  if (rel == null) return [];
+  return Array.isArray(rel) ? rel : [rel];
+}
+
 export const mapDbToPropertyData = (
   property: EstatePropertiesRow & {
     EstatePropertyValues: EstatePropertyValuesRow[];
@@ -696,7 +701,7 @@ export const mapDbToPropertyData = (
   }
 ): PropertyData => {
   const raw = property as any;
-  const listingRows: any[] = Array.isArray(raw.Listings) ? raw.Listings : [];
+  const listingRows = asRowArray<any>(raw.Listings);
   const activeListingRows = listingRows.filter((l: any) => !l.IsDeleted);
   const activeListingTypes = [...new Set(activeListingRows.map((l: any) => l.ListingType as string))] as ListingType[];
   const sortedForFeatured = [...activeListingRows].sort((a: any, b: any) => {
@@ -742,11 +747,11 @@ export const mapDbToPropertyData = (
   }
 
   // Get the latest property values (most recent)
-  const latestValues = property.EstatePropertyValues?.sort(
+  const latestValues = [...asRowArray(property.EstatePropertyValues)].sort(
     (a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime()
   )[0];
 
-  const propertyImages: PropertyImage[] = property.PropertyImages?.map(img => ({
+  const propertyImages: PropertyImage[] = asRowArray(property.PropertyImages).map(img => ({
     id: img.Id,
     url: img.Url,
     altText: img.AltText || '',
@@ -754,25 +759,25 @@ export const mapDbToPropertyData = (
     estatePropertyId: img.EstatePropertyId,
     isPublic: img.IsPublic,
     fileName: img.FileName || ''
-  })) || [];
+  }));
 
-  const propertyDocuments: PropertyDocument[] = property.PropertyDocuments?.map(doc => ({
+  const propertyDocuments: PropertyDocument[] = asRowArray(property.PropertyDocuments).map(doc => ({
     id: doc.Id,
     url: doc.Url,
     name: doc.Name,
     estatePropertyId: doc.EstatePropertyId,
     fileName: doc.FileName,
     isPublic: doc.IsPublic
-  })) || [];
+  }));
 
-  const propertyVideos: PropertyVideo[] = property.PropertyVideos?.map(video => ({
+  const propertyVideos: PropertyVideo[] = asRowArray(property.PropertyVideos).map(video => ({
     id: video.Id,
     title: video.Title,
     description: video.Description || '',
     url: video.Url,
     estatePropertyId: video.EstatePropertyId,
     isPublic: video.IsPublic
-  })) || [];
+  }));
 
   const epaSource =
     raw.EstatePropertyAmenity ?? property.EstatePropertyAmenities ?? [];

@@ -12,12 +12,25 @@ import {
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { UseAdminPropertiesReturn } from '../../../hooks/useAdminProperties';
+import { PropertyData } from '../../../models/properties';
 import reportService from '../../../services/ReportService';
 import { GuestSiteFilter, type GuestSiteFilterValue } from '../../dashboard/GuestSiteFilter';
 
+export interface PropertyDetailModalHook {
+  selectedProperty: PropertyData | null;
+  detailModalOpen: boolean;
+  closeDetailModal: () => void;
+  propertyDetailLoading: boolean;
+  propertyDetailError: string | null;
+  hideProperty?: (propertyId: string, reason?: string) => Promise<void>;
+  markPropertyInvalid?: (propertyId: string, reason: string, markAsSpam?: boolean) => Promise<void>;
+  openDeleteConfirmModal?: (property: PropertyData) => void;
+}
+
 interface PropertyDetailModalProps {
-  hook: UseAdminPropertiesReturn;
+  hook: PropertyDetailModalHook;
+  /** Admin list can hide, invalidate, or delete. Member list only shows property data. */
+  showModerationActions?: boolean;
 }
 
 const formatDate = (dateString: string | null): string => {
@@ -45,12 +58,16 @@ const getAreaUnitLabel = (unit: number): string => {
 
 const PROPERTY_VIEWS_PERIOD = 'last30days';
 
-export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }) => {
+export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
+  hook,
+  showModerationActions = true,
+}) => {
   const {
     selectedProperty,
     detailModalOpen,
     closeDetailModal,
     propertyDetailLoading,
+    propertyDetailError,
     hideProperty,
     markPropertyInvalid,
     openDeleteConfirmModal,
@@ -83,7 +100,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
     visits: d.count,
   }));
 
-  if (!selectedProperty) return null;
+  if (!detailModalOpen) return null;
 
   const handleQuickAction = async (action: () => Promise<void>) => {
     try {
@@ -93,11 +110,22 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
     }
   };
 
-  const handleHide = () => handleQuickAction(() => hideProperty(selectedProperty.id, 'Hidden by admin'));
-  const handleMarkInvalid = () => handleQuickAction(() => markPropertyInvalid(selectedProperty.id, 'Marked as invalid by admin'));
-  const handleDelete = () => openDeleteConfirmModal(selectedProperty);
+  const handleHide = () => {
+    if (!selectedProperty || !hideProperty) return;
+    void handleQuickAction(() => hideProperty(selectedProperty.id, 'Hidden by admin'));
+  };
+  const handleMarkInvalid = () => {
+    if (!selectedProperty || !markPropertyInvalid) return;
+    void handleQuickAction(() => markPropertyInvalid(selectedProperty.id, 'Marked as invalid by admin'));
+  };
+  const handleDelete = () => {
+    if (!selectedProperty || !openDeleteConfirmModal) return;
+    openDeleteConfirmModal(selectedProperty);
+  };
 
-  const derivedTitle = `${selectedProperty.street_name} ${selectedProperty.house_number}`;
+  const derivedTitle = selectedProperty
+    ? `${selectedProperty.street_name} ${selectedProperty.house_number}`
+    : 'Propiedad';
 
   return (
     <Modal
@@ -116,7 +144,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
               {derivedTitle}
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {selectedProperty.city}, {selectedProperty.state}
+              {selectedProperty ? `${selectedProperty.city}, ${selectedProperty.state}` : 'Cargando detalles'}
             </p>
           </div>
         </div>
@@ -127,12 +155,14 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
-        ) : (
+        ) : propertyDetailError ? (
+          <p className="text-sm text-red-600 dark:text-red-400">{propertyDetailError}</p>
+        ) : selectedProperty ? (
           <Tabs aria-label="Pestañas de detalles de la propiedad">
             {/* Overview Tab */}
             <TabItem active title="Resumen" icon={HomeIcon}>
               <div className="space-y-6">
-                {/* Quick Actions */}
+                {showModerationActions && (
                 <Card>
                   <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Acciones rápidas</h4>
                   <div className="flex flex-wrap gap-2">
@@ -167,6 +197,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
                     </Button>
                   </div>
                 </Card>
+                )}
 
                 {/* Basic Information */}
                 <Card>
@@ -316,7 +347,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({ hook }
               </TabItem>
             )}
           </Tabs>
-        )}
+        ) : null}
       </ModalBody>
 
       <ModalFooter>

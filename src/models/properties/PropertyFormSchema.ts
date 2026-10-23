@@ -140,9 +140,9 @@ export const propertyFormBaseSchema = z.object({
   propertyType: z
     .enum(['SummerRent', 'EventVenue', 'RealEstate'])
     .optional() as z.ZodType<PropertyType | undefined>,
-  // structural / infrastructure
-  areaValue: z.coerce.number().min(1, 'El área debe ser al menos 1.'),
-  areaUnit: areaUnitEnum,
+  // structural / infrastructure (optional; the wizard no longer collects these)
+  areaValue: optionalCreateAreaValueSchema,
+  areaUnit: optionalCreateAreaUnitSchema,
   bedrooms: z.coerce.number().int().min(0),
   bathrooms: z.coerce.number().min(0),
   hasGarage: z.boolean().default(false),

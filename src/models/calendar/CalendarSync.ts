@@ -207,6 +207,7 @@ export interface Booking {
   Notes?: string
   BookingSource?: string
   ExternalBookingId?: string
+  ReservationCode?: string | null
   IsDeleted: boolean
   Created: string
   CreatedBy?: string

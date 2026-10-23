@@ -25,7 +25,8 @@ export function ListingInformationForm() {
     register,
     watch,
     setValue,
-    formState: { errors },
+    trigger,
+    formState: { errors, touchedFields, isSubmitted },
   } = useFormContext<PropertyFormData>();
   const canChooseCurrency = isAdmin(useSelector(selectUserProfile));
 
@@ -37,6 +38,18 @@ export function ListingInformationForm() {
 
   const propertyType = watch('propertyType') as PropertyType | undefined;
   const realEstateOfferMode = watch('realEstateOfferMode');
+  const basePrice = watch('basePrice');
+  const minPrice = watch('minPrice');
+  const maxPrice = watch('maxPrice');
+  const pricingTouched = Boolean(
+    touchedFields.basePrice && touchedFields.minPrice && touchedFields.maxPrice
+  );
+  const showPricingErrors = pricingTouched || isSubmitted;
+
+  useEffect(() => {
+    if (!showPricingErrors) return;
+    void trigger(['basePrice', 'minPrice', 'maxPrice']);
+  }, [showPricingErrors, basePrice, minPrice, maxPrice, trigger]);
   const effectiveListingType = resolveCreationListingType({
     propertyType,
     realEstateOfferMode,
@@ -132,7 +145,7 @@ export function ListingInformationForm() {
                 <Label htmlFor="basePrice">Precio base (por noche / evento)</Label>
               </div>
               <TextInput id="basePrice" type="number" min="0" step="0.01" {...register('basePrice')} />
-              {errors.basePrice && (
+              {showPricingErrors && errors.basePrice && (
                 <p className="text-red-500 text-sm mt-1">
                   {errors.basePrice.message as string}
                 </p>
@@ -185,7 +198,7 @@ export function ListingInformationForm() {
                   <Label htmlFor="minPrice">Precio mínimo</Label>
                 </div>
                 <TextInput id="minPrice" type="number" min="0" step="0.01" {...register('minPrice')} />
-                {errors.minPrice && (
+                {showPricingErrors && errors.minPrice && (
                   <p className="text-red-500 text-sm mt-1">{errors.minPrice.message as string}</p>
                 )}
               </div>
@@ -194,7 +207,7 @@ export function ListingInformationForm() {
                   <Label htmlFor="maxPrice">Precio máximo</Label>
                 </div>
                 <TextInput id="maxPrice" type="number" min="0" step="0.01" {...register('maxPrice')} />
-                {errors.maxPrice && (
+                {showPricingErrors && errors.maxPrice && (
                   <p className="text-red-500 text-sm mt-1">{errors.maxPrice.message as string}</p>
                 )}
               </div>
