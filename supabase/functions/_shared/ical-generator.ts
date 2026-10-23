@@ -6,14 +6,14 @@
  */
 
 import { AvailabilityBlock, BlockType } from '../../../src/models/calendar/CalendarSync.ts'
-import { createLogger } from './logger.ts'
+import { createLogger, type Logger } from './logger.ts'
 
 /**
  * Error class for iCal generation errors
  */
 export class ICalGeneratorError extends Error {
-  constructor(message: string, public readonly cause?: Error) {
-    super(message)
+  constructor(message: string, cause?: Error) {
+    super(message, cause ? { cause } : undefined)
     this.name = 'ICalGeneratorError'
   }
 }
@@ -46,7 +46,7 @@ export function generateICalFeed(
 ): string {
   const {
     calendarName = 'Property Availability',
-    prodId = '-//YourApp//Calendar Export//EN',
+    prodId = '-//SDI//Property Calendar Export//EN',
     timezone = 'UTC'
   } = options
 
@@ -87,10 +87,11 @@ export function generateICalFeed(
       throw error
     }
 
-    logger.error('Unexpected error during iCal generation', error)
+    const message = error instanceof Error ? error.message : String(error)
+    logger.error('Unexpected error during iCal generation', message)
     throw new ICalGeneratorError(
-      `Failed to generate iCal feed: ${error.message}`,
-      error as Error
+      `Failed to generate iCal feed: ${message}`,
+      error instanceof Error ? error : undefined
     )
   }
 }
@@ -131,33 +132,32 @@ function generateCalendarContent(
   const { calendarName, prodId, timezone, logger } = options
   const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z'
 
-  let ics = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:${prodId}
-METHOD:PUBLISH
-X-WR-CALNAME:${calendarName}
-X-WR-TIMEZONE:${timezone}
-`
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    `PRODID:${prodId}`,
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${calendarName}`,
+    `X-WR-TIMEZONE:${timezone}`,
+  ]
 
-  // Add each block as a VEVENT
   for (const block of blocks) {
     try {
-      const vevent = convertBlockToVEvent(propertyId, block, now)
-      ics += vevent
+      lines.push(...convertBlockToVEvent(propertyId, block, now))
     } catch (error) {
-      logger.warn(`Failed to convert block ${block.Id} to VEVENT: ${error.message}`)
-      // Continue with other blocks
+      const message = error instanceof Error ? error.message : String(error)
+      logger.warn(`Failed to convert block ${block.Id} to VEVENT: ${message}`)
     }
   }
 
-  ics += 'END:VCALENDAR'
-  return ics
+  lines.push('END:VCALENDAR')
+  return lines.join('\r\n') + '\r\n'
 }
 
 /**
  * Convert an availability block to a VEVENT component
  */
-function convertBlockToVEvent(propertyId: string, block: AvailabilityBlock, now: string): string {
+function convertBlockToVEvent(propertyId: string, block: AvailabilityBlock, now: string): string[] {
   // Generate stable UID based on property and block ID
   const uid = `block-${block.Id}@${propertyId}`
 
@@ -181,29 +181,26 @@ function convertBlockToVEvent(propertyId: string, block: AvailabilityBlock, now:
   // Set description
   const description = block.Description || `${summary} - Property unavailable`
 
-  // Build VEVENT content
-  let vevent = `BEGIN:VEVENT
-UID:${uid}
-DTSTAMP:${now}
-DTSTART;VALUE=DATE:${startDate}
-DTEND;VALUE=DATE:${endDate}
-SUMMARY:${escapeICalText(summary)}
-DESCRIPTION:${escapeICalText(description)}
-STATUS:CONFIRMED
-TRANSP:OPAQUE
-`
+  const lines = [
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTAMP:${now}`,
+    `DTSTART;VALUE=DATE:${startDate}`,
+    `DTEND;VALUE=DATE:${endDate}`,
+    `SUMMARY:${escapeICalText(summary)}`,
+    `DESCRIPTION:${escapeICalText(description)}`,
+    'STATUS:CONFIRMED',
+    'TRANSP:OPAQUE',
+  ]
 
-  // Add last modified if available
   if (block.LastModified) {
     const lastModified = new Date(block.LastModified).toISOString()
       .replace(/[-:]/g, '').replace(/\.\d{3}/, '') + 'Z'
-    vevent += `LAST-MODIFIED:${lastModified}
-`
+    lines.push(`LAST-MODIFIED:${lastModified}`)
   }
 
-  vevent += 'END:VEVENT\n'
-
-  return vevent
+  lines.push('END:VEVENT')
+  return lines
 }
 
 /**

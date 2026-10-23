@@ -13,7 +13,7 @@ import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
 import { PropertyData } from '../../models/properties';
 import BookingService, { BookingWithMember } from '../../services/BookingService';
 import { AvailabilityBlock } from '../../models/calendar/CalendarSync';
-import { CalendarSyncService, SyncOrchestratorService } from '../../services/CalendarSyncService';
+import { CalendarSyncService } from '../../services/CalendarSyncService';
 import BookingCalendar from '../../components/dashboard/bookings/BookingCalendar';
 import BookingDetailsPanel from '../../components/dashboard/bookings/BookingDetailsPanel';
 import SyncStatusBar from '../../components/dashboard/bookings/SyncStatusBar';
@@ -181,23 +181,8 @@ const PropertyBookingsPage: React.FC = () => {
 
   // Handle sync trigger
   const handleSync = useCallback(async () => {
-    if (!propertyId) return;
-
-    setState(prev => ({ ...prev, isSyncing: true, error: null }));
-
-    try {
-      await SyncOrchestratorService.triggerBulkSync(propertyId);
-      // Refresh data after sync
-      await loadData();
-    } catch (error: any) {
-      setState(prev => ({
-        ...prev,
-        error: error.message || 'Error de sincronización'
-      }));
-    } finally {
-      setState(prev => ({ ...prev, isSyncing: false }));
-    }
-  }, [propertyId, loadData]);
+    await loadData();
+  }, [loadData]);
 
   // Handle save changes
   const handleSaveChanges = useCallback(async () => {

@@ -97,6 +97,7 @@ export interface AvailabilityBlock {
   BlockType: BlockType
   Source: SourceType
   ExternalEventId?: string
+  CalendarIntegrationId?: string | null
   Title?: string
   Description?: string
   IsReadOnly: boolean

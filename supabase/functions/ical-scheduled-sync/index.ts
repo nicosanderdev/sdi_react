@@ -1,8 +1,8 @@
 /**
  * Scheduled iCal Sync (Cron Job)
  *
- * Automatically syncs iCal feeds for all active iCal integrations.
- * Runs every 30 minutes as configured in Supabase dashboard.
+ * Imports active iCal feeds. The Supabase dashboard schedule calls this with
+ * Authorization: Bearer <service role key>. verify_jwt is off; the handler checks the token.
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -21,15 +21,15 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 const logger = createLogger('ical-scheduled-sync')
 
-// Batch size for processing integrations
 const BATCH_SIZE = 50
+const IMPORT_CONCURRENCY = 5
+const SYNC_WINDOW_MS = 25 * 60 * 1000
 
 interface SyncResult {
   integrationId: string
   success: boolean
   eventsProcessed?: number
-  blocksCreated?: number
-  blocksUpdated?: number
+  blocksUpserted?: number
   blocksDeleted?: number
   conflictsDetected?: number
   error?: string
@@ -47,16 +47,92 @@ interface CronJobResult {
   error?: string
 }
 
-/**
- * Sync a single iCal integration
- */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function bearerToken(req: Request): string {
+  const header = req.headers.get('Authorization') ?? ''
+  return header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+}
+
+function base64UrlBytes(input: string): Uint8Array {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/')
+  const normalized = padded + '='.repeat((4 - (padded.length % 4)) % 4)
+  const binary = atob(normalized)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
+}
+
+/** HS256 check for a project JWT. The service role key itself is matched separately. */
+async function verifiedJwtRole(token: string): Promise<string | null> {
+  const secret = Deno.env.get('SUPABASE_JWT_SECRET') ?? Deno.env.get('JWT_SECRET') ?? ''
+  if (!secret) return null
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    const header = JSON.parse(new TextDecoder().decode(base64UrlBytes(parts[0]))) as { alg?: string }
+    if (header.alg !== 'HS256') return null
+    const key = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify'],
+    )
+    const ok = await crypto.subtle.verify(
+      'HMAC',
+      key,
+      base64UrlBytes(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
+    )
+    if (!ok) return null
+    const payload = JSON.parse(new TextDecoder().decode(base64UrlBytes(parts[1]))) as { role?: unknown; exp?: unknown }
+    if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) return null
+    return typeof payload.role === 'string' ? payload.role : null
+  } catch {
+    return null
+  }
+}
+
+async function isAuthorizedCaller(req: Request): Promise<boolean> {
+  const token = bearerToken(req)
+  if (!token || !supabaseServiceKey) return false
+  if (token === supabaseServiceKey) return true
+  return (await verifiedJwtRole(token)) === 'service_role'
+}
+
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length)
+  let next = 0
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next++
+      try {
+        results[index] = { status: 'fulfilled', value: await fn(items[index]) }
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason }
+      }
+    }
+  }
+
+  const workers = Math.min(limit, items.length)
+  await Promise.all(Array.from({ length: workers }, () => worker()))
+  return results
+}
+
 async function syncSingleIntegration(integrationId: string): Promise<SyncResult> {
   const startTime = Date.now()
 
   try {
     logger.info('sync_started', { integrationId })
 
-    // Call the iCal import function
     const response = await fetch(`${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`, {
       method: 'POST',
       headers: {
@@ -91,8 +167,7 @@ async function syncSingleIntegration(integrationId: string): Promise<SyncResult>
     logger.info('sync_completed', {
       integrationId,
       eventsProcessed: result.eventsProcessed,
-      blocksCreated: result.blocksCreated,
-      blocksUpdated: result.blocksUpdated,
+      blocksUpserted: result.blocksUpserted,
       blocksDeleted: result.blocksDeleted,
       conflictsDetected: result.conflictsDetected,
       duration
@@ -102,39 +177,34 @@ async function syncSingleIntegration(integrationId: string): Promise<SyncResult>
       integrationId,
       success: true,
       eventsProcessed: result.eventsProcessed || 0,
-      blocksCreated: result.blocksCreated || 0,
-      blocksUpdated: result.blocksUpdated || 0,
+      blocksUpserted: result.blocksUpserted || 0,
       blocksDeleted: result.blocksDeleted || 0,
       conflictsDetected: result.conflictsDetected || 0,
       duration
     }
-
   } catch (error) {
     const duration = Date.now() - startTime
-    logger.error('sync_failed', error.message, { integrationId, duration })
+    logger.error('sync_failed', errorMessage(error), { integrationId, duration })
 
     return {
       integrationId,
       success: false,
-      error: error.message,
+      error: errorMessage(error),
       duration
     }
   }
 }
 
-/**
- * Get active iCal integrations that need syncing
- */
 async function getIntegrationsToSync(): Promise<Array<{ id: string; platformType: number; lastSyncAt?: string }>> {
-  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  const cutoff = new Date(Date.now() - SYNC_WINDOW_MS).toISOString()
 
   const { data, error } = await supabase
     .from('CalendarIntegrations')
     .select('Id, PlatformType, LastSyncAt')
     .eq('IsActive', true)
-    .in('PlatformType', [2, 3, 4]) // iCal platform types only
+    .in('PlatformType', [2, 3, 4])
     .eq('IsDeleted', false)
-    .or(`LastSyncAt.is.null,LastSyncAt.lt.${thirtyMinutesAgo}`)
+    .or(`LastSyncAt.is.null,LastSyncAt.lt.${cutoff}`)
     .order('LastSyncAt', { ascending: true, nullsFirst: true })
     .limit(BATCH_SIZE)
 
@@ -149,76 +219,28 @@ async function getIntegrationsToSync(): Promise<Array<{ id: string; platformType
   }))
 }
 
-/**
- * Log cron job execution for monitoring
- */
-async function logCronJobExecution(result: CronJobResult) {
-  try {
-    await supabase
-      .from('AuditLogs')
-      .insert({
-        Action: 'ICAL_SCHEDULED_SYNC_EXECUTED',
-        EntityType: 'System',
-        EntityId: 'ical-scheduled-sync',
-        Details: {
-          success: result.success,
-          integrationsProcessed: result.integrationsProcessed,
-          successfulSyncs: result.successfulSyncs,
-          failedSyncs: result.failedSyncs,
-          totalEventsProcessed: result.totalEventsProcessed,
-          totalDuration: result.totalDuration,
-          // Log summary, not full results to avoid size limits
-          resultsSummary: result.results.map(r => ({
-            integrationId: r.integrationId,
-            success: r.success,
-            eventsProcessed: r.eventsProcessed,
-            duration: r.duration,
-            error: r.error ? r.error.substring(0, 100) : undefined
-          }))
-        },
-        Created: new Date().toISOString()
-      })
-
-    // Alert on high failure rate
-    if (result.integrationsProcessed > 0) {
-      const failureRate = result.failedSyncs / result.integrationsProcessed
-      if (failureRate > 0.5) {
-        console.error(`ALERT: High iCal sync failure rate: ${failureRate * 100}% (${result.failedSyncs}/${result.integrationsProcessed})`)
-
-        // Could send email alert here in production
-        await supabase
-          .from('AuditLogs')
-          .insert({
-            Action: 'ICAL_SYNC_ALERT',
-            EntityType: 'System',
-            EntityId: 'ical-scheduled-sync',
-            Details: {
-              alertType: 'HIGH_FAILURE_RATE',
-              failureRate,
-              failedSyncs: result.failedSyncs,
-              totalSyncs: result.integrationsProcessed,
-              results: result.results.filter(r => !r.success)
-            },
-            Created: new Date().toISOString()
-          })
-      }
-    }
-
-  } catch (error) {
-    console.error('Failed to log cron job execution:', error)
-  }
+function jsonResponse(body: CronJobResult, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  })
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  // Only allow POST requests (cron jobs use POST)
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
+  }
+
+  if (!(await isAuthorizedCaller(req))) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
@@ -227,7 +249,6 @@ Deno.serve(async (req) => {
   logger.info('cron_job_started')
 
   try {
-    // Get integrations that need syncing
     const integrations = await getIntegrationsToSync()
     logger.info('integrations_found', { count: integrations.length })
 
@@ -242,40 +263,27 @@ Deno.serve(async (req) => {
         results: []
       }
 
-      await logCronJobExecution(result)
       await logCronExecution(req, 'ical-scheduled-sync', true, '0 integrations')
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
+      return jsonResponse(result, 200)
     }
 
-    // Process integrations in parallel with concurrency control
-    const syncPromises = integrations.map(integration =>
+    const settled = await mapPool(integrations, IMPORT_CONCURRENCY, (integration) =>
       syncSingleIntegration(integration.id)
     )
-
-    const results = await Promise.allSettled(syncPromises)
-    const syncResults: SyncResult[] = results.map((result, index) => {
-      if (result.status === 'fulfilled') {
-        return result.value
-      } else {
-        // Handle promise rejection
-        const integration = integrations[index]
-        logger.error('promise_rejected', result.reason?.message || 'Promise rejected', {
-          integrationId: integration.id
-        })
-        return {
-          integrationId: integration.id,
-          success: false,
-          error: result.reason?.message || 'Promise rejected',
-          duration: 0
-        }
+    const syncResults: SyncResult[] = settled.map((result, index) => {
+      if (result.status === 'fulfilled') return result.value
+      const integration = integrations[index]
+      logger.error('promise_rejected', result.reason?.message || 'Promise rejected', {
+        integrationId: integration.id
+      })
+      return {
+        integrationId: integration.id,
+        success: false,
+        error: result.reason?.message || 'Promise rejected',
+        duration: 0
       }
     })
 
-    // Calculate summary statistics
     const successfulSyncs = syncResults.filter(r => r.success).length
     const failedSyncs = syncResults.filter(r => !r.success).length
     const totalEventsProcessed = syncResults.reduce((sum, r) => sum + (r.eventsProcessed || 0), 0)
@@ -296,33 +304,29 @@ Deno.serve(async (req) => {
       totalSyncs: integrations.length,
       totalEventsProcessed,
       totalDuration,
-      failureRate: integrations.length > 0 ? ((integrations.length - successfulSyncs) / integrations.length) : 0
+      failureRate: integrations.length > 0 ? (failedSyncs / integrations.length) : 0
     })
 
-    // Log execution for monitoring
-    await logCronJobExecution(cronResult)
     await logCronExecution(
       req,
       'ical-scheduled-sync',
       cronResult.success,
       cronResult.success
         ? `${cronResult.successfulSyncs}/${cronResult.integrationsProcessed} syncs`
-        : (cronResult.error ?? `${cronResult.failedSyncs} failed`),
+        : `${cronResult.failedSyncs} failed`,
       {
         integrationsProcessed: cronResult.integrationsProcessed,
         successfulSyncs: cronResult.successfulSyncs,
         failedSyncs: cronResult.failedSyncs,
+        totalEventsProcessed: cronResult.totalEventsProcessed,
       },
     )
 
-    return new Response(JSON.stringify(cronResult), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-
+    return jsonResponse(cronResult, cronResult.success ? 200 : 207)
   } catch (error) {
     const totalDuration = Date.now() - startTime
-    logger.error('cron_job_failed', error.message, { totalDuration })
+    const message = errorMessage(error)
+    logger.error('cron_job_failed', message, { totalDuration })
 
     const errorResult: CronJobResult = {
       success: false,
@@ -332,16 +336,10 @@ Deno.serve(async (req) => {
       totalEventsProcessed: 0,
       totalDuration,
       results: [],
-      error: error.message
+      error: message
     }
 
-    // Log the error
-    await logCronJobExecution(errorResult)
-    await logCronExecution(req, 'ical-scheduled-sync', false, error.message)
-
-    return new Response(JSON.stringify(errorResult), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    await logCronExecution(req, 'ical-scheduled-sync', false, message)
+    return jsonResponse(errorResult, 500)
   }
 })

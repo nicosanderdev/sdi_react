@@ -21,71 +21,21 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 const logger = createLogger('ical-export')
 
-// Rate limiting: max 100 requests per hour per property
-const RATE_LIMIT_MAX = 100
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
-
 /**
- * Log access for monitoring and analytics
- */
-async function logAccess(propertyId: string, token: string, userAgent?: string, ip?: string) {
-  try {
-    await supabase
-      .from('AuditLogs')
-      .insert({
-        Action: 'ICAL_EXPORT_ACCESS',
-        EntityType: 'EstateProperty',
-        EntityId: propertyId,
-        Details: {
-          token: token.substring(0, 8) + '...', // Log partial token for security
-          userAgent,
-          ip
-        },
-        Created: new Date().toISOString()
-      })
-  } catch (error) {
-    // Log failure but don't fail the request
-    logger.warn('log_export_access', { propertyId }, error.message)
-  }
-}
-
-/**
- * Check rate limiting for a property
- */
-async function checkRateLimit(propertyId: string): Promise<boolean> {
-  const oneHourAgo = new Date(Date.now() - RATE_LIMIT_WINDOW)
-
-  const { count, error } = await supabase
-    .from('AuditLogs')
-    .select('*', { count: 'exact', head: true })
-    .eq('Action', 'ICAL_EXPORT_ACCESS')
-    .eq('EntityId', propertyId)
-    .gte('Created', oneHourAgo.toISOString())
-
-  if (error) {
-    logger.warn('rate_limit_check_failed', { propertyId }, error.message)
-    // Allow request on error to avoid blocking legitimate users
-    return true
-  }
-
-  return (count || 0) < RATE_LIMIT_MAX
-}
-
-/**
- * Validate export token for property
+ * Validate export token for property. Does not create a token.
  */
 async function validateExportToken(propertyId: string, token: string): Promise<boolean> {
-  const { data, error } = await supabase.rpc('get_property_ical_export_token', {
-    property_id: propertyId
+  const { data, error } = await supabase.rpc('validate_property_ical_export_token', {
+    property_id: propertyId,
+    token,
   })
 
-  if (error || !data) {
-    logger.warn('token_validation_failed', { propertyId, tokenPrefix: token?.substring(0, 8) }, error?.message)
+  if (error) {
+    logger.warn('token_validation_failed', { propertyId, tokenPrefix: token?.substring(0, 8) }, error.message)
     return false
   }
 
-  const currentToken = data as string
-  return currentToken === token
+  return data === true
 }
 
 /**
@@ -99,15 +49,15 @@ async function generatePropertyICalFeed(propertyId: string): Promise<string> {
   const future365Days = new Date()
   future365Days.setFullYear(future365Days.getFullYear() + 1)
 
-  // Query availability blocks
+  // Overlap the window: a stay that started earlier or ends later is still included.
   const { data: blocks, error } = await supabase
     .from('AvailabilityBlocks')
     .select('*')
     .eq('EstatePropertyId', propertyId)
     .eq('IsDeleted', false)
-    .eq('IsAvailable', false) // Only unavailable blocks
-    .gte('StartDate', past30Days.toISOString())
-    .lte('EndDate', future365Days.toISOString())
+    .eq('IsAvailable', false)
+    .gte('EndDate', past30Days.toISOString())
+    .lte('StartDate', future365Days.toISOString())
     .order('StartDate', { ascending: true })
 
   if (error) {
@@ -122,7 +72,7 @@ async function generatePropertyICalFeed(propertyId: string): Promise<string> {
   // Generate iCal feed
   return generateICalFeed(propertyId, blocks, {
     calendarName: 'Property Availability',
-    prodId: '-//YourApp//Calendar Export//EN'
+    prodId: '-//SDI//Property Calendar Export//EN'
   })
 }
 
@@ -182,26 +132,11 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Check rate limiting
-    const withinLimit = await checkRateLimit(propertyId)
-    if (!withinLimit) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-          'Retry-After': '3600' // Retry after 1 hour
-        }
-      })
-    }
-
-    // Log access for monitoring
-    const userAgent = req.headers.get('User-Agent') || undefined
-    const ip = req.headers.get('CF-Connecting-IP') ||
-               req.headers.get('X-Forwarded-For') ||
-               req.headers.get('X-Real-IP') ||
-               undefined
-    await logAccess(propertyId, token, userAgent, ip)
+    logger.info('export_access', {
+      propertyId,
+      tokenPrefix: token.substring(0, 8),
+      userAgent: req.headers.get('User-Agent') || undefined,
+    })
 
     // Generate iCal feed
     const icalContent = await generatePropertyICalFeed(propertyId)
@@ -245,7 +180,8 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     const duration = Date.now() - startTime
-    logger.error('export_failed', error.message, {
+    const message = error instanceof Error ? error.message : String(error)
+    logger.error('export_failed', message, {
       method: req.method,
       url: req.url,
       duration

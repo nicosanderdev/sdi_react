@@ -18,7 +18,7 @@ const logger = createLogger('sync-orchestrator')
 const RATE_LIMIT_MAX = 100
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000 // 1 hour in milliseconds
 
-// Rate limiting for manual syncs: max 1 per 5 minutes per property
+// Rate limiting for manual syncs: max 1 per 5 minutes per integration
 const MANUAL_SYNC_MAX = 1
 const MANUAL_SYNC_WINDOW = 5 * 60 * 1000 // 5 minutes in milliseconds
 
@@ -38,8 +38,14 @@ interface BulkSyncRequest {
 
 interface SyncResponse {
   success: boolean
-  jobIds: string[]
+  jobIds?: string[]
+  errors?: { integrationId: string; error: string }[]
   message: string
+}
+
+interface BulkSyncOutcome {
+  jobIds: string[]
+  failures: { integrationId: string; error: string }[]
 }
 
 interface SyncJob {
@@ -133,23 +139,18 @@ async function checkRateLimit(integrationId: string): Promise<boolean> {
 }
 
 /**
- * Check rate limiting for manual syncs per property
+ * Check rate limiting for manual syncs per integration.
+ * One property-wide slot would let a bulk sync run only the first feed.
  */
-async function checkManualSyncRateLimit(propertyId: string): Promise<boolean> {
+async function checkManualSyncRateLimit(integrationId: string): Promise<boolean> {
   const fiveMinutesAgo = new Date(Date.now() - MANUAL_SYNC_WINDOW)
 
   const { count } = await supabase
     .from('SyncJobs')
     .select('*', { count: 'exact', head: true })
+    .eq('CalendarIntegrationId', integrationId)
     .eq('JobType', 0) // Manual jobs only
     .gte('Created', fiveMinutesAgo.toISOString())
-    .in('CalendarIntegrationId',
-      // Subquery to get integration IDs for this property
-      supabase.from('CalendarIntegrations')
-        .select('Id')
-        .eq('EstatePropertyId', propertyId)
-        .eq('IsDeleted', false)
-    )
 
   return (count || 0) < MANUAL_SYNC_MAX
 }
@@ -205,7 +206,7 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
   }
 
   if (jobType === 0) {
-    const withinManualLimit = await checkManualSyncRateLimit(integration.EstatePropertyId)
+    const withinManualLimit = await checkManualSyncRateLimit(integrationId)
     if (!withinManualLimit) {
       throw new Error('Manual sync rate limit exceeded. Please try again later.')
     }
@@ -229,8 +230,12 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
     throw new Error('Sync already in progress')
   }
 
+  // iCal has no outbound push. "bidirectional" imports the feed and does not export.
+  const isICal = integration.PlatformType >= 2 && integration.PlatformType <= 4
+  const effectiveSyncType = isICal && syncType === 'bidirectional' ? 'inbound' : syncType
+
   // Create sync job
-  const jobId = await createSyncJob(integrationId, jobType, syncType)
+  const jobId = await createSyncJob(integrationId, jobType, effectiveSyncType)
 
   // Call appropriate sync service based on platform type
   let syncUrl: string
@@ -245,7 +250,7 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
       jobId
     }
   } else if (integration.PlatformType >= 1 && integration.PlatformType <= 4) {
-    // Apple (1) and iCal platforms (2=Airbnb, 3=Booking.com, 4=Other)
+    // Apple (1) and iCal platforms (2=Airbnb, 3=Booking.com, 4=Other). Import only.
     syncUrl = `${supabaseUrl}/functions/v1/calendar-sync/ical-sync/import`
     requestBody = {
       integrationId,
@@ -290,7 +295,7 @@ async function triggerSync(integrationId: string, syncType: string = 'bidirectio
 /**
  * Trigger sync for all active integrations of a property
  */
-async function triggerBulkSync(propertyId: string, syncType: string = 'bidirectional'): Promise<string[]> {
+async function triggerBulkSync(propertyId: string, syncType: string = 'bidirectional'): Promise<BulkSyncOutcome> {
   // Get all active integrations for the property
   const { data: integrations, error } = await supabase
     .from('CalendarIntegrations')
@@ -302,18 +307,20 @@ async function triggerBulkSync(propertyId: string, syncType: string = 'bidirecti
   if (error) throw error
 
   const jobIds: string[] = []
+  const failures: { integrationId: string; error: string }[] = []
 
   for (const integration of integrations || []) {
     try {
       const jobId = await triggerSync(integration.Id, syncType, 0) // manual job
       jobIds.push(jobId)
     } catch (error) {
-      logger.error('trigger_sync_failed', error.message, { integrationId: integration.Id })
-      // Continue with other integrations
+      const message = error instanceof Error ? error.message : String(error)
+      logger.error('trigger_sync_failed', message, { integrationId: integration.Id })
+      failures.push({ integrationId: integration.Id, error: message })
     }
   }
 
-  return jobIds
+  return { jobIds, failures }
 }
 
 /**
@@ -514,14 +521,23 @@ export async function handleSyncOrchestratorRequest(req: Request): Promise<Respo
           })
         }
 
-        const jobIds = await triggerBulkSync(propertyId, syncType)
+        const { jobIds, failures } = await triggerBulkSync(propertyId, syncType)
+        const success = failures.length === 0
+        const status = success ? 200 : (jobIds.length === 0 ? 502 : 207)
+        const importNote = syncType === 'bidirectional'
+          ? ' La sincronización iCal solo importa; no exporta.'
+          : ''
+        const message = success
+          ? `Sincronización iniciada para ${jobIds.length} integración(es).${importNote}`
+          : `Se sincronizaron ${jobIds.length} integración(es); ${failures.length} fallaron.${importNote}`
 
         return new Response(JSON.stringify({
-          success: true,
+          success,
           jobIds,
-          message: `Triggered sync for ${jobIds.length} integration(s)`
+          errors: failures,
+          message,
         } as SyncResponse), {
-          status: 200,
+          status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }

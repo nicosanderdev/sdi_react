@@ -113,6 +113,23 @@ export class ICalSyncService {
   }
 }
 
+export interface BulkSyncResult {
+  success: boolean
+  jobIds: string[]
+  errors?: { integrationId: string; error: string }[]
+  message: string
+}
+
+async function readInvokeErrorBody(error: unknown): Promise<unknown> {
+  const context = (error as { context?: { json?: () => Promise<unknown> } } | null)?.context
+  if (!context || typeof context.json !== 'function') return null
+  try {
+    return await context.json()
+  } catch {
+    return null
+  }
+}
+
 // Sync Orchestrator Service
 export class SyncOrchestratorService {
   /**
@@ -130,13 +147,22 @@ export class SyncOrchestratorService {
   /**
    * Trigger sync for all integrations of a property
    */
-  static async triggerBulkSync(propertyId: string, syncType: 'inbound' | 'outbound' | 'bidirectional' = 'bidirectional'): Promise<{ jobIds: string[]; message: string }> {
+  static async triggerBulkSync(propertyId: string, syncType: 'inbound' | 'outbound' | 'bidirectional' = 'bidirectional'): Promise<BulkSyncResult> {
     const { data, error } = await supabase.functions.invoke('calendar-sync/sync-orchestrator/bulk-sync', {
       body: { propertyId, syncType }
     })
 
+    const body = (data ?? await readInvokeErrorBody(error)) as Partial<BulkSyncResult> | null
+    if (body && typeof body.success === 'boolean') {
+      return {
+        success: body.success,
+        jobIds: Array.isArray(body.jobIds) ? body.jobIds : [],
+        errors: body.errors,
+        message: body.message ?? '',
+      }
+    }
     if (error) throw error
-    return data
+    throw new Error('Respuesta de sincronización inválida')
   }
 
   /**
