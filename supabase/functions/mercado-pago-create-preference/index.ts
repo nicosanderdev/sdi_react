@@ -7,13 +7,12 @@
  */
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { getGuestPaymentReturnOrigin } from '../_shared/guestManageUrl.ts';
+import { buildGuestPaymentReturnUrl } from '../_shared/guestManageUrl.ts';
 import {
   currencyCodeFromInt,
   decryptSecret,
   encodeMpExternalReference,
   encryptSecret,
-  getPublicAppBaseUrl,
   logAndPublicError,
   mpApiRequest,
   refreshSellerAccessToken,
@@ -26,6 +25,16 @@ interface PreferenceResponse {
   id: string;
   init_point?: string;
   sandbox_init_point?: string;
+}
+
+interface PreferenceBackUrls {
+  success: string;
+  pending: string;
+  failure: string;
+}
+
+function preferenceBackUrls(returnUrl: string): PreferenceBackUrls {
+  return { success: returnUrl, pending: returnUrl, failure: returnUrl };
 }
 
 function json(data: unknown, status = 200): Response {
@@ -123,6 +132,25 @@ async function getValidSellerAccessToken(
   return refreshed.accessToken;
 }
 
+/** Point an already-created Checkout Pro preference at the listing. False when Mercado Pago rejects the update. */
+async function refreshPreferenceBackUrls(
+  accessToken: string,
+  preferenceId: string,
+  backUrls: PreferenceBackUrls,
+): Promise<boolean> {
+  try {
+    await mpApiRequest(`/checkout/preferences/${preferenceId}`, {
+      accessToken,
+      method: 'PUT',
+      body: { back_urls: backUrls, auto_return: 'approved' },
+    });
+    return true;
+  } catch (error) {
+    console.error('Failed to update Mercado Pago preference back_urls', error);
+    return false;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -203,6 +231,36 @@ Deno.serve(async (req: Request) => {
       return json({ success: false, error: 'Seller Mercado Pago account missing', error_code: 'SELLER_NOT_CONNECTED' }, 409);
     }
 
+    const { data: bookingRow, error: bookingError } = await supabase
+      .from('Bookings')
+      .select('ListingType, EstatePropertyId')
+      .eq('Id', resolved.bookingId)
+      .maybeSingle();
+
+    if (bookingError) {
+      console.error('Failed to load booking for payment return', bookingError);
+      return json({ success: false, error: 'Unable to load booking' }, 500);
+    }
+
+    const booking = bookingRow as { ListingType?: string; EstatePropertyId?: string } | null;
+    const returnUrl = buildGuestPaymentReturnUrl(
+      booking?.ListingType ?? null,
+      booking?.EstatePropertyId ?? null,
+      resolved.bookingId,
+    );
+    if (!returnUrl) {
+      console.error('Guest payment return URL unavailable', {
+        bookingId: resolved.bookingId,
+        listingType: booking?.ListingType ?? null,
+      });
+      return json({
+        success: false,
+        error: 'Online payment return URL is not configured for this listing',
+        error_code: 'GUEST_RETURN_URL_UNAVAILABLE',
+      }, 409);
+    }
+    const backUrls = preferenceBackUrls(returnUrl);
+
     const { data: existingAttempt } = await supabase
       .from('mercado_pago_payment_attempts')
       .select('id, preference_id, init_point, sandbox_init_point, status, expected_amount, expected_currency_code')
@@ -212,19 +270,29 @@ Deno.serve(async (req: Request) => {
       .limit(1)
       .maybeSingle();
 
-    if (
-      existingAttempt?.init_point &&
+    const canReuseAttempt =
+      !!existingAttempt?.init_point &&
+      !!existingAttempt.preference_id &&
       Number(existingAttempt.expected_amount) === amount &&
-      existingAttempt.expected_currency_code === currencyCode
-    ) {
-      return json(reusePayload({
-        attemptId: existingAttempt.id,
-        preferenceId: existingAttempt.preference_id,
-        initPoint: existingAttempt.init_point,
-        sandboxInitPoint: existingAttempt.sandbox_init_point,
-        amount,
-        currencyCode,
-      }));
+      existingAttempt.expected_currency_code === currencyCode;
+
+    if (canReuseAttempt && existingAttempt?.preference_id) {
+      const accessToken = await getValidSellerAccessToken(supabase, account);
+      const refreshed = await refreshPreferenceBackUrls(
+        accessToken,
+        existingAttempt.preference_id,
+        backUrls,
+      );
+      if (refreshed) {
+        return json(reusePayload({
+          attemptId: existingAttempt.id,
+          preferenceId: existingAttempt.preference_id,
+          initPoint: existingAttempt.init_point,
+          sandboxInitPoint: existingAttempt.sandbox_init_point,
+          amount,
+          currencyCode,
+        }));
+      }
     }
 
     const attemptId = crypto.randomUUID();
@@ -248,32 +316,33 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (attemptError || !attempt) {
-      if (attemptError?.code === '23505' && existingAttempt?.init_point) {
-        return json(reusePayload({
-          attemptId: existingAttempt.id,
-          preferenceId: existingAttempt.preference_id,
-          initPoint: existingAttempt.init_point,
-          sandboxInitPoint: existingAttempt.sandbox_init_point,
-          amount,
-          currencyCode,
-        }));
+      if (
+        attemptError?.code === '23505' &&
+        existingAttempt?.init_point &&
+        existingAttempt.preference_id
+      ) {
+        const accessToken = await getValidSellerAccessToken(supabase, account);
+        const refreshed = await refreshPreferenceBackUrls(
+          accessToken,
+          existingAttempt.preference_id,
+          backUrls,
+        );
+        if (refreshed) {
+          return json(reusePayload({
+            attemptId: existingAttempt.id,
+            preferenceId: existingAttempt.preference_id,
+            initPoint: existingAttempt.init_point,
+            sandboxInitPoint: existingAttempt.sandbox_init_point,
+            amount,
+            currencyCode,
+          }));
+        }
       }
       console.error('Failed to create payment attempt', attemptError);
       return json({ success: false, error: 'Failed to create payment attempt' }, 500);
     }
 
     const accessToken = await getValidSellerAccessToken(supabase, account);
-
-    const { data: bookingRow } = await supabase
-      .from('Bookings')
-      .select('ListingType')
-      .eq('Id', resolved.bookingId)
-      .maybeSingle();
-
-    const listingType =
-      (bookingRow as { ListingType?: string } | null)?.ListingType ?? null;
-    const guestOrigin = getGuestPaymentReturnOrigin(listingType);
-    const returnBase = guestOrigin || getPublicAppBaseUrl();
 
     const notificationUrl =
       Deno.env.get('MERCADO_PAGO_NOTIFICATION_URL') ||
@@ -291,11 +360,7 @@ Deno.serve(async (req: Request) => {
       ],
       external_reference: externalReference,
       notification_url: notificationUrl,
-      back_urls: {
-        success: `${returnBase}/pago-mercado-pago/resultado?status=success&bookingId=${resolved.bookingId}`,
-        pending: `${returnBase}/pago-mercado-pago/resultado?status=pending&bookingId=${resolved.bookingId}`,
-        failure: `${returnBase}/pago-mercado-pago/resultado?status=failure&bookingId=${resolved.bookingId}`,
-      },
+      back_urls: backUrls,
       auto_return: 'approved',
       metadata: {
         booking_id: resolved.bookingId,
