@@ -105,6 +105,11 @@ function BookingRow({
           <Badge color={getBookingStatusBadgeColor(booking.Status)}>
             {BOOKING_STATUS_NAMES[booking.Status as BookingStatus]}
           </Badge>
+          {booking.ReservationCode && (
+            <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 font-mono text-sm font-bold tracking-wide text-green-800 dark:bg-green-900/40 dark:text-green-200">
+              {booking.ReservationCode}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
           <span className="flex items-center gap-1">
@@ -192,19 +197,20 @@ export default function BookingsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [bookings, setBookings] = useState<BookingWithMemberAndProperty[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{ bookingId: string; action: 'reject' | 'cancel' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'current' | 'past' | 'rejected'>('all');
 
   const fetchBookings = useCallback(async () => {
-    setError(null);
+    setLoadError(null);
     const res = await BookingService.getOwnerBookings();
     if (res.succeeded && res.data) {
       setBookings(res.data);
     } else {
-      setError(res.errorMessage ?? 'Error al cargar las reservas');
+      setLoadError(res.errorMessage ?? 'Error al cargar las reservas');
     }
     setIsLoading(false);
   }, []);
@@ -223,6 +229,7 @@ export default function BookingsPage() {
         ? [guest.FirstName, guest.LastName].filter(Boolean).join(' ')
         : '';
       const fields: string[] = [
+        booking.ReservationCode ?? '',
         booking.EstateProperty?.Title ?? '',
         guestName,
         guest?.Email ?? '',
@@ -269,6 +276,7 @@ export default function BookingsPage() {
   const handleAccept = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Confirmed
       });
@@ -278,9 +286,10 @@ export default function BookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al aceptar la reserva');
+        setActionError(res.errorMessage ?? 'Error al aceptar la reserva');
       }
     },
     [dispatch]
@@ -289,6 +298,7 @@ export default function BookingsPage() {
   const handleReject = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Cancelled
       });
@@ -298,9 +308,10 @@ export default function BookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al rechazar la reserva');
+        setActionError(res.errorMessage ?? 'Error al rechazar la reserva');
       }
     },
     [dispatch]
@@ -309,6 +320,7 @@ export default function BookingsPage() {
   const handleCancel = useCallback(
     async (id: string) => {
       setActionId(id);
+      setActionError(null);
       const res = await BookingService.updateBooking(id, {
         status: BookingStatus.Cancelled
       });
@@ -318,9 +330,10 @@ export default function BookingsPage() {
         setBookings((prev) =>
           prev.map((b) => (b.Id === id ? { ...b, ...updated } : b))
         );
+        setActionError(null);
         dispatch(fetchNotificationCounts());
       } else {
-        setError(res.errorMessage ?? 'Error al cancelar la reserva');
+        setActionError(res.errorMessage ?? 'Error al cancelar la reserva');
       }
     },
     [dispatch]
@@ -335,7 +348,7 @@ export default function BookingsPage() {
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <div className="space-y-4">
         <DashboardPageTitle title="Reservas" />
@@ -344,10 +357,10 @@ export default function BookingsPage() {
             <AlertCircle className="h-8 w-8 flex-shrink-0" />
             <div>
               <p className="font-medium">Error al cargar las reservas</p>
-              <p className="text-sm mt-1">{error}</p>
+              <p className="text-sm mt-1">{loadError}</p>
             </div>
           </div>
-          <Button color="primary" onClick={() => { setError(null); setIsLoading(true); fetchBookings(); }}>
+          <Button color="primary" onClick={() => { setLoadError(null); setIsLoading(true); fetchBookings(); }}>
             Reintentar
           </Button>
         </Card>
@@ -365,7 +378,7 @@ export default function BookingsPage() {
         <div className="flex-1">
           <TextInput
             type="text"
-            placeholder="Buscar por huésped, email o propiedad..."
+            placeholder="Buscar por código, huésped, email o propiedad..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={Search}
@@ -402,9 +415,9 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {error && (
-        <Alert color="failure" onDismiss={() => setError(null)}>
-          <span className="font-medium">Error:</span> {error}
+      {actionError && (
+        <Alert color="failure" onDismiss={() => setActionError(null)}>
+          <span className="font-medium">Error:</span> {actionError}
         </Alert>
       )}
 

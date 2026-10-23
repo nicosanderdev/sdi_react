@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import propertyService from '../services/PropertyService';
-import {
+import propertyAdminService, {
   AdminPropertyListItem,
   PropertyFilters,
   PropertyStatistics,
 } from '../services/PropertyAdminService';
+import { PropertyData } from '../models/properties';
 import { SortConfig, SortDirection, SortField } from './useAdminProperties';
 import { COMPANY_SELECTOR_OPTIONS } from '../components/dashboard/CompanySelector';
 
@@ -32,6 +33,11 @@ export interface UseMemberPropertiesReturn {
   propertyToDelete: AdminPropertyListItem | null;
   editingListingPropertyId: string | null;
 
+  selectedProperty: PropertyData | null;
+  detailModalOpen: boolean;
+  propertyDetailLoading: boolean;
+  propertyDetailError: string | null;
+
   selectedPropertyIds: string[];
   primarySelectedProperty: AdminPropertyListItem | null;
 
@@ -43,6 +49,8 @@ export interface UseMemberPropertiesReturn {
   setSorting: (field: SortField, direction?: SortDirection) => void;
   fetchProperties: () => Promise<void>;
   fetchStatistics: () => Promise<void>;
+  fetchPropertyDetail: (propertyId: string) => Promise<void>;
+  closeDetailModal: () => void;
 
   openDeleteConfirmModal: (property: AdminPropertyListItem) => void;
   closeDeleteConfirmModal: () => void;
@@ -90,6 +98,10 @@ export const useMemberProperties = (
   const [propertyToDelete, setPropertyToDelete] = useState<AdminPropertyListItem | null>(null);
   const [editingListingPropertyId, setEditingListingPropertyId] = useState<string | null>(null);
   const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyData | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [propertyDetailLoading, setPropertyDetailLoading] = useState(false);
+  const [propertyDetailError, setPropertyDetailError] = useState<string | null>(null);
 
   const primarySelectedProperty = useMemo((): AdminPropertyListItem | null => {
     if (selectedPropertyIds.length !== 1) return null;
@@ -213,6 +225,35 @@ export const useMemberProperties = (
     setSelectedPropertyIds([]);
   }, []);
 
+  const fetchPropertyDetail = useCallback(async (propertyId: string) => {
+    setDetailModalOpen(true);
+    setSelectedProperty(null);
+    setPropertyDetailLoading(true);
+    setPropertyDetailError(null);
+
+    try {
+      const propertyDetail = await propertyAdminService.getPropertyDetail(propertyId);
+      if (!propertyDetail) {
+        setPropertyDetailError(
+          'No se pudieron cargar los detalles de la propiedad. No se encontró la propiedad.'
+        );
+        return;
+      }
+      setSelectedProperty(propertyDetail);
+    } catch (err: unknown) {
+      const reason = err instanceof Error ? err.message : 'Error desconocido';
+      setPropertyDetailError(`No se pudieron cargar los detalles de la propiedad. ${reason}`);
+    } finally {
+      setPropertyDetailLoading(false);
+    }
+  }, []);
+
+  const closeDetailModal = useCallback(() => {
+    setDetailModalOpen(false);
+    setSelectedProperty(null);
+    setPropertyDetailError(null);
+  }, []);
+
   useEffect(() => {
     void fetchProperties();
   }, [fetchProperties]);
@@ -245,6 +286,11 @@ export const useMemberProperties = (
     propertyToDelete,
     editingListingPropertyId,
 
+    selectedProperty,
+    detailModalOpen,
+    propertyDetailLoading,
+    propertyDetailError,
+
     selectedPropertyIds,
     primarySelectedProperty,
 
@@ -256,6 +302,8 @@ export const useMemberProperties = (
     setSorting,
     fetchProperties,
     fetchStatistics,
+    fetchPropertyDetail,
+    closeDetailModal,
 
     openDeleteConfirmModal,
     closeDeleteConfirmModal,

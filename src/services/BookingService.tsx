@@ -516,9 +516,13 @@ class BookingService {
       const [withGuest] = await attachGuestsToBookings([data]);
 
       if (status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
-        await BookingConfirmationService.handlePostConfirmation(
-          buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
-        );
+        try {
+          await BookingConfirmationService.handlePostConfirmation(
+            buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
+          );
+        } catch (notifyError) {
+          console.warn('Booking confirmation notification failed:', notifyError);
+        }
       }
 
       return {
@@ -610,9 +614,13 @@ class BookingService {
       const [withGuest] = await attachGuestsToBookings([data]);
 
       if (updates.status === BookingStatus.Confirmed && withGuest?.Id && withGuest?.EstatePropertyId) {
-        await BookingConfirmationService.handlePostConfirmation(
-          buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
-        );
+        try {
+          await BookingConfirmationService.handlePostConfirmation(
+            buildGuestNotificationPayload(withGuest as BookingWithGuestSiteFields)
+          );
+        } catch (notifyError) {
+          console.warn('Booking confirmation notification failed:', notifyError);
+        }
       }
 
       if (updates.status === BookingStatus.Cancelled && withGuest?.Id && withGuest?.EstatePropertyId) {

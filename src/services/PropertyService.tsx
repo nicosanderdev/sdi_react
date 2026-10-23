@@ -267,9 +267,9 @@ const loadPropertyEditorContent = async (estatePropertyId: string) => {
         amenities?: Amenity[];
     };
     return {
-        contentSections: contentSectionsFromDb(raw.contentSections ?? []),
-        propertyPolicies: propertyPoliciesFromDb(raw.policies ?? []),
-        amenityEditor: amenityEditorFromDb(raw.amenityEditor ?? []),
+        contentSections: contentSectionsFromDb(Array.isArray(raw.contentSections) ? raw.contentSections : []),
+        propertyPolicies: propertyPoliciesFromDb(Array.isArray(raw.policies) ? raw.policies : []),
+        amenityEditor: amenityEditorFromDb(Array.isArray(raw.amenityEditor) ? raw.amenityEditor : []),
         amenities: Array.isArray(raw.amenities) ? raw.amenities : [],
     };
 };
@@ -504,8 +504,12 @@ const attachPublicPropertyContent = async (
     }
 };
 
-// Fetch a single property owned by the user by its ID (admins: any property)
-const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
+// Fetch a single property the current member can read (RLS scopes the row).
+// Platform admins see any property; users see personal/company properties they can access.
+const getOwnersPropertyById = async (
+    id: string,
+    options?: { tolerateEditorContentError?: boolean }
+): Promise<PropertyData> => {
     try {
         const userId = await getCurrentUserId();
 
@@ -520,7 +524,11 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
 
         const isAdmin = String(member.Role ?? '').toLowerCase() === 'admin';
 
-        const ownerPropertySelect = `
+        // Same select for admin and user: RLS (admin_all or user_select / read-owner) limits rows.
+        // Do not add a client-side Owners.or(...) filter — PostgREST treats those as root columns.
+        const { data, error } = await supabase
+            .from('EstateProperties')
+            .select(`
         *,
         RealEstateExtension(*),
         SummerRentExtension(*),
@@ -531,71 +539,29 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         PropertyDocuments(*),
         PropertyVideos(*),
         EstatePropertyAmenity(Amenities(*))
-      `;
-
-        if (isAdmin) {
-            const { data, error } = await supabase
-                .from('EstateProperties')
-                .select(`
-        *,
-        RealEstateExtension(*),
-        SummerRentExtension(*),
-        EventVenueExtension(*),
-        Owners(OwnerType, MemberId, CompanyId),
-        Listings(*),
-        PropertyImages(*),
-        PropertyDocuments(*),
-        PropertyVideos(*),
-        EstatePropertyAmenity(Amenities(*))
       `)
-                .eq('Id', id)
-                .eq('IsDeleted', false)
-                .eq('Owners.IsDeleted', false)
-                .single();
-
-            if (error) {
-                if (error.code === 'PGRST116') {
-                    console.warn(`Property ${id} not found for admin user ${userId}`);
-                    throw new Error('Property not found');
-                }
-                throw error;
-            }
-
-            const property = mapDbToPropertyData(data);
-            const editor = await loadPropertyEditorContent(id);
-            const { amenityEditor, amenities: resolvedAmenities, ...editorRest } = editor;
-            return {
-                ...property,
-                ...editorRest,
-                amenities: resolvedAmenities.length ? resolvedAmenities : property.amenities,
-                amenityEditor,
-            } as PropertyData;
-        }
-
-        // Get all company IDs for this member
-        const { data: userCompanies, error: companiesError } = await supabase
-            .from('CompanyMembers')
-            .select('CompanyId')
-            .eq('MemberId', member.Id)
-            .eq('IsDeleted', false);
-
-        if (companiesError) throw companiesError;
-
-        const companyIds = userCompanies?.map(uc => uc.CompanyId) || [];
-
-        let query = supabase
-            .from('EstateProperties')
-            .select(ownerPropertySelect)
             .eq('Id', id)
             .eq('IsDeleted', false)
             .eq('Owners.IsDeleted', false)
-            .or(ownersAccessOrFilter(member.Id, companyIds));
-
-        const { data, error } = await query.single();
+            .single();
 
         if (error) {
             if (error.code === 'PGRST116') {
-                console.warn(`Property ${id} not accessible for user ${userId}. Member ID: ${member.Id}, Company IDs: [${companyIds.join(', ')}]`);
+                if (isAdmin) {
+                    console.warn(`Property ${id} not found for admin user ${userId}`);
+                    throw new Error('Property not found');
+                }
+
+                const { data: userCompanies } = await supabase
+                    .from('CompanyMembers')
+                    .select('CompanyId')
+                    .eq('MemberId', member.Id)
+                    .eq('IsDeleted', false);
+
+                const companyIds = userCompanies?.map((uc) => uc.CompanyId) || [];
+                console.warn(
+                    `Property ${id} not accessible for user ${userId}. Member ID: ${member.Id}, Company IDs: [${companyIds.join(', ')}]`
+                );
 
                 const { data: existsData, error: existsError } = await supabase
                     .from('EstateProperties')
@@ -620,12 +586,13 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
                             ownerMemberId: ownerData.MemberId,
                             ownerCompanyId: ownerData.CompanyId,
                             userMemberId: member.Id,
-                            userCompanyIds: companyIds
+                            userCompanyIds: companyIds,
                         });
 
-                        const accessReason = ownerData.OwnerType === 'member'
-                            ? `Property owned by member ${ownerData.MemberId}, user is member ${member.Id}`
-                            : `Property owned by company ${ownerData.CompanyId}, user has access to companies: [${companyIds.join(', ')}]`;
+                        const accessReason =
+                            ownerData.OwnerType === 'member'
+                                ? `Property owned by member ${ownerData.MemberId}, user is member ${member.Id}`
+                                : `Property owned by company ${ownerData.CompanyId}, user has access to companies: [${companyIds.join(', ')}]`;
 
                         throw new Error(`Access denied to property ${id}: ${accessReason}`);
                     } else {
@@ -640,7 +607,19 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         }
 
         const property = mapDbToPropertyData(data);
-        const editor = await loadPropertyEditorContent(id);
+        let editor: Awaited<ReturnType<typeof loadPropertyEditorContent>>;
+        try {
+            editor = await loadPropertyEditorContent(id);
+        } catch (editorError) {
+            if (!options?.tolerateEditorContentError) throw editorError;
+            console.error(`Editor content unavailable for property ${id}:`, editorError);
+            editor = {
+                contentSections: [],
+                propertyPolicies: [],
+                amenityEditor: { keys: [], descriptions: {} },
+                amenities: [],
+            };
+        }
         const { amenityEditor, amenities: resolvedAmenities, ...editorRest } = editor;
         return {
             ...property,
@@ -1650,8 +1629,15 @@ const updateProperty = async (
             p_location_lng: formData.location.lng,
             p_title: formData.title,
             p_property_type: propertyTypeMap[((formData as any).type ?? 'house') as string],
-            p_area_value: formData.areaValue,
-            p_area_unit: areaUnitMap[((formData as any).areaUnit ?? 'm²') as string],
+            p_area_value:
+                formData.areaValue != null && Number(formData.areaValue) > 0
+                    ? Number(formData.areaValue)
+                    : null,
+            p_area_unit: (() => {
+                const areaUnitRaw = (formData as any).areaUnit as string | undefined;
+                if (areaUnitRaw == null || areaUnitRaw === '') return null;
+                return areaUnitMap[areaUnitRaw] ?? null;
+            })(),
             p_bedrooms: formData.bedrooms,
             p_bathrooms: formData.bathrooms,
             p_has_garage: formData.hasGarage,

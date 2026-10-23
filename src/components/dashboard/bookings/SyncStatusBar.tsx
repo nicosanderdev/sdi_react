@@ -51,6 +51,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [internalIsSyncing, setInternalIsSyncing] = useState(false);
 
   const isSyncing = externalIsSyncing || internalIsSyncing;
@@ -127,15 +128,27 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
   const handleSync = async () => {
     setInternalIsSyncing(true);
     setError(null);
+    setNotice(null);
 
     try {
+      const result = await SyncOrchestratorService.triggerBulkSync(propertyId);
+      await loadSyncStatus();
+      if (isExpanded) {
+        await loadSyncJobs();
+      }
+      if (!result.success) {
+        const detail = result.errors?.map((item) => item.error).filter(Boolean).join(' ');
+        setNotice(null);
+        setError(detail || result.message || 'Error de sincronización');
+      } else {
+        setError(null);
+        setNotice(result.message || 'Sincronización iniciada');
+      }
       if (onSync) {
         await onSync();
-      } else {
-        await SyncOrchestratorService.triggerBulkSync(propertyId);
-        await loadSyncStatus();
       }
     } catch (err: any) {
+      setNotice(null);
       setError(err.message || 'Error de sincronización');
     } finally {
       setInternalIsSyncing(false);
@@ -295,6 +308,11 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
         {error && (
           <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm">
             {error}
+          </div>
+        )}
+        {notice && !error && (
+          <div className="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-800 dark:text-green-300 px-3 py-2 rounded text-sm">
+            {notice}
           </div>
         )}
 

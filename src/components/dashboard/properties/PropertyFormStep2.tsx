@@ -7,7 +7,7 @@ import {
   getPropertyTypeShortLabelEs,
 } from '../../../models/properties/propertyTypeLabels';
 import type { ListingType, PropertyType } from '../../../models/properties/PropertyData';
-import { Button, Label, Select, TextInput, Checkbox } from 'flowbite-react';
+import { Button, Label, TextInput, Checkbox } from 'flowbite-react';
 import { RealEstateExtensionForm } from './RealEstateExtensionForm';
 import { SummerRentExtensionForm } from './SummerRentExtensionForm';
 import { EventVenueExtensionForm } from './EventVenueExtensionForm';
@@ -168,9 +168,6 @@ export function PropertyFormStep2({
       'bathrooms',
       'garageSpaces',
     ];
-    if (editMode) {
-      baseFieldsToValidate.unshift('areaValue', 'areaUnit');
-    }
 
     const isValid = await trigger(baseFieldsToValidate);
     if (isValid) {
@@ -188,44 +185,6 @@ export function PropertyFormStep2({
     <form onSubmit={handleNext} className="max-w-2xl mx-auto" id="onboarding-form-details">
       <div className="space-y-6">
         <div>
-          <h3 className="text-lg font-semibold mb-2">Información Principal</h3>
-          <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="mb-2 block">
-              <Label htmlFor="areaValue">
-                {editMode ? 'Área Total*' : 'Área Total'}
-              </Label>
-            </div>
-            <TextInput
-              id="areaValue"
-              type="number"
-              min="1"
-              {...register('areaValue')}
-            />
-            {errors.areaValue && <p className="text-red-500 text-sm mt-1">{errors.areaValue.message}</p>}
-          </div>
-          <div>
-            <div className="mb-2 block">
-              <Label htmlFor="areaUnit">
-                {editMode ? 'Unidad de Área*' : 'Unidad de Área'}
-              </Label>
-            </div>
-            <Select
-              id="areaUnit"
-              {...register('areaUnit')}
-            >
-              <option value="">Seleccione</option>
-              <option value="m²">m²</option>
-              <option value="ft²">ft²</option>
-              <option value="acres">acres</option>
-              <option value="hectares">hectáreas</option>
-            </Select>
-            {errors.areaUnit && <p className="text-red-500 text-sm mt-1">{errors.areaUnit.message}</p>}
-          </div>
-        </div>
-        </div>
-
-        <div className="border-t border-gray-200 pt-6">
           <h3 className="text-lg font-semibold mb-2">Detalles y Características</h3>
           <div className="grid grid-cols-3 gap-4">
             <div>

@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../../_shared/cors.ts'
 import { authenticateUser, hasPropertyAccess } from '../../_shared/auth.ts'
 import { createLogger } from '../../_shared/logger.ts'
+import { parseICalFeed, type ParsedICalEvent } from '../../_shared/ical-parse.ts'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -14,6 +15,14 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 
 const logger = createLogger('ical-sync')
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+const FETCH_TIMEOUT_MS = 15_000
+const MAX_FEED_BYTES = 5 * 1024 * 1024
+const FEED_USER_AGENT = 'SDI-CalendarSync/1.0'
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
 function isServiceRoleRequest(req: Request): boolean {
   const header = req.headers.get('Authorization') ?? ''
@@ -36,154 +45,127 @@ function resolveICalFeedUrl(integration: {
 interface ICSSyncRequest {
   integrationId: string
   action?: 'import' | 'export' | 'connect'
-  icsUrl?: string // For import
+  icsUrl?: string
   jobId?: string
 }
 
-interface ICSEvent {
-  uid: string
-  summary?: string
-  description?: string
-  dtstart: string
-  dtend: string
-  status?: string
-  transp?: string // TRANSP: TRANSPARENT or OPAQUE
+interface ImportResult {
+  eventsProcessed: number
+  blocksUpserted: number
+  blocksDeleted: number
+  conflictsDetected: number
 }
 
-interface ICSData {
-  events: ICSEvent[]
-  calendarName?: string
+async function fetchFeed(icsUrl: string): Promise<string> {
+  const response = await fetch(icsUrl, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    headers: { 'User-Agent': FEED_USER_AGENT },
+    redirect: 'follow',
+  })
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ICS file: ${response.status}`)
+  }
+
+  const declared = Number(response.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declared) && declared > MAX_FEED_BYTES) {
+    throw new Error('ICS feed exceeds the size limit')
+  }
+
+  const icsContent = await response.text()
+  if (icsContent.length > MAX_FEED_BYTES) {
+    throw new Error('ICS feed exceeds the size limit')
+  }
+  return icsContent
+}
+
+async function upsertEventBlock(
+  integrationId: string,
+  propertyId: string,
+  event: ParsedICalEvent,
+): Promise<{ upserted: boolean; conflict: boolean }> {
+  const { data: conflicts } = await supabase.rpc('detect_availability_conflicts', {
+    property_id: propertyId,
+    start_date: event.start.toISOString(),
+    end_date: event.end.toISOString(),
+    exclude_external_event_id: event.uid,
+  })
+
+  const hasConflict = Array.isArray(conflicts) && conflicts.length > 0
+  const now = new Date().toISOString()
+  const blockData = {
+    EstatePropertyId: propertyId,
+    CalendarIntegrationId: integrationId,
+    IsAvailable: event.transparent,
+    StartDate: event.start.toISOString(),
+    EndDate: event.end.toISOString(),
+    BlockType: 3,
+    Source: 'ical',
+    ExternalEventId: event.uid,
+    Title: event.summary || 'ICS Event',
+    Description: event.description,
+    IsReadOnly: true,
+    ConflictFlagged: hasConflict,
+    IsDeleted: false,
+    LastModified: now,
+  }
+
+  const { error: upsertError } = await supabase
+    .from('AvailabilityBlocks')
+    .upsert(blockData, {
+      onConflict: 'EstatePropertyId,ExternalEventId,Source',
+    })
+
+  if (upsertError) {
+    logger.error('upsert_block_failed', upsertError.message, { eventUid: event.uid })
+    return { upserted: false, conflict: hasConflict }
+  }
+  return { upserted: true, conflict: hasConflict }
+}
+
+async function softDeleteMissing(integrationId: string, seenUids: Set<string>): Promise<number> {
+  const rows: { Id: string; ExternalEventId: string | null }[] = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from('AvailabilityBlocks')
+      .select('Id, ExternalEventId')
+      .eq('CalendarIntegrationId', integrationId)
+      .eq('Source', 'ical')
+      .eq('IsDeleted', false)
+      .range(from, from + pageSize - 1)
+
+    if (error) throw new Error(`Failed to list iCal blocks: ${error.message}`)
+    rows.push(...(data ?? []))
+    if (!data || data.length < pageSize) break
+  }
+
+  const ids = rows
+    .filter((row) => !row.ExternalEventId || !seenUids.has(row.ExternalEventId))
+    .map((row) => row.Id)
+
+  if (ids.length === 0) return 0
+
+  const now = new Date().toISOString()
+  let deleted = 0
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100)
+    const { error, count } = await supabase
+      .from('AvailabilityBlocks')
+      .update({ IsDeleted: true, LastModified: now }, { count: 'exact' })
+      .in('Id', chunk)
+
+    if (error) throw new Error(`Failed to remove missing iCal blocks: ${error.message}`)
+    deleted += count ?? chunk.length
+  }
+  return deleted
 }
 
 /**
- * Basic ICS parser for calendar events
+ * Import ICS feed and create availability blocks.
+ * A failed upsert still counts the UID as seen, so a transient error does not delete the block.
+ * Cancelled and missing events are soft-deleted afterwards.
  */
-function parseICS(icsContent: string): ICSData {
-  const lines = icsContent.split('\n').map(line => line.trim())
-  const events: ICSEvent[] = []
-  let currentEvent: Partial<ICSEvent> = {}
-  let inEvent = false
-  let calendarName = ''
-
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i]
-
-    // Handle line continuation
-    while (i + 1 < lines.length && lines[i + 1].startsWith(' ')) {
-      i++
-      line += lines[i].substring(1)
-    }
-
-    if (line === 'BEGIN:VEVENT') {
-      inEvent = true
-      currentEvent = {}
-    } else if (line === 'END:VEVENT') {
-      if (currentEvent.uid && currentEvent.dtstart && currentEvent.dtend) {
-        events.push(currentEvent as ICSEvent)
-      }
-      inEvent = false
-    } else if (line === 'BEGIN:VCALENDAR' || line === 'END:VCALENDAR') {
-      // Skip
-    } else if (inEvent) {
-      const colonIndex = line.indexOf(':')
-      if (colonIndex > 0) {
-        const key = line.substring(0, colonIndex).toLowerCase()
-        const value = line.substring(colonIndex + 1)
-
-        switch (key) {
-          case 'uid':
-            currentEvent.uid = value
-            break
-          case 'summary':
-            currentEvent.summary = value
-            break
-          case 'description':
-            currentEvent.description = value
-            break
-          case 'dtstart':
-            currentEvent.dtstart = value
-            break
-          case 'dtend':
-            currentEvent.dtend = value
-            break
-          case 'status':
-            currentEvent.status = value
-            break
-          case 'transp':
-            currentEvent.transp = value
-            break
-        }
-      }
-    } else if (line.startsWith('X-WR-CALNAME:')) {
-      calendarName = line.substring(13)
-    }
-  }
-
-  return { events, calendarName }
-}
-
-/**
- * Generate ICS content from availability blocks
- */
-function generateICS(propertyId: string, blocks: any[]): string {
-  const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-
-  let ics = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Property Calendar//EN
-X-WR-CALNAME:Property Availability
-`
-
-  for (const block of blocks) {
-    if (!block.IsAvailable) { // Only include unavailable blocks in export
-      const startDate = new Date(block.StartDate).toISOString().split('T')[0].replace(/-/g, '')
-      const endDate = new Date(block.EndDate).toISOString().split('T')[0].replace(/-/g, '')
-
-      ics += `BEGIN:VEVENT
-UID:block_${block.Id}@property
-SUMMARY:${block.Title || 'Booked'}
-DESCRIPTION:${block.Description || 'Property is not available'}
-DTSTART;VALUE=DATE:${startDate}
-DTEND;VALUE=DATE:${endDate}
-STATUS:CONFIRMED
-TRANSP:OPAQUE
-END:VEVENT
-`
-    }
-  }
-
-  ics += 'END:VCALENDAR'
-  return ics
-}
-
-/**
- * Parse ICS date/time format
- */
-function parseICSDate(icsDate: string): Date {
-  // Handle DATE format (YYYYMMDD)
-  if (icsDate.length === 8 && /^\d{8}$/.test(icsDate)) {
-    const year = icsDate.substring(0, 4)
-    const month = icsDate.substring(4, 6)
-    const day = icsDate.substring(6, 8)
-    return new Date(`${year}-${month}-${day}T00:00:00`)
-  }
-
-  // Handle DATETIME format (YYYYMMDDTHHMMSSZ or with timezone)
-  if (icsDate.includes('T')) {
-    // Convert from ICS format to ISO format
-    const isoDate = icsDate
-      .replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6')
-      .replace(/Z$/, '+00:00')
-    return new Date(isoDate)
-  }
-
-  throw new Error(`Unsupported ICS date format: ${icsDate}`)
-}
-
-/**
- * Import ICS feed and create availability blocks
- */
-async function importICSFeed(integrationId: string, icsUrl: string, jobId?: string): Promise<number> {
+async function importICSFeed(integrationId: string, icsUrl: string, jobId?: string): Promise<ImportResult> {
   const { data: integration } = await supabase
     .from('CalendarIntegrations')
     .select('EstatePropertyId')
@@ -195,124 +177,82 @@ async function importICSFeed(integrationId: string, icsUrl: string, jobId?: stri
     throw new Error('Integration not found')
   }
 
-  // Update job status to running
   if (jobId) {
     await supabase
       .from('SyncJobs')
       .update({
-        Status: 1, // running
+        Status: 1,
         StartedAt: new Date().toISOString()
       })
       .eq('Id', jobId)
   }
 
   try {
-    // Fetch ICS file
-    const response = await fetch(icsUrl)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ICS file: ${response.status}`)
+    const icsContent = await fetchFeed(icsUrl)
+    const icsData = parseICalFeed(icsContent)
+    if (!icsData.hasCalendar) {
+      throw new Error('Feed is not an iCal calendar')
     }
 
-    const icsContent = await response.text()
-    const icsData = parseICS(icsContent)
-
-    let processedCount = 0
+    const seenUids = new Set<string>()
+    let eventsProcessed = 0
+    let blocksUpserted = 0
+    let conflictsDetected = 0
 
     for (const event of icsData.events) {
-      // Skip cancelled events
-      if (event.status === 'CANCELLED') {
-        continue
-      }
+      if (event.cancelled) continue
+
+      eventsProcessed++
+      seenUids.add(event.uid)
 
       try {
-        const startDate = parseICSDate(event.dtstart)
-        const endDate = parseICSDate(event.dtend)
-
-        // Check for conflicts with internal bookings
-        const { data: conflicts } = await supabase.rpc('detect_availability_conflicts', {
-          property_id: integration.EstatePropertyId,
-          start_date: startDate.toISOString(),
-          end_date: endDate.toISOString()
-        })
-
-        const hasConflict = conflicts && conflicts.length > 0
-        const isBusy = event.transp !== 'TRANSPARENT'
-
-        // Create availability block
-        const blockData = {
-          EstatePropertyId: integration.EstatePropertyId,
-          IsAvailable: !isBusy,
-          StartDate: startDate.toISOString(),
-          EndDate: endDate.toISOString(),
-          BlockType: 3, // external_block
-          Source: 'ical',
-          ExternalEventId: event.uid,
-          Title: event.summary || 'ICS Event',
-          Description: event.description,
-          IsReadOnly: true,
-          ConflictFlagged: hasConflict,
-          Created: new Date().toISOString(),
-          LastModified: new Date().toISOString()
-        }
-
-        // Upsert block (update if exists, insert if not)
-        const { error: upsertError } = await supabase
-          .from('AvailabilityBlocks')
-          .upsert(blockData, {
-            onConflict: 'EstatePropertyId,ExternalEventId,Source'
-          })
-
-        if (upsertError) {
-          logger.error('upsert_block_failed', upsertError.message, { eventUid: event.uid })
-        } else {
-          processedCount++
-        }
+        const result = await upsertEventBlock(integrationId, integration.EstatePropertyId, event)
+        if (result.upserted) blocksUpserted++
+        if (result.conflict) conflictsDetected++
       } catch (error) {
-        logger.error('process_event_failed', error.message, { eventUid: event.uid })
+        logger.error('process_event_failed', errorMessage(error), { eventUid: event.uid })
       }
     }
 
-    // Update integration sync status
+    const blocksDeleted = await softDeleteMissing(integrationId, seenUids)
+
     await supabase
       .from('CalendarIntegrations')
       .update({
         LastSyncAt: new Date().toISOString(),
-        SyncStatus: 0, // idle
+        SyncStatus: 0,
         LastModified: new Date().toISOString()
       })
       .eq('Id', integrationId)
 
-    // Update job status to completed
     if (jobId) {
       await supabase
         .from('SyncJobs')
         .update({
-          Status: 2, // completed
+          Status: 2,
           CompletedAt: new Date().toISOString(),
-          EventsProcessed: processedCount
+          EventsProcessed: blocksUpserted
         })
         .eq('Id', jobId)
     }
 
-    return processedCount
+    return { eventsProcessed, blocksUpserted, blocksDeleted, conflictsDetected }
   } catch (error) {
-    // Update job status to failed
     if (jobId) {
       await supabase
         .from('SyncJobs')
         .update({
-          Status: 3, // failed
+          Status: 3,
           CompletedAt: new Date().toISOString(),
-          Error: error.message
+          Error: errorMessage(error)
         })
         .eq('Id', jobId)
     }
 
-    // Update integration sync status
     await supabase
       .from('CalendarIntegrations')
       .update({
-        SyncStatus: 2, // error
+        SyncStatus: 2,
         LastModified: new Date().toISOString()
       })
       .eq('Id', integrationId)
@@ -322,64 +262,30 @@ async function importICSFeed(integrationId: string, icsUrl: string, jobId?: stri
 }
 
 /**
- * Export availability blocks as ICS feed
- */
-async function exportICSFeed(integrationId: string): Promise<string> {
-  const { data: integration } = await supabase
-    .from('CalendarIntegrations')
-    .select('EstatePropertyId')
-    .eq('Id', integrationId)
-    .eq('IsDeleted', false)
-    .single()
-
-  if (!integration) {
-    throw new Error('Integration not found')
-  }
-
-  // Get all availability blocks for the property (future only)
-  const { data: blocks } = await supabase
-    .from('AvailabilityBlocks')
-    .select('*')
-    .eq('EstatePropertyId', integration.EstatePropertyId)
-    .eq('IsDeleted', false)
-    .gte('EndDate', new Date().toISOString())
-    .order('StartDate', { ascending: true })
-
-  if (!blocks) {
-    // Return empty calendar
-    return generateICS(integration.EstatePropertyId, [])
-  }
-
-  return generateICS(integration.EstatePropertyId, blocks)
-}
-
-/**
  * Create or update ICS integration
  */
 async function createICSIntegration(propertyId: string, icsUrl: string, calendarName?: string): Promise<string> {
-  // Check if integration already exists
   const { data: existingIntegration } = await supabase
     .from('CalendarIntegrations')
     .select('Id')
     .eq('EstatePropertyId', propertyId)
-    .eq('PlatformType', 1) // Apple Calendar
+    .eq('PlatformType', 1)
     .eq('ExternalCalendarId', icsUrl)
     .eq('IsDeleted', false)
     .single()
 
   const integrationData = {
     EstatePropertyId: propertyId,
-    PlatformType: 1, // Apple Calendar
+    PlatformType: 1,
     ExternalCalendarId: icsUrl,
     ExternalCalendarName: calendarName || 'ICS Calendar',
     IsActive: true,
     LastSyncAt: new Date().toISOString(),
-    SyncStatus: 0, // idle
+    SyncStatus: 0,
     LastModified: new Date().toISOString()
   }
 
   if (existingIntegration) {
-    // Update existing integration
     const { error } = await supabase
       .from('CalendarIntegrations')
       .update(integrationData)
@@ -387,21 +293,19 @@ async function createICSIntegration(propertyId: string, icsUrl: string, calendar
 
     if (error) throw error
     return existingIntegration.Id
-  } else {
-    // Create new integration
-    const { data, error } = await supabase
-      .from('CalendarIntegrations')
-      .insert(integrationData)
-      .select('Id')
-      .single()
-
-    if (error) throw error
-    return data.Id
   }
+
+  const { data, error } = await supabase
+    .from('CalendarIntegrations')
+    .insert(integrationData)
+    .select('Id')
+    .single()
+
+  if (error) throw error
+  return data.Id
 }
 
 export async function handleICalSyncRequest(req: Request): Promise<Response> {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -482,11 +386,11 @@ export async function handleICalSyncRequest(req: Request): Promise<Response> {
           })
         }
 
-        const eventsProcessed = await importICSFeed(integrationId, icsUrl, jobId)
+        const result = await importICSFeed(integrationId, icsUrl, jobId)
 
         return new Response(JSON.stringify({
           success: true,
-          eventsProcessed
+          ...result,
         }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -494,35 +398,13 @@ export async function handleICalSyncRequest(req: Request): Promise<Response> {
       }
 
       case 'export': {
-        // Export ICS feed
-        if (req.method !== 'GET') {
-          return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-            status: 405,
-            headers: { ...corsHeaders, 'Content-Type': 'text/calendar' }
-          })
-        }
-
-        const integrationId = url.searchParams.get('integrationId')
-        if (!integrationId) {
-          return new Response(JSON.stringify({ error: 'Integration ID is required' }), {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          })
-        }
-
-        const icsContent = await exportICSFeed(integrationId)
-
-        return new Response(icsContent, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/calendar',
-            'Content-Disposition': 'attachment; filename="property-calendar.ics"'
-          }
+        return new Response(JSON.stringify({ error: 'Unknown endpoint' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
       case 'connect': {
-        // Connect ICS feed
         if (req.method !== 'POST') {
           return new Response(JSON.stringify({ error: 'Method not allowed' }), {
             status: 405,
@@ -530,7 +412,6 @@ export async function handleICalSyncRequest(req: Request): Promise<Response> {
           })
         }
 
-        // Authenticate user
         const authResult = await authenticateUser(req)
         if (!authResult.user) {
           return new Response(JSON.stringify({ error: authResult.error }), {
@@ -542,7 +423,6 @@ export async function handleICalSyncRequest(req: Request): Promise<Response> {
         const body = await req.json()
         const { propertyId, icsUrl, calendarName } = body
 
-        // Verify user has access to property
         const hasAccess = await hasPropertyAccess(authResult.user, propertyId)
         if (!hasAccess) {
           return new Response(JSON.stringify({ error: 'Access denied' }), {
@@ -569,9 +449,9 @@ export async function handleICalSyncRequest(req: Request): Promise<Response> {
         })
     }
   } catch (error) {
-    logger.error('function_error', error.message)
+    logger.error('function_error', errorMessage(error))
     return new Response(JSON.stringify({
-      error: error.message || 'Internal server error'
+      error: errorMessage(error) || 'Internal server error'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -86,7 +86,7 @@ Guest sites do **not** need to call these today.
 |----------|---------|
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Anon key for RPC + edge function calls |
-| `VITE_GUEST_BOOKING_MANAGE_BASE_URL` | Base URL for manage links (`?code=&listingType=`) |
+| `VITE_GUEST_BOOKING_MANAGE_BASE_URL` | Base URL for manage links. Confirmation emails use `?token=`. Code lookup stays `?code=&listingType=`. See [guest-manage-link.md](guest-manage-link.md). |
 
 ### Supabase edge secrets (server only)
 

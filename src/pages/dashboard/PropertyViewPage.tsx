@@ -97,6 +97,19 @@ const propertyStatusMap: Record<string, string> = {
 
 const iconStyle = "text-white";
 
+function textOrEmpty(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return '';
+}
+
+function formatDisplayDate(value: unknown): string {
+    if (value == null || value === '') return 'No especificada';
+    const date = value instanceof Date ? value : new Date(value as string | number);
+    if (Number.isNaN(date.getTime())) return 'No especificada';
+    return date.toLocaleDateString('es-UY');
+}
+
 export function PropertyViewPage() {
     const { propertyId } = useParams<{ propertyId: string }>();
     const navigate = useNavigate();
@@ -148,7 +161,9 @@ export function PropertyViewPage() {
         const fetchProperty = async () => {
             try {
                 setLoading(true);
-                const data = await propertyService.getOwnersPropertyById(propertyId);
+                const data = await propertyService.getOwnersPropertyById(propertyId, {
+                    tolerateEditorContentError: true,
+                });
                 setProperty(data);
 
                 // Set up image carousel
@@ -168,7 +183,8 @@ export function PropertyViewPage() {
                     setSelectedImage('https://placehold.co/600x400');
                 }
             } catch (err) {
-                setError("Failed to fetch property details. Please try again later.");
+                const reason = err instanceof Error ? err.message : 'Error desconocido';
+                setError(`No se pudieron cargar los detalles de la propiedad. ${reason}`);
                 console.error(err);
             } finally {
                 setLoading(false);
@@ -196,11 +212,12 @@ export function PropertyViewPage() {
         }
     };
 
-    const formatAreaUnit = (areaUnit: string) => {
-        const areaUnitN = Number.parseInt(areaUnit);
+    const formatAreaUnit = (areaUnit: string | number | null | undefined) => {
+        if (areaUnit == null || areaUnit === '') return '';
+        if (typeof areaUnit === 'string' && Number.isNaN(Number(areaUnit))) return areaUnit;
+        const areaUnitN = typeof areaUnit === 'number' ? areaUnit : Number.parseInt(areaUnit, 10);
         const areaUnitSymbols = ['m²', 'ft²', 'yd²', 'acres', 'hectares', 'sq_km', 'sq_mi'];
-        const symbol = areaUnitSymbols[areaUnitN] || 'USD';
-        return `${symbol}`;
+        return areaUnitSymbols[areaUnitN] ?? '';
     };
 
     // Image carousel functions
@@ -292,7 +309,7 @@ export function PropertyViewPage() {
     return (<>
         <Card>
             <div className="flex justify-between items-center mb-4">
-                <h1 className="text-3xl font-bold">{property.title}</h1>
+                <h1 className="text-3xl font-bold">{textOrEmpty(property.title) || 'Propiedad'}</h1>
                 <div className="flex space-x-2">
                     <Button 
                         color="alternative" 
@@ -440,18 +457,20 @@ export function PropertyViewPage() {
                 {/* --- Section: Main Details --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8 mb-8">
                     <InfoField icon={<Home size={20} className={iconStyle} />} label="Tipo de Propiedad" value={propertyTypeMap[getCurrentPropertyData()?.type || property.type]} />
-                    <InfoField icon={<Building size={20} className={iconStyle} />} label="Área Total" value={`${getCurrentPropertyData()?.areaValue || property.areaValue} ${formatAreaUnit(getCurrentPropertyData()?.areaUnit || property.areaUnit)}`} />
+                    {(getCurrentPropertyData()?.areaValue || property.areaValue) ? (
+                        <InfoField icon={<Building size={20} className={iconStyle} />} label="Área Total" value={`${getCurrentPropertyData()?.areaValue || property.areaValue} ${formatAreaUnit(getCurrentPropertyData()?.areaUnit || property.areaUnit)}`.trim()} />
+                    ) : null}
                     <InfoField icon={<BedDouble size={20} className={iconStyle} />} label="Dormitorios" value={getCurrentPropertyData()?.bedrooms || property.bedrooms} />
                     <InfoField icon={<Bath size={20} className={iconStyle} />} label="Baños" value={getCurrentPropertyData()?.bathrooms || property.bathrooms} />
                     <InfoField icon={<Car size={20} className={iconStyle} />} label="Espacios de Garage" value={(getCurrentPropertyData()?.hasGarage || property.hasGarage) ? (getCurrentPropertyData()?.garageSpaces || property.garageSpaces) : 'No tiene'} />
                     <InfoField icon={<Users size={20} className={iconStyle} />} label="Capacidad" value={`${property.estatePropertyValues?.[0]?.capacity || 1} persona(s)`} />
-                    <InfoField icon={<Calendar size={20} className={iconStyle} />} label="Disponible Desde" value={new Date(getCurrentPropertyData()?.availableFrom || property.availableFrom).toLocaleDateString('es-UY')} />
+                    <InfoField icon={<Calendar size={20} className={iconStyle} />} label="Disponible Desde" value={formatDisplayDate(getCurrentPropertyData()?.availableFrom || property.availableFrom)} />
                 </div>
 
                 {/* --- Section: Description --- */}
                 <div className='mb-8'>
                     <h3 className="text-xl font-semibold mb-4 border-b pb-2">Descripción</h3>
-                    <p className="whitespace-pre-wrap">{getCurrentPropertyData()?.description || property.description || 'No se proporcionó una descripción.'}</p>
+                    <p className="whitespace-pre-wrap">{textOrEmpty(getCurrentPropertyData()?.description || property.description) || 'No se proporcionó una descripción.'}</p>
                 </div>
 
                 {/* --- Section: Address --- */}
@@ -461,9 +480,11 @@ export function PropertyViewPage() {
                         <p>{`${property.streetName} ${property.houseNumber}`}</p>
                         <p>{`${property.neighborhood}, ${property.city}, ${property.state}`}</p>
                         <p>{`${property.zipCode}, ${property.country}`}</p>
-                        <a href={`https://www.google.com/maps?q=${property.location.lat},${property.location.lng}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#62B6CB] hover:underline mt-1">
-                            Ver en Google Maps
-                        </a>
+                        {property.location?.lat != null && property.location?.lng != null && (
+                            <a href={`https://www.google.com/maps?q=${property.location.lat},${property.location.lng}`} target="_blank" rel="noopener noreferrer" className="text-sm text-[#62B6CB] hover:underline mt-1">
+                                Ver en Google Maps
+                            </a>
+                        )}
                     </InfoField>
                 </div>
 
@@ -603,7 +624,7 @@ export function PropertyViewPage() {
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {property.amenities.map((amenity: Amenity) => {
                                 const description = pickAmenityDescription(amenity.descriptions, 'es');
-                                const name = pickAmenityDescription(amenity.localizedName, 'es') || amenity.name;
+                                const name = pickAmenityDescription(amenity.localizedName, 'es') || textOrEmpty(amenity.name);
                                 return (
                                 <div key={amenity.key ?? amenity.id} className="flex items-start space-x-3 p-3 rounded-md bg-[#E8F8F7] border border-[#62B6CB]">
                                     <CheckCircle size={20} className="text-green-500 flex-shrink-0 mt-0.5" />

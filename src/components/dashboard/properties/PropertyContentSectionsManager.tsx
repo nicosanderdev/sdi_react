@@ -201,7 +201,7 @@ export function PropertyContentSectionsManager({
                 key={template.key}
                 type="button"
                 size="xs"
-                color={already ? 'light' : 'blue'}
+                color={already ? 'light' : 'green'}
                 disabled={already}
                 onClick={() => addTemplate(template)}
               >

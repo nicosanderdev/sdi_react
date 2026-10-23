@@ -405,6 +405,16 @@ verify_jwt = false
 [functions.calendar-sync]
 verify_jwt = false
 
+# Public feed for Airbnb and Booking.com. The handler checks the property export token.
+# Turn JWT verification off on the hosted function as well, or those platforms are rejected at the gateway.
+[functions.ical-export]
+verify_jwt = false
+
+# Scheduled import. The handler accepts the service role key or a service_role JWT.
+# The dashboard cron must send the service role bearer, not the anon key.
+[functions.ical-scheduled-sync]
+verify_jwt = false
+
 # Mercado Pago marketplace: auth/signature checks are enforced inside each handler.
 [functions.mercado-pago-admin]
 verify_jwt = false
@@ -453,6 +463,10 @@ verify_jwt = false
 
 # Public contact forms (panel + guest sites); no JWT required.
 [functions.send-contact-email]
+verify_jwt = false
+
+# Guest reissue of a manage link. Code + email match is checked inside the handler.
+[functions.request-booking-manage-link]
 verify_jwt = false
 
 [edge_runtime]
