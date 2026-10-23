@@ -1,6 +1,12 @@
 import { supabase } from '../../config/supabase';
 import type { PortalSearchFilters, PortalSearchResponse, PortalSearchResultItem } from './types';
 
+function optionalNumber(value: unknown): number | undefined {
+  if (value == null || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 function mapRpcItem(raw: Record<string, unknown>): PortalSearchResultItem {
   return {
     estatePropertyId: String(raw.estatePropertyId ?? ''),
@@ -9,6 +15,9 @@ function mapRpcItem(raw: Record<string, unknown>): PortalSearchResultItem {
     title: String(raw.title ?? ''),
     description: raw.description != null ? String(raw.description) : undefined,
     displayPrice: raw.displayPrice != null ? Number(raw.displayPrice) : undefined,
+    basePrice: optionalNumber(raw.basePrice),
+    minPrice: optionalNumber(raw.minPrice),
+    maxPrice: optionalNumber(raw.maxPrice),
     currency: raw.currency != null ? String(raw.currency) : undefined,
     city: raw.city != null ? String(raw.city) : undefined,
     state: raw.state != null ? String(raw.state) : undefined,
