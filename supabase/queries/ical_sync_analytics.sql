@@ -44,7 +44,7 @@ ORDER BY ci."PlatformType";
 -- Query: Recent sync failures for troubleshooting
 SELECT
     sj."Id" as job_id,
-    ci."CalendarName",
+    ci."ExternalCalendarName",
     ci."PlatformType",
     sj."Created",
     sj."Error",

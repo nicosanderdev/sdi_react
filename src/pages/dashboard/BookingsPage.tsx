@@ -105,6 +105,11 @@ function BookingRow({
           <Badge color={getBookingStatusBadgeColor(booking.Status)}>
             {BOOKING_STATUS_NAMES[booking.Status as BookingStatus]}
           </Badge>
+          {booking.ReservationCode && (
+            <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 font-mono text-sm font-bold tracking-wide text-green-800 dark:bg-green-900/40 dark:text-green-200">
+              {booking.ReservationCode}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 dark:text-gray-400">
           <span className="flex items-center gap-1">
@@ -224,6 +229,7 @@ export default function BookingsPage() {
         ? [guest.FirstName, guest.LastName].filter(Boolean).join(' ')
         : '';
       const fields: string[] = [
+        booking.ReservationCode ?? '',
         booking.EstateProperty?.Title ?? '',
         guestName,
         guest?.Email ?? '',
@@ -372,7 +378,7 @@ export default function BookingsPage() {
         <div className="flex-1">
           <TextInput
             type="text"
-            placeholder="Buscar por huésped, email o propiedad..."
+            placeholder="Buscar por código, huésped, email o propiedad..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             icon={Search}

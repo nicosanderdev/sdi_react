@@ -11,6 +11,7 @@ import {
   PropertyFormData,
   resolveCreationListingType,
   DEFAULT_CREATE_MAP_LOCATION,
+  todayDateInputValue,
 } from '../../../models/properties/PropertyFormSchema';
 import { PropertyFormStep1 } from '../../../components/dashboard/properties/PropertyFormStep1';
 import { PropertyFormStep2 } from '../../../components/dashboard/properties/PropertyFormStep2';
@@ -82,7 +83,7 @@ export function AdminCreatePropertyPage() {
       isFurnished: false,
       capacity: 1,
       description: '',
-      availableFrom: new Date().toISOString().split('T')[0],
+      availableFrom: todayDateInputValue(),
       currency: 'UYU',
       listingType: undefined,
       realEstateOfferMode: 'sale',

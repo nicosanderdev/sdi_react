@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { bookingLookupFailure, loadListingTitle, resolveGuestPropertyTitle } from '../_shared/bookingEmailProperty.ts';
 import { buildGuestManageTokenUrl, hasGuestManageBase } from '../_shared/guestManageUrl.ts';
 
 const corsHeaders = {
@@ -32,7 +33,6 @@ interface BookingRow {
   Status: number;
   EstatePropertyId: string;
   EstateProperties: {
-    Title: string | null;
     StreetName: string | null;
     HouseNumber: string | null;
     Neighborhood: string | null;
@@ -83,7 +83,6 @@ serve(async (req) => {
         Status,
         EstatePropertyId,
         EstateProperties (
-          Title,
           StreetName,
           HouseNumber,
           Neighborhood,
@@ -97,11 +96,12 @@ serve(async (req) => {
 
     if (bookingError || !bookingData) {
       console.error('Error fetching booking:', bookingError);
+      const failure = bookingLookupFailure(bookingError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Booking not found' }),
+        JSON.stringify({ success: false, error: failure.error }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 404,
+          status: failure.status,
         }
       );
     }
@@ -154,7 +154,12 @@ serve(async (req) => {
     }
 
     const property = booking.EstateProperties;
-    const propertyTitle = property?.Title || 'Property';
+    const listingTitle = await loadListingTitle(
+      supabase,
+      booking.EstatePropertyId,
+      booking.ListingType,
+    );
+    const propertyTitle = resolveGuestPropertyTitle(listingTitle, property);
     const reservationCode = booking.ReservationCode ?? booking.Id;
 
     let manageUrl: string | null = null;

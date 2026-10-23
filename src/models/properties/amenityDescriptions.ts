@@ -52,7 +52,7 @@ export function amenityEditorFromDb(rows: AmenityEditorRow[] | undefined): {
   const keys: string[] = [];
   const descriptions: AmenityDescriptionsFormState = {};
   for (const row of rows ?? []) {
-    const key = row.key?.trim();
+    const key = typeof row.key === 'string' ? row.key.trim() : '';
     if (!key) continue;
     if (!keys.includes(key)) keys.push(key);
     const pruned = pruneDescriptions(row.descriptions);

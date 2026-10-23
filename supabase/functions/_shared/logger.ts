@@ -69,7 +69,8 @@ export class Logger {
       return result
     } catch (error) {
       const duration = Date.now() - startTime
-      this.log(LogLevel.ERROR, operation, duration, 'failure', details, error.message)
+      const message = error instanceof Error ? error.message : String(error)
+      this.log(LogLevel.ERROR, operation, duration, 'failure', details, message)
       throw error
     }
   }

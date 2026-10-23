@@ -267,9 +267,9 @@ const loadPropertyEditorContent = async (estatePropertyId: string) => {
         amenities?: Amenity[];
     };
     return {
-        contentSections: contentSectionsFromDb(raw.contentSections ?? []),
-        propertyPolicies: propertyPoliciesFromDb(raw.policies ?? []),
-        amenityEditor: amenityEditorFromDb(raw.amenityEditor ?? []),
+        contentSections: contentSectionsFromDb(Array.isArray(raw.contentSections) ? raw.contentSections : []),
+        propertyPolicies: propertyPoliciesFromDb(Array.isArray(raw.policies) ? raw.policies : []),
+        amenityEditor: amenityEditorFromDb(Array.isArray(raw.amenityEditor) ? raw.amenityEditor : []),
         amenities: Array.isArray(raw.amenities) ? raw.amenities : [],
     };
 };
@@ -506,7 +506,10 @@ const attachPublicPropertyContent = async (
 
 // Fetch a single property the current member can read (RLS scopes the row).
 // Platform admins see any property; users see personal/company properties they can access.
-const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
+const getOwnersPropertyById = async (
+    id: string,
+    options?: { tolerateEditorContentError?: boolean }
+): Promise<PropertyData> => {
     try {
         const userId = await getCurrentUserId();
 
@@ -530,7 +533,7 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         RealEstateExtension(*),
         SummerRentExtension(*),
         EventVenueExtension(*),
-        Owners(OwnerType, MemberId, CompanyId),
+        Owners!inner(OwnerType, MemberId, CompanyId),
         Listings(*),
         PropertyImages(*),
         PropertyDocuments(*),
@@ -604,7 +607,19 @@ const getOwnersPropertyById = async (id: string): Promise<PropertyData> => {
         }
 
         const property = mapDbToPropertyData(data);
-        const editor = await loadPropertyEditorContent(id);
+        let editor: Awaited<ReturnType<typeof loadPropertyEditorContent>>;
+        try {
+            editor = await loadPropertyEditorContent(id);
+        } catch (editorError) {
+            if (!options?.tolerateEditorContentError) throw editorError;
+            console.error(`Editor content unavailable for property ${id}:`, editorError);
+            editor = {
+                contentSections: [],
+                propertyPolicies: [],
+                amenityEditor: { keys: [], descriptions: {} },
+                amenities: [],
+            };
+        }
         const { amenityEditor, amenities: resolvedAmenities, ...editorRest } = editor;
         return {
             ...property,
@@ -1614,8 +1629,15 @@ const updateProperty = async (
             p_location_lng: formData.location.lng,
             p_title: formData.title,
             p_property_type: propertyTypeMap[((formData as any).type ?? 'house') as string],
-            p_area_value: formData.areaValue,
-            p_area_unit: areaUnitMap[((formData as any).areaUnit ?? 'm²') as string],
+            p_area_value:
+                formData.areaValue != null && Number(formData.areaValue) > 0
+                    ? Number(formData.areaValue)
+                    : null,
+            p_area_unit: (() => {
+                const areaUnitRaw = (formData as any).areaUnit as string | undefined;
+                if (areaUnitRaw == null || areaUnitRaw === '') return null;
+                return areaUnitMap[areaUnitRaw] ?? null;
+            })(),
             p_bedrooms: formData.bedrooms,
             p_bathrooms: formData.bathrooms,
             p_has_garage: formData.hasGarage,

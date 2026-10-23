@@ -1,5 +1,4 @@
 import { useState, useMemo, memo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PlusIcon, RefreshCwIcon, Loader2Icon } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AddPropertyForm } from './AddPropertyForm';
@@ -21,9 +20,9 @@ import { PropertyFilters } from '../../components/admin/properties/PropertyFilte
 import { PropertyManagementTable } from '../../components/admin/properties/PropertyManagementTable';
 import { PropertyManagementToolbar } from '../../components/admin/properties/PropertyManagementToolbar';
 import { PropertyStatistics } from '../../components/admin/properties/PropertyStatistics';
+import { PropertyDetailModal } from '../../components/admin/properties/PropertyDetailModal';
 
 const PropertiesManagerComponent = () => {
-  const navigate = useNavigate();
   const hook = useMemberProperties(COMPANY_SELECTOR_OPTIONS.MY_PROPERTIES);
   const {
     totalProperties,
@@ -198,12 +197,8 @@ const PropertiesManagerComponent = () => {
         <PropertyManagementToolbar
           hook={hook}
           editBlocked={needsVerification}
-          onViewProperty={(propertyId) => navigate(`/dashboard/property/${propertyId}`)}
         />
-        <PropertyManagementTable
-          hook={hook}
-          onTitleClick={(propertyId) => navigate(`/dashboard/property/${propertyId}`)}
-        />
+        <PropertyManagementTable hook={hook} />
       </Card>
 
       {totalPages > 1 && (
@@ -264,6 +259,8 @@ const PropertiesManagerComponent = () => {
           </div>
         </Card>
       )}
+
+      <PropertyDetailModal hook={hook} showModerationActions={false} />
 
       <EditListingModal
         isOpen={!!editingListingPropertyId}

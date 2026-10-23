@@ -24,6 +24,10 @@ export interface PortalSearchResultItem {
   title: string;
   description?: string;
   displayPrice?: number;
+  /** Raw listing base. Null when the listing only has RentPrice. */
+  basePrice?: number;
+  minPrice?: number;
+  maxPrice?: number;
   currency?: string;
   city?: string;
   state?: string;

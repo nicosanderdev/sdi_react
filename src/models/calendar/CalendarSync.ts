@@ -97,6 +97,7 @@ export interface AvailabilityBlock {
   BlockType: BlockType
   Source: SourceType
   ExternalEventId?: string
+  CalendarIntegrationId?: string | null
   Title?: string
   Description?: string
   IsReadOnly: boolean
@@ -207,6 +208,7 @@ export interface Booking {
   Notes?: string
   BookingSource?: string
   ExternalBookingId?: string
+  ReservationCode?: string | null
   IsDeleted: boolean
   Created: string
   CreatedBy?: string

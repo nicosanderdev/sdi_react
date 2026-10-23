@@ -204,7 +204,7 @@ const ICalIntegrationManager: React.FC<ICalIntegrationManagerProps> = ({
       const blocksResponse = await CalendarSyncService.getAvailabilityBlocks(propertyId);
       if (blocksResponse.succeeded) {
         const blocksToDelete = blocksResponse.data.filter(
-          block => block.ExternalEventId && block.Source === 'ical'
+          block => block.CalendarIntegrationId === integration.Id
         );
 
         // Delete blocks in parallel
