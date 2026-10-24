@@ -1,168 +1,211 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
+import { EditorialTitle } from '../../components/public/EditorialTitle';
 
 const PLATFORM_NAME = 'En cartelera';
 const CONTACT_EMAIL = 'info@inmogestion.com';
 
 export function TermsAndConditionsPage() {
-  const lastUpdatedDate = new Date().toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
   return (
     <PublicLayout>
       <PublicSection background="white">
         <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
-            Términos y Condiciones de Uso
-          </h1>
+          <EditorialTitle
+            as="h1"
+            lead="Términos y"
+            emphasis="condiciones"
+            className="text-4xl md:text-6xl"
+          />
           <p className="mt-4 text-xl text-gray-600 dark:text-gray-400">
-            Última actualización: {lastUpdatedDate}
+            Última actualización: 23 de octubre de 2026
           </p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 md:p-12">
+        <div className="bg-white dark:bg-gray-950 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 md:p-12">
           <div className="prose prose-lg max-w-none text-gray-700 dark:text-gray-300">
             <p>
-              Bienvenido a {PLATFORM_NAME}. Estos términos regulan el acceso y uso del sitio web de la plataforma, las
-              aplicaciones asociadas y los servicios de software ofrecidos para la gestión de portales de alquiler
-              (viviendas por temporadas y espacios para eventos) y sus propiedades.
+              Estos términos regulan el acceso y el uso de {PLATFORM_NAME} («la Plataforma»), el sitio, las aplicaciones
+              asociadas y el software que permite a una persona publicar una casa de alquiler temporal o un espacio para
+              eventos y seguir las consultas y reservas de esa propiedad.
             </p>
             <p>
-              Al utilizar el servicio, declaras haber leído y aceptado estas condiciones. Si no estás de acuerdo, no
-              utilices la plataforma ni crees una cuenta de usuario.
+              Quien crea una cuenta o utiliza la Plataforma («el Usuario») declara haber leído estos términos. Si no está
+              de acuerdo, no debe crear una cuenta ni usar el servicio. Este texto no sustituye el asesoramiento de un
+              abogado.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">1. Descripción del servicio</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">1. El servicio</h2>
             <p>
-              {PLATFORM_NAME} («la Plataforma») es una solución de tipo software como servicio (SaaS) que permite a
-              empresas y profesionales cargar, organizar y publicar información sobre propiedades destinadas al alquiler
-              temporal de viviendas y al alquiler de espacios para eventos. Las funcionalidades pueden incluir, entre
-              otras, la gestión de fichas, disponibilidad, comunicación con interesados y herramientas operativas asociadas
-              a los portales gestionados mediante la Plataforma.
+              La Plataforma es un software de suscripción. El Usuario carga la ficha de su casa o de su espacio, define
+              precios, disponibilidad y reglas, y recibe consultas y reservas asociadas a esa publicación.
+            </p>
+            <p>
+              La Plataforma no es la dueña del inmueble ni del espacio, no es quien alquila la estadía o el evento, y no
+              es parte del contrato entre el Usuario y la persona que reserva. Ese contrato lo celebra el Usuario, bajo
+              las condiciones que él publica.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">2. Anuncios y datos de propiedad</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">2. Cuenta</h2>
             <p>
-              Eres responsable de la exactitud, legalidad y actualización de cada anuncio y de los datos asociados
-              (descripciones, fotografías, vídeos, direcciones aproximadas o exactas, precios, tasas, disponibilidad,
-              reglas de la casa o del venue, aforos y restricciones).
+              El registro pide datos verdaderos. El Usuario conserva la confidencialidad de sus credenciales y avisa de
+              inmediato si detecta un uso no autorizado. La actividad hecha con su usuario se entiende realizada por él
+              o por quien él autorizó, salvo prueba en contrario.
             </p>
             <p>
-              Solo puedes publicar propiedades o espacios sobre los que tengas derecho a comercializar o alquilar, o
-              para los que cuentes con la autorización expresa del titular. Las imágenes y textos deben corresponder al
-              inmueble o espacio ofrecido y no inducir a error sobre sus características esenciales.
-            </p>
-            <p>
-              Debes mantener coherencia entre lo anunciado en la Plataforma y las condiciones reales del alquiler
-              (incluidas políticas de cancelación o depósitos cuando aplique). Cualquier omisión grave o información
-              fraudulenta puede motivar la retirada del contenido o la suspensión de la cuenta.
+              El Usuario solo puede publicar una casa o un espacio si es el titular o si cuenta con autorización expresa
+              de quien tiene derecho a alquilarlo.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">3. Uso de los portales</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">3. Publicación de la propiedad</h2>
             <p>
-              La Plataforma puede dar soporte a uno o más portales orientados a verticales distintas (por ejemplo,
-              alquiler de casas temporales frente a alquiler de espacios para eventos). Te comprometes a clasificar y
-              describir cada listado de forma adecuada al tipo de portal y de público al que va dirigido.
+              El Usuario es responsable de que la ficha sea exacta y esté actualizada: descripción, fotos, ubicación,
+              precio, capacidad, reglas, depósitos y disponibilidad. Las fotos y los textos tienen que corresponder al
+              lugar ofrecido.
             </p>
             <p>
-              No utilizarás las herramientas de publicación para mezclar ofertas incompatibles con el uso declarado del
-              portal (por ejemplo, anunciar en el portal de eventos bienes claramente exclusivos de otro vertical sin
-              adecuación ni autorización, cuando la Plataforma lo requiera), ni para eludir las normas internas de uso
-              que se te comuniquen razonablemente.
-            </p>
-
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">4. Cuentas de usuario y seguridad</h2>
-            <p>
-              El registro exige datos veraces. Mantienes la confidencialidad de tus credenciales y notificas de forma
-              inmediata cualquier uso no autorizado de tu cuenta. Toda actividad realizada con tu usuario se presume
-              imputable a ti o a tu organización, salvo que demuestres lo contrario de manera fehaciente.
+              Una casa de alquiler temporal y un espacio para eventos se describen según su uso. El Usuario no usa la
+              ficha para ofrecer algo distinto de lo que la Plataforma permite publicar, ni para ocultar una restricción
+              que cambie la decisión de quien reserva.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">5. Contenido del usuario y licencia</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">4. Reservas y cancelaciones</h2>
             <p>
-              Conservas los derechos sobre el contenido que cargues (fichas, imágenes, textos, etc.). Nos concedes una
-              licencia no exclusiva, mundial y gratuita para alojar, reproducir, mostrar y distribuir dicho contenido en la
-              medida necesaria para prestar el servicio (incluida su publicación en los portales y canales habilitados).
+              Cada reserva se rige por la política de cancelación, los plazos y las condiciones que el Usuario cargó en
+              la ficha de esa propiedad. El Usuario mantiene esas condiciones iguales a lo que realmente ofrece.
             </p>
-            <p>Garantizas que tu contenido:</p>
+            <p>
+              La Plataforma muestra el estado de la reserva y los mensajes. No garantiza que una consulta se convierta
+              en reserva, ni que el huésped o el organizador cumpla el pago o se presente.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">5. Planes y facturación</h2>
+            <p>
+              El uso de las funciones de pago de la Plataforma puede exigir un plan. Los precios, el período y lo que
+              incluye cada plan están en la página de{' '}
+              <Link to="/pricing" className="text-green-600 dark:text-green-400 hover:underline">
+                planes y precios
+              </Link>
+              . Este contrato no fija montos.
+            </p>
+            <p>
+              El plan se renueva según el período elegido en el panel, hasta que el Usuario lo cancele desde la
+              configuración de la cuenta o hasta que la Plataforma lo dé de baja conforme a estos términos. La
+              cancelación evita el siguiente período. Los períodos ya facturados se rigen por la ley aplicable y por lo
+              informado al momento de la contratación.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">6. Pagos con Mercado Pago</h2>
+            <p>
+              El Usuario puede conectar una cuenta de Mercado Pago para cobrar reservas. Ese cobro ocurre entre el
+              Usuario, la persona que reserva y Mercado Pago, según las condiciones de Mercado Pago.
+            </p>
+            <p>
+              La Plataforma no es el vendedor de la estadía ni del evento, no custodia esos fondos como comercio propio
+              y no responde por una demora, un rechazo o una reversión decididos por Mercado Pago o por el banco. El
+              Usuario es quien debe emitir la documentación fiscal que corresponda a su actividad.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">7. Contenido del Usuario</h2>
+            <p>
+              El Usuario conserva los derechos sobre textos, fotos y demás material que carga. Otorga a la Plataforma
+              una licencia no exclusiva, gratuita y limitada a lo necesario para alojar, mostrar y operar ese material
+              dentro del servicio.
+            </p>
+            <p>El Usuario garantiza que su contenido:</p>
             <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>No infringe derechos de terceros ni obligaciones contractuales que te afecten.</li>
-              <li>No es ilícito, difamatorio, engañoso ni contrario a la buena fe comercial.</li>
-              <li>Cumple la normativa aplicable en materia de publicidad, vivienda turística, eventos y protección de datos.</li>
+              <li>no infringe derechos de terceros;</li>
+              <li>no es ilícito, engañoso ni contrario a la buena fe;</li>
+              <li>cumple la normativa de publicidad, alquileres temporarios, eventos y datos personales que le aplique.</li>
             </ul>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">6. Responsabilidades del usuario</h2>
-            <p>Te obligas a:</p>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">8. Obligaciones del Usuario</h2>
+            <p>El Usuario se obliga a:</p>
             <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>Utilizar la Plataforma conforme a la ley y a estos términos.</li>
-              <li>No introducir malware ni intentar acceder de forma no autorizada a sistemas o datos de otros usuarios.</li>
-              <li>No enviar spam ni usar la mensajería o los formularios para fines ajenos a la gestión legítima de reservas y consultas.</li>
-              <li>Respectar la normativa local aplicable a alquileres temporales, eventos, seguridad, licencias y tributos que correspondan a tu actividad.</li>
+              <li>usar la Plataforma conforme a la ley y a estos términos;</li>
+              <li>no introducir software dañino ni acceder a cuentas o datos ajenos;</li>
+              <li>no usar los mensajes para fines ajenos a las consultas y reservas de sus propiedades;</li>
+              <li>cumplir habilitaciones, normas de seguridad, normas locales de alquiler y tributos de su actividad.</li>
             </ul>
             <p>
-              Eres el único responsable frente a terceros (huéspedes, organizadores, administraciones u otros) por los
-              contratos y obligaciones que derives de tus anuncios. La Plataforma no actúa como arrendador ni como
-              intermediario obligatorio en cada operación concreta, salvo que se indique expresamente otra cosa en un
-              acuerdo comercial específico.
+              Frente a huéspedes, organizadores y autoridades, el responsable del alquiler es el Usuario. La Plataforma
+              no asume ese lugar.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">7. Uso aceptable y contenido prohibido</h2>
-            <p>Queda prohibido, entre otros usos:</p>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">9. Uso aceptable</h2>
+            <p>Queda prohibido:</p>
             <ul className="list-disc list-inside space-y-2 pl-4">
-              <li>Publicar bienes o servicios ilícitos, o anuncios con fines fraudulentos.</li>
-              <li>Suplantar identidades o manipular reseñas o métricas de forma deshonesta.</li>
-              <li>Extracción masiva automatizada de datos de la Plataforma sin autorización (scraping no permitido).</li>
+              <li>publicar lugares o servicios ilícitos, o fichas con fines fraudulentos;</li>
+              <li>suplantar a otra persona o alterar reseñas y métricas;</li>
+              <li>extraer datos de la Plataforma de forma masiva y automatizada sin autorización.</li>
             </ul>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">8. Propiedad intelectual</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">10. Propiedad intelectual de la Plataforma</h2>
             <p>
-              El software, el diseño de la interfaz, la documentación y el resto de componentes propios de {PLATFORM_NAME}{' '}
-              (excluido tu contenido) están protegidos por la legislación aplicable en materia de propiedad intelectual e
-              industrial.
+              El software, la interfaz y la documentación de {PLATFORM_NAME}, con exclusión del contenido del Usuario,
+              pertenecen a sus titulares y están protegidos por la normativa de propiedad intelectual e industrial.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">9. Terminación</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">11. Datos personales</h2>
             <p>
-              Podemos suspender o cancelar el acceso a la cuenta si incumples estos términos o por requerimientos legales.
-              Puedes dejar de usar el servicio en cualquier momento; las obligaciones que por su naturaleza deban
-              sobrevivir (limitaciones de responsabilidad, indemnidad cuando proceda, propiedad intelectual) permanecerán
-              vigentes en la medida permitida por la ley.
+              El tratamiento de datos personales se rige por la Ley N.º 18.331 y sus normas reglamentarias. La Plataforma
+              usa los datos de la cuenta para prestar el servicio, mantener la seguridad y responder consultas. El
+              Usuario, cuando carga datos de huéspedes u organizadores, es responsable de tener una base legítima para
+              hacerlo y de informarles el uso que les da.
+            </p>
+            <p>
+              Quien quiera ejercer acceso, rectificación, actualización o supresión puede escribir a{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-600 dark:text-green-400 hover:underline">
+                {CONTACT_EMAIL}
+              </a>
+              .
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">10. Limitación de responsabilidad</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">12. Relaciones de consumo</h2>
             <p>
-              El servicio se presta «tal cual» y «según disponibilidad». Salvo que la legislación imperativa exija otra
-              cosa, {PLATFORM_NAME} no será responsable por daños indirectos, lucro cesante o pérdida de datos derivados
-              del uso o la imposibilidad de uso de la Plataforma. No garantizamos resultados comerciales concretos ni la
-              continuidad ininterrumpida del servicio.
+              Cuando el Usuario actúa como consumidor final según la Ley N.º 17.250, se aplican las normas imperativas
+              de esa ley y las que la reglamentan. Nada de estos términos limita un derecho que esa normativa no permita
+              limitar. Si el Usuario contrata el plan para su actividad de alquiler, esa contratación se interpreta
+              conforme a la calidad en la que actúa.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">11. Cambios en los términos</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">13. Responsabilidad</h2>
             <p>
-              Podemos actualizar estos términos. Los cambios relevantes se comunicarán por medios razonables (por
-              ejemplo, aviso en la Plataforma o por correo electrónico). El uso continuado tras la entrada en vigor de
-              las modificaciones implica la aceptación actualizada, salvo que la ley exija un procedimiento distinto.
+              El servicio se presta en el estado en que se encuentra y según su disponibilidad. En la medida en que la
+              ley lo permita, {PLATFORM_NAME} no responde por lucro cesante, daño indirecto ni pérdida de datos derivada
+              del uso o de la imposibilidad de uso. No promete un nivel de ocupación ni un resultado comercial.
+            </p>
+            <p>
+              Esta limitación no cubre los supuestos en que la ley uruguaya impide excluir la responsabilidad.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">12. Ley aplicable y jurisdicción</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">14. Suspensión y fin del acceso</h2>
             <p>
-              Estos términos se rigen por la legislación española, sin perjuicio de normas imperativas que, en su caso,
-              resulten aplicables a consumidores residentes en otros países. Para cualquier controversia, las partes se
-              someten a los juzgados y tribunales de España, salvo que la ley establezca otra competencia indisponible
-              para el usuario.
+              La Plataforma puede suspender o cerrar una cuenta ante un incumplimiento de estos términos o ante un
+              requerimiento legal. El Usuario puede dejar de usar el servicio en cualquier momento. Las cláusulas que
+              por su naturaleza deben sobrevivir —propiedad intelectual, limitación de responsabilidad y ley aplicable—
+              siguen vigentes en la medida que la ley lo permite.
             </p>
 
-            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">13. Contacto</h2>
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">15. Cambios</h2>
             <p>
-              Para consultas sobre estos términos, escríbenos a{' '}
-              <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline">
+              Estos términos pueden actualizarse. Un cambio relevante se avisa en la Plataforma o por correo. El uso
+              posterior implica la aceptación de la versión nueva, salvo cuando la ley exija otro procedimiento.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">16. Ley aplicable y tribunales</h2>
+            <p>
+              Estos términos se rigen por las leyes de la República Oriental del Uruguay. Para las controversias que no
+              tengan una competencia improrrogable, las partes se someten a los tribunales de Montevideo.
+            </p>
+
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mt-10 mb-4">17. Contacto</h2>
+            <p>
+              Las consultas sobre estos términos se envían a{' '}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-600 dark:text-green-400 hover:underline">
                 {CONTACT_EMAIL}
               </a>{' '}
-              o utiliza el formulario de contacto en el sitio web.
+              o por el formulario de contacto del sitio.
             </p>
           </div>
         </div>

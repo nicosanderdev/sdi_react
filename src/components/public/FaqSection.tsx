@@ -11,32 +11,32 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: '¿Cuánto tarda crear una propiedad?',
     answer:
-      'Con los datos básicos y algunas fotos, puedes publicar un anuncio en pocos minutos. Luego puedes completar detalles como tarifas, políticas y disponibilidad.',
+      'Con los datos básicos y algunas fotos, podés publicar la ficha en pocos minutos. Después completás tarifas, reglas y disponibilidad.',
   },
   {
     question: '¿Cómo funciona el proceso de reserva?',
     answer:
-      'Recibes la solicitud, revisas disponibilidad y confirmas o rechazas desde el panel. El historial y el estado de cada reserva quedan centralizados.',
+      'Recibís la solicitud, revisás la disponibilidad y confirmás o rechazás desde el panel. El estado de cada reserva queda en el mismo lugar.',
   },
   {
     question: '¿Puedo sincronizar con otros sitios de alquiler?',
     answer:
-      'Sí. Puedes conectar calendarios y canales externos para mantener la disponibilidad alineada y reducir el riesgo de sobreventas.',
+      'Sí. Podés conectar calendarios externos para mantener la disponibilidad alineada y bajar el riesgo de reservas superpuestas.',
   },
   {
     question: '¿Necesito experiencia técnica para empezar?',
     answer:
-      'No. El flujo está pensado para gestores y equipos operativos: pasos claros, formularios guiados y sin configuraciones complejas al inicio.',
+      'No. El flujo está pensado para dueños de casas y de espacios: pasos claros y un formulario guiado.',
   },
   {
     question: '¿Puedo gestionar varias propiedades a la vez?',
     answer:
-      'Sí. La plataforma permite administrar un catálogo de inmuebles y venues desde un mismo entorno, con la misma lógica de publicación y reservas.',
+      'Sí. Podés cargar varias casas o espacios y seguir la publicación y las reservas de cada uno.',
   },
   {
     question: '¿Dónde pido ayuda si me quedo atascado?',
     answer:
-      'Puedes contactarnos desde la página de contacto o solicitar una demostración. Estaremos encantados de orientarte en el onboarding.',
+      'Escribinos desde la página de contacto. Te orientamos para cargar la primera propiedad.',
   },
 ];
 
@@ -53,7 +53,7 @@ export function FaqSection() {
           Respuestas rápidas sobre publicación, reservas y sincronización.
         </p>
 
-        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
+        <div className="rounded-2xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-950 shadow-sm divide-y divide-gray-100 dark:divide-gray-700 overflow-hidden">
           {FAQ_ITEMS.map((item, index) => {
             const isOpen = openIndex === index;
 
@@ -63,7 +63,7 @@ export function FaqSection() {
                   type="button"
                   onClick={() => setOpenIndex(isOpen ? null : index)}
                   aria-expanded={isOpen}
-                  className="flex w-full items-center justify-between gap-4 px-5 py-4 md:px-6 md:py-5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                  className="flex w-full items-center justify-between gap-4 px-5 py-4 md:px-6 md:py-5 text-left hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
                 >
                   <span className="font-semibold text-gray-900 dark:text-white">{item.question}</span>
                   <ChevronDown

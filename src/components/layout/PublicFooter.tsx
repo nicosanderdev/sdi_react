@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Footer,
   FooterBrand,
@@ -9,13 +8,7 @@ import {
   FooterLinkGroup,
   FooterTitle,
 } from "flowbite-react";
-import { 
-  Facebook, 
-  Instagram, 
-  Twitter, 
-  Github, 
-  Dribbble 
-} from "lucide-react";
+import { Facebook, Instagram } from "lucide-react";
 
 const footerTheme = {
     "root": {
@@ -35,8 +28,8 @@ export function PublicFooter() {
               <FooterBrand
                 href="/"
                 src="/logo-en-cartelera.png"
-                alt="En cartelera"
-                name="En cartelera"
+                alt="EnCartelera"
+                name="EnCartelera"
                 className="text-gray-900 dark:text-white"
               />
             </div>
@@ -53,7 +46,7 @@ export function PublicFooter() {
                 <FooterTitle title="Recursos" className="text-gray-900 dark:text-white" />
                 <FooterLinkGroup col>
                   <FooterLink href="/how-it-works" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Cómo funciona</FooterLink>
-                  <FooterLink href="/contact" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Solicitar demostración</FooterLink>
+                  <FooterLink href="/register" className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Publicá tu propiedad</FooterLink>
                 </FooterLinkGroup>
               </div>
               <div>
@@ -67,19 +60,16 @@ export function PublicFooter() {
           </div>
           <FooterDivider />
           <div className="w-full sm:flex sm:items-center sm:justify-between">
-            <FooterCopyright href="/" by="En cartelera™" year={2025} className="text-gray-600 dark:text-gray-400" />
+            <FooterCopyright href="/" by="En cartelera™" year={2026} className="text-gray-600 dark:text-gray-400" />
             <div className="mt-4 flex space-x-6 sm:mt-0 sm:justify-center">
               <FooterIcon href="#" icon={Facebook} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
               <FooterIcon href="#" icon={Instagram} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
-              <FooterIcon href="#" icon={Twitter} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
-              <FooterIcon href="#" icon={Github} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
-              <FooterIcon href="#" icon={Dribbble} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
             </div>
           </div>
         </div>
       </Footer>
       </div>
-    </footer>;
+    </footer>
   </>
   );
 }

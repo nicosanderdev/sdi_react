@@ -11,7 +11,7 @@ export function AuthCard({ children, title, subtitle, icon }: AuthCardProps) {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-white dark:bg-gray-900 py-16 flex items-center">
       <div className="max-w-md w-full mx-auto px-4">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-950 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
           <div className="text-center mb-8">
             {icon && (
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-50 dark:bg-green-900/20 rounded-full mb-6">

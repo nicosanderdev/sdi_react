@@ -179,3 +179,12 @@ animation: pulse-slow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 .dark .react-calendar__month-view__days__day--neighboringMonth {
   @apply text-gray-600;
 }
+
+.public-shell {
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+/* Public dark mode only uses gray-900, gray-950, and green. Flowbite fields default to gray-700. */
+.dark .public-shell :is(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']) {
+  background-color: var(--color-gray-900);
+}

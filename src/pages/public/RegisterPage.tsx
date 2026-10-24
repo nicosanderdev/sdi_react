@@ -419,7 +419,7 @@ export function RegisterPage() {
                     ? 'border-red-400 bg-red-50 ring-2 ring-red-300 dark:border-red-500 dark:bg-red-900/20 dark:ring-red-600'
                     : acceptedTerms
                       ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
-                      : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/40'
+                      : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900'
                 }`}
               >
                 <label htmlFor="terms" className="flex cursor-pointer items-start gap-3">

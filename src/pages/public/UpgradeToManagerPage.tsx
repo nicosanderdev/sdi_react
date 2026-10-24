@@ -16,7 +16,8 @@ import {
   Users,
   MessageSquare,
   Eye,
-  CreditCard
+  CreditCard,
+  Settings
 } from 'lucide-react';
 import { Button } from 'flowbite-react';
 
@@ -126,8 +127,8 @@ export function UpgradeToManagerPage() {
   return (
     <PublicLayout>
       <PageHero
-        title="¡Hola! ¿Listo para el siguiente nivel?"
-        subtitle="Como Manager, tendrás acceso a herramientas profesionales que te permitirán gestionar propiedades, analizar datos y comunicarte eficientemente con tus clientes."
+        title="Planes para publicar"
+        subtitle="Elegí un plan para cargar tus casas o espacios y seguir las reservas desde el panel."
         primaryCta={{
           text: "Ver Planes",
           href: "#pricing"
@@ -142,7 +143,7 @@ export function UpgradeToManagerPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {benefits.map((benefit, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+            <div key={index} className="bg-white dark:bg-gray-900 p-8 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-50 dark:bg-green-900/20 rounded-xl mb-6">
                 {benefit.icon}
               </div>
@@ -202,12 +203,12 @@ export function UpgradeToManagerPage() {
             )}
           </Button>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
-            Puedes cancelar tu suscripción en cualquier momento
+            Podés cancelar la suscripción en cualquier momento
           </p>
         </div>
 
         {/* FAQ Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 md:p-12">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-8 md:p-12">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white text-center mb-12">
             Preguntas Frecuentes
           </h2>
@@ -217,7 +218,7 @@ export function UpgradeToManagerPage() {
                 ¿Puedo cambiar de plan más tarde?
               </h4>
               <p className="text-gray-600 dark:text-gray-400">
-                Sí, puedes actualizar o degradar tu plan en cualquier momento desde tu panel de configuración.
+                Sí, podés cambiar de plan en cualquier momento desde la configuración del panel.
               </p>
             </div>
             <div>
@@ -241,7 +242,7 @@ export function UpgradeToManagerPage() {
                 ¿Puedo cancelar en cualquier momento?
               </h4>
               <p className="text-gray-600 dark:text-gray-400">
-                Sí, puedes cancelar tu suscripción en cualquier momento sin penalizaciones ni cargos adicionales.
+                Sí, podés cancelar la suscripción en cualquier momento, sin un cargo extra por la baja.
               </p>
             </div>
           </div>

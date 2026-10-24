@@ -2,6 +2,7 @@ import { HeroSection } from '../../components/public/HeroSection';
 import { PortalsSection } from '../../components/public/PortalsSection';
 import { ServicesSection } from '../../components/public/ServicesSection';
 import { ConnectSection } from '../../components/public/ConnectSection';
+import { ProcessStepsSection } from '../../components/public/ProcessStepsSection';
 import { CTASection } from '../../components/public/CTASection';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 
@@ -10,6 +11,10 @@ const homeCtas = {
   contactTo: '/contact',
   demoLabel: 'Cómo funciona',
   demoTo: '/how-it-works',
+  publishLabel: 'Publicá tu propiedad',
+  publishTo: '/register',
+  plansLabel: 'Ver planes',
+  plansTo: '/pricing',
 } as const;
 
 export function HomePage() {
@@ -19,6 +24,7 @@ export function HomePage() {
       <PortalsSection />
       <ServicesSection />
       <ConnectSection />
+      <ProcessStepsSection />
       <CTASection {...homeCtas} />
     </PublicLayout>
   );

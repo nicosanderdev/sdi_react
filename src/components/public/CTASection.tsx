@@ -1,28 +1,31 @@
 import { Link } from 'react-router-dom';
-import { PublicSection } from './PublicSection';
-import { Button } from 'flowbite-react';
 import type { HeroSectionCtaProps } from './HeroSection';
 
-export function CTASection({ contactLabel, contactTo, demoLabel, demoTo }: HeroSectionCtaProps) {
+export function CTASection({ contactLabel, contactTo, plansLabel, plansTo }: HeroSectionCtaProps) {
   return (
-    <PublicSection background="gray">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
-          ¿Gestionas portales de alquiler?
+    <section className="bg-green-700 dark:bg-green-800 py-20 md:py-28 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto text-center">
+        <h2 className="text-4xl md:text-5xl font-light tracking-tight text-white mb-6">
+          Tenés espacios o <span className="font-bold">casas?</span>
         </h2>
-        <p className="text-xl mb-12 text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Encuentra en un solo software la base para administrar viviendas temporales y espacios para eventos, con el
-          mismo rigor operativo para ambos.
+        <p className="text-xl mb-12 text-green-50 max-w-2xl mx-auto">
+          Publicá la casa o el salón y seguí las reservas desde el panel.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button as={Link} to={contactTo} color="green">
+          <Link
+            to={contactTo}
+            className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3 font-semibold text-green-800 hover:bg-green-50"
+          >
             {contactLabel}
-          </Button>
-          <Button as={Link} to={demoTo} color="alternative">
-            {demoLabel}
-          </Button>
+          </Link>
+          <Link
+            to={plansTo}
+            className="inline-flex items-center justify-center rounded-full border-2 border-white px-8 py-3 font-semibold text-white hover:bg-white hover:text-green-800"
+          >
+            {plansLabel}
+          </Link>
         </div>
       </div>
-    </PublicSection>
+    </section>
   );
 }

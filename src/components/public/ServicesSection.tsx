@@ -1,50 +1,53 @@
-import React from 'react';
-import { Building2, Globe, Link, BarChart3 } from 'lucide-react';
+import { Building2, CalendarDays, ImageIcon, MessageCircle } from 'lucide-react';
 import { FeatureCard } from './FeatureCard';
 import { PublicSection } from './PublicSection';
+import { EditorialTitle } from './EditorialTitle';
 
 export function ServicesSection() {
   const services = [
     {
       icon: <Building2 className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Catálogo unificado de propiedades',
+      title: 'La ficha de tu lugar',
       description:
-        'Administra viviendas de alquiler temporal y espacios para eventos con fichas completas: fotos, condiciones, ubicación y reglas de uso desde un único panel.',
+        'Fotos, condiciones, ubicación y reglas de uso, para una casa o para un espacio de eventos.',
     },
     {
-      icon: <Globe className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Portales diferenciados',
+      icon: <CalendarDays className="w-8 h-8 text-green-600 dark:text-green-400" />,
+      title: 'Tu calendario',
       description:
-        'Mantén la coherencia de marca y al mismo tiempo adapta la experiencia: cada portal refleja su público, sin duplicar herramientas ni datos.',
+        'Marcá disponibilidad y tarifas sin repetir el mismo dato en varias planillas.',
     },
     {
-      icon: <Link className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Publicación y visibilidad',
+      icon: <ImageIcon className="w-8 h-8 text-green-600 dark:text-green-400" />,
+      title: 'Publicación clara',
       description:
-        'Actualiza oferta y disponibilidad en tiempo real para que huéspedes y organizadores encuentren lo que necesitan con información clara y fiable.',
+        'Quien busca una estadía o un salón ve lo que ofrecés, con la información que vos cargaste.',
     },
     {
-      icon: <BarChart3 className="w-8 h-8 text-green-600 dark:text-green-400" />,
-      title: 'Operación y seguimiento',
+      icon: <MessageCircle className="w-8 h-8 text-green-600 dark:text-green-400" />,
+      title: 'Reservas y mensajes',
       description:
-        'Supervisa reservas, mensajes y rendimiento por propiedad o portal para tomar decisiones con datos y reducir fricción en el día a día.',
+        'Seguí consultas y reservas de cada propiedad desde el mismo panel.',
     },
   ];
 
   return (
     <PublicSection background="gray">
       <div className="text-center mb-16">
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-          Todo lo que necesitas para tus portales
-        </h2>
+        <EditorialTitle
+          as="h2"
+          lead="Todo lo que necesitás para"
+          emphasis="publicar"
+          className="text-4xl md:text-5xl mb-4"
+        />
         <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Una plataforma SaaS pensada para quienes gestionan alquileres cortos y venues profesionales.
+          El panel reúne la ficha, el calendario y las reservas de tus alquileres.
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        {services.map((service, index) => (
+        {services.map((service) => (
           <FeatureCard
-            key={index}
+            key={service.title}
             icon={service.icon}
             title={service.title}
             description={service.description}

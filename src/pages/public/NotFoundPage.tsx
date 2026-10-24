@@ -14,7 +14,7 @@ export function NotFoundPage() {
           </div>
 
           {/* Error Code */}
-          <h1 className="text-6xl md:text-7xl font-bold text-gray-900 dark:text-white tracking-tight mb-4">
+          <h1 className="text-6xl md:text-7xl font-light text-gray-900 dark:text-white tracking-tight mb-4">
             404
           </h1>
 
