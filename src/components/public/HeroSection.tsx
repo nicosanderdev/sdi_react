@@ -20,11 +20,11 @@ export function HeroSection({ publishLabel, publishTo, demoLabel, demoTo }: Hero
     <section className="relative overflow-hidden bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-6 md:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center py-12 lg:py-16 lg:min-h-[min(100svh,42rem)]">
-          <div className="lg:hidden relative -mx-6 md:-mx-8 aspect-[5/4] overflow-hidden">
+          <div className="lg:hidden relative mx-auto w-full max-w-sm aspect-[16/10] max-h-52 overflow-hidden rounded-2xl sm:max-w-md sm:max-h-64">
             <img
-              src="/images/hero-portals.jpg"
+              src="/images/hero-portal.jpg"
               alt="Casa con espacio al aire libre"
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover object-center"
             />
           </div>
 
@@ -63,7 +63,7 @@ export function HeroSection({ publishLabel, publishTo, demoLabel, demoTo }: Hero
           <div className="hidden lg:block lg:col-span-6 xl:col-span-7 relative h-[min(32rem,62vh)]">
             <div className="absolute right-0 top-0 bottom-6 w-[88%] overflow-hidden rounded-bl-[2.5rem]">
               <img
-                src="/images/hero-portals.jpg"
+                src="/images/hero-portal.jpg"
                 alt="Casa con espacio al aire libre"
                 className="h-full w-full object-cover object-center"
               />

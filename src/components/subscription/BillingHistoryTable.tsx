@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Button, Badge, Table, Spinner } from 'flowbite-react';
+import { Card, Button, Badge, Table } from 'flowbite-react';
+import { Spinner } from '../ui/Spinner';
 import { Download, Eye, Calendar, CreditCard, FileText } from 'lucide-react';
 import { BillingHistoryData } from '../../models/subscriptions/BillingHistoryData';
 import subscriptionService from '../../services/SubscriptionService';

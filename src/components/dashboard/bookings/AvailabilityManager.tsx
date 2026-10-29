@@ -11,6 +11,7 @@ import {
   X
 } from 'lucide-react';
 import { Alert, Button, Card, Modal, ModalHeader, ModalBody, ModalFooter, Badge } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import { AvailabilityBlock, BlockType, SourceType } from '../../../models/calendar/CalendarSync';
 import type { SdiApiResponse } from '../../../models/SdiApiResponse';
 import { CalendarSyncService } from '../../../services/CalendarSyncService';
@@ -398,7 +399,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
           >
             {isImporting ? (
               <>
-                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-b-transparent dark:border-gray-300" />
+                <Spinner size="sm" className="mr-2" />
                 Importando...
               </>
             ) : (
@@ -589,7 +590,7 @@ const AvailabilityManager: React.FC<AvailabilityManagerProps> = ({
               <Button color="green" onClick={handleSaveBlock} disabled={isSaving} data-testid="save-availability-block">
                 {isSaving ? (
                   <>
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-b-transparent" />
+                    <Spinner size="sm" tone="inverse" className="mr-2" />
                     Guardando...
                   </>
                 ) : (

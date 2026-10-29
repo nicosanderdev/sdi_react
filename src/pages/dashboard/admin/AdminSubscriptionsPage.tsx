@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Button, Spinner, Badge, Table, Select, Label, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
+import { Card, Button, Badge, Table, Select, Label, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import { 
     Crown,
     Search,

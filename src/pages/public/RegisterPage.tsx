@@ -243,6 +243,7 @@ export function RegisterPage() {
   return (
     <PublicLayout>
       <AuthCard
+        className="max-w-lg"
         title="Crear una cuenta"
         subtitle="Únete a nuestra plataforma"
         icon={<UserPlus className="w-8 h-8 text-green-600 dark:text-green-400" />}

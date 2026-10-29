@@ -1,7 +1,8 @@
 // src/components/admin/users/UserManagementTable.tsx
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Table, Badge, Avatar, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
-import { ChevronUpIcon, ChevronDownIcon, Loader2Icon } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
+import { Spinner } from '../../ui/Spinner';
 import { UserListItem, SubscriptionTier, MercadoPagoLinkStatus } from '../../../services/UserAdminService';
 import { UseAdminUsersReturn, SortField } from '../../../hooks/useAdminUsers';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
@@ -122,7 +123,7 @@ export const UserManagementTable: React.FC<UserManagementTableProps> = ({ hook }
         className="flex justify-center items-center py-12"
         data-testid="admin-users-table"
       >
-        <Loader2Icon className="w-8 h-8 animate-spin text-gray-400" />
+        <Spinner size="md" />
       </div>
     );
   }

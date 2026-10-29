@@ -9,6 +9,7 @@ import { GuestVisitSummaryCards } from '../../../components/dashboard/GuestVisit
 import { useAdminDashboardData, type AnalyticsPeriod } from '../../../hooks/useAdminDashboardData';
 import { AlertCircle } from 'lucide-react';
 import { Dropdown, DropdownItem } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 
 const ANALYTICS_PERIODS: { id: AnalyticsPeriod; label: string }[] = [
   { id: '7d', label: 'Últimos 7 días' },
@@ -167,7 +168,7 @@ const AdminDashboardPage: React.FC = () => {
         {isLoading && !hasError && (
           <div className="fixed inset-0 bg-white dark:bg-gray-900 bg-opacity-75 dark:bg-opacity-75 flex items-center justify-center z-50">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-[#1B4965] mx-auto mb-4"></div>
+              <Spinner size="lg" className="mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400">Cargando panel...</p>
             </div>
           </div>

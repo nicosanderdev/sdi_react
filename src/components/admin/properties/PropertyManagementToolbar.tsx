@@ -9,10 +9,10 @@ import {
   FileTextIcon,
   TrashIcon,
   CopyIcon,
-  Loader2Icon,
   ExternalLinkIcon,
 } from 'lucide-react';
 import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
+import { Spinner } from '../../ui/Spinner';
 import propertyService from '../../../services/PropertyService';
 import {
   DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE,
@@ -223,7 +223,7 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
           }
         >
           {openingPreview ? (
-            <Loader2Icon className="w-4 h-4 shrink-0 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <ExternalLinkIcon className="w-4 h-4 shrink-0" />
           )}
@@ -270,7 +270,7 @@ export const PropertyManagementToolbar: React.FC<PropertyManagementToolbarProps>
           title={blocksRealEstateDuplicate ? DUPLICATE_REAL_ESTATE_BLOCKED_MESSAGE : undefined}
         >
           {duplicating ? (
-            <Loader2Icon className="w-4 h-4 shrink-0 animate-spin" />
+            <Spinner size="sm" />
           ) : (
             <CopyIcon className="w-4 h-4 shrink-0" />
           )}

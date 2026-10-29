@@ -3,7 +3,8 @@ import { FormProvider, useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
+import { Spinner } from '../../ui/Spinner';
 import { Button, Card } from 'flowbite-react';
 import { PropertyFormStep1 } from './PropertyFormStep1';
 import { PropertyFormStep2 } from './PropertyFormStep2';
@@ -226,7 +227,7 @@ export function PropertyEditPage() {
 
   if (!propertyId) return <div className="mt-8 text-center text-red-600">No se encontro la propiedad.</div>;
   if (isLoading || isVerificationLoading) {
-    return <div className="mt-8 flex justify-center"><Loader2 className="animate-spin" /></div>;
+    return <div className="mt-8 flex justify-center"><Spinner size="md" /></div>;
   }
   if (needsVerification) {
     return (

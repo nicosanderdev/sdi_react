@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Button, Table, Badge, Spinner, Alert, TableHead, TableHeadCell, TableCell, TableBody, TableRow, Select } from 'flowbite-react';
+import { Card, Button, Table, Badge, Alert, TableHead, TableHeadCell, TableCell, TableBody, TableRow, Select } from 'flowbite-react';
+import { Spinner } from '../ui/Spinner';
 import { Users, UserPlus, Trash2, AlertCircle } from 'lucide-react';
 import { CompanyUser } from '../../models/companies/CompanyUser';
 import companyService from '../../services/CompanyService';

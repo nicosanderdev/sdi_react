@@ -4,7 +4,6 @@ import { es } from 'date-fns/locale';
 import {
   Card,
   Datepicker,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -14,6 +13,7 @@ import {
 } from 'flowbite-react';
 import { Calendar, FileText } from 'lucide-react';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
+import { Spinner } from '../../../components/ui/Spinner';
 import { getLogsForDate, type AdminLogEntry, type AdminLogEventType } from '../../../services/AdminLogsService';
 
 const EVENT_TYPE_LABELS: Record<AdminLogEventType, string> = {

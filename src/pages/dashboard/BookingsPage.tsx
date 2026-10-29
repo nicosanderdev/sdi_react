@@ -18,7 +18,6 @@ import {
 import {
   Button,
   Card,
-  Spinner,
   Alert,
   Badge,
   Modal,
@@ -29,6 +28,7 @@ import {
   Select
 } from 'flowbite-react';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
+import { Spinner } from '../../components/ui/Spinner';
 import BookingService, {
   BookingWithMemberAndProperty
 } from '../../services/BookingService';

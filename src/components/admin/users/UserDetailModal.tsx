@@ -12,6 +12,7 @@ import {
   ClockIcon
 } from 'lucide-react';
 import { UserDetail, SubscriptionTier } from '../../../services/UserAdminService';
+import { Spinner } from '../../ui/Spinner';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import subscriptionService from '../../../services/SubscriptionService';
@@ -148,7 +149,7 @@ export const UserDetailModal: React.FC<UserDetailModalProps> = ({ hook }) => {
       <Modal.Body>
         {userDetailLoading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+            <Spinner size="md" />
           </div>
         ) : (
           <Tabs.Group aria-label="User details tabs" style="underline">

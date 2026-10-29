@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Card, Button, Spinner, Tabs, TabItem } from 'flowbite-react';
+import { Card, Button, Tabs, TabItem } from 'flowbite-react';
+import { Spinner } from '../../components/ui/Spinner';
 import {
     Crown,
     ArrowLeft,

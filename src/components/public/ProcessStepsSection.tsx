@@ -30,7 +30,7 @@ export function ProcessStepsSection() {
           Cómo se publica
         </p>
         <h2 className="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight text-white">
-          Cuatro pasos para salir a publicar
+          Cuatro pasos para publicar
         </h2>
         <p className="mt-3 text-white/75 text-base md:text-lg leading-relaxed max-w-xl">
           El detalle de cada paso está en Cómo funciona.
@@ -38,15 +38,17 @@ export function ProcessStepsSection() {
       </div>
 
       <ol className="relative list-none m-0 p-0 pl-12 space-y-8 lg:pl-0 lg:space-y-0 lg:grid lg:grid-cols-4 lg:gap-6">
-        <div
-          className="absolute left-[1.05rem] top-3 bottom-3 w-px bg-white/20 lg:left-[12.5%] lg:right-[12.5%] lg:top-[1.35rem] lg:bottom-auto lg:w-auto lg:h-px"
-          aria-hidden
-        />
         {STEPS.map((step, index) => (
           <li key={step.title} className="relative lg:flex lg:flex-col lg:items-start">
+            {index < STEPS.length - 1 && (
+              <span
+                className="pointer-events-none absolute left-[-1.875rem] top-[1.125rem] z-0 h-[calc(100%+2rem)] w-px -translate-x-1/2 bg-white/20 lg:left-[1.375rem] lg:top-[1.375rem] lg:h-px lg:w-[calc(100%+1.5rem)] lg:translate-x-0 lg:-translate-y-1/2"
+                aria-hidden
+              />
+            )}
             <Link
               to="/how-it-works"
-              className="absolute -left-12 top-0 flex h-9 w-9 items-center justify-center rounded-full border border-green-400 bg-gray-900 text-green-300 text-base font-light lg:static lg:z-10 lg:h-11 lg:w-11 lg:text-xl dark:bg-gray-950"
+              className="absolute -left-12 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-green-400 bg-gray-900 text-green-300 text-base font-light lg:static lg:h-11 lg:w-11 lg:text-xl dark:bg-gray-950"
             >
               {index + 1}
             </Link>

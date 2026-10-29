@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthCard } from '../public/AuthCard';
 import { PublicLayout } from '../layout/PublicLayout';
 import { Button } from 'flowbite-react';
-import { CheckCircleIcon, XCircleIcon, LoaderIcon } from 'lucide-react';
+import { CheckCircleIcon, XCircleIcon } from 'lucide-react';
+import { Spinner } from '../ui/Spinner';
 import { supabase } from '../../config/supabase';
 
 export function EmailConfirmationPage() {
@@ -58,10 +59,10 @@ export function EmailConfirmationPage() {
         <AuthCard
           title="Confirmando tu email..."
           subtitle="Por favor espera un momento."
-          icon={<LoaderIcon className="w-8 h-8 text-green-600 dark:text-green-400 animate-spin" />}
+          icon={<Spinner size="md" />}
         >
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-green-600 mx-auto mb-4"></div>
+            <Spinner size="lg" className="mx-auto mb-4" />
           </div>
         </AuthCard>
       </PublicLayout>

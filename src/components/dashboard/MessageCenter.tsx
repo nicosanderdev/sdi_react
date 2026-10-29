@@ -2,13 +2,14 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDispatch } from 'react-redux';
 import {
   SearchIcon, UserIcon, CheckCircleIcon, ArchiveIcon, TrashIcon, StarIcon,
-  Loader2Icon, AlertTriangleIcon, SendIcon, ChevronLeftIcon, ChevronRightIcon, InboxIcon, ExternalLinkIcon, RotateCcwIcon
+  AlertTriangleIcon, SendIcon, ChevronLeftIcon, ChevronRightIcon, InboxIcon, ExternalLinkIcon, RotateCcwIcon
 } from 'lucide-react';
 import messageService, { Message, MessageDetail, TabCounts, GetMessagesParams } from '../../services/MessageService';
 import { formatRelativeTime } from '../../utils/TimeUtils';
 import DashboardPageTitle from './DashboardPageTitle';
 import { Card } from 'flowbite-react';
 import { IconWrapper } from '../ui/IconWrapper';
+import { Spinner } from '../ui/Spinner';
 import { AppDispatch, fetchNotificationCounts } from '../../store';
 
 const ITEMS_PER_PAGE = 15; // Or get from config/props
@@ -437,7 +438,7 @@ export function MessageCenter() {
                 {/* Message detail */}
                 {isLoadingList ? (
                   <div className="flex-1 flex items-center justify-center">
-                    <Loader2Icon size={32} className="text-green-500 animate-spin" />
+                    <Spinner size="md" />
                   </div>
               ) : messages.length === 0 && !listError ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 p-4">
@@ -572,7 +573,7 @@ export function MessageCenter() {
             <div className="flex-1 flex flex-col max-h-full">
               {isLoadingDetail ? (
                 <div className="flex-1 flex items-center justify-center">
-                  <Loader2Icon size={32} className="text-green-500 animate-spin" />
+                  <Spinner size="md" />
                 </div>
               ) : selectedMessage ? (
                 <>
@@ -668,7 +669,7 @@ export function MessageCenter() {
                         disabled={isSendingReply || !replyText.trim()}
                         className="bg-green-600 text-white px-5 py-2.5 rounded-md hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center font-medium"
                       >
-                        {isSendingReply ? <Loader2Icon size={18} className="animate-spin mr-2" /> : <SendIcon size={16} className="mr-2" />}
+                        {isSendingReply ? <Spinner size="sm" className="mr-2" /> : <SendIcon size={16} className="mr-2" />}
                         Enviar Respuesta
                       </button>
                     </div>

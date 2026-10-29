@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LockKeyholeIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { PublicLayout } from '../layout/PublicLayout';
+import { Spinner } from '../ui/Spinner';
 
 type TokenStatus = 'VALIDATING' | 'VALID' | 'INVALID';
 
@@ -68,7 +69,7 @@ export function ResetPasswordPage() {
 
     const renderContent = () => {
         if (tokenStatus === 'VALIDATING') {
-            return <div className="text-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div><p className="mt-4 text-gray-600">Validando enlace...</p></div>;
+            return <div className="text-center p-8"><Spinner size="md" className="mx-auto" /><p className="mt-4 text-gray-600">Validando enlace...</p></div>;
         }
 
         if (tokenStatus === 'INVALID' || isSuccess) {

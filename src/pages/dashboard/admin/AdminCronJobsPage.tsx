@@ -3,7 +3,6 @@ import {
   Alert,
   Button,
   Card,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -11,8 +10,9 @@ import {
   TableHeadCell,
   TableRow,
 } from 'flowbite-react';
-import { Loader2Icon, PlayIcon } from 'lucide-react';
+import { PlayIcon } from 'lucide-react';
 import { RunCronJobConfirmModal } from '../../../components/admin/cron/RunCronJobConfirmModal';
+import { Spinner } from '../../../components/ui/Spinner';
 import DashboardPageTitle from '../../../components/dashboard/DashboardPageTitle';
 import adminCronJobsService, {
   CRON_INVOKE_STILL_RUNNING_CAVEAT,
@@ -192,7 +192,7 @@ export function AdminCronJobsPage() {
                           className="flex items-center space-x-2"
                         >
                           {isThisRunning ? (
-                            <Loader2Icon className="h-4 w-4 animate-spin" />
+                            <Spinner size="sm" />
                           ) : (
                             <PlayIcon className="h-4 w-4" />
                           )}

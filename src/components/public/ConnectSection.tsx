@@ -59,9 +59,9 @@ export function ConnectSection() {
 
         <div className="relative">
           <img
-            src="/images/hero-portals.jpg"
-            alt="Espacio listo para publicar en alquiler"
-            className="rounded-3xl shadow-2xl w-full h-[28rem] object-cover"
+            src="/images/designed.jpg"
+            alt="Casa con techo de tejas y postigos"
+            className="mx-auto w-full max-w-sm rounded-3xl object-cover object-[center_60%] shadow-2xl h-52 sm:h-64 sm:max-w-md lg:mx-0 lg:h-[28rem] lg:max-w-none"
           />
         </div>
       </div>

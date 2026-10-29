@@ -5,12 +5,13 @@ interface AuthCardProps {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
+  className?: string;
 }
 
-export function AuthCard({ children, title, subtitle, icon }: AuthCardProps) {
+export function AuthCard({ children, title, subtitle, icon, className = 'max-w-md' }: AuthCardProps) {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-white dark:bg-gray-900 py-16 flex items-center">
-      <div className="max-w-md w-full mx-auto px-4">
+      <div className={`${className} w-full mx-auto px-4`}>
         <div className="bg-white dark:bg-gray-950 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
           <div className="text-center mb-8">
             {icon && (

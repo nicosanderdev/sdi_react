@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Card, Button, Spinner, Checkbox } from 'flowbite-react';
+import { Card, Button, Checkbox } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
     AlertTriangle,
     ArrowLeft,

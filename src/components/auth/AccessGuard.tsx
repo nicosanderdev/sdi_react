@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
+import { Spinner } from '../ui/Spinner';
 
 interface AccessGuardProps {
   children: React.ReactNode;
@@ -23,7 +24,7 @@ const AccessGuard: React.FC<AccessGuardProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
+        <Spinner size="xl" />
       </div>
     );
   }

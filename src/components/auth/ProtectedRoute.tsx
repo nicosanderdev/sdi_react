@@ -5,6 +5,7 @@ import { RootState } from '../../store';
 import { getPrimaryRole, getRedirectPath } from '../../utils/RoleUtils';
 import { Roles } from '../../models/Roles';
 import { useAuth } from '../../contexts/AuthContext';
+import { Spinner } from '../ui/Spinner';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,7 +15,7 @@ interface ProtectedRouteProps {
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900">
-    <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#1B4965]"></div>
+    <Spinner size="xl" />
   </div>
 );
 

@@ -31,6 +31,24 @@ const values = [
   },
 ];
 
+function ValueCard({ value }: { value: (typeof values)[number] }) {
+  const Icon = value.icon;
+
+  return (
+    <div className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-700">
+      <div className="flex items-start space-x-4">
+        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <Icon className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{value.title}</h3>
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{value.description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AboutPage() {
   return (
     <PublicLayout>
@@ -75,7 +93,7 @@ export function AboutPage() {
             </div>
             <div className="relative">
               <img
-                src="/images/hero-portals.jpg"
+                src="/images/about-us.jpg"
                 alt="Casa lista para publicarse en alquiler"
                 className="rounded-3xl shadow-2xl w-full h-[28rem] object-cover"
               />
@@ -95,22 +113,14 @@ export function AboutPage() {
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {values.map((value) => (
-              <div
-                key={value.title}
-                className="bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-700"
-              >
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <value.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{value.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-300 leading-relaxed">{value.description}</p>
-                  </div>
-                </div>
-              </div>
+            {values.slice(0, -1).map((value) => (
+              <ValueCard key={value.title} value={value} />
             ))}
+            <div className="md:col-span-2 flex justify-center">
+              <div className="w-full md:w-[calc(50%-1rem)]">
+                <ValueCard value={values[values.length - 1]} />
+              </div>
+            </div>
           </div>
         </div>
       </section>

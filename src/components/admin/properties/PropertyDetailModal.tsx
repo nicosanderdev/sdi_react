@@ -13,6 +13,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { PropertyData } from '../../../models/properties';
+import { Spinner } from '../../ui/Spinner';
 import reportService from '../../../services/ReportService';
 import { GuestSiteFilter, type GuestSiteFilterValue } from '../../dashboard/GuestSiteFilter';
 
@@ -153,7 +154,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
       <ModalBody>
         {propertyDetailLoading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+            <Spinner size="md" />
           </div>
         ) : propertyDetailError ? (
           <p className="text-sm text-red-600 dark:text-red-400">{propertyDetailError}</p>
@@ -288,7 +289,7 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                 </div>
                 {loadingViews && loadingViewsBySource ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
+                    <Spinner size="md" />
                   </div>
                 ) : (
                   <>
