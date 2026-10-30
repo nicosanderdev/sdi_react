@@ -62,8 +62,22 @@ export function PublicFooter() {
           <div className="w-full sm:flex sm:items-center sm:justify-between">
             <FooterCopyright href="/" by="En cartelera™" year={2026} className="text-gray-600 dark:text-gray-400" />
             <div className="mt-4 flex space-x-6 sm:mt-0 sm:justify-center">
-              <FooterIcon href="#" icon={Facebook} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
-              <FooterIcon href="#" icon={Instagram} className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400" />
+              <FooterIcon
+                href="https://www.facebook.com/encartelerauy"
+                icon={Facebook}
+                ariaLabel="Facebook"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+              />
+              <FooterIcon
+                href="https://www.instagram.com/encartelerauy/"
+                icon={Instagram}
+                ariaLabel="Instagram"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+              />
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { PublicSection } from '../../components/public/PublicSection';
 import { EditorialTitle } from '../../components/public/EditorialTitle';
 
 const PLATFORM_NAME = 'En cartelera';
-const CONTACT_EMAIL = 'info@inmogestion.com';
+const CONTACT_EMAIL = 'admin@encartelera.uy';
 
 export function TermsAndConditionsPage() {
   return (

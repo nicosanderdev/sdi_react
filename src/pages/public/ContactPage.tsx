@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserIcon, MailIcon, MailOpenIcon, Send } from 'lucide-react';
+import { UserIcon, MailIcon, MailOpenIcon, Phone, Send, Facebook, Instagram } from 'lucide-react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
 import { Button, TextInput, Textarea, Alert, Label } from 'flowbite-react';
@@ -133,15 +133,74 @@ export function ContactPage() {
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
                 Información de contacto
               </h2>
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0 mt-1">
-                    <MailOpenIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <MailOpenIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Correo electrónico
+                      </h3>
+                      <a
+                        href="mailto:admin@encartelera.uy"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        admin@encartelera.uy
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      Correo electrónico
-                    </h3>
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">info@inmogestion.com</p>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Phone className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Teléfono
+                      </h3>
+                      <a
+                        href="tel:+59899205886"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        +598 99 205 886
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Instagram className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Instagram
+                      </h3>
+                      <a
+                        href="https://www.instagram.com/encartelerauy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        instagram.com/encartelerauy
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Facebook className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Facebook
+                      </h3>
+                      <a
+                        href="https://www.facebook.com/encartelerauy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        facebook.com/encartelerauy
+                      </a>
+                    </div>
                   </div>
                 </div>
             </div>
