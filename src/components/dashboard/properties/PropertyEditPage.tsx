@@ -12,7 +12,7 @@ import { PropertyFormStep3 } from './PropertyFormStep3';
 import { PropertyFormStep4Sections } from './PropertyFormStep4Sections';
 import { CancellationPolicyEditor } from './CancellationPolicyEditor';
 import { PropertyListingCopyFields } from './PropertyListingCopyFields';
-import { propertyFormSchema, PropertyFormData } from '../../../models/properties/PropertyFormSchema';
+import { propertyFormSchema, PropertyFormData, DEFAULT_CREATE_MAP_LOCATION } from '../../../models/properties/PropertyFormSchema';
 import propertyService from '../../../services/PropertyService';
 import type { DisplayImage } from './ImageManager';
 import type { DisplayDocument } from './DocumentManager';
@@ -22,6 +22,7 @@ import { getActiveModalitiesLabelsEs, listingTypeToFormPropertyType } from '../.
 import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import { useContactVerificationGate } from '../../../hooks/useContactVerificationGate';
 import { ContactVerificationGateBanner } from '../../user/ContactVerificationGateBanner';
+import { SuccessDisplay } from '../../ui/SuccessDisplay';
 import { supabase } from '../../../config/supabase';
 import { GLOBAL_MAX_PHOTOS_PER_PROPERTY } from '../../../utils/photoLimits';
 import { useSelector } from 'react-redux';
@@ -49,6 +50,7 @@ export function PropertyEditPage() {
   const queryClient = useQueryClient();
   const { needsVerification, isLoading: isVerificationLoading } = useContactVerificationGate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [view, setView] = useState<'form' | 'success'>('form');
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [displayImages, setDisplayImages] = useState<DisplayImage[]>([]);
@@ -59,7 +61,7 @@ export function PropertyEditPage() {
     resolver: zodResolver(propertyFormSchema as any),
     mode: 'onTouched',
     defaultValues: {
-      location: { lat: -34.9011, lng: -56.1645 },
+      location: { ...DEFAULT_CREATE_MAP_LOCATION },
       contentSections: [],
       propertyPolicies: [],
       hasGarage: false,
@@ -124,7 +126,7 @@ export function PropertyEditPage() {
       state: (property as any).state ?? '',
       zipCode: (property as any).zipCode ?? '',
       country: (property as any).country ?? '',
-      location: (property as any).location ?? { lat: -34.9011, lng: -56.1645 },
+      location: (property as any).location ?? { ...DEFAULT_CREATE_MAP_LOCATION },
       title: (property as any).title ?? '',
       description: (property as any).description ?? '',
       propertyType: inferredPropertyType,
@@ -217,13 +219,25 @@ export function PropertyEditPage() {
       queryClient.invalidateQueries({ queryKey: ['properties'] });
       queryClient.invalidateQueries({ queryKey: ['property', propertyId] });
       queryClient.invalidateQueries({ queryKey: ['admin-properties'] });
-      navigate(-1);
+      setView('success');
     } catch (e: any) {
       setApiError(e.message || 'No se pudieron guardar los cambios.');
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (view === 'success') {
+    return (
+      <Card className="min-h-full">
+        <SuccessDisplay
+          title="¡Actualización de propiedad exitosa!"
+          message="La propiedad ha sido actualizada correctamente."
+          redirectUrl={canWriteCustom ? '/dashboard/admin/properties' : '/dashboard/properties'}
+        />
+      </Card>
+    );
+  }
 
   if (!propertyId) return <div className="mt-8 text-center text-red-600">No se encontro la propiedad.</div>;
   if (isLoading || isVerificationLoading) {
