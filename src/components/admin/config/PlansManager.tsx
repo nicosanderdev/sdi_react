@@ -6,7 +6,6 @@ import {
   ModalBody,
   ModalHeader,
   Select,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +16,7 @@ import {
   ToggleSwitch,
 } from 'flowbite-react';
 import type { PropertyType } from '../../../models/properties/PropertyData';
+import { Spinner } from '../../ui/Spinner';
 import {
   listAdminPlans,
   upsertAdminPlan,

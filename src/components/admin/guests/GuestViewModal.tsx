@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Button, Label, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
 import { UserIcon, MailIcon, PhoneIcon, CalendarIcon } from 'lucide-react';
 import { UseAdminGuestsReturn } from '../../../hooks/useAdminGuests';
+import { Spinner } from '../../ui/Spinner';
 
 interface GuestViewModalProps {
   hook: UseAdminGuestsReturn;
@@ -21,7 +22,7 @@ export const GuestViewModal: React.FC<GuestViewModalProps> = ({ hook }) => {
       <ModalBody>
         {viewGuestLoading ? (
           <div className="flex justify-center py-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900 dark:border-white" />
+            <Spinner size="md" />
           </div>
         ) : viewModalError ? (
           <p className="text-red-600 dark:text-red-400">{viewModalError}</p>

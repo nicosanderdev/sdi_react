@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Spinner, Alert, Button, Card } from 'flowbite-react';
+import { Alert, Button, Card } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import { AlertCircle, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';

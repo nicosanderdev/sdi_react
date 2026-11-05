@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Card, Spinner } from 'flowbite-react';
+import { Card } from 'flowbite-react';
+import { Spinner } from '../../components/ui/Spinner';
 
 type StartState = 'loading' | 'redirecting' | 'error';
 

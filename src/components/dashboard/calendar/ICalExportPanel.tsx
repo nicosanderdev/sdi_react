@@ -13,9 +13,9 @@ import {
 import {
   Card,
   Button,
-  Alert,
-  Spinner
+  Alert
 } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import { CalendarSyncService } from '../../../services/CalendarSyncService';
 
 interface ICalExportPanelProps {

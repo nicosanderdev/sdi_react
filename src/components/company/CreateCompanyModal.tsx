@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Button, Label, TextInput, Textarea, Alert, ModalHeader, ModalBody, Spinner } from 'flowbite-react';
+import { Modal, Button, Label, TextInput, Textarea, Alert, ModalHeader, ModalBody } from 'flowbite-react';
+import { Spinner } from '../ui/Spinner';
 import { Building2, AlertCircle, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import companyService from '../../services/CompanyService';

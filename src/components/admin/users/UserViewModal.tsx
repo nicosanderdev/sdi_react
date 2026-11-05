@@ -3,6 +3,7 @@ import React from 'react';
 import { Modal, Button, Label, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
 import { UserIcon, MailIcon, PhoneIcon } from 'lucide-react';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
+import { Spinner } from '../../ui/Spinner';
 
 interface UserViewModalProps {
   hook: UseAdminUsersReturn;
@@ -28,7 +29,7 @@ export const UserViewModal: React.FC<UserViewModalProps> = ({ hook }) => {
       <ModalBody>
         {viewUserLoading ? (
           <div className="flex justify-center py-10">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900 dark:border-white" />
+            <Spinner size="md" />
           </div>
         ) : viewModalError ? (
           <p className="text-red-600 dark:text-red-400">{viewModalError}</p>

@@ -6,7 +6,6 @@ import {
   ModalBody,
   ModalHeader,
   Select,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +16,7 @@ import {
   Textarea,
   ToggleSwitch,
 } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import {
   listAppParameters,
   softDeleteAppParameter,

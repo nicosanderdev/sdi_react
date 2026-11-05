@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ShieldCheck, ShieldOff, Loader2, Trash2, MailCheck } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Trash2, MailCheck } from 'lucide-react';
+import { Spinner } from '../ui/Spinner';
 import { Link } from 'react-router-dom';
 import { ActionType, TwoFactorAuthModal, TwoFactorStep } from './2FaModal';
 import AuthService from '../../services/AuthService';
@@ -128,7 +129,7 @@ export function UserSettings() {
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-64">
-                <Loader2 className="animate-spin h-8 w-8 text-[#62B6CB]" />
+                <Spinner size="md" />
             </div>
         );
     }
@@ -156,7 +157,7 @@ export function UserSettings() {
                             >
                                 {isResendingEmail ? (
                                     <>
-                                        <Loader2 size={16} className="mr-2 animate-spin" />
+                                        <Spinner size="sm" className="mr-2" />
                                         Enviando...
                                     </>
                                 ) : (

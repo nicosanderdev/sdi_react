@@ -1,5 +1,6 @@
 import React, { useState, useRef, ChangeEvent, FormEvent } from 'react';
-import { Card, Button, Label, TextInput, Textarea, Spinner, Alert } from 'flowbite-react';
+import { Card, Button, Label, TextInput, Textarea, Alert } from 'flowbite-react';
+import { Spinner } from '../ui/Spinner';
 import { 
   Building2, 
   Edit3, 

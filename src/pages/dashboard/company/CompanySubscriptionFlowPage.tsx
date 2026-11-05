@@ -3,7 +3,8 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../../store/store';
 import { fetchUserProfile } from '../../../store/slices/userSlice';
-import { Card, Button, Spinner, Alert, Select } from 'flowbite-react';
+import { Card, Button, Alert, Select } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import {
     Building2,
     Crown,

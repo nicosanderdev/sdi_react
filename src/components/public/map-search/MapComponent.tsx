@@ -5,6 +5,7 @@ import { resolveAssetUrl } from '../../../utils/resolveAssetUrl';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useRef } from 'react';
+import { Spinner } from '../../ui/Spinner';
 
 function MapEvents({ setMapBounds }: { setMapBounds: (bounds: L.LatLngBoundsExpression) => void }) {
     const initialBoundsSet = useRef(false);
@@ -198,7 +199,7 @@ const MapComponent = ({
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] 
                           bg-white dark:bg-gray-800 shadow-lg rounded-lg px-6 py-3 
                           flex items-center gap-3 border border-gray-200 dark:border-gray-700">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                <Spinner size="sm" />
                 <span className="text-gray-700 dark:text-gray-200 font-medium">
                     Loading properties...
                 </span>

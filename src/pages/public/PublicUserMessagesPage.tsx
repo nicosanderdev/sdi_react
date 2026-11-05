@@ -10,6 +10,7 @@ import {
   
 } from 'lucide-react';
 import messageService, { Message } from '../../services/MessageService';
+import { Spinner } from '../../components/ui/Spinner';
 
 export function PublicUserMessagesPage() {
   const user = useSelector((state: RootState) => state.user.profile);
@@ -133,7 +134,7 @@ export function PublicUserMessagesPage() {
               <div className="max-h-[70vh] overflow-y-auto">
                 {isLoading ? (
                   <div className="p-8 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1B4965] mx-auto"></div>
+                    <Spinner size="md" className="mx-auto" />
                     <p className="text-gray-500 mt-2">Cargando mensajes...</p>
                   </div>
                 ) : filteredMessages.length === 0 ? (

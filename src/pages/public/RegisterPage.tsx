@@ -243,6 +243,7 @@ export function RegisterPage() {
   return (
     <PublicLayout>
       <AuthCard
+        className="max-w-lg"
         title="Crear una cuenta"
         subtitle="Únete a nuestra plataforma"
         icon={<UserPlus className="w-8 h-8 text-green-600 dark:text-green-400" />}
@@ -419,7 +420,7 @@ export function RegisterPage() {
                     ? 'border-red-400 bg-red-50 ring-2 ring-red-300 dark:border-red-500 dark:bg-red-900/20 dark:ring-red-600'
                     : acceptedTerms
                       ? 'border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
-                      : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-700/40'
+                      : 'border-gray-200 bg-gray-50 dark:border-gray-600 dark:bg-gray-900'
                 }`}
               >
                 <label htmlFor="terms" className="flex cursor-pointer items-start gap-3">

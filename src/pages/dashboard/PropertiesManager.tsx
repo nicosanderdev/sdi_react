@@ -1,5 +1,6 @@
 import { useState, useMemo, memo } from 'react';
-import { PlusIcon, RefreshCwIcon, Loader2Icon } from 'lucide-react';
+import { PlusIcon, RefreshCwIcon } from 'lucide-react';
+import { Spinner } from '../../components/ui/Spinner';
 import { useQuery } from '@tanstack/react-query';
 import { AddPropertyForm } from './AddPropertyForm';
 import subscriptionService from '../../services/SubscriptionService';
@@ -354,7 +355,7 @@ const PropertiesManagerComponent = () => {
               <Button color="red" onClick={() => void confirmDeleteProperty()} disabled={actionLoading}>
                 {actionLoading ? (
                   <>
-                    <Loader2Icon size={16} className="animate-spin mr-2" />
+                    <Spinner size="sm" className="mr-2" />
                     Eliminando...
                   </>
                 ) : (

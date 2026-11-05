@@ -21,10 +21,10 @@ import {
   Select,
   Badge,
   Alert,
-  Spinner,
   Tooltip
 } from 'flowbite-react';
 import { CalendarSyncService } from '../../../services/CalendarSyncService';
+import { Spinner } from '../../ui/Spinner';
 import {
   CalendarIntegration,
   PlatformType,

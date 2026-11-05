@@ -6,6 +6,7 @@ import { ChangePasswordModal } from '../../components/user/ChangePasswordModal';
 import { EmailPhoneVerificationModal } from '../../components/user/EmailPhoneVerificationModal';
 import type { VerificationIntent, VerificationType } from '../../components/user/EmailPhoneVerificationModal';
 import { IconWrapper } from '../../components/ui/IconWrapper';
+import { Spinner } from '../../components/ui/Spinner';
 import { Button, Card, Label, TextInput } from 'flowbite-react';
 import { fetchUserProfile } from '../../store/slices/userSlice';
 import { resolveAssetUrl } from '../../utils/resolveAssetUrl';
@@ -257,7 +258,7 @@ export function UserProfile() {
                 title="Change profile picture"
                 disabled={isAvatarUploading}
               >
-                {isAvatarUploading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <IconWrapper icon={CameraIcon} hoverable={true} size={30} />}
+                {isAvatarUploading ? <Spinner size="sm" tone="inverse" /> : <IconWrapper icon={CameraIcon} hoverable={true} size={30} />}
               </button>
             </div>
             <h2 className="text-xl font-semibold mt-4">{currentData.firstName} {currentData.lastName}</h2>
@@ -386,7 +387,7 @@ export function UserProfile() {
                     disabled={isUpdating}>
                     {isUpdating ? (
                         <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            <Spinner size="sm" tone="inverse" className="mr-2" />
                             Guardando...
                         </>
                     ) : (

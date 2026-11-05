@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { DownloadIcon, BarChartIcon, Loader2Icon, TrendingUpIcon, TrendingDownIcon, Percent } from 'lucide-react';
+import { DownloadIcon, BarChartIcon, TrendingUpIcon, TrendingDownIcon, Percent } from 'lucide-react';
+import { Spinner } from '../../components/ui/Spinner';
 import { VisitsBySourceChart } from '../../components/reports/VisitsBySourceChart';
 import { VisitsByDateChart } from '../../components/reports/VisitsByDateChart';
 import { PropertiesPerformanceTable } from '../../components/reports/PropertiesPerformanceTable';
@@ -230,7 +231,7 @@ export function ReportsAndMetrics() {
           <div className="p-2 bg-[#BEE9E8]/60 dark:bg-blue-900/30 rounded-full">{icon}</div>
         </div>
         {isLoading ? (
-          <Loader2Icon className="h-8 w-8 text-[#62B6CB] animate-spin" />
+          <Spinner size="md" />
         ) : (
           <div data-testid={testId ? `${testId}-value` : undefined} className="text-3xl font-bold">{value}</div>
         )}
@@ -335,7 +336,7 @@ export function ReportsAndMetrics() {
           <h2 className="text-xl font-semibold mb-6">Visitas por Día</h2>
           <div className="h-80">
             {isLoadingDailyVisits ? (
-              <div className="flex items-center justify-center h-full"><Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" /></div>
+              <div className="flex items-center justify-center h-full"><Spinner size="lg" /></div>
             ) : dailyVisits.length > 0 ? (
               <VisitsByDateChart data={dailyVisits} />
             ) : (
@@ -347,7 +348,7 @@ export function ReportsAndMetrics() {
           <h2 className="text-xl font-semibold mb-6">Visitas por Fuente</h2>
           <div className="h-80">
             {isLoadingVisitsBySource ? (
-              <div className="flex items-center justify-center h-full"><Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" /></div>
+              <div className="flex items-center justify-center h-full"><Spinner size="lg" /></div>
             ) : visitsBySource.length > 0 ? (
               <VisitsBySourceChart data={visitsBySource} />
             ) : (
@@ -361,7 +362,7 @@ export function ReportsAndMetrics() {
         <h2 className="text-xl font-semibold mb-6">Rendimiento por propiedad</h2>
         {isLoadingPropertiesPerf ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2Icon className="h-12 w-12 text-[#62B6CB] animate-spin" />
+            <Spinner size="lg" />
           </div>
         ) : (
           <PropertiesPerformanceTable properties={propertiesPerformance} showBySite />
