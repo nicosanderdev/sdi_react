@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { Card, Button, Spinner } from 'flowbite-react';
+import { Card, Button } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import { CheckCircle } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUserProfile, selectUserCompanies, selectUserProfile, selectUserStatus } from '../../../store/slices/userSlice';

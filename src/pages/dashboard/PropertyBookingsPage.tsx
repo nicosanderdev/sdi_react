@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
-  Loader2,
   Save,
   X,
   RefreshCw,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Alert, Button, Card } from 'flowbite-react';
 import DashboardPageTitle from '../../components/dashboard/DashboardPageTitle';
+import { Spinner } from '../../components/ui/Spinner';
 import { PropertyData } from '../../models/properties';
 import BookingService, { BookingWithMember } from '../../services/BookingService';
 import { AvailabilityBlock } from '../../models/calendar/CalendarSync';
@@ -226,7 +226,7 @@ const PropertyBookingsPage: React.FC = () => {
   if (state.isLoading) {
     return (
       <div className="flex justify-center items-center min-h-96">
-        <Loader2 className="animate-spin h-8 w-8 text-[#62B6CB]" />
+        <Spinner size="md" />
         <span className="ml-2">Cargando reservas...</span>
       </div>
     );

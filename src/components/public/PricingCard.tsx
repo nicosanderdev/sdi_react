@@ -24,7 +24,7 @@ export function PricingCard({
 }: PricingCardProps) {
   return (
     <div
-      className={`relative bg-white dark:bg-gray-800 rounded-xl shadow-sm p-8 cursor-pointer transition-all border-2 ${
+      className={`relative bg-white dark:bg-gray-900 rounded-xl shadow-sm p-8 cursor-pointer transition-all border-2 ${
         selected
           ? 'ring-2 ring-green-600 border-green-600 shadow-lg'
           : popular
@@ -67,7 +67,7 @@ export function PricingCard({
         className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
           selected
             ? 'bg-green-600 text-white hover:bg-green-700'
-            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+            : 'bg-gray-100 dark:bg-gray-950 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-green-800'
         }`}
         onClick={onSelect}
       >

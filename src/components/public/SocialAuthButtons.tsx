@@ -31,7 +31,7 @@ export function SocialAuthButtons({
         type="button"
         onClick={onGoogle}
         color="light"
-        className="w-full flex items-center justify-center gap-3"
+        className="w-full flex items-center justify-center gap-3 dark:bg-gray-900! dark:hover:bg-green-800!"
         disabled={disabled}
       >
         <GoogleIcon />

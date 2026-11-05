@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Label, Select, Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput } from 'flowbite-react';
+import { Alert, Badge, Button, Card, Label, Select, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import { Search } from 'lucide-react';
 import { AdminReceiptRow, ReceiptFilterStatus } from '../../../services/PaymentsAdminService';
 import { ReceiptDetailsModal } from './ReceiptDetailsModal';

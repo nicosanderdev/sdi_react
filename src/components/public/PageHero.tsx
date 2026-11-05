@@ -18,7 +18,7 @@ export function PageHero({ title, subtitle, primaryCta, secondaryCta, children }
   return (
     <section className="bg-white dark:bg-gray-900 py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto text-center">
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-light tracking-tight text-gray-900 dark:text-white mb-6">
           {title}
         </h1>
         {subtitle && (
@@ -31,7 +31,7 @@ export function PageHero({ title, subtitle, primaryCta, secondaryCta, children }
             {primaryCta && (
               <a
                 href={primaryCta.href}
-                className="bg-green-600 text-white px-8 py-4 rounded-xl hover:bg-green-700 transition-colors text-lg font-semibold shadow-md"
+                className="bg-green-600 text-white px-8 py-4 rounded-full hover:bg-green-700 transition-colors text-lg font-semibold shadow-md"
               >
                 {primaryCta.text}
               </a>

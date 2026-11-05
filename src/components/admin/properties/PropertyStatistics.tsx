@@ -1,6 +1,7 @@
 // src/components/admin/properties/PropertyStatistics.tsx
 import React from 'react';
-import { HomeIcon, EyeIcon, EyeOffIcon, ArchiveIcon, Loader2Icon } from 'lucide-react';
+import { HomeIcon, EyeIcon, EyeOffIcon, ArchiveIcon } from 'lucide-react';
+import { Spinner } from '../../ui/Spinner';
 import { PropertyStatistics as PropertyStatisticsData } from '../../../services/PropertyAdminService';
 
 interface PropertyStatisticsHook {
@@ -66,7 +67,7 @@ const StatCard: React.FC<StatCardProps> = ({
         </div>
         <div className={`p-2 ${getBgColor(color)} rounded-lg`}>
           {loading ? (
-            <Loader2Icon className={`w-6 h-6 ${getTextColor(color)} animate-spin`} />
+            <Spinner size="sm" />
           ) : (
             <div className={getTextColor(color)}>
               {icon}

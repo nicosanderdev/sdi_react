@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserIcon, MailIcon, MailOpenIcon, Send } from 'lucide-react';
+import { UserIcon, MailIcon, MailOpenIcon, Phone, Send, Facebook, Instagram } from 'lucide-react';
 import { PublicLayout } from '../../components/layout/PublicLayout';
 import { PublicSection } from '../../components/public/PublicSection';
 import { Button, TextInput, Textarea, Alert, Label } from 'flowbite-react';
@@ -43,14 +43,15 @@ export function ContactPage() {
     <PublicLayout>
       <PublicSection background="white">
         <div className="text-center mb-16">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">Contacto</h1>
+          <h1 className="text-5xl md:text-6xl font-light tracking-tight text-gray-900 dark:text-white mb-4">
+            Contacto
+          </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Escríbenos para dudas sobre la plataforma, portales de alquiler o espacios para eventos. Te responderemos lo
-            antes posible.
+            Escribinos si tenés una casa o un espacio para eventos y querés publicarlo. Te respondemos lo antes posible.
           </p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-950 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-green-50 dark:bg-green-900/20 rounded-xl mb-6">
               <Send className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
@@ -58,7 +59,7 @@ export function ContactPage() {
               Envíanos un mensaje
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
-              Completa los campos obligatorios. Cuanto más concreto sea tu mensaje, mejor podremos ayudarte.
+              Completá los campos obligatorios. Cuanto más concreto sea el mensaje, mejor te podemos orientar.
             </p>
 
             {showSuccess && (
@@ -128,37 +129,95 @@ export function ContactPage() {
           </div>
 
           <div className="space-y-8">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-950 p-8 rounded-xl shadow-md border border-gray-100 dark:border-gray-700">
               <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
                 Información de contacto
               </h2>
-                <div className="flex items-start space-x-4">
-                  <div className="flex-shrink-0 mt-1">
-                    <MailOpenIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="space-y-6">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <MailOpenIcon className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Correo electrónico
+                      </h3>
+                      <a
+                        href="mailto:admin@encartelera.uy"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        admin@encartelera.uy
+                      </a>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">
-                      Correo electrónico
-                    </h3>
-                    <p className="mt-1 text-gray-600 dark:text-gray-400">info@inmogestion.com</p>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Phone className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Teléfono
+                      </h3>
+                      <a
+                        href="tel:+59899205886"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        +598 99 205 886
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Instagram className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Instagram
+                      </h3>
+                      <a
+                        href="https://www.instagram.com/encartelerauy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        instagram.com/encartelerauy
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0 mt-1">
+                      <Facebook className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">
+                        Facebook
+                      </h3>
+                      <a
+                        href="https://www.facebook.com/encartelerauy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                      >
+                        facebook.com/encartelerauy
+                      </a>
+                    </div>
                   </div>
                 </div>
             </div>
 
-            <div className="bg-gray-600  text-white p-8 rounded-xl">
+            <div className="bg-gray-600 dark:bg-green-800 text-white p-8 rounded-xl">
               <h3 className="text-2xl font-semibold mb-4">
-                ¿Quieres ver la plataforma en acción?
+                ¿Tenés una propiedad para publicar?
               </h3>
               <p className="mb-6 text-gray-300">
-                Agenda una demostración y descubre cómo centralizar la gestión de tus portales de alquiler temporal y de
-                espacios para eventos.
+                Creá la cuenta y cargá la casa o el espacio. Si preferís escribirnos antes, el formulario de al lado llega al mismo equipo.
               </p>
               <Button
-                href="/"
+                href="/register"
                 color="success"
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 rounded-full"
               >
-                Solicitar demostración
+                Publicá tu propiedad
               </Button>
             </div>
           </div>

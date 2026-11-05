@@ -12,6 +12,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { Button, Card, Badge } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import { CalendarSyncService, SyncOrchestratorService } from '../../../services/CalendarSyncService';
 import { PlatformType, PropertySyncStatusApiResponse } from '../../../models/calendar/CalendarSync';
 
@@ -274,7 +275,7 @@ const SyncStatusBar: React.FC<SyncStatusBarProps> = ({
               disabled={isSyncing}
             >
               {isSyncing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Spinner size="sm" className="mr-2" />
               ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
               )}

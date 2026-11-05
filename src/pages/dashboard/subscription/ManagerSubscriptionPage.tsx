@@ -10,7 +10,8 @@ import {
 import subscriptionService from '../../../services/SubscriptionService';
 import { SubscriptionData } from '../../../models/subscriptions/SubscriptionData';
 import { BillingHistoryData } from '../../../models/subscriptions/BillingHistoryData';
-import { Button, Card, Spinner } from 'flowbite-react';
+import { Button, Card } from 'flowbite-react';
+import { Spinner } from '../../../components/ui/Spinner';
 import { PlanKey } from '../../../models/subscriptions/PlanKey';
 import { usePropertyQuota } from '../../../hooks/usePropertyQuota';
 import type { PropertyType } from '../../../models/properties/PropertyData';

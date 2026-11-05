@@ -1,4 +1,5 @@
-import { KeyRound, Loader2, ShieldCheck, X } from "lucide-react";
+import { KeyRound, ShieldCheck, X } from "lucide-react";
+import { Spinner } from "../ui/Spinner";
 import { useState, useEffect } from "react";
 import { TwoFactorInput } from '../public/TwoFactorInput';
 
@@ -99,7 +100,7 @@ export function TwoFactorAuthModal({
             <div className="flex justify-end space-x-3 pt-2">
               <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm">Cancelar</button>
               <button type="submit" disabled={isSubmitting || !password} className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#47A9C2] transition-colors text-sm disabled:opacity-50 flex items-center">
-                {isSubmitting && <Loader2 className="animate-spin h-4 w-4 mr-2" />}
+                {isSubmitting && <Spinner size="sm" className="mr-2" />}
                 Confirmar
               </button>
             </div>
@@ -125,7 +126,7 @@ export function TwoFactorAuthModal({
             <div className="flex justify-end space-x-3 pt-2">
               <button type="button" onClick={onClose} disabled={isSubmitting} className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors text-sm">Cancelar</button>
               <button type="submit" disabled={isSubmitting || code.length < 6} className="bg-[#62B6CB] text-[#FDFFFC] px-4 py-2 rounded-md hover:bg-[#47A9C2] transition-colors text-sm disabled:opacity-50 flex items-center">
-                {isSubmitting && <Loader2 className="animate-spin h-4 w-4 mr-2" />}
+                {isSubmitting && <Spinner size="sm" className="mr-2" />}
                 Verificar y {actionType === 'enable' ? 'Habilitar' : 'Deshabilitar'}
               </button>
             </div>

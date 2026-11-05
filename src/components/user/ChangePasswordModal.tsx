@@ -2,6 +2,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import { XIcon, EyeIcon, EyeOffIcon, ShieldCheckIcon, KeyRoundIcon, LockKeyholeIcon } from 'lucide-react';
 import authService, { TwoFaPayload, ValidateRecoveryPayload } from '../../services/AuthService';
 import { Button, Card, Label } from 'flowbite-react';
+import { Spinner } from '../ui/Spinner';
 import { supabase } from '../../config/supabase';
 
 // Steps of the modal flow
@@ -166,7 +167,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
     case 'INITIAL_LOADING':
         return (
           <div className="text-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <Spinner size="md" className="mx-auto mb-4" />
             <p>Verificando requisitos de seguridad...</p>
           </div>
         );
@@ -183,7 +184,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                 type="submit" 
                 disabled={isSubmitting} 
                 className='w-full mx-auto'>
-              {isSubmitting ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <><ShieldCheckIcon size={18} className="mr-2"/> Verificar código</>}
+              {isSubmitting ? <Spinner size="sm" tone="inverse" /> : <><ShieldCheckIcon size={18} className="mr-2"/> Verificar código</>}
             </Button>
             <Button 
                 type="button" 
@@ -204,7 +205,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                   <input id="recoveryCode" type="text" value={recoveryCode} onChange={(e) => setRecoveryCode(e.target.value)} required className="pl-3 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#62B6CB]" />
               </div>
               <button type="submit" disabled={isSubmitting} className="w-full bg-[#62B6CB] text-white py-2 rounded-lg hover:bg-[#47A9C2] disabled:opacity-50 flex items-center justify-center">
-                {isSubmitting ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : <><KeyRoundIcon size={18} className="mr-2"/> Usar código</>}
+                {isSubmitting ? <Spinner size="sm" tone="inverse" /> : <><KeyRoundIcon size={18} className="mr-2"/> Usar código</>}
               </button>
               <button type="button" onClick={() => setStep('REQUIRE_2FA')} className="w-full text-center text-sm text-[#1B4965] hover:underline">
                 Volver a verificación por correo
@@ -232,7 +233,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswo
                         disabled={isSubmitting || newPassword === '' || confirmNewPassword === '' || newPassword.length < 8 || passwordMismatchError !== null}
                         className='mx-auto w-full'>
                         {isSubmitting ? 
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> 
+                        <Spinner size="sm" tone="inverse" /> 
                         : <>
                             <LockKeyholeIcon size={18} className="mr-2"/>
                             Guardar nueva contraseña

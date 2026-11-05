@@ -33,7 +33,7 @@ const STEPS: Step[] = [
     label: 'PASO - 01',
     title: 'Crear propiedad',
     description:
-      'Carga los datos básicos de tu inmueble o venue, añade fotos y publica el anuncio en minutos.',
+      'Cargá los datos de tu casa o de tu espacio, sumá fotos y publicá la ficha.',
     previews: [
       { label: 'Formulario de propiedad', youtubeId: 'GkI7L_jGUOU' },
       { label: 'Tipos de propiedades', youtubeId: '5qo5rg9Weno' },
@@ -47,7 +47,7 @@ const STEPS: Step[] = [
     label: 'PASO - 02',
     title: 'Proceso de reserva',
     description:
-      'Recibe solicitudes, confirma disponibilidad y gestiona el ciclo de la reserva desde un solo panel.',
+      'Recibí la solicitud, confirmá la disponibilidad y seguí la reserva desde el panel.',
     previews: [{ label: 'Flujo de confirmación' }],
     videoTitle: 'Cómo gestionar una reserva',
     videoMeta: '00:52',
@@ -58,7 +58,7 @@ const STEPS: Step[] = [
     label: 'PASO - 03',
     title: 'Administración de calendario',
     description:
-      'Mantén calendarios y disponibilidad alineados entre tu portal y canales externos sin trabajo duplicado.',
+      'Mantené el calendario de tu casa o de tu espacio alineado con otros canales, sin cargar la disponibilidad dos veces.',
     previews: [
       { label: 'Administrar mi calendario' },
       { label: 'Canales conectados' },
@@ -97,19 +97,19 @@ export function HowToSection() {
               Cómo funciona
               <ArrowRight className="w-3.5 h-3.5" />
             </span>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
-              Nuestros procesos simples
+            <h1 className="text-4xl md:text-5xl font-light tracking-tight text-gray-900 dark:text-white mb-4">
+              Publicar es <span className="font-bold text-green-600 dark:text-green-400">simple</span>
             </h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mb-6 max-w-lg">
-              Sigue estos tres pasos para publicar, reservar y sincronizar tu oferta sin complicaciones.
+              Seguí estos pasos para cargar tu casa o tu espacio, recibir reservas y mantener el calendario.
             </p>
-            <Button as={Link} to="/contact" color="green">
-              Empezar
+            <Button as={Link} to="/register" color="green" className="rounded-full">
+              Publicá tu propiedad
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-800 to-gray-950 aspect-video shadow-md">
+          <div className="relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-900 to-gray-950 aspect-video shadow-md">
             {youtubeId ? (
               <iframe
                 key={youtubeId}
@@ -160,7 +160,7 @@ export function HowToSection() {
                     className={`hidden lg:flex absolute -left-10 top-6 h-8 w-8 -translate-x-1/2 items-center justify-center rounded-full border-2 transition-colors ${
                       isActive
                         ? 'bg-green-600 border-green-600 text-white'
-                        : 'bg-white dark:bg-gray-800 border-green-500/50 text-green-600 dark:text-green-400'
+                        : 'bg-white dark:bg-gray-900 border-green-500/50 text-green-600 dark:text-green-400'
                     }`}
                     aria-hidden
                   >
@@ -180,8 +180,8 @@ export function HowToSection() {
                     aria-pressed={isActive}
                     className={`w-full text-left rounded-2xl border p-5 md:p-6 transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-white dark:bg-gray-800 border-green-500 shadow-md opacity-100'
-                        : 'bg-white/70 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-80'
+                        ? 'bg-white dark:bg-gray-900 border-green-500 shadow-md opacity-100'
+                        : 'bg-white/70 dark:bg-gray-900/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-80'
                     }`}
                   >
                     <p className="text-xs font-semibold tracking-wide text-green-600 dark:text-green-400 mb-2">
@@ -205,8 +205,8 @@ export function HowToSection() {
                               isPreviewActive
                                 ? 'border-green-100 dark:border-green-900/40 bg-green-50 dark:bg-green-900/20'
                                 : isActive
-                                  ? 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 hover:border-green-200 dark:hover:border-green-800'
-                                  : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40'
+                                  ? 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 hover:border-green-200 dark:hover:border-green-800'
+                                  : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-950'
                             }`}
                           >
                             <StepIcon

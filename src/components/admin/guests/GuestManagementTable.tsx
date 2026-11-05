@@ -1,6 +1,7 @@
 import React from 'react';
 import { Table, TableHead, TableHeadCell, TableBody, TableCell, TableRow } from 'flowbite-react';
-import { ChevronUpIcon, ChevronDownIcon, Loader2Icon } from 'lucide-react';
+import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
+import { Spinner } from '../../ui/Spinner';
 import { GuestListItem } from '../../../services/GuestAdminService';
 import { GuestSortField, UseAdminGuestsReturn } from '../../../hooks/useAdminGuests';
 
@@ -44,7 +45,7 @@ export const GuestManagementTable: React.FC<GuestManagementTableProps> = ({ hook
   if (loading && guests.length === 0) {
     return (
       <div className="flex justify-center items-center py-12" data-testid="admin-guests-table">
-        <Loader2Icon className="w-8 h-8 animate-spin text-gray-400" />
+        <Spinner size="md" />
       </div>
     );
   }

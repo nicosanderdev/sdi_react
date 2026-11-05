@@ -4,10 +4,10 @@ import { Table, Badge, TableHead, TableHeadCell, TableBody, TableCell, TableRow 
 import {
   ChevronUpIcon,
   ChevronDownIcon,
-  Loader2Icon,
   HomeIcon,
 } from 'lucide-react';
 import { AdminPropertyListItem } from '../../../services/PropertyAdminService';
+import { Spinner } from '../../ui/Spinner';
 import { SortConfig, SortField } from '../../../hooks/useAdminProperties';
 
 interface PropertyManagementTableHook {
@@ -112,7 +112,7 @@ export const PropertyManagementTable: React.FC<PropertyManagementTableProps> = (
   if (loading && properties.length === 0) {
     return (
       <div className="flex justify-center items-center py-12">
-        <Loader2Icon className="w-8 h-8 animate-spin text-gray-400" />
+        <Spinner size="md" />
       </div>
     );
   }

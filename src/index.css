@@ -179,3 +179,56 @@ animation: pulse-slow 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 .dark .react-calendar__month-view__days__day--neighboringMonth {
   @apply text-gray-600;
 }
+
+.public-shell {
+  font-family: 'Manrope', system-ui, sans-serif;
+}
+
+/* Public dark mode only uses gray-900, gray-950, and green. Flowbite fields default to gray-700. */
+.dark .public-shell :is(input, textarea, select):not([type='checkbox']):not([type='radio']):not([type='file']):not([type='range']) {
+  background-color: var(--color-gray-900);
+}
+
+/* Casa loading spinner: house outline draws, then a green check. */
+.casa-spinner__stroke,
+.casa-spinner__tick {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+.casa-spinner__stroke {
+  stroke-width: 2;
+  animation: casa-draw 2.6s ease-in-out infinite;
+}
+
+.casa-spinner__tick {
+  stroke-width: 2.5;
+  animation: casa-tick 2.6s ease-in-out infinite;
+}
+
+@keyframes casa-draw {
+  0% { stroke-dashoffset: 100; }
+  42% { stroke-dashoffset: 0; }
+  78% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 100; }
+}
+
+@keyframes casa-tick {
+  0%, 38% { stroke-dashoffset: 100; opacity: 0; }
+  52% { stroke-dashoffset: 0; opacity: 1; }
+  78% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 100; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casa-spinner__stroke,
+  .casa-spinner__tick {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}

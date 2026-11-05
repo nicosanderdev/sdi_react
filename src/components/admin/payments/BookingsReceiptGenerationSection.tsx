@@ -1,4 +1,5 @@
-import { Alert, Badge, Button, Card, Label, Spinner, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput, Select } from 'flowbite-react';
+import { Alert, Badge, Button, Card, Label, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, TextInput, Select } from 'flowbite-react';
+import { Spinner } from '../../ui/Spinner';
 import { Search } from 'lucide-react';
 import {
   AdminOperationType,

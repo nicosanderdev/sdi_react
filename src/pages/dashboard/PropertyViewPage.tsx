@@ -16,7 +16,6 @@ import {
     EyeOff,
     Wrench,
     Info,
-    Loader2,
     Play,
     ExternalLink,
     Lock,
@@ -27,6 +26,7 @@ import {
     Copy
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Spinner } from '../../components/ui/Spinner';
 import propertyService from '../../services/PropertyService';
 import { Button, Card, Modal, ModalBody, ModalFooter, ModalHeader, Dropdown, DropdownItem } from 'flowbite-react';
 import { PropertyData } from '../../models/properties/PropertyData';
@@ -197,7 +197,7 @@ export function PropertyViewPage() {
     if (loading) {
         return (
             <div className="flex justify-center items-center min-h-screen">
-                <Loader2 className="animate-spin text-[#1B4965]" size={48} />
+                <Spinner size="lg" />
                 <span className="ml-4 text-xl text-[#1B4965]">Cargando propiedad...</span>
             </div>
         );
@@ -717,7 +717,7 @@ export function PropertyViewPage() {
                     onClick={handleDuplicateProperty}
                     disabled={duplicating}
                 >
-                    {duplicating && <Loader2 className="animate-spin mr-2" size={16} />}
+                    {duplicating && <Spinner size="sm" className="mr-2" />}
                     {duplicating ? 'Duplicando...' : 'Duplicar'}
                 </Button>
             </ModalFooter>

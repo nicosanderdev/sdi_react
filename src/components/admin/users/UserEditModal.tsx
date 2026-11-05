@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Button, Label, TextInput, Alert, ModalHeader, ModalBody, ModalFooter } from 'flowbite-react';
 import { UseAdminUsersReturn } from '../../../hooks/useAdminUsers';
+import { Spinner } from '../../ui/Spinner';
 
 interface UserEditModalProps {
   hook: UseAdminUsersReturn;
@@ -64,7 +65,7 @@ export const UserEditModal: React.FC<UserEditModalProps> = ({ hook }) => {
         <div data-testid="admin-edit-user-modal">
           {editUserLoading ? (
             <div className="flex justify-center py-10">
-              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900 dark:border-white" />
+              <Spinner size="md" />
             </div>
           ) : editModalError && !editUser ? (
             <p className="text-red-600 dark:text-red-400">{editModalError}</p>

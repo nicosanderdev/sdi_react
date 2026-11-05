@@ -114,7 +114,7 @@ export function DashboardSidebar() {
           img="/logo-en-cartelera.png"
           imgAlt="En cartelera"
         >
-          En cartelera - Panel
+          EnCartelera - Panel
         </SidebarLogo>
         <SidebarItems>
           {isAdmin ? (
